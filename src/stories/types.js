@@ -284,6 +284,25 @@ story('types/pick-screen-motion', {
   },
 });
 
+story('types/pick-screen-squeeze-onto-locked-card', {
+  about: 'Turned onto a locked card while Play squeezes, nothing starts and Play is pressable again; back on an open card it starts the run.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true, { feats: { elites: 4 } }), calm = juice.calm;
+    try {
+      pressPlay('normal');
+      juice.calm = false;
+      let timer = null;
+      stub(window, 'setTimeout', (fn) => { timer = fn; return 1; });
+      picker.confirm(); picker.go(picker.ids.indexOf('glitter')); timer();
+      const held = picker.isOpen && !picker.confirming && !picker.panel.play.classList.contains('tp-squeeze');
+      picker.go(0); timer = null; picker.confirm(); timer?.();
+      const again = !picker.isOpen;
+      return ok(held && again, { held, again });
+    } finally { juice.calm = calm; back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-screen-locked-card-says-how-to-open', {
   about: 'Every locked card says how to open it in one short line on its portrait ("Finish act 1", "Defeat 9 Elites"), read from the type\'s unlock; open cards say nothing. The arrows step the row (the first hides its Back arrow, the last its Next) and the dots follow the centre card.',
   setup() {},

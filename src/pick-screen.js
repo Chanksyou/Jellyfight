@@ -213,7 +213,8 @@ export class TypePicker {
     if (this.calm()) { this.play(); return; }
     this.confirming = true;
     this.panel.play.classList.add('tp-squeeze');
-    setTimeout(() => { if (this.confirming) this.play(); }, LOOK.num('pick-squeeze', 0.08) * 1000);
+    // (the row can move during the squeeze: on a locked card nothing starts and Play is pressable again)
+    setTimeout(() => { if (!this.confirming) return; this.confirming = false; if (!this.play()) this.panel.play.classList.remove('tp-squeeze'); }, LOOK.num('pick-squeeze', 0.08) * 1000);
   }
 
   // Play: start a run as the centre type. A locked type can't be played.
