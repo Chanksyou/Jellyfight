@@ -166,7 +166,7 @@ story('payoff/death-hint-acts-1-and-2', {
       stub(run, 'stage', { ...run.stage, id: act });
       run.phase = phase;
       run.endRun('You dried out', 'dead', 'Try again');
-      const hints = [...modal().querySelectorAll('.jf-hint')].map((h) => h.textContent.replace('💡', '').trim());
+      const hints = [...modal().querySelectorAll('.jf-hint')].map((h) => h.textContent.trim());
       menus.close();
       return hints;
     };

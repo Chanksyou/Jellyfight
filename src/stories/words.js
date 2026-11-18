@@ -1108,6 +1108,21 @@ story('vocabulary/no-retired-words', {
     return ok(avoid.length > 10 && !hits.length, { avoid: avoid.length, hits: hits.slice(0, 12) });
   },
 });
+// UI chrome uses the kit's icons, never an emoji (Treasures and stat icons keep theirs); dev tools are exempt.
+story('vocabulary/no-emoji-in-ui-chrome', {
+  about: 'No toast, screen title, button label or hint in the player-facing code starts with an emoji.',
+  setup() {},
+  async play() {
+    const EMOJI = '[\\u{1F000}-\\u{1FFFF}\\u2600-\\u27BF\\u2B50]';
+    const re = new RegExp(`(toast\\(|label: |title = |\\.message\\(|\\.choose\\(|\\.book\\(|pickTreasure\\(|pickLegendary\\(|eliteTreasure\\([^,]*,\\s*)[('"\`]${EMOJI}`, 'u');
+    const hits = [];
+    for (const f of ['run.js', 'hud.js', 'ui.js', 'leaderboard.js', 'bass-wave.js', 'sunrise.js', 'pick-screen.js', 'end-screen.js', 'creator.js']) {
+      const src = await (await fetch(`/src/${f}`)).text();
+      src.split('\n').forEach((line, i) => { if (re.test(line) && !/\(dev\)/.test(line)) hits.push(`${f}:${i + 1}: ${line.trim().slice(0, 80)}`); });
+    }
+    return ok(!hits.length, { hits });
+  },
+});
 story('vocabulary/every-word-documented-used-and-proven', {
   about: 'Every behaviour word has a description, is used by some bug, and has a words/ story.',
   setup() {},

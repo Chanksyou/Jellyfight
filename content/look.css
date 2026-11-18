@@ -20,6 +20,8 @@
   --ui-gold: #ffd46c;          /* the main action, rewards */
   --ui-gold-ink: #2b1f00;      /* text on gold */
   --ui-gold-deep: #b8891f;     /* the gold button's edge */
+  --ui-silver: #cfd8e3;        /* 2nd place on a board */
+  --ui-bronze: #d9915a;        /* 3rd place on a board */
   --ui-health: #5fc8ff;
   --ui-xp: #ffd46c;
   --ui-shield: #9fe8ff;
