@@ -56,11 +56,12 @@ export const ENCORE = {
 // No two are ever awake together (guard story night4/elite-spots-are-spread-out): their wake boxes never
 // overlap and each stands 2 m or more from the next.
 // "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
+// clears: act 1's things that stand where the Elite does, hidden in act 4 only (layout-baked.js)
 export const ELITES4 = [
-  { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0.67, vent: 'Vent by the lounge chair',
+  { kind: 'bowl', hide: 'Singing_bowl', clears: ['Glass_shade_floor_lamp'], area: 'lounge chair', face: 0.67, vent: 'Vent by the lounge chair',
     at: [3.17, 0.435, 1.0], wake: { min: [2.82, 0.38, 0.593], max: [3.49, 1.2, 1.433] }, stand: [3.17, 0.435, 1.275],
     seat: { min: [2.95, 0.803], max: [3.39, 1.303] } },   // seat: the cushion's top (x, z), where the bowl's Hum fills (measured: the wake box also takes in the chair's back and arms)
-  { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: 0.49, vent: 'Vent by the sofa',
+  { kind: 'pillow', hide: 'Mushroom_pillow', clears: ['Mustard_pillow'], area: 'sofa', face: 0.49, vent: 'Vent by the sofa',
     at: [1.196, 0.508, 1.46], wake: { min: [0.515, 0.46, 0.482], max: [2.015, 1.2, 1.782] }, stand: [1.215, 0.511, 1.70] },
   { kind: 'headphones', hide: 'Headphones', area: 'kitchen counter', face: -2.906, vent: 'Vent by the stove',
     at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 1.7], max: [5.0, 1.6, 3.0] }, stand: [4.57, 0.94, 2.65] },
