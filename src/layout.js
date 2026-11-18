@@ -134,7 +134,7 @@ function saveLayout(act, data) {
 function applyEdit(node, e) {
   if (e.p) node.position.fromArray(e.p);
   if (e.q) node.quaternion.fromArray(e.q);
-  if (e.s) node.scale.setScalar(e.s);
+  if (e.s) { node.scale.setScalar(e.s); if (node.userData.prop) node.userData.s = e.s; }
   node.visible = !(e.hidden || e.deleted);
   node.updateMatrixWorld(true);
 }
@@ -285,6 +285,7 @@ export class LayoutEditor {
       if (up && h.face && h.face.normal.clone().transformDirection(h.object.matrixWorld).y < 0.5) continue;
       return h.point;
     }
+    if (up) return null;   // nothing facing up under the pointer (looking at a wall's side): not the floor outside the room
     return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   }
 
@@ -410,6 +411,7 @@ export class LayoutEditor {
   // Add: a library prop in the middle of the view, then every tap on a surface stamps another (until endStamp)
   async addProp(id) {
     this.tpl[id] ||= (await loadProps([id]))[id];
+    if (!this.active) return;   // closed while it downloaded
     const r = this.dom.getBoundingClientRect();
     this.stamp = { id };
     this.stampAt({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 });
@@ -452,7 +454,7 @@ export class LayoutEditor {
     const it = this.items.find((x) => x.key === u.key);
     if (!it) return;
     if (this.isNew(it) && !u.before) { this.drop(it); saveLayout(this.act, this.data); this.onChange?.(); return; }   // undo a duplicate
-    if (u.before) { applyEdit(it.node, u.before); if (u.before.s) it.node.userData.s = u.before.s; }
+    if (u.before) applyEdit(it.node, u.before);
     else this.toHome(it);
     it.deleted = !!u.before?.deleted;
     this.commit(it, null);
@@ -469,6 +471,7 @@ export class LayoutEditor {
   // replaces this act's edits with a pasted code; returns a note when it went elsewhere, throws when it isn't a code
   async loadCode(text) {
     const d = JSON.parse(text);
+    if (!d || typeof d !== 'object' || Array.isArray(d) || (d.edits !== undefined && (!d.edits || typeof d.edits !== 'object' || Array.isArray(d.edits)))) throw new TypeError('not a layout code');
     const wrapped = d && Number.isInteger(d.act) && d.edits && typeof d.edits === 'object';
     const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
     if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); return `Saved under Act ${d.act}: switch acts to see it`; }
@@ -567,14 +570,14 @@ export class LayoutEditor {
       }
     });
     const up = (e) => {
-      if (!this.active) return;
       pts.delete(e.pointerId);
+      if (!this.active) return;
       if (pts.size < 2) this.pinch = null;
       const g = this.drag; this.drag = null;
       if (!g) return;
       if (g.move && g.moved) this.commit(this.sel, g.snap);
       // a tap (not a pan): stamping drops another on the surface (a tap on something you added selects it instead); else select what was under it, or deselect
-      if (g.pan && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) { if (this.stamp && !g.picked?.added) this.stampAt(e); else this.sel = g.picked; }
+      if (g.pan && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 6) { if (e.type === 'pointercancel') { /* the browser took the touch: not a tap */ } else if (this.stamp && !g.picked?.added) this.stampAt(e); else this.sel = g.picked; }
       this.refresh();
     };
     d.addEventListener('pointerup', up);
@@ -582,7 +585,7 @@ export class LayoutEditor {
     d.addEventListener('contextmenu', (e) => { if (this.active) e.preventDefault(); });
     d.addEventListener('wheel', (e) => { if (this.active) this.dist = THREE.MathUtils.clamp(this.dist * (1 + Math.sign(e.deltaY) * 0.1), 0.3, 7); }, { passive: true });
     addEventListener('keydown', (e) => {
-      if (!this.active || e.target.closest?.('textarea, input')) return;
+      if (!this.active || (e.code !== 'Escape' && (this.ui.open || e.target.closest?.('textarea, input, select')))) return;   // (a sheet or the list has the keys; Esc still closes)
       if (!e.ctrlKey && !e.metaKey) this.keys.add(e.code);   // Ctrl+D duplicates, it doesn't pan
       const big = e.shiftKey;
       if (e.code === 'KeyQ') this.rotate(big ? Math.PI / 2 : Math.PI / 12);

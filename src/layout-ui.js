@@ -20,7 +20,7 @@ const CSS = `
   .jf-lt-grid { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); margin-top: var(--ui-space-3); }
   .jf-lt-sheet .ui-text { margin-top: var(--ui-space-2); }
   .jf-lt-sheet textarea { box-sizing: border-box; width: 100%; height: 40vh; margin: var(--ui-space-3) 0; padding: var(--ui-space-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-s);
-    background: var(--ui-deep); color: var(--ui-mint); font: 12px/1.35 ui-monospace, monospace; }
+    background: var(--ui-deep); color: var(--ui-mint); font: var(--ui-size-label)/1.35 ui-monospace, monospace; }
   .jf-lt-sheet .jf-lt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-space-2); }
   .jf-lt-keys { display: grid; grid-template-columns: auto 1fr; gap: var(--ui-space-1) var(--ui-space-3); margin: var(--ui-space-2) 0 0; }
   .jf-lt-keys dt { font-weight: 700; color: var(--ui-mint); } .jf-lt-keys dd { margin: 0; }`;
@@ -151,7 +151,7 @@ export class LayoutUi {
       const tile = e.target.closest('[data-prop]');
       if (!tile) return;
       tile.disabled = true;
-      try { await this.L.addProp(tile.dataset.prop); this.dismiss(); this.L.refresh(); }
+      try { await this.L.addProp(tile.dataset.prop); if (this.open?.[1] === sheet) this.dismiss(); this.L.refresh(); }
       catch (err) { tile.disabled = false; sheet.querySelector('[data-err]').textContent = `Couldn't load it: ${err.message}`; }
     });
   }
