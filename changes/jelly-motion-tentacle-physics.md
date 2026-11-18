@@ -1,0 +1,1 @@
+makes the jelly's tentacles move like real ones: no more ripple on a clock; each stroke squeezes their roots in and the wave runs down to the tips, which hang softer, sink a little, trail behind and swing on after a stop, and curve instead of kinking.
