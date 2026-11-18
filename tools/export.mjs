@@ -3,41 +3,25 @@
 // Writes assets/apartment.glb + apartment-q.glb (the whole static space), splits them into
 // apartment-act1/2/3.glb (what the game loads, one act at a time; tools/split.mjs) and writes
 // assets/apartment.json (floor plan, acts, doors, lights).
-// Offline: set THREE_LOCAL=/path/to/three/package to serve three.js from disk instead of jsDelivr.
-import { chromium } from 'playwright';
+// Offline: set THREE_LOCAL=/path/to/three/package to serve three.js from disk instead of jsDelivr (tools/apartment-page.mjs).
+// Also writes assets/props.glb, the prop library (tools/props.mjs).
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { compress } from './compress.mjs';
 import { split } from './split.mjs';
+import { openApartment } from './apartment-page.mjs';
+import { buildProps } from './props.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const local = process.env.THREE_LOCAL;
-const types = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json' };
-
-// CHROMIUM=/path/to/chrome: use that browser instead of Playwright's own (a cloud image's Chromium may be another build)
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'], executablePath: process.env.CHROMIUM || undefined });
-const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
-page.on('pageerror', (e) => console.error('page error:', e.message));
-await page.route('**/*', (r) => {
-  const u = new URL(r.request().url());
-  if (u.hostname === 'jelly.local') {
-    const f = path.join(root, decodeURIComponent(u.pathname));
-    return r.fulfill({ path: f, contentType: types[path.extname(f)] || 'application/octet-stream' });
-  }
-  const m = local && u.href.match(/three@0\.170\.0\/(.*)$/);
-  if (m) return r.fulfill({ path: path.join(local, m[1]), contentType: 'application/javascript' });
-  if (u.hostname === 'cdn.jsdelivr.net') return r.continue();
-  return r.abort();   // fonts etc. aren't needed
-});
-await page.goto('http://jelly.local/tools/apartment-source.html');
-await page.waitForFunction(() => window.EXPORT_READY, null, { timeout: 180000 });
+const { page, browser } = await openApartment();
 const { glb, meta } = await page.evaluate(() => window.exportApartment({ mins: 0 }));
 fs.mkdirSync(path.join(root, 'assets'), { recursive: true });
 fs.writeFileSync(path.join(root, 'assets/apartment.glb'), Buffer.from(glb, 'base64'));
 fs.writeFileSync(path.join(root, 'assets/apartment.json'), JSON.stringify(meta, null, 1));
 await compress(path.join(root, 'assets/apartment.glb'), path.join(root, 'assets/apartment-q.glb'));
-console.log('split into acts', await split(path.join(root, 'assets')));   // what the game loads: apartment-act<N>.glb
+console.log('split into acts', await split(path.join(root, 'assets')));
+console.log('props', await buildProps(page, path.join(root, 'assets')));   // what the game loads: apartment-act<N>.glb
 const mb = (f) => (fs.statSync(f).size / 1e6).toFixed(1);
 console.log(`apartment.glb ${(Buffer.from(glb, 'base64').length / 1e6).toFixed(1)} MB -> ${mb(path.join(root, 'assets/apartment.glb'))} MB compressed (${mb(path.join(root, 'assets/apartment-q.glb'))} MB fallback), ${meta.lights.length} lights`, meta.stats);
 await browser.close();

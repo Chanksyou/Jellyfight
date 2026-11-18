@@ -8,15 +8,19 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
 // the bedroom. Load what the starting stage needs; apt.load([...]) brings in more later (the
 // next act), merging it into the same Apartment node and adding that part's lights.
+export async function meshoptDecoder() {
+  try {
+    const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+    await MeshoptDecoder.ready;
+    return MeshoptDecoder;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadApartment(scene, renderer, onProgress, parts = ['act1']) {
   // The small files need a WebAssembly decoder; if WebAssembly is blocked, load the plain ones
-  let decoder = null;
-  try {
-    ({ MeshoptDecoder: decoder } = await import('three/addons/libs/meshopt_decoder.module.js'));
-    await decoder.ready;
-  } catch {
-    decoder = null;
-  }
+  const decoder = await meshoptDecoder();
   const meta = await fetch('assets/apartment.json').then((r) => r.json());
   const apt = { root: null, plan: meta.plan, doors: {}, loaded: new Set(), meta };
   apt.load = (more, progress) => loadParts(apt, scene, renderer, decoder, more, progress);
@@ -79,6 +83,16 @@ const OPAQUE_COUNTER = new Set([
   'Spice_carousel', 'Cutting_board', 'Glass_dish', 'Dish_cloth',
 ]);
 
+export function floatPositions(geometry) {
+  const pos = geometry.attributes.position;
+  if (!pos || pos.array instanceof Float32Array) return;
+  const f = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) { f[i * 3] = pos.getX(i); f[i * 3 + 1] = pos.getY(i); f[i * 3 + 2] = pos.getZ(i); }
+  geometry.setAttribute('position', new THREE.BufferAttribute(f, 3));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+}
+
 function prepareMeshes(root, meta, renderer) {
   const unpacked = new Set(), opaque = new Map();
   const coarse = matchMedia('(pointer: coarse)').matches;
@@ -104,15 +118,7 @@ function prepareMeshes(root, meta, renderer) {
     }
     // The file stores positions as packed integers (smaller download). The collision BVH
     // needs plain floats, so unpack them once here (shared geometry only once).
-    const pos = o.geometry.attributes.position;
-    if (pos && !(pos.array instanceof Float32Array) && !unpacked.has(o.geometry)) {
-      const f = new Float32Array(pos.count * 3);
-      for (let i = 0; i < pos.count; i++) { f[i * 3] = pos.getX(i); f[i * 3 + 1] = pos.getY(i); f[i * 3 + 2] = pos.getZ(i); }
-      o.geometry.setAttribute('position', new THREE.BufferAttribute(f, 3));
-      o.geometry.computeBoundingBox();
-      o.geometry.computeBoundingSphere();
-      unpacked.add(o.geometry);
-    }
+    if (!unpacked.has(o.geometry)) { floatPositions(o.geometry); unpacked.add(o.geometry); }
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
       // Sharp textures at grazing angles: the jelly looks along the floor, and without
@@ -185,7 +191,7 @@ function findDoors(apt, objects) {
 // about half the size, and hosts don't compress .glb themselves (Cloudflare doesn't). Some hosts
 // (claude.ai artifacts) don't serve .glb files, so a base64 text copy next to it (<name>.b64.txt)
 // is used when the .glb isn't there.
-async function fetchModel(file, onProgress, gz) {
+export async function fetchModel(file, onProgress, gz) {
   if (gz && typeof DecompressionStream === 'function') {
     try {
       const res = await fetch(file + '.gz');
