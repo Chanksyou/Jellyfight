@@ -950,6 +950,7 @@ async function warmUp() {
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
   fx.splat(P.clone(), 0xffffff, 0.01, 'ink');   // the floor marks' painted sheet (every shape shares its shader)
+  fx.smoke(P.clone().setY(P.y + 0.02));          // a moth's black smoke (its own shader: the jelly shows through it)
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
@@ -1007,7 +1008,11 @@ async function warmUp() {
   warmBubbles.forEach((m) => { m.visible = false; run.bubbles.pool.push(m); });
   warmLooks.forEach((m) => run.bubbles.looks.release(m));
   warmFx.forEach((m) => scene.remove(m));
-  warmBoss?.dispose();
+  // (its materials stay: disposing them would throw away the shaders just built, and act 4's arena
+  // starts its real Encore at once, which then built them mid-fight)
+  const disposeMaterial = THREE.Material.prototype.dispose;
+  THREE.Material.prototype.dispose = () => {};
+  try { warmBoss?.dispose(); } finally { THREE.Material.prototype.dispose = disposeMaterial; }
   scene.remove(flash);
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
