@@ -276,7 +276,7 @@ export const ENEMY_WORDS = {
   },
 
   spit: {
-    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, no beam: the wind-up is the warning; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, once its aim locks, a dotted line of glow shows where it will fly; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
     props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'web', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
       if (!['web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "web" or "pin", not "${p.shot}"`);
@@ -288,6 +288,7 @@ export const ENEMY_WORDS = {
         if (e.shootT <= p.aim && e.aimT <= 0 && e.shootT > 0 && c.dist < p.reach) e.aimT = e.aimMax = p.aim;
         // the aim locks on half way through the warning, so the line shows where it will really go
         if (e.aimT > p.aim * 0.5) (e.aimAt ||= new THREE.Vector3()).copy(c.pc);
+        if (p.shot === 'pin' && e.aimAt && e.aimT > 0 && e.aimT <= p.aim * 0.5) en.pinLine(e, e.aimAt, 1 - e.aimT / (p.aim * 0.5), p.speed * p.life);
         if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.25; }
         else if (e.shootT <= 0) e.shootT = 0.5;
         if (e.firedT > 0) e.firedT -= c.dt;

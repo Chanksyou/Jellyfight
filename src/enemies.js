@@ -649,14 +649,30 @@ export class Enemies {
       if (arc) v.y += 0.5 * arc * flight;                                // lobbed: up first, landing on target
       const pooled = this.projectiles.take(`${kind}:${kind === 'pin' ? e.mesh.userData.pin : ''}`, () => ({ root: kind === 'pin' ? buildPushpin(e.mesh.userData.pin) : new THREE.Mesh(this.webGeo, this.webMat) }));
       const m = batcher.track(pooled.root);
-      if (kind === 'pin') m.scale.setScalar(e.r);
+      const pinR = e.r * LOOK.num('pin-size', 1.6);   // a pin in flight is drawn bigger than in the jaws so it reads from the camera
+      if (kind === 'pin') m.scale.setScalar(pinR);
       m.position.copy(from).addScaledVector(v, (kind === 'pin' ? e.r * 0.94 : 0.03) / speed);   // leaves from in front of its mouth (a pin from its jaws)
       m.lookAt(m.position.clone().add(v));
       this.scene.add(m);
-      this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, stuckT: 0, pooled, m, v, t: life, dmg, from: e.id, back: null, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
+      this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, stuckT: 0, pooled, m, v, t: life, dmg, from: e.id, back: null, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: kind === 'pin' ? pinR : e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
     }
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
+  }
+
+  // A pin ant that has locked its aim: a dotted line of glow from its jaws along where the pin will fly, lighting up
+  // outward as the throw nears (k 0..1). The pin goes straight, so the line is where it lands.
+  pinLine(e, at, k, reach) {
+    const from = this.center(e, S.o), dir = S.dir.copy(at).sub(from);
+    const len = dir.length(), c = hostile('pin');
+    if (len < 1e-4) return;
+    dir.multiplyScalar(1 / len);
+    const n = Math.round(THREE.MathUtils.clamp(Math.min(len, reach) / 0.05, 2, 14));
+    for (let i = 1; i <= n; i++) {
+      const f = i / n;
+      if (f > k + 0.15) break;
+      this.fx.glow.hold(S.ray.copy(from).addScaledVector(dir, f * Math.min(len, reach)), c, 0.02, 0.35 + 0.35 * f);
+    }
   }
 
   // A leaping bug comes down (the leap word): a thump, a ring of dust, and the jelly is hit if
@@ -1467,6 +1483,7 @@ export class Enemies {
       if (s.done) { this.scene.remove(s.m); this.projectiles.release(s.pooled); continue; }   // (popped by a swat, or hit the jelly: let go of it now)
       if (s.stuckT > 0) {                                // a pin stuck in the scenery, harmless, until it goes
         if ((s.stuckT -= dt) <= 0) { s.done = true; this.scene.remove(s.m); }
+        else this.fx.glow.hold(s.m.position, s.c, 0.03, 0.5 * Math.min(1, s.stuckT));   // a missed pin glows where it stuck, then fades
         continue;
       }
       s.t -= dt;
@@ -1488,8 +1505,8 @@ export class Enemies {
       if (s.roll) s.m.rotateZ(s.roll * dt);              // a pin spins on its long axis
       // a halo and a glowing trail, in the shooter's colour
       const small = s.spin || s.roll;
-      this.fx.glow.hold(s.m.position, s.c, small ? 0.04 : 0.05, 0.9);
-      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, small ? 0.025 : 0.03, 0.006, 0.22, 0.8); }
+      this.fx.glow.hold(s.m.position, s.c, s.roll ? 0.065 : small ? 0.04 : 0.05, 0.9);
+      if ((s.trailT -= dt) <= 0) { s.trailT = 0.016; this.fx.glow.emit(s.m.position, s.c, s.roll ? 0.04 : small ? 0.025 : 0.03, 0.006, s.roll ? 0.35 : 0.22, 0.8); }
       if (s.t <= 0) s.done = true;
       if (s.done) { this.scene.remove(s.m); this.projectiles.release(s.pooled); }
     }
