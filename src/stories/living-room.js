@@ -3,6 +3,7 @@
 import { movables, visibleBox } from '../layout.js';
 import { ELITES4 } from '../stage4.js';
 import { HIDDEN_SHELL } from '../layout-baked.js';
+import { meshesNamed } from '../traversal.js';
 import * as THREE from 'three';
 import { G, night4, ok, story } from './kit.js';
 
@@ -34,6 +35,32 @@ night4('the-room-has-the-same-new-layout', {
       return f && e.at[0] > f.min.x && e.at[0] < f.max.x && e.at[2] > f.min.z && e.at[2] < f.max.z;
     });
     return ok(r.ok && seat, { ...r.info, seat });
+  },
+});
+
+story('room/the-monitor-shows-the-canyon-wallpaper', {
+  about: 'The desk monitor displays a centered Jelly Run window between the warm sunset canyon and cool forest on its existing unlit screen.',
+  setup() {},
+  play() {
+    const screen = meshesNamed(G().APT.root, 'Ultrawide monitor')
+      .find((mesh) => mesh.material.isMeshBasicMaterial && mesh.material.map?.repeat.x === -1);
+    const image = screen?.material.map.image;
+    if (!image || image.width !== 512 || image.height !== 160) return ok(false, { screen: !!screen, width: image?.width, height: image?.height });
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d');
+    // GLTFExporter flips CanvasTexture rows for the monitor's existing UVs.
+    ctx.translate(0, canvas.height);
+    ctx.scale(1, -1);
+    ctx.drawImage(image, 0, 0);
+    const sunset = ctx.getImageData(65, 48, 1, 1).data;
+    const forest = ctx.getImageData(410, 46, 1, 1).data;
+    const menu = ctx.getImageData(251, 48, 1, 1).data;
+    const play = ctx.getImageData(191, 105, 1, 1).data;
+    return ok(sunset[0] > sunset[2] + 55 && forest[2] > forest[0] + 16
+      && menu[1] > menu[0] + 30 && play[0] > 210 && play[1] > 175 && play[2] < 160,
+      { sunset: [...sunset], forest: [...forest], menu: [...menu], play: [...play] });
   },
 });
 
