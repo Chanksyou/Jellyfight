@@ -89,15 +89,13 @@ already installed.
 Keep its image version and version check in
 `.github/workflows/game-checks.yml` aligned with the pinned Playwright dependency
 in `tests/package.json`.
-The guards run on a runner of their own, beside eight
+The guards and the balance smoke check each run on a runner of their own, beside eight
 story runners (`--shard=1/8` through `--shard=8/8`).
-Under `--shard`, a page with
-many stories (act 1 has about 500) is split into chunks of about 75 that each boot
-their own page, and the chunks are dealt to the runners by estimated cost, so all
-eight finish at about the same time; each runner logs what it plays on its
-`Story shard` line.
+Booting the game costs far more than a story (about 80 s against about 0.45 s), so under `--shard` each runner lists the stories from the page it plays first, plays every part of an act it is dealt on one page, and act 1 (about 800 stories) is split as many ways as brings the slowest runner down; each runner logs what it plays on its
+`Story shard` line, and `--plan` prints every runner's deal without playing.
 The reload and mobile touch checks are included exactly once.
-The required `Game checks` result passes only when the guards and all eight
+A page that crashes (the browser's "Target crashed") is replayed once on a fresh page from the story it was playing, with a warning on the run; a second crash fails it.
+The required `Game checks` result passes only when the guards, the balance smoke check and all eight
 runners pass.
 A partial shard never records `tests/.last-green` or skips
 because of it.

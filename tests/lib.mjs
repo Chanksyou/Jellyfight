@@ -80,7 +80,7 @@ export async function openGame({ url, browser }, { act, seed, newPlayer = false,
       r.fulfill({ path: path.join(THREE_DIR, rel), contentType: 'text/javascript' });
     });
   }
-  await page.goto(url);
+  await page.goto(url, { waitUntil: 'commit', timeout: 180000 });   // the wait below is for the game; the page's own "load" can take past 30 s on a busy runner
   try {
     await page.waitForFunction(() => window.GAME && window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
   } catch {
