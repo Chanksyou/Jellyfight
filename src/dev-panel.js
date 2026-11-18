@@ -20,7 +20,7 @@ export function devSheetHtml(icon) {
 }
 
 // `h` is what main.js lends: overlay, run, play, endContinue, kit, tuner, openLayout, enableDebug,
-// and the drawing passes (passOn(name), togglePass(name))
+// openSheet, and the drawing passes (passOn(name), togglePass(name))
 export function initDevPanel(sheet, h) {
   const { overlay, run } = h;
   const showGroup = (id) => {
@@ -33,11 +33,12 @@ export function initDevPanel(sheet, h) {
   try { last = localStorage.getItem(GROUP_KEY) || last; } catch {}
   showGroup(GROUPS.some(([id]) => id === last) ? last : GROUPS[0][0]);
   syncPasses();
+  const back = () => { overlay.hidden = false; h.openSheet('dev'); };   // the pause menu hides the sheet; Back brings it back
   const picker = (title, text, picks, start) => {
     overlay.hidden = true;
-    run.ui.message(title, text, [], [...picks.map((p) => ({ label: p.name, onClick: () => { start(p); h.play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
+    run.ui.message(title, text, [], [...picks.map((p) => ({ label: p.name, onClick: () => { start(p); h.play(); } })), { label: 'Back', go: true, onClick: back }]);
   };
-  const toTool = (show) => { overlay.hidden = true; show(run, { onPlay: () => { h.play(); h.endContinue(); }, onBack: () => { overlay.hidden = false; } }); };
+  const toTool = (show) => { overlay.hidden = true; show(run, { onPlay: () => { h.play(); h.endContinue(); }, onBack: back }); };
   sheet.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;

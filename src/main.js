@@ -867,7 +867,7 @@ function toggleLamps() {
 const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
-  overlay, run, kit, tuner, play, endContinue, openLayout, enableDebug,
+  overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
   passOn: (pass) => (pass === 'lamps' ? lampsOn : !gfx.off.has(pass)),
   togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : gfx.toggle(pass)),
 });

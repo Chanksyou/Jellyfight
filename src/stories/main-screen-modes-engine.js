@@ -307,10 +307,10 @@ story('dev/panel-has-every-tool', {
     const remembered = localStorage.getItem('jellyrun.dev-group') === 'check';
     // the boss and 1 on 1 pickers open and offer their fights
     const pick = (act) => { over.hidden = false; $(`[data-act="${act}"]`).click(); const names = [...document.querySelectorAll('.btns button')].map((b) => b.textContent); const hid = over.hidden; [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'Back')?.click(); return { names: names.length, hid, back: !over.hidden }; };
-    const boss = pick('boss'), duel = pick('duel');
+    const boss = pick('boss'), duel = pick('duel'), sheetBack = !sheet.hidden;
     // the test kit and the tuner open and bring the pause menu back
     const tools = {};
-    for (const t of ['kit', 'tuner']) { over.hidden = false; const w = window[t]; let back; const real = w.show; w.show = (r, o) => { back = o.onBack; }; $(`[data-act="${t}"]`).click(); w.show = real; tools[t] = over.hidden && !!back; back?.(); tools[t] = tools[t] && !over.hidden; }
+    for (const t of ['kit', 'tuner']) { over.hidden = false; const w = window[t]; let back; const real = w.show; w.show = (r, o) => { back = o.onBack; }; $(`[data-act="${t}"]`).click(); w.show = real; tools[t] = over.hidden && !!back; back?.(); tools[t] = tools[t] && !over.hidden && !sheet.hidden; }
     // the switches really switch, and read their own state back
     const gfx = window.gfx, ao = (on) => $(`[data-pass="ao"][data-on="${on}"]`);
     const was = !gfx.off.has('ao');
@@ -319,7 +319,7 @@ story('dev/panel-has-every-tool', {
     ao(was ? 'on' : 'off').click();
     const restored = gfx.off.has('ao') === !was;
     over.classList.remove('dev-open'); over.hidden = true;
-    return ok(opened && grouped && remembered && boss.names > 1 && boss.hid && boss.back && duel.names > 1 && duel.back && tools.kit && tools.tuner && switched && restored,
+    return ok(opened && grouped && remembered && boss.names > 1 && boss.hid && boss.back && duel.names > 1 && duel.back && sheetBack && tools.kit && tools.tuner && switched && restored,
       { opened, groups, remembered, boss, duel, tools, switched, restored, run: !!run });
   },
 });
