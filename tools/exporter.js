@@ -91,6 +91,12 @@ export async function exportApartment({ mins = 0 } = {}) {
       m = new THREE.Mesh(o.geometry, o.material);
     }
     matrix.decompose(m.position, m.quaternion, m.scale);
+    // The walls, floors, ceilings and window glass that seal the rooms (tagged in apartment-source.html:
+    // segment(), the polyShape floors and ceilings, and mergeStatic keeps the tag) go out as glTF extras
+    // { structural: true }: the game never fades them and keeps the camera inside them (src/camera.js).
+    // Door leaves are marked too: closed, they seal a room like a wall; open, the camera's rays
+    // pass through the gap, since the game reads their current pose.
+    if (door || o.userData.structural || o.userData.shape) m.userData.structural = true;
     m.name = itemName(o);
     (door ? doors[door].node : groupFor(m.name)).add(m);
     list.forEach((x) => x && mats.add(x));

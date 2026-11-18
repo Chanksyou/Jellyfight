@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 
 // Orbit camera that follows the player from a fixed angle and distance (look.css --camera-tilt,
-// --camera-distance): it never tilts, pulls in or snaps on its own, because a view that moves
-// under you throws your aim off. Instead, whatever would block the view fades out: furniture
+// --camera-distance): it never tilts or snaps on its own, because a view that moves under you
+// throws your aim off. The walls, floors and ceilings (userData.structural, tagged in the baked
+// apartment: tools/exporter.js) are never faded: they seal the rooms, and a faded wall showed the
+// night outside. Instead the camera keeps inside them by dollying in along the same view, at once
+// when one would be in the way and easing back out once it's clear (clearTo, update). Whatever else
+// would block the view fades out: furniture
 // over the jelly (the coffee table, the media console) and anything
-// between the camera and the jelly (a wall behind you, a sofa back), solid again once it's
+// between the camera and the jelly (a sofa back, a door), solid again once it's
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
 // ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
 // for HOLD s after it's last in the way, so pieces don't flicker in and out as the rays sweep past
@@ -80,6 +84,36 @@ export class ThirdPersonCamera {
     this._jelly = new THREE.Vector3();   // where the jelly is now (the focus follows a little behind it)
     this.keep = new Map();     // mesh -> how solid: kept faint whether in the way or not (a boss fight's seeThrough: the Clog's curtain and door)
     this._fades = new Map();   // mesh -> { mats: its own material(s), see: the fading copies, k: opacity }
+    this.pull = 0;             // m the clearance has dollied the camera in by (0: the view as asked for)
+    this._hold = 0;            // s left before the camera starts easing back out
+    this._rayEnd = new THREE.Vector3();
+  }
+
+  // How far out along dir (unit, from the focus) the lens can sit with a wall, floor or ceiling in the
+  // way: `want`, or less. Five rays, the lens' centre and four points round it, reach past the lens
+  // by the approach band: the dolly eases in over that band (so it is under way when the lens gets to
+  // the wall) and is cut off at the wall less the margin (near plane and shake). Never closer than clearMin.
+  clearTo(dir, want) {
+    const c = this.cfg, m = c.clearMargin;
+    if (!m) return want;
+    this._side.crossVectors(dir, UP);
+    if (this._side.lengthSq() < 1e-6) this._side.set(1, 0, 0);
+    this._side.normalize();
+    this._up.crossVectors(this._side, dir).normalize();
+    const reach = want + c.clearBand + m;
+    let room = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const end = this._rayEnd.copy(this.focus).addScaledVector(dir, reach);
+      if (i) end.addScaledVector(this._side, i & 1 ? m : -m).addScaledVector(this._up, i & 2 ? m : -m);
+      const len = this._ray.subVectors(end, this.focus).length();
+      this._ray.multiplyScalar(1 / len);
+      const h = this.world.cast(this.focus, this._ray, len, null, true);
+      if (h) room = Math.min(room, h.distance * this._ray.dot(dir));
+    }
+    if (room === Infinity) return want;
+    const spare = room - m - want, k = THREE.MathUtils.clamp(spare / c.clearBand, 0, 1);
+    const eased = want - c.clearEase * (1 - k * k * (3 - 2 * k));
+    return Math.max(Math.min(eased, room - m), Math.min(want, c.clearMin));
   }
 
   // What's right over the jelly, and what's between it and the camera: up to LAYERS things along
@@ -140,7 +174,7 @@ export class ThirdPersonCamera {
   }
 
   startFade(m) {
-    if ((m.userData.noCameraFade && !this.keep.has(m)) || this._fades.has(m)) return;
+    if (m.userData.structural || (m.userData.noCameraFade && !this.keep.has(m)) || this._fades.has(m)) return;
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
     this._fades.set(m, { mats, see, k: 1, hold: 0, low: this.partly.has(m) ? SMALL_SEE : SEE_THROUGH });
     m.material = see;
@@ -195,7 +229,13 @@ export class ThirdPersonCamera {
     this.focus.lerp(this._jelly, 1 - Math.exp(-20 * dt));
 
     this.dirAt(this.viewPitch, this._dir);
-    this.camera.position.copy(this.focus).addScaledVector(this._dir, this.currentDistance);
+    // Clearance: in at once where a wall would be in the way, back out after a pause (the view's
+    // yaw and tilt are never touched: only how far along them the camera sits)
+    const need = this.currentDistance - this.clearTo(this._dir, this.currentDistance);
+    if (need >= this.pull) { this.pull = need; this._hold = c.clearHold; }
+    else if ((this._hold -= dt) <= 0) this.pull = need + (this.pull - need) * Math.exp(-c.clearRecover * dt);
+    const dist = Math.max(this.currentDistance - this.pull, Math.min(this.currentDistance, c.clearMin));
+    this.camera.position.copy(this.focus).addScaledVector(this._dir, dist);
     const ahead = k ? (F.ahead || 0) * k : 0;
     if (ahead) this.camera.lookAt(this._ray.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(ahead).add(this.focus));
     else this.camera.lookAt(this.focus);
@@ -211,7 +251,7 @@ export class ThirdPersonCamera {
   seeThroughWarmers(within = null, also = []) {
     const found = new Map(), box = new THREE.Box3(), kept = new Set(also);
     for (const m of [...this.world.colliders, ...also]) {
-      if (!m.isMesh || (m.userData.noCameraFade && !kept.has(m))) continue;
+      if (!m.isMesh || m.userData.structural || (m.userData.noCameraFade && !kept.has(m))) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
       if (!found.has(m.material)) found.set(m.material, m);
       // and the instanced parts that fade along with it (look)
@@ -228,8 +268,9 @@ export class ThirdPersonCamera {
   snapTo(target) {
     this.focus.set(target.x, target.y + this.cfg.height, target.z);
     this._jelly.copy(this.focus);
+    this.pull = 0;   // somewhere new: clearance starts over
   }
 
   // Back to the player's own view at once (a new run)
-  endFight() { this.fight = null; this.fightK = 0; this.dropKeep(); }
+  endFight() { this.fight = null; this.fightK = 0; this.pull = 0; this.dropKeep(); }
 }

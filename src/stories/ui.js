@@ -245,7 +245,6 @@ function motionOf() {
 const KNOWN_MOTION = {
 };
 const KNOWN_CALM = {
-  'jf-swim: transform': 'M4', 'jf-wave: transform': 'M4', 'jf-shine: transform': 'M4',   // the title screen's ambient loops keep going
 };
 const motionGuard = (name, about, calm, bad, known) => story(name, {
   phone: true,

@@ -36,18 +36,21 @@
   #loading p { color: var(--ui-ink-dim, #a9bfcc); font-size: 14px; margin-top: 10px; }
   /* A jelly that keeps swimming while the page is busy building the game: transform and opacity
      animations run on the browser's compositor, so they move even when the main thread can't */
-  #loading .jelly { width: 54px; height: 64px; margin: 0 auto 14px; position: relative; animation: jf-swim 1.6s ease-in-out infinite; }
+  #loading .jelly { width: 54px; height: 64px; margin: 0 auto 14px; position: relative; animation: jf-swim 1.6s var(--ui-ease-float, cubic-bezier(.37, 0, .63, 1)) infinite; }
   #loading .jelly::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 34px; border-radius: 27px 27px 10px 10px; background: radial-gradient(circle at 50% 30%, #e6fff6, #a3f5d5 70%); box-shadow: 0 0 18px #a3f5d588; }
-  #loading .jelly i { position: absolute; top: 30px; width: 4px; height: 30px; border-radius: 2px; background: #a3f5d5aa; transform-origin: top; animation: jf-wave 1.6s ease-in-out infinite; }
+  #loading .jelly i { position: absolute; top: 30px; width: 4px; height: 30px; border-radius: 2px; background: #a3f5d5aa; transform-origin: top; animation: jf-wave 1.6s var(--ui-ease-float, cubic-bezier(.37, 0, .63, 1)) infinite; }
   #loading .jelly i:nth-child(1) { left: 12px; } #loading .jelly i:nth-child(2) { left: 25px; animation-delay: -.5s; } #loading .jelly i:nth-child(3) { left: 38px; animation-delay: -1s; }
   @keyframes jf-swim { 0%, 100% { transform: translateY(6px) scale(1, .94); } 50% { transform: translateY(-6px) scale(.96, 1.04); } }
   @keyframes jf-wave { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(-8deg); } }
   @keyframes jf-shine { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  /* Reduce effects (OS or in-game calm): the jelly only glows (opacity), the shine is off */
+  @keyframes jf-glow { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
   @media (prefers-reduced-motion: reduce) {
-    #loading .jelly, #loading .jelly i { animation: jf-glow 2s ease-in-out infinite; }
+    #loading .jelly, #loading .jelly i { animation: jf-glow 2s var(--ui-ease-float, cubic-bezier(.37, 0, .63, 1)) infinite; }
     #loading .bar::after { display: none; }
-    @keyframes jf-glow { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
   }
+  body.calm #loading .jelly, body.calm #loading .jelly i { animation: jf-glow 2s var(--ui-ease-float, cubic-bezier(.37, 0, .63, 1)) infinite; }
+  body.calm #loading .bar::after { display: none; }
 </style>
 <script type="importmap">{"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",

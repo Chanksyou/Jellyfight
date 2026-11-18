@@ -94,6 +94,13 @@
   --shark-camera-tilt-phone: 0.95;
   --shark-camera-ahead-phone: 0.3;
   --shark-camera-air-room-phone: 0.3; /* how far a phone pulls back while the shark leaps, per m of leap height */
+  /* the camera keeps inside the walls, floors and ceilings by dollying in along the same view (src/camera.js) */
+  --camera-clear-margin: 0.04;   /* m between the lens and a wall: the near plane plus the biggest combat shake */
+  --camera-clear-min: 0.16;      /* m: closest it dollies in, even with the jelly's back to a wall */
+  --camera-clear-band: 0.12;     /* m before a wall where the dolly starts to ease in */
+  --camera-clear-ease: 0.05;     /* m it has already come in by when the lens reaches the wall */
+  --camera-clear-hold: 0.1;      /* s it stays in after the wall clears */
+  --camera-clear-recover: 9;     /* per s: how fast it eases back out (about 0.25 s to settle) */
   --encore-leather-grain: 0.00012;
   --encore-contact: #ffb52e;
   --encore-contact-life: 0.32;

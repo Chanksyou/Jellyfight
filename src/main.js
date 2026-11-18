@@ -40,7 +40,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v492';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v496';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -160,12 +160,12 @@ ui.innerHTML = `
     background: var(--ui-deep, #0b1622); color: var(--ui-ink); padding: var(--ui-space-5); text-align: center; }
   #g-turn p { margin: 0; }
   #g-turn .ui-text { color: var(--ui-ink-dim); }
-  #g-turn .ph { width: 44px; height: 76px; margin-bottom: var(--ui-space-2); box-sizing: border-box; border: 4px solid var(--ui-mint); border-radius: 10px; animation: g-turn 2.8s ease-in-out infinite; }
+  #g-turn .ph { width: 44px; height: 76px; margin-bottom: var(--ui-space-2); box-sizing: border-box; border: 4px solid var(--ui-mint); border-radius: 10px; animation: g-turn 2.8s var(--ui-ease-float) infinite; }
   @keyframes g-turn { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
   /* reduced motion: the phone is already on its side and only fades */
   @keyframes g-turn-fade { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
-  @media (prefers-reduced-motion: reduce) { #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s ease-in-out infinite; } }
-  body.calm #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s var(--ui-ease-float) infinite; } }
+  body.calm #g-turn .ph { transform: rotate(-90deg); animation: g-turn-fade 2.4s var(--ui-ease-float) infinite; }
   body.upright #g-turn { display: flex; }
 </style>
 <div id="g-over"><div class="menu-col">

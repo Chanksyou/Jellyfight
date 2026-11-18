@@ -80,7 +80,7 @@ verification across all player attack families.
 | Act 4's sun (where its line starts and stops, how much it drains) and how it looks | `src/stage4.js` (`sun`), `src/sunrise.js`, `content/look.css` (`--sun-*`, `--hostile-sun`) | Any stage with a `sun` block gets it; stories `night4/the-sun-*` |
 | Act 4's bass wave (how often, how high, how fast, how hard) and how it looks | `src/stage4.js` (`bass`), `src/bass-wave.js`, `content/look.css` (`--bass-*`, `--hostile-bass`, `--feel-bass`) | Any stage with a `bass` block gets it, on the run's beat (`run.beat`, `keepTime` in `src/run.js`); stories in `src/stories/bass-wave.js` |
 | Which rooms each act loads | `tools/split.mjs` (`ACTS`), then `node tools/split.mjs`; a stage's `parts` | The game never loads the whole apartment; act 2/3 load with `GAME.loadRooms` |
-| Furniture placement | the dev layout editor (pause menu) → export → `src/layout-baked.js` | Then re-bake the corner shadows: `node tools/bake-ao.mjs` (`src/baked-ao.js`; the story `engine/baked-ao-is-current` fails until you do). Same after re-exporting the apartment |
+| Furniture placement | the dev layout editor (pause menu) → export → `node tools/bake-layout.mjs <code file or ->` (merges into `src/layout-baked.js`, re-bakes shadows for touched acts; `--check` previews) | Then re-bake the corner shadows: `node tools/bake-ao.mjs` (`src/baked-ao.js`; the story `engine/baked-ao-is-current` fails until you do). Same after re-exporting the apartment |
 | The Treasure book (what a player has found across runs) and the death screen's pull | `src/collection.js`, `run.js` (`showBook`, `endRun`), `src/cosmetics.js` (`nextAward`) | Finds are noted in `run.found`, never in a dev run |
 | Shop looks and their prices, Pearls a run earns, golden awards and what earns them | `src/cosmetics.js` (`PRICES`, `PEARLS`, `NEEDS`); the looks themselves in `src/character.js` | A new look is an `OPTIONS` entry plus its model; hats sit with `seat(r)` so they fit every species |
 | Player stats and level-up cards | `src/stats.js` (`BASE_STATS`, `CARD_VALUES`) | A jelly type's starting stats are `stats` in its `content/jellies.kdl` entry, on top of `BASE_STATS` |
@@ -93,6 +93,7 @@ verification across all player attack families.
 | The boss (Vacuum) | `src/vacuum.js` | Not words yet |
 | Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |
 | Movement and collision | `src/player.js`, `src/collision.js` | |
+| How the camera keeps inside the walls (how close it stays, how fast it comes back), which pieces seal the rooms | `content/look.css` (`--camera-clear-*`), `src/camera.js` (`clearTo`); `userData.structural` is set when the apartment is baked (`tools/apartment-source.html`, `tools/exporter.js`) and never fades | Re-bake with `node tools/export.mjs` (restore `assets/apartment.json` if only a flickering lamp's intensity changed), then `node tools/bake-ao.mjs`. Stories `camera/stays-inside-the-shell`, `camera/shell-never-fades` |
 
 ## Rules
 
