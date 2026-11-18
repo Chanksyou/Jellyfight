@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v496 Motion M4: the loading and turn-sideways screens use the shared motion tokens for their loops, and the loading jelly only glows (no swim or wave) under Reduce effects.
+
 v495 Layout edits now bake in with one command: `node tools/bake-layout.mjs <export code>` merges the export into the baked layout and re-bakes shadows for the acts it touched.
 
 v494 keeps the camera inside the apartment: walls, floors, ceilings, window glass and doors no longer fade out when you back up against them, and the camera comes in along the same view instead of ending up outside the room, so the night, the skyline and the dark beyond the front door stay hidden. Backed against a wall it comes in at once (never closer than 16 cm), then eases back out about a tenth of a second after the wall clears.
