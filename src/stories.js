@@ -40,6 +40,8 @@ import './stories/rebound-mirage.js';
 import './stories/fire-trail.js';
 import './stories/looks.js';
 import './stories/bell-flex.js';
+import './stories/motion.js';
+import './stories/tentacle-motion.js';
 import './stories/feel-reveal.js';
 import './stories/xp-feel.js';
 import './stories/elites.js';

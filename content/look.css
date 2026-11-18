@@ -477,6 +477,13 @@
   --jelly-tip-glow: 0.9;       /* the tentacle tips, lit in the second color */
   --jelly-tip-size: 0.8;       /* a tentacle tip's radius, in tentacle thicknesses */
   --tentacle-curl: 0.07;       /* how wide Curly tentacles wind (model units) */
+  /* the tentacles' physics (tentacles.js): each stroke squeezes the roots in and the chain carries it down as a wave */
+  --jelly-motion-root-squeeze: 0.3;     /* how far the roots pull in on a full power stroke (share of the anchor ring) */
+  --jelly-motion-tip-spring: 20;        /* how firmly a tip is pulled back to its pose (1/s²; the root stays 700, firm for the Lash) */
+  --jelly-motion-drag: 7;               /* water drag across a tentacle (1/s); at least this much everywhere along it */
+  --jelly-motion-drag-along: 0.5;       /* drag along a tentacle, as a share of across (slender things slip lengthwise) */
+  --jelly-motion-weight: 0.6;           /* how hard a tentacle sinks against its pose (model units/s²) */
+  --jelly-motion-bend-compliance: 0.0002; /* how easily a tentacle folds past its pose's curve (XPBD; higher = kinks more) */
   --comb-ripple: 0.35;         /* how fast the Comb Jelly's rainbow runs down its rows */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
   --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */
@@ -488,6 +495,19 @@
   --jelly-face-width: 1.45;    /* maximum expression width, in bell radii */
   --jelly-face-offset: 0.004;  /* lift the face just above the curved bell */
   --jelly-face-layer: 0.003;   /* separate eye layers without protruding eyeballs */
+
+  /* --- how the jelly moves (src/swim.js, character.js update): its look at rest never changes --- */
+  --jelly-motion-second-surge: 0.33;  /* the bell's recoil push late in each stroke, as a share of the main surge (the average push stays 1) */
+  --jelly-motion-second-at: 0.8;      /* where in the stroke it comes (0-1) */
+  --jelly-motion-second-width: 0.09;  /* how long it lasts (share of a stroke) */
+  --jelly-motion-idle-hold: 0.33;     /* a still jelly pulses, then holds this share of the cycle (0 = pulse nonstop) */
+  --jelly-motion-idle-sink: 0.02;     /* how far it sinks in that hold, in jelly heights */
+  --jelly-motion-lean-kick: 1.2;      /* how hard a change of speed tips it (rad/s per jelly-height/s): back on a start, forward on a stop */
+  --jelly-motion-lean-halflife: 0.15; /* about how many seconds the lean takes to close half the gap to where it's headed */
+  --jelly-motion-lean-freq: 2;        /* how many wobbles a second the lean settles with (0 = none) */
+  --jelly-motion-roll-kick: 0.8;      /* the same for banking into a turn */
+  --jelly-motion-roll-halflife: 0.2;
+  --jelly-motion-roll-freq: 1.4;
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
   --jelly-light-reach: 0.4;    /* meters */
   /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
