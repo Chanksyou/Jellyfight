@@ -121,10 +121,10 @@
 //                     seat (one onto where you are) and settle as marked spots (a circle and the
 //                     column over it); they flash for a beat, then burst on the bar as columns that
 //                     hit all the way up over a jump: step off the spot, a jump doesn't clear it.
-//     Hop-slam:       it crouches while a Warning (a circle and the half sphere over it) fills where
-//                     it will land, a short hop toward you; it leaps on a beat and lands as a Blast
-//                     round itself on the next, then waddles back to its spot.
-//     Under 65% Health it's angry: more spores, settling faster.
+//     Fairy ring:     its cap breathes in while a circle follows you, then eight caps sprout in a ring
+//                     round where you stand; they flash for a beat, then burst as columns over a
+//                     jump too. Hold still in the middle; run and you cross a column.
+//     Under 65% Health it's angry: more spores, settling faster, and a second Fairy ring where you'd flee.
 //   headphones  the Headphones on the kitchen counter by the stove (act 4's living room; headphones-model.js),
 //               standing in for the real pair on the coffee table, up on their two ear cups like a
 //               pair of speakers. It keeps the song's time too (its numbers are in beats). The counter
@@ -167,7 +167,7 @@ export const ATTACKS = {
   controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'piping'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
-  bowl: ['ring', 'hum'], pillow: ['spores', 'hop'], headphones: ['shove', 'bass'],
+  bowl: ['ring', 'hum'], pillow: ['spores', 'fairy'], headphones: ['shove', 'bass'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -176,6 +176,7 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 // star-ridged prism standing on y = 0 (2 tall, 2 wide), from z = 0 to 1; scale (R, R, length)
 const PIPE_STEP = 0.12;
 // the first snap= beats line (default 4: a bar) at or after beat `at`: act 4 Elites time their hits to it
+const flat2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const snapUp = (at, snap = 4) => Math.ceil(at / snap) * snap;
 function beadGeometry(points = 8) {
   const star = new THREE.Shape();
@@ -622,7 +623,11 @@ class Elite {
 
   clearTele() { this.tele.forEach((m) => { this.owner.scene.remove(m); }); this.tele = []; }
   // the Mushroom Pillow's spores still out (drifting or settled): back to the pool
-  dropSpores() { for (const s of this.spores || []) this.owner.fx.free(s.orb); this.spores = null; }
+  dropSpores() {
+    for (const s of this.spores || []) this.owner.fx.free(s.orb);
+    for (const R of [this.plan?.ring, this.plan?.second]) if (R && !R.gone) for (const k of R.caps) this.owner.fx.free(k.cap);   // (and the Fairy ring's caps)
+    this.spores = null;
+  }
 
   cancelAttack() {
     this.clearTele();
@@ -646,7 +651,7 @@ class Elite {
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
     if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
     if (this.kind === 'bowl') { this.model.pose('rest'); this.charge = 0; }
-    if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // back on the seat if it was mid-hop
+    if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // 
     if (this.kind === 'headphones') { this.plan = null; this.lit = [0, 0]; }
     if (this.kind === 'soap') {
       const M = this.model;
@@ -1164,17 +1169,6 @@ export class Elites {
     return out;
   }
 
-  // where the Mushroom Pillow's hop lands (into `to`): toward the jelly, at most H.reach from where
-  // it starts, on the seat it stands on (cut short if the way there leaves it)
-  pillowLanding(e, P, H, to) {
-    const from = e.plan.start, dx = P.x - from.x, dz = P.z - from.z, d = Math.hypot(dx, dz), k = d > H.reach ? H.reach / d : 1;
-    for (let i = 0; i <= 5; i++) {
-      const f = k * (1 - i / 5);
-      this.platformTarget(e, to.set(from.x + dx * f, from.y + 0.1, from.z + dz * f), H.radius * 0.5);
-      if (Math.abs(to.y - from.y) < 0.04) return to;
-    }
-    return to.copy(from);
-  }
 
   // the middle of the Headphones' cup i's speaker (world, into `out`)
   headphonesMouth(e, i, out) { return out.copy(e.model.mouths[i]).multiplyScalar(e.size).applyAxisAngle(UP, e.holder.rotation.y).add(e.base); }
@@ -2492,7 +2486,13 @@ export class Elites {
         const M = e.model, SK = e.def.skills, angry = e.hp < e.maxHp * e.def.angry, col = hostile('pillow'), beat = this.beat;
         const jumped = e.plan && Math.abs(beat - e.beatWas - dt * this.bpm / 60) > 1;   // (a frame is far under a beat)
         e.beatWas = beat;
-        if (jumped) { const S = e.attack ? SK.hop : SK.spores; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        if (jumped) { const S = e.attack ? SK.fairy : SK.spores; e.cancelAttack(); e.cool = angry ? S.angryRest : S.rest; continue; }
+        const inhale = (from, to) => {                                       // the cap breathes in, its spots glowing, spores gathering to it
+          const u = THREE.MathUtils.clamp((beat - from) / (to - from), 0, 1);
+          M.cap.scale.y *= 1 - u * LOOK.num('pillow-inhale', 0.16); M.cap.scale.x *= 1 + u * 0.05; M.cap.scale.z *= 1 + u * 0.05;
+          e.charge = u;
+          if (Math.random() < dt * 12 * u) this.fx.glow.emit(this._mid.copy(muzzle).setY(muzzle.y - 0.05 + Math.random() * 0.05).addScaledVector(this._right.set(Math.random() - 0.5, 0, Math.random() - 0.5), 0.3), col, 0.02, 0.005, 0.3, 0.8);
+        };
         if (e.attack === 0) {
           // Spores: the cap breathes in, its spots glowing; on a beat it puffs spores that drift over
           // the seat (the first onto where you are) and settle as marked spots, a circle and the
@@ -2506,10 +2506,7 @@ export class Elites {
           }
           const L = e.plan;
           if (beat < L.puff) {                                               // breathing in
-            const u = THREE.MathUtils.clamp((beat - L.from) / (L.puff - L.from), 0, 1);
-            M.cap.scale.y *= 1 - u * LOOK.num('pillow-inhale', 0.16); M.cap.scale.x *= 1 + u * 0.05; M.cap.scale.z *= 1 + u * 0.05;
-            e.charge = u;
-            if (Math.random() < dt * 12 * u) this.fx.glow.emit(this._mid.copy(muzzle).setY(muzzle.y - 0.05 + Math.random() * 0.05).addScaledVector(this._right.set(Math.random() - 0.5, 0, Math.random() - 0.5), 0.3), col, 0.02, 0.005, 0.3, 0.8);   // spores gathering to the cap
+            inhale(L.from, L.puff);
           } else if (!L.puffed) {                                            // the puff, on the beat
             L.puffed = true;
             const spots = this.pillowSpots(e, P, L.n, S), size = LOOK.num('pillow-spore-size', 0.008);
@@ -2565,44 +2562,88 @@ export class Elites {
             }
           }
         } else {
-          // Hop-slam: it crouches while a Warning (a circle and the half sphere over it) fills where it
-          // will land, a short hop toward you (it follows you until it leaps); it leaps on a beat and
-          // lands a beat later as a Blast round itself, then waddles back to its spot
-          const H = SK.hop;
-          if (!e.plan) { const leap = Math.ceil(beat + H.windup); e.plan = { from: beat, leap, land: leap + H.air, start: e.base.clone(), to: new THREE.Vector3() }; }
-          const L = e.plan, to = L.to;
-          if (beat < L.leap) this.pillowLanding(e, P, H, to);
-          else e.locked = true;
-          if (!e.tele.length && !L.landed) e.tele.push(this.warnCircle(to, H.radius, this.T.pillow), this.volume(col, 'dome', to, H.radius));
-          if (e.tele.length) {
-            const u = THREE.MathUtils.clamp((beat - L.from) / (L.land - L.from), 0, 1);
-            e.tele[0].userData.fill(u); e.tele[1].material.progress = u;
-            e.tele[0].position.copy(to).setY(to.y + 0.002); e.tele[1].position.copy(to);
+          // Fairy ring: the cap breathes in while a circle follows you (where the ring will sprout);
+          // on a beat eight caps sprout in a ring round where you stand, their Warnings (a circle and
+          // the column over each) filling together; they flash for one beat, then burst on the bar as
+          // columns that hit all the way up (over a jump). Hold still in the middle and you're fine;
+          // run and you cross a column at once. Angry: after the first bursts, a second ring sprouts
+          // where you'd flee (the way you were moving, else away from it), a beat to flash and burst
+          const F = SK.fairy, tall = LOOK.num('pillow-column', 0.35), cdim = LOOK.num('pillow-column-opacity', 0.2);
+          if (!e.plan) {
+            const burst = snapUp(beat + F.windup + F.grow + 1, F.snap);
+            e.plan = { from: beat, puff: burst - 1 - F.grow, ring: null, again: angry };
+            sfx.pillowInhale((e.plan.puff - beat) * 60 / this.bpm);
           }
-          if (beat < L.leap) {                                               // crouching
-            const c = Math.min(1, (beat - L.from) / ((L.leap - L.from) * 0.6));
-            g.scale.y *= 1 - c * LOOK.num('pillow-crouch', 0.22); g.scale.x *= 1 + c * 0.1; g.scale.z *= 1 + c * 0.1;
-            g.position.x = (Math.random() - 0.5) * 0.003 * c;
-          } else if (beat < L.land) {                                        // in the air
-            const u = (beat - L.leap) / (L.land - L.leap);
-            if (!L.leapt) { L.leapt = true; e.squash = 0.5; this.fx.puff(surf.clone().setY(surf.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), 0.1, 0.4, 0.4); sfx.pillowHop(); }   // the push off
-            e.holder.position.lerpVectors(L.start, to, u);
-            g.position.y = Math.sin(u * Math.PI) * H.leap;
-            g.scale.y *= 1 + Math.sin(u * Math.PI) * 0.12; g.scale.x *= 1 - Math.sin(u * Math.PI) * 0.05; g.scale.z *= 1 - Math.sin(u * Math.PI) * 0.05;
-          } else if (!L.landed) {                                            // the slam
-            L.landed = true;
+          const L = e.plan;
+          const sprout = (c, settle) => {                                     // eight caps round c, each with its Warning
+            const R = { c, settle, burst: settle + 1, from: settle - F.grow, caps: [], struck: false };
+            for (let i = 0; i < F.caps; i++) {
+              const a = i / F.caps * Math.PI * 2, at = new THREE.Vector3(c.x + Math.cos(a) * F.ring, c.y, c.z + Math.sin(a) * F.ring);
+              const v = this.volume(col, 'disc', at, this._s3.set(F.radius, tall, F.radius));
+              v.material.opacity = cdim;
+              e.tele.push(this.warnCircle(at, F.radius, this.T.pillow, LOOK.num('pillow-spot-warning', 0.6)), v);
+              const cap = this.fx.orb(col, 0.001);                            // (a pooled, instanced sphere, squashed to a cap)
+              cap.userData.color.set(LOOK.color('pillow-cap', '#ff7ae8'));
+              R.caps.push({ at, cap });
+            }
+            this.fx.puff(this._probe.copy(c).setY(c.y + 0.01), LOOK.color('pillow-puff', '#f0c8ff'), F.ring, 0.5, 0.45);
+            this.fx.impact(c.clone().setY(c.y + 0.01), col, LOOK.num('pillow-puff-flash', 0.03), 10);
+            juice.feel('hit'); sfx.pillowPuff();
+            return R;
+          };
+          const dropRing = (R) => { for (const k of R.caps) { k.cap.visible = false; this.fx.free(k.cap); } e.clearTele(); };
+          const inColumn = (at) => Math.hypot(P.x - at.x, P.z - at.z) < F.radius + cfg.radius && P.y + cfg.height > at.y && P.y < at.y + tall;
+          if (beat < L.puff) {                                               // breathing in, the circle following you
+            inhale(L.from, L.puff);
+            if (!e.tele.length) e.tele.push(this.warnCircle(P, F.ring + F.radius, this.T.pillow, 0.5));
+            this.platformTarget(e, this._mid.copy(P), 0);
+            e.tele[0].position.copy(this._mid).setY(this._mid.y + 0.002); e.tele[0].userData.fill(THREE.MathUtils.clamp((beat - L.from) / (L.puff - L.from), 0, 1));
+          } else if (!L.ring) {                                              // sprout on the beat, where you stand
             e.clearTele();
-            this.moveElite(e, this._mid.copy(to).setY(to.y + 0.05));
-            const at = e.base.clone().setY(e.base.y + 0.002);
-            this.fx.ring(at, col, H.radius, 0.5);                            // its real reach
-            this.fx.impact(at.clone().setY(at.y + 0.01), col, 0.05, 22);
-            this.fx.puff(at.clone().setY(at.y + 0.02), LOOK.color('pillow-puff', '#f0c8ff'), H.radius * 0.9, 0.6, 0.45);
-            this.fx.burst(at.clone().setY(at.y + 0.03), LOOK.list('pillow-fluff', ['#f4ecdc', '#c8312b', '#f0c8ff']), 10, 0.004, 0.35, at.y);
-            this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), H.radius * LOOK.num('pillow-dust-size', 0.7) * 0.6, 'dust');
-            e.squash = 1;                                                    // it lands flat, then springs back
-            juice.feel('impact-big'); sfx.pillowSlam();
-            if (blastHits(at, H.radius, P, cfg)) { hit(H.dmg, 'pillow-hop', at); knock(e.base, H.knock); this.fx.impact(pc, col, 0.02, 8); }
-          } else if (beat > L.land + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? H.angryRest : H.rest; }
+            L.ring = sprout(this.platformTarget(e, P.clone(), 0), L.puff + F.grow); L.p0 = P.clone();
+            e.pop = 1; e.charge = 0.4;
+          }
+          for (const R of [L.ring, L.second]) {
+            if (!R || R.gone) continue;
+            const k = THREE.MathUtils.clamp((beat - R.from) / (R.burst - R.from), 0, 1), grow = THREE.MathUtils.clamp((beat - R.from) / Math.max(0.01, R.settle - R.from), 0, 1);
+            const flash = beat >= R.settle ? +(Math.sin((beat - R.settle) * Math.PI * 4) > 0) : 0, o = cdim;
+            R.caps.forEach((s, i) => {
+              const w = e.tele[i * 2], v = e.tele[i * 2 + 1], size = F.radius * 0.9 * grow;
+              w.userData.fill(k); v.material.progress = k;
+              if (beat >= R.settle) { w.material.opacity = 0.5 + 0.5 * flash; v.material.opacity = o + (1 - o) * flash; }
+              s.cap.position.set(s.at.x, s.at.y + size * 0.3, s.at.z); s.cap.scale.set(size, size * 0.5, size);
+              if (!R.struck && beat > R.from + 0.25 && inColumn(s.at)) {      // run into a cap and its column goes off (a quarter beat after it sprouts)
+                R.struck = true; hit(F.dmg, 'pillow-fairy', P); this.fx.impact(pc, col, 0.02, 8); juice.feel('impact'); sfx.pillowBurst(true);
+              }
+            });
+            e.charge = 0.4 + flash * 0.6;
+            if (beat >= R.settle && !R.settled) { R.settled = true; sfx.pillowSettle(F.caps); }
+            if (beat >= R.burst) {                                           // the burst, on the bar: columns
+              const struck = R.struck || R.caps.some((s) => inColumn(s.at));
+              dropRing(R); R.gone = true;                                    // (its volumes go back to the pool for the columns)
+              for (const { at } of R.caps) {
+                const pulse = this.volume(col, 'disc', at, this._s3.set(F.radius, tall, F.radius));
+                pulse.material.progress = 1;
+                this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('pillow-column-life', 0.3), o: LOOK.num('pillow-column-burst', 0.5) });
+                this.fx.impact(this._mid.copy(at).setY(at.y + 0.02), col, LOOK.num('pillow-burst-flash', 0.03), 8);
+                for (const h of [0.1, 0.45, 0.8]) this.fx.puff(this._probe.copy(at).setY(at.y + h * tall), LOOK.color('pillow-puff', '#f0c8ff'), F.radius * 0.9, 0.45, 0.4);
+                this.fx.splat(at, LOOK.color('pillow-dust', '#c9a0d8'), F.radius * LOOK.num('pillow-dust-size', 0.7), 'dust');
+              }
+              if (struck && !R.struck) { hit(F.dmg, 'pillow-fairy', P); this.fx.impact(pc, col, 0.02, 8); }
+              e.charge = 0; e.pop = 0.5; juice.feel(struck ? 'impact' : 'hit'); sfx.pillowBurst(struck);
+              if (R === L.ring && L.again) {                                 // angry: a second ring where you'd flee
+                const away = this._right.set(P.x - L.p0.x, 0, P.z - L.p0.z);
+                if (away.length() < 0.03) away.set(R.c.x - e.base.x, 0, R.c.z - e.base.z);
+                away.normalize().multiplyScalar(F.flee);
+                let c2 = null;
+                for (const sign of [1, -1]) {                                // the seat is narrow: if the way you'd flee runs out of it, the other way
+                  const t = this.platformTarget(e, new THREE.Vector3(R.c.x + away.x * sign, R.c.y, R.c.z + away.z * sign), 0);
+                  if (!c2 || flat2(t, R.c) > flat2(c2, R.c)) c2 = t;
+                }
+                L.second = sprout(c2, R.burst + F.grow);
+              } else { e.plan = null; e.state = 'idle'; e.cool = angry ? F.angryRest : F.rest; }
+            }
+          }
         }
       }
 
