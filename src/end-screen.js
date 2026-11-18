@@ -5,6 +5,7 @@
 import { icon } from './icons.js';
 import { esc } from './leaderboard.js';
 import { TREASURES, EVOLUTIONS } from './stats.js';
+import { stagger } from './ui.js';
 
 const CSS = `
 /* the panel's words and numbers scroll if they must; its buttons stay put under them */
@@ -34,7 +35,7 @@ const CSS = `
 .jf-end .jf-stats .ui-icon { margin-right: var(--ui-space-1); color: var(--ui-mint); }
 /* the one stamp of an act cleared: a gold seal slams down beside the heading */
 .jf-stamp { display: inline-grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--ui-gold); color: var(--ui-gold-ink);
-  box-shadow: 0 3px 0 var(--ui-gold-deep), 0 0 0 4px color-mix(in srgb, var(--ui-gold) 35%, transparent); animation: jfStamp .5s cubic-bezier(.2, 1.3, .4, 1) .1s backwards; }
+  box-shadow: 0 3px 0 var(--ui-gold-deep), 0 0 0 4px color-mix(in srgb, var(--ui-gold) 35%, transparent); animation: jfStamp var(--ui-slow) var(--ui-ease-arrive) var(--ui-fast) backwards; }
 .jf-stamp .ui-icon { width: 26px; height: 26px; color: inherit; stroke-width: 3; }
 @keyframes jfStamp { from { transform: scale(2.4) rotate(-16deg); opacity: 0; } 55% { opacity: 1; } 75% { transform: scale(.92) rotate(3deg); } }
 .jf-chips, .jf-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--ui-space-2); margin: 0 0 var(--ui-space-3); }
@@ -78,7 +79,8 @@ export function dressEnd(modal, run, { tiles = true } = {}) {
     ...run.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)).filter(Boolean).map((e) => ({ ...e, n: 1, evo: true })),
     ...[...run.owned].map((id) => TREASURES.find((t) => t.id === id)).filter(Boolean).map((t) => ({ ...t, n: run.owned.count(t.id) })),
   ];
-  if (list.length) left.append(div('jf-tiles', list.map((x, i) => `<span class="ui-tile jf-tile${x.evo ? ' jf-evo' : ''}" style="--d:${i * 40}ms" role="img" aria-label="${esc(x.name)}${x.n > 1 ? ` ×${x.n}` : ''}">${x.icon}${x.n > 1 ? `<small>×${x.n}</small>` : ''}</span>`).join('')));
+  const s = stagger();   // the tiles arrive one after another, all within a third of a second
+  if (list.length) left.append(div('jf-tiles', list.map((x, i) => `<span class="ui-tile jf-tile${x.evo ? ' jf-evo' : ''}" style="--d:${Math.min(i * s, 360)}ms" role="img" aria-label="${esc(x.name)}${x.n > 1 ? ` ×${x.n}` : ''}">${x.icon}${x.n > 1 ? `<small>×${x.n}</small>` : ''}</span>`).join('')));
   body.append(left, right);
   panel.querySelector(':scope > .btns').before(body);
 }

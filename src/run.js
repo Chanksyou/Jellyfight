@@ -1439,7 +1439,31 @@ export class Run {
       this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();
-    });
+    }, (t) => this.treasureSlot(t));
+  }
+
+  // Where a Treasure just picked belongs in the HUD's row, for its icon to fly to (measured once, as it's picked):
+  // a Treasure you have already has its slot (its count bumps), a new one goes after the last, wrapping like the row does.
+  // A new one's slot stays empty until the icon lands, then the slot pops. null: no slot to fly to (an evolution, a hidden HUD)
+  treasureSlot(t) {
+    if (t.evolution) return null;
+    const row = this.hud.$('.items'), at = row.querySelector(`[data-id="${t.id}"]`), box = row.getBoundingClientRect(), last = row.lastElementChild?.getBoundingClientRect();
+    const size = last?.width || at?.getBoundingClientRect().width || (innerHeight < 500 ? 28 : 34), gap = parseFloat(getComputedStyle(row).columnGap) || 5;   // (an empty row: the phone's slot size or the desktop's)
+    if (!box.width || this.hud.el.hidden) return null;
+    let to = at?.getBoundingClientRect(), hide = null;
+    if (!to) {
+      const x = last ? last.right + gap : box.left, wrap = last && x + size > box.right + 1;
+      to = new DOMRect(wrap ? box.left : x, wrap ? last.bottom + gap : last ? last.top : box.top, size, size);
+      // its slot is drawn by the HUD a moment from now: hold it empty (ui.js .jf-landing) from the frame it appears
+      hide = new MutationObserver(() => { const el = row.querySelector(`[data-id="${t.id}"]`); if (el) { el.classList.add('jf-landing'); hide.disconnect(); } });
+      hide.observe(row, { childList: true });
+    }
+    const land = () => {
+      hide?.disconnect();
+      const el = row.querySelector(`[data-id="${t.id}"]`);
+      if (el) { el.classList.remove('jf-landing', 'pop'); void el.offsetWidth; el.classList.add('pop'); }   // the HUD's pop (hud.js) as it arrives
+    };
+    return { to, done: land };
   }
 
   // ------------------------------------------------------------ treasures in the room
@@ -1854,7 +1878,9 @@ export class Run {
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
       if (B?.web) buttons.push({ label: 'Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
       endStyles();
-      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, dead ? 'jf-end jf-end-dead' : 'jf-end', hint);
+      // a death's numbers wait for the jelly to finish drying out behind it (dried-out.js)
+      const settle = dead && this.driedOut.active && !this.driedOut.reduced ? Math.max(0, LOOK.num('death-dry-time', 0.8) - this.driedOut.t) * 1000 : 0;
+      this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, dead ? 'jf-end jf-end-dead' : 'jf-end', hint, settle);
       dressEnd(this.ui.modal, this, { tiles: !dead });   // time, Level and bugs; the Treasures taken (not on a death)
     };
     show(null);
