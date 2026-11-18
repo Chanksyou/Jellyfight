@@ -1583,8 +1583,16 @@ export function buildCharacter(look, heightMeters) {
   const baseRot = wobblers.map(([o, ax]) => o.rotation[ax]);
   const toUnits = 1 / (heightMeters * look.size);
   const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
+  const baseSpin = spinners.map(([o, ax]) => o.rotation[ax]), baseScroll = scrollers.map(([tex]) => tex.offset.y);
 
+  // s.rest (see restPose): the pose with every clock, spring and input at zero
   function update(dt, s) {
+    if (s.rest) {
+      t = phase = kick = roll = impact = impactV = idleSwim = surge = 0;
+      spinners.forEach(([o, ax], i) => { o.rotation[ax] = baseSpin[i]; });
+      scrollers.forEach(([tex], i) => { tex.offset.y = baseScroll[i]; });
+      for (const G of googly) G.x = G.y = G.vx = G.vy = 0;
+    }
     t += dt;
     const move = Math.min(1, s.speed / (s.walkSpeed || 0.35));
     phase += dt * s.speed * 60;
@@ -1597,7 +1605,7 @@ export function buildCharacter(look, heightMeters) {
       if (swim == null) swim = idleSwim = (idleSwim + dt * 0.6) % 1;
       kick = Math.max(0, kick - dt * 3);
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
-      contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
+      contract = s.rest ? 0 : kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
       bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
@@ -1626,12 +1634,12 @@ export function buildCharacter(look, heightMeters) {
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
     lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
-    rig?.update(dt, { localVel, contract, vy: s.vy || 0 });
+    rig?.update(dt, { localVel, contract, vy: s.vy || 0, rest: s.rest });
 
 
     spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });
     scrollers.forEach(([tex, sp]) => { tex.offset.y = (tex.offset.y + dt * sp) % 1; });
-    floaters.forEach(([o, y, amt], i) => { o.position.y = y + Math.sin(t * 1.6 + i) * amt; });
+    floaters.forEach(([o, y, amt], i) => { o.position.y = y + (s.rest ? 0 : Math.sin(t * 1.6 + i) * amt); });
     // steam from the golden kettle: puffs rise from the spout, swelling and thinning out
     steam.forEach(([o, ph]) => { const u = (t * 0.6 + ph) % 1; o.position.set(0, 0.09 + u * 0.1, 0.13 + u * 0.03); o.scale.setScalar(0.4 + u * 1.4 - (u > 0.8 ? (u - 0.8) * 7 : 0)); });
     // heart eyes beat; star eyes twinkle
@@ -1649,7 +1657,7 @@ export function buildCharacter(look, heightMeters) {
     if (gum) { const u = (t / 4) % 1; gum.scale.setScalar(u < 0.75 ? 0.15 + u * 1.1 : u < 0.8 ? 1 : 0.001); }
     wobblers.forEach(([o, ax, ph, amt], i) => {
       const drive = 0.3 + move * 0.7 + (s.grounded ? 0 : 0.6);
-      o.rotation[ax] = baseRot[i] + Math.sin(t * 6 + ph) * amt * drive - (ax === 'x' ? move * amt : 0);
+      o.rotation[ax] = baseRot[i] + (s.rest ? 0 : Math.sin(t * 6 + ph) * amt * drive) - (ax === 'x' ? move * amt : 0);
     });
 
     blinkIn -= dt;
@@ -1674,6 +1682,12 @@ export function buildCharacter(look, heightMeters) {
 
   function pulse(k = 1) { kick = Math.max(kick, k); }
 
+  // The rest pose: every animated value at its rest value (no stroke, breath, sway, lean, spring or
+  // tentacle ripple), so a look can be compared before and after a motion change. Motion code
+  // must leave it exactly as it is: add each new animated value's rest value here (`s.rest` in
+  // update), and the story look/rest-pose-unchanged keeps it honest.
+  function restPose() { update(0, { speed: 0, walkSpeed: 1, grounded: true, vy: 0, rest: true }); }
+
   // drying out in the sun (sunrise.js), k 0 (wet) to 1: the inner glow fades and the clear bell
   // goes dull and dusty. Only uniforms change, so no shader is rebuilt
   const wet = { glow: inner.emissiveIntensity, rough: outer.roughness, coat: outer.clearcoatRoughness, color: outer.color.clone() };
@@ -1691,5 +1705,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, update, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
+  return { root, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
 }

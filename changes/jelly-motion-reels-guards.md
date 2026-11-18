@@ -1,0 +1,1 @@
+adds the tests and tools for the coming jelly motion work, with no change to how the game looks or plays: a rest pose for every jelly (`restPose`), a story that keeps every look's rest pose exactly as it was, a story that caps the work one jelly does per frame, and `tools/motion-reel.mjs` for before/after reels.
