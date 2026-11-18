@@ -247,11 +247,12 @@ const KNOWN_MOTION = {
   'transition left: left': 'M1',   // .hp-edge slides by left
   'script div.player-health > div.bar.ui-bar.moist.low: boxShadow': 'M1', 'script div.vit > div.player-health: filter': 'M1',
   'script div.vit > div.bar.ui-bar.shield-bar.charging: boxShadow': 'M1',
+  'transition top: top': 'M3', 'transition width: width': 'M3', 'transition height: height': 'M3',   // the won icon's flight (transition: all), seen only while it flies
   'jfWon: boxShadow': 'M3', 'jfSheen: backgroundPositionX': 'M3', 'jfSheen: backgroundPositionY': 'M3', 'jfBurn: filter': 'M3',
 };
 const KNOWN_CALM = {
   'jf-swim: transform': 'M2', 'jf-wave: transform': 'M2', 'jf-shine: transform': 'M2',   // the title screen's ambient loops keep going
-  'transition transform: transform': 'M1', 'transition left: left': 'M1', 'jf-glow: boxShadow': 'M1',   // bar fills and slides, the Treasure glow
+  'transition transform: transform': 'M1', 'transition left: left': 'M1', 'jf-glow: boxShadow': 'M1', 'transition top: top': 'M3',   // bar fills and slides, the Treasure glow
 };
 const motionGuard = (name, about, calm, bad, known) => story(name, {
   phone: true,
