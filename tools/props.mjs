@@ -12,7 +12,7 @@ import { openApartment } from './apartment-page.mjs';
 
 export async function buildProps(page, assets) {
   const nodes = parse(fs.readFileSync(path.join(assets, '../content/props.kdl'), 'utf8'), 'content/props.kdl');
-  const specs = nodes.map((n) => ({ id: n.args[0], source: n.props.source }));
+  const specs = nodes.map((n) => ({ id: n.args[0], source: n.props.source, file: n.props.file }));
   const glb = await page.evaluate((s) => window.exportProps(s), specs);
   const file = path.join(assets, 'props.glb');
   fs.writeFileSync(file, Buffer.from(glb, 'base64'));

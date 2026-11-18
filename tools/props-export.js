@@ -6,6 +6,7 @@
 // are in the page's window.APT.kit; tools/props.mjs calls window.exportProps(specs).
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // source= in content/props.kdl names one of these. Each draws one plant at the origin, at the size
@@ -83,14 +84,34 @@ function build(source) {
   return parts;
 }
 
+// file= in content/props.kdl: a model tools/prop-import.mjs made from a download (tools/props-src/),
+// already two vertex-coloured meshes "solid" and "leaf" with its shading baked in. Its leaves may
+// carry the one colour texture a prop is allowed; they then get a leaf material of their own.
+async function load(file) {
+  const { scene } = await new GLTFLoader().loadAsync('/' + file);
+  scene.updateMatrixWorld(true);
+  const parts = { solid: [], leaf: [] };
+  let map = null;
+  scene.traverse((m) => {
+    if (!m.isMesh) return;
+    const kind = m.name.startsWith('leaf') ? 'leaf' : 'solid', g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+    for (const n of Object.keys(g.attributes)) if (!['position', 'normal', 'color', ...(kind === 'leaf' && m.material.map ? ['uv'] : [])].includes(n)) g.deleteAttribute(n);
+    if (kind === 'leaf' && m.material.map) map = m.material.map;
+    parts[kind].push(g);
+  });
+  if (map) map.userData.mimeType = 'image/jpeg';
+  return { parts, map };
+}
+
 export async function exportProps(specs) {
   const solid = new THREE.MeshStandardMaterial({ name: 'prop-solid', vertexColors: true, roughness: 0.65, metalness: 0 });
   const leafM = new THREE.MeshStandardMaterial({ name: 'prop-leaf', vertexColors: true, roughness: 0.5, metalness: 0, side: THREE.DoubleSide });
   const root = new THREE.Group();
-  for (const { id, source } of specs) {
-    const parts = build(source), g = new THREE.Group();
+  for (const { id, source, file } of specs) {
+    const { parts, map } = file ? await load(file) : { parts: build(source) }, g = new THREE.Group();
     g.name = id;
-    for (const [kind, material] of [['solid', solid], ['leaf', leafM]]) {
+    const leafOwn = map && new THREE.MeshStandardMaterial({ name: id + '-leaf', map, vertexColors: true, roughness: 0.45, metalness: 0, side: THREE.DoubleSide });
+    for (const [kind, material] of [['solid', solid], ['leaf', leafOwn || leafM]]) {
       if (!parts[kind].length) continue;
       const mesh = new THREE.Mesh(mergeGeometries(parts[kind]), material);
       mesh.name = id + '-' + kind;
