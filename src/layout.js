@@ -496,14 +496,21 @@ export class LayoutEditor {
       const h = this.pointerRay(e).intersectObjects(this.ventItems.map((it) => it.node), false)[0];
       if (h) return { it: this.byNode.get(h.object), point: h.point };
     }
+    // what you can see wins over the invisible click boxes furniture carries (a TV's box swallows a small plant standing in it);
+    // a click box is still grabbed when nothing visible is under the pointer
     const hits = this.pointerRay(e).intersectObjects(this.items.map((it) => it.node), true);
+    let box = null;
     for (const h of hits) {
       let o = h.object;
       if (!o.visible) continue;
+      const clickBox = h.object.material?.visible === false || h.object.material?.colorWrite === false;
       while (o && !this.byNode.has(o)) o = o.parent;
-      if (o) return { it: this.byNode.get(o), point: h.point };
+      if (!o) continue;
+      const got = { it: this.byNode.get(o), point: h.point };
+      if (!clickBox) return got;
+      box ??= got;
     }
-    return null;
+    return box;
   }
 
   bind() {
