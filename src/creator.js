@@ -17,7 +17,9 @@ const CSS = `
 #creator h2 { margin: 0; font: 600 var(--ui-size-title)/1.1 var(--ui-font-display); }
 #creator .pearls { display: flex; align-items: center; gap: var(--ui-space-1); margin: var(--ui-space-1) 0 0; color: var(--ui-ink-dim); font-size: var(--ui-size-label); font-variant-numeric: tabular-nums; }
 #creator .pearls .ui-icon { color: var(--ui-mint); }
-#creator .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-1) var(--ui-space-4) var(--ui-space-4); }
+#creator .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ui-space-1) var(--ui-space-4) 32px; }
+/* a row cut at the fold fades out, so it reads as "more below", not as broken pills (the bottom padding clears it at the end) */
+#creator .scroll { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 #creator .sec { margin-top: var(--ui-space-4); }
 #creator .lbl { margin-bottom: var(--ui-space-2); font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .06em; text-transform: uppercase; color: var(--ui-ink-dim); }
 #creator .chips { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }

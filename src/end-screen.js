@@ -16,10 +16,14 @@ const CSS = `
 @media (min-aspect-ratio: 4/3) {
   .jf-modal .jf-panel.jf-end { width: min(780px, 94vw); }
   .jf-end-body { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 5fr); column-gap: var(--ui-space-5); align-items: start; }
-  .jf-end-body > .jf-stats { width: 100%; margin: 0; grid-template-columns: auto minmax(0, 1fr); gap: var(--ui-space-1) var(--ui-space-4); }
+  .jf-end-right > .jf-stats { width: 100%; margin: 0; grid-template-columns: auto minmax(0, 1fr); gap: var(--ui-space-1) var(--ui-space-4); }
+  .jf-end-right > .jf-chips { justify-content: flex-start; margin: var(--ui-space-3) 0 0; }
   .jf-end-left > .jf-hint { max-width: none; margin: 0 0 var(--ui-space-3); padding: var(--ui-space-2) var(--ui-space-3); }
   /* a death: narrower, so the jelly lying dried out beside it (dried-out.js) shows */
   .jf-modal .jf-panel.jf-end-dead { width: min(640px, 94vw); }
+  /* its labels wrap before its values do, so "The Vacuum was 4:20 away" stays one line ("Next unlock" sits on two beside the unlock's face) */
+  .jf-end-dead .jf-end-right > .jf-stats { grid-template-columns: fit-content(80px) minmax(0, 1fr); }
+  .jf-end-dead .jf-stats > span { white-space: normal; }
 }
 /* the beta bubble sits in the top corner: on a short screen the panel starts below it */
 @media (max-height: 520px) { .jf-modal:has(.jf-end > .jf-beta) { padding-top: max(56px, env(safe-area-inset-top)); } }
@@ -65,12 +69,16 @@ export function dressEnd(modal, run, { tiles = true } = {}) {
   const div = (cls, html = '') => Object.assign(document.createElement('div'), { className: cls, innerHTML: html });
   const left = div('jf-end-left'), body = div('jf-end-body');
   left.append(...panel.querySelectorAll(':scope > .ui-header, :scope > .sub, :scope > .jf-hint'));
-  left.append(div('jf-chips', `<span class="ui-chip">${icon('clock')} ${clock(run.t)}</span><span class="ui-chip">${icon('star')} Level ${run.level}</span><span class="ui-chip">${run.kills.toLocaleString()} bugs</span>`));
+  const chips = div('jf-chips', `<span class="ui-chip">${icon('clock')} ${clock(run.t)}</span><span class="ui-chip">${icon('star')} Level ${run.level}</span><span class="ui-chip">${run.kills.toLocaleString()} bugs</span>`);
+  // a death has no Treasures to show: its chips go under the numbers, so the hint keeps the left column's room
+  const dead = panel.classList.contains('jf-end-dead'), right = div('jf-end-right');
+  right.append(...panel.querySelectorAll(':scope > .jf-stats'));
+  (dead ? right : left).append(chips);
   const list = !tiles ? [] : [
     ...run.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)).filter(Boolean).map((e) => ({ ...e, n: 1, evo: true })),
     ...[...run.owned].map((id) => TREASURES.find((t) => t.id === id)).filter(Boolean).map((t) => ({ ...t, n: run.owned.count(t.id) })),
   ];
   if (list.length) left.append(div('jf-tiles', list.map((x, i) => `<span class="ui-tile jf-tile${x.evo ? ' jf-evo' : ''}" style="--d:${i * 40}ms" role="img" aria-label="${esc(x.name)}${x.n > 1 ? ` ×${x.n}` : ''}">${x.icon}${x.n > 1 ? `<small>×${x.n}</small>` : ''}</span>`).join('')));
-  body.append(left, ...panel.querySelectorAll(':scope > .jf-stats'));
+  body.append(left, right);
   panel.querySelector(':scope > .btns').before(body);
 }

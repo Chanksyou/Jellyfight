@@ -16,7 +16,7 @@ const offSofa = () => tp(0.3, 0.02, 2.9, 0);                    // on the floor 
 const isPillow = (o) => o.material.uniforms.uColor.value.getHex() === hostile('pillow').getHex();
 const pillowPairs = () => volumePairs().filter(([v, f]) => f && isPillow(v));
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 4, 4 - (b % 4));              // beats from the nearest bar line
+const offSnap = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const SK = () => CONTENT.elites.pillow.skills;
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -78,9 +78,28 @@ night4('pillow-spores-settle-then-burst-on-the-bar', {
     const r = playSpores(e, () => { squashed = Math.min(squashed, e.model.cap.scale.y); });
     const hits = hitsBy(log, 'pillow-spores'), first = r.spots && flat(r.spots[0], at);
     const good = r.spots?.length === S.spots && first < 0.01 && r.columns === S.spots && squashed < 0.9
-      && offBeat(r.puff) < 0.05 && Math.abs(r.settle - r.puff - S.drift) < 0.05 && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
+      && offBeat(r.puff) < 0.05 && Math.abs(r.settle - r.puff - S.drift) < 0.05 && offSnap(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
       && hits.length === 1 && hits[0] === S.dmg;
     return ok(good, { spots: r.spots?.length, first: first && +first.toFixed(3), columns: r.columns, squashed: +squashed.toFixed(2), puff: +r.puff?.toFixed(2), settle: +r.settle?.toFixed(2), burst: +r.burst.toFixed(2), hits });
+  },
+});
+
+night4('pillow-spore-columns-stay-dim-until-their-last-beat', {
+  about: 'Five to eight tall spore columns at once are busy, so while they fill each column shows dim (look.css --pillow-column-opacity) and its floor circle quiet (--pillow-spot-warning); on the last beat, settled, they flash up to full, and they still fill to the burst on the bar.',
+  setup() { startPillow(0); },
+  play() {
+    const { e } = startPillow(0), dim = LOOK.num('pillow-column-opacity', 0.2), spot = LOOK.num('pillow-spot-warning', 0.6);
+    let before = 0, circles = 0, flash = 0, full = 0;
+    playSpores(e, (i, plan) => {
+      const pairs = pillowPairs().filter(([v]) => v.material.kind === 'disc');
+      if (!pairs.length || !plan || plan.burst <= G().run.beat) return;
+      const o = Math.max(...pairs.map(([v]) => v.material.opacity));
+      if (!plan.settled) { before = Math.max(before, o); circles = Math.max(circles, ...pairs.map(([, f]) => f.material.opacity)); }
+      else flash = Math.max(flash, o);
+      full = Math.max(full, Math.min(...pairs.map(([v]) => v.material.progress)));
+    });
+    return ok(dim <= 0.25 && before > 0 && before <= dim + 1e-6 && circles <= spot + 1e-6 && flash > 0.95 && full > 0.9,
+      { dim, before: +before.toFixed(2), spot, circles: +circles.toFixed(2), flash: +flash.toFixed(2), full: +full.toFixed(2) });
   },
 });
 
@@ -130,7 +149,7 @@ night4('pillow-angry-more-spores-settling-faster', {
     const r = playSpores(e);
     const { e: c } = startPillow(0, { angry: true, x: 1.915, z: 1.682 }), corner = playSpores(c);   // by the sofa's back: every spot still on the seat
     const offSeat = (corner.spots || []).filter((s) => Math.abs(s.y - c.base.y) > 0.04).length;
-    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
+    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offSnap(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
       && corner.spots?.length > 1 && offSeat === 0,
       { spots: r.spots?.length, drift: +(r.settle - r.puff).toFixed(2), burst: +r.burst.toFixed(2), corner: corner.spots?.length, offSeat, ys: corner.spots?.map((s) => +s.y.toFixed(2)) });
   },

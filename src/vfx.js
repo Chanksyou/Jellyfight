@@ -55,6 +55,7 @@ export class TeleMaterial extends THREE.ShaderMaterial {
         uHalf: { value: half },
         uOpacity: { value: 1 },
         uFlow: { value: shape === 'circle' ? 1 : -1 },   // stripes run in to the middle of a circle, out along a wedge or strip
+        uGlow: { value: LOOK.num('warning-floor-glow', 1.45) },
       },
       vertexShader: /* glsl */`
         ${LOGV_PARS}
@@ -66,7 +67,7 @@ export class TeleMaterial extends THREE.ShaderMaterial {
         }`,
       fragmentShader: /* glsl */`
         ${LOGF_PARS}
-        uniform vec3 uColor; uniform float uProgress, uTime, uShape, uHalf, uOpacity, uFlow;
+        uniform vec3 uColor; uniform float uProgress, uTime, uShape, uHalf, uOpacity, uFlow, uGlow;
         varying vec2 vUv;
         void main() {
           #include <logdepthbuf_fragment>
@@ -100,7 +101,7 @@ export class TeleMaterial extends THREE.ShaderMaterial {
           float a = edge * 0.95 + filled * 0.5 + front * 0.9 + stripes * 0.4 + 0.14;
           vec3 col = uColor * (1.0 + edge * 0.6 + front * 0.6) + vec3(front * 0.25);   // over-bright edges bloom on desktop
           float al = clamp(a, 0.0, 1.0) * uOpacity;
-          gl_FragColor = vec4(col * al * 1.7, al);   // premultiplied and boosted: lights up a dark stove, still covers a pale floor
+          gl_FragColor = vec4(col * al * uGlow, al);   // premultiplied and boosted: lights up a dark stove, still covers a pale floor
         }`,
       transparent: true,
       depthWrite: false,
@@ -228,7 +229,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
         uBottom: { value: k.bottom },
         uHeight: { value: k.height },
         uHex: { value: LOOK.num('warning-volume-hex', 90) },
-        uGlow: { value: LOOK.num('warning-volume-glow', 1.5) },
+        uGlow: { value: LOOK.num('warning-volume-glow', 1.1) },
       },
       vertexShader: /* glsl */`
         ${LOGV_PARS}

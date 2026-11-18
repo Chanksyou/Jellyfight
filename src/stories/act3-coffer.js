@@ -7,6 +7,7 @@ import { CONTENT } from '../content.js';
 import { CONFIG } from '../config.js';
 import { unlock as unlockAudio, audio, sfx } from '../sfx.js';
 import { juice } from '../juice.js';
+import { LOOK } from '../look.js';
 import { G, V, act3, coffer, fresh, holdJelly, onDesk, ok, r3, record, spy, startCoffer, step, stub, tp, volumePairs } from './kit.js';
 
 const onFloor = () => tp(-1.2, 0.05, 9.5, 0);                // on the floor between the desk and the bassinet
@@ -217,6 +218,27 @@ act3('coffer-jewels', {
     const { in: a, between: b } = out;
     return ok(a.spots === J.count && a.shown === J.count && a.apart >= J.spread * 0.75 && a.onDesk && Math.abs(a.rain - J.rain) < 0.06 && a.up > 0.3 && a.falling > 0.1
       && a.hits.length === 1 && a.hits[0] === J.dmg && b.spots === J.count && (!b.at || !b.hits.length), out);
+  },
+});
+
+act3('coffer-jewel-warnings-are-quiet', {
+  about: 'Jewels lay ten or more Warnings at once, so each is kept quiet (look.css --coffer-jewel-warning, --coffer-jewel-volume): every circle shows at most that strongly and every half sphere at that, under a lone Warning\'s full strength, and all of them still fill together to the rain.',
+  setup() { startCoffer(2); },
+  play() {
+    const { e } = startCoffer(2), floor = LOOK.num('coffer-jewel-warning', 0.6), vol = LOOK.num('coffer-jewel-volume', 0.4);
+    let most = 0, vols = [], full = 0, n = 0;
+    step(60 * 5, () => {
+      const pairs = cofferPairs();
+      if (pairs.length) {
+        n = Math.max(n, pairs.length);
+        most = Math.max(most, ...pairs.map(([, f]) => f.material.opacity));
+        vols = pairs.map(([v]) => +v.material.opacity.toFixed(2));
+        full = Math.max(full, Math.min(...pairs.map(([v, f]) => Math.min(v.material.progress, f.material.progress))));
+      }
+      return e.burst;
+    });
+    return ok(n === CONTENT.elites.coffer.skills.jewels.count && floor < 1 && vol < 1 && most > 0 && most <= floor + 1e-6 && vols.every((o) => Math.abs(o - vol) < 0.01) && full > 0.95,
+      { n, floor, most: +most.toFixed(2), vol, vols: [...new Set(vols)], full: +full.toFixed(2) });
   },
 });
 
