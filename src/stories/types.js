@@ -111,7 +111,6 @@ story('types/fire-shot-is-the-only-attack', {
   setup() { setupFight({ types: 'fire' }); },
   play() {
     const { run, menus } = G();
-    run.startPicked = false;
     step(2);
     const noPick = !menus.open && run.owned.size === 0;
     roachAt(0, -0.06);

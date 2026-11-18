@@ -564,6 +564,7 @@ story('types/run-starts-with-an-upgrade-pick', {
     const first = !menus.open;
     fresh({ types: 'fire' }); G().run.carry = { ...G().run.carryOver() }; G().run.startPicked = false; step(3);
     const later = !G().menus.open;
+    G().run.carry = null;   // (a carry would set the next story's jelly type)
     fresh();
     return ok(open && cards === 3 && rerolls === 1 && took && closed && first && later, { cards, open, rerolls, took, closed, first, later });
   },
