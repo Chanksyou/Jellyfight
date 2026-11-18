@@ -16,7 +16,7 @@ function playwright() {
   return require(path.join(execSync('npm root -g').toString().trim(), 'playwright'));
 }
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.txt': 'text/plain', '.png': 'image/png', '.jpg': 'image/jpeg', '.kdl': 'text/plain', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.txt': 'text/plain', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.kdl': 'text/plain', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 
 // three.js for the tests: JF_THREE (an unpacked three@0.186.1 npm package), else the copy the
 // session start hook unpacks (.claude/hooks/session-start.sh), else the CDN

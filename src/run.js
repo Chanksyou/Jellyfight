@@ -776,7 +776,7 @@ export class Run {
       this.player.snapToGround();
       this.tpc.snapTo(this.player.position);
     } else this.duelSpawn();
-    this.hud.toast(`🐞 1 on 1: ${pick.name}`, 2000);
+    this.hud.toast(`1 on 1: ${pick.name}`, 2000);
   }
 
   // the duel's bug, a little way off where it can reach you (straight ahead if nowhere else)
@@ -1053,7 +1053,7 @@ export class Run {
       this.player.avatar?.root.scale.setScalar(0.45);
       const P = this.player.position;
       this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.1, 0.8);
-      this.hud.toast(`♾️ Back to a polyp… you bloom again in ${R.time} s.`, 2400);
+      this.hud.toast(`Back to a polyp… you bloom again in ${R.time} s.`, 2400);
       return;
     }
     if (this.health <= 0) {
@@ -1075,7 +1075,7 @@ export class Run {
     const P = this.player.position, c = P.clone().setY(P.y + this.cfg.height * 0.5);
     this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.18, 0.7);
     this.fx.impact(c, this.friendly, 0.05, 18);
-    this.hud.toast('♾️ You bloom again, whole.', 2000);
+    this.hud.toast('You bloom again, whole.', 2000);
   }
 
   heal(amount, quiet = false) {
@@ -1107,8 +1107,8 @@ export class Run {
     this.wishedIn = this.stage.id;
     this.gainXp(Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)));
     const P = this.player.position;
-    this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.3), '🌠 WISH!', '#ffd23a', 22);
-    this.hud.toast('🌠 Your wish came true: a free level-up!', 1800);
+    this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.3), 'WISH!', '#ffd23a', 22);
+    this.hud.toast('Your wish came true: a free level-up!', 1800);
   }
 
   // stack-buff: an event adds a stack to every buff that answers it (up to its most) and restarts its time
@@ -1216,7 +1216,7 @@ export class Run {
     if (elite) {                         // elites leave a treasure where they fall
       this.eliteBugs++;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
-      if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), '✨ Elite cleared! It left a treasure.', 1800);
+      if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite cleared! It left a treasure.', 1800);
     }
     if (this.mods.burstOnKill) {this.gadgets.looks.salt(c,this.mods.burstOnKill.radius,true);this.bursts.push(c);}
   }
@@ -1237,7 +1237,7 @@ export class Run {
     juice.feel('elite-kill'); sfx.boom();
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
-    this.eliteTreasure(e.base, `✨ ${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
+    this.eliteTreasure(e.base, `${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
   }
 
   // A beaten Elite's treasure; with the Goodie Bag (elite-bonus) every `every`th Elite leaves a second one beside it
@@ -1249,7 +1249,7 @@ export class Run {
     let p = this.openSpotNear(_drop.copy(first).add(_near.set(0.12, 0, 0)));
     if (!p || p.distanceTo(first) < 0.08) p = first.clone().add(_near.set(0.12, 0, 0));   // never on top of the first
     this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
-    this.hud.toast('✨ Goodie Bag! It left two treasures.', ms);
+    this.hud.toast('Goodie Bag! It left two treasures.', ms);
   }
 
   // stomp (Pogo Stick): the jelly's underside falling from `from` to `to` (after a drop) through the top of
@@ -1362,7 +1362,7 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
-  pickTreasure(title = '✨ A treasure', sub = 'Choose a treasure.', source = 'room') {
+  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room') {
     const weights = CHEST_WEIGHTS[source];
     // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
     const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
@@ -1405,7 +1405,7 @@ export class Run {
     const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
     if (!left.length) { then(); return; }
     sfx.treasure();
-    this.ui.choose('⚔️ An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
+    this.ui.choose('An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
       const before = this.S.health;
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
@@ -1463,7 +1463,7 @@ export class Run {
     }
     this.lastTreasureSpot = spot;
     this.recentTreasureSpots = [spot.label, ...this.recentTreasureSpots].slice(0, 3);
-    this.hud.toast(`✨ A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
+    this.hud.toast(`A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
   }
 
   // A beaten elite leaves its treasure where it fell, on the nearest open spot (openSpot: open
@@ -1511,9 +1511,9 @@ export class Run {
           const slots = this.challenges.scheduled[this.stage.id] ||= [];
           if (!slots.includes(t.scheduledSlot)) slots.push(t.scheduledSlot);
         }
-        this.pickTreasure('✨ A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
+        this.pickTreasure('A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
       }
-      else if (r === 'gone') this.hud.toast('✨ The treasure faded away…', 1800);
+      else if (r === 'gone') this.hud.toast('The treasure faded away…', 1800);
     }
   }
 
@@ -1692,7 +1692,7 @@ export class Run {
     if (!n) return;
     const can = shuffle([...this.owned].map((id) => TREASURES.find((t) => t.id === id)).filter((t) => t && t.levels.length > 1 && this.owned.count(t.id) < t.stack)).slice(0, n);
     for (const t of can) this.owned.add(t.id);
-    if (can.length) this.hud.toast(`🐟 Fish Food: ${can.map((t) => `${t.icon} ${t.name}`).join(' and ')} level up!`, 2600);
+    if (can.length) this.hud.toast(`Fish Food: ${can.map((t) => `${t.icon} ${t.name}`).join(' and ')} level up!`, 2600);
     return can;
   }
 
@@ -1734,7 +1734,7 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     // no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
-    if (next) this.pickLegendary('👑 A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+    if (next) this.pickLegendary('A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
     else { this.phase = 'won'; this.endRun(`${icon('trophy')} You won!`, this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
   }
 
@@ -1852,7 +1852,7 @@ export class Run {
       buttons.push({ label: `${icon('medal')} Achievements`, onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
       if (this.onMainMenu) buttons.push({ label: `${icon('home')} Main menu`, onClick: () => this.onMainMenu() });
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
-      if (B?.web) buttons.push({ label: '🪼 Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
+      if (B?.web) buttons.push({ label: 'Jelly Run is still in beta! Tap to bloop us your thoughts', corner: true, onClick: () => this.showFeedback(() => show(last), entry) });
       endStyles();
       this.ui.message(title, result?.why === 'sending' ? 'Sending your score…' : sub, rows, buttons, dead ? 'jf-end jf-end-dead' : 'jf-end', hint);
       dressEnd(this.ui.modal, this, { tiles: !dead });   // time, Level and bugs; the Treasures taken (not on a death)
@@ -1868,15 +1868,15 @@ export class Run {
   // feedback table with this run's build, act, score and device; back() returns to the end screen
   showFeedback(back, entry, note = '', text = '') {
     this.endView = 'feedback';
-    const title = '🪼 Bloop us a message';
-    const send = { label: '📨 Send', go: true, onClick: (v) => {
+    const title = 'Bloop us a message';
+    const send = { label: 'Send', go: true, onClick: (v) => {
       const typed = (v.feedback || '').trim();
       if (!typed) { this.showFeedback(back, entry, 'Type something first.'); return; }
       this.ui.message(title, 'Sending…', [], [{ label: 'Back', onClick: back }]);
       const device = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop';
       this.board.feedback({ text: typed, build: entry.build, act: this.stage.id, won: entry.won, score: entry.score, device }).then((r) => {
         if (this.endView !== 'feedback') return;
-        if (r.sent) this.ui.message('🫧 Message received!', 'Your note just floated up to us. Thanks for helping the jelly grow!', [], [{ label: 'Back', go: true, onClick: back }]);
+        if (r.sent) this.ui.message('Message received!', 'Your note just floated up to us. Thanks for helping the jelly grow!', [], [{ label: 'Back', go: true, onClick: back }]);
         else this.showFeedback(back, entry, r.why === 'slow' ? 'Please wait a moment before sending more.' : 'Couldn\'t send it. Check your connection and try again.', typed);
       });
     } };
@@ -1999,7 +1999,7 @@ export class Run {
       { title: 'Jellies', items: Object.values(CONTENT.jellies).map((J) => { const lock = typeLock(J.id); return { id: J.id, icon: J.icon, name: J.name, text: J.about, found: !lock, locked: lock?.goal }; }) },
       ...Object.values(CONTENT.jellies).map((J) => sec(`${J.icon} ${J.name}: Attack upgrades`, 'upgrades', CONTENT.upgrades.filter((u) => u.jelly === J.id).map((u) => ({ id: u.id, icon: u.icon, name: u.name, text: u.text })))).filter((s) => s.items.length),
     ] : [];
-    this.ui.book('📖 Treasure book', [
+    this.ui.book('Treasure book', [
       ...jellies,
       sec('Treasures', 'treasures', [...treasures, ...(types ? evolutions : [])].sort((a, b) => a.rank - b.rank)),
       ...(types ? [] : [sec('Evolutions', 'evolutions', evolutions)]),
@@ -2020,7 +2020,7 @@ export class Run {
     this.endView = 'achievement-board';
     const request = this.achievementRequest = (this.achievementRequest || 0) + 1;
     const backButton = { label: 'Back to achievements', go: true, onClick: () => { this.endView = 'achievements'; back(); } };
-    this.ui.message('🏆 Achievement Top 5', entry ? 'Sharing your achievements…' : 'Loading players…', [], [backButton], 'jf-book jf-board');
+    this.ui.message('Achievement Top 5', entry ? 'Sharing your achievements…' : 'Loading players…', [], [backButton], 'jf-book jf-board');
     const data = await this.board?.achievementBoard?.(entry) || { error: 'offline' };
     if (this.endView !== 'achievement-board' || this.achievementRequest !== request) return;
     const earned = earnedAchievements(), ids = ACHIEVEMENTS.filter(a => earned[a.id]).map(a => a.id), rows = [];
@@ -2044,7 +2044,7 @@ export class Run {
     buttons.push(backButton);
     const note = data.error === 'taken' ? 'That name is already in use. Choose another.' : data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
       : `${entry ? 'Achievements shared. ' : ''}${data.top.length ? 'Most unique achievements earned across winning runs. Equal totals share a rank.' : 'No players yet. Earn an achievement and share it to enter.'}`;
-    this.ui.message('🏆 Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
+    this.ui.message('Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
 
   showBoard(back) {
@@ -2054,7 +2054,7 @@ export class Run {
       if (this.endView !== 'board') return;
       const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
       if (B.web && B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back)); } });
-      this.ui.message('🏆 Leaderboard', B.note(), B.table(this.jellyFace, (id) => (CONTENT.jellies[id] || CONTENT.jellies.normal).name), buttons, 'jf-board');
+      this.ui.message('Leaderboard', B.note(), B.table(this.jellyFace, (id) => (CONTENT.jellies[id] || CONTENT.jellies.normal).name), buttons, 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)

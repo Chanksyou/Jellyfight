@@ -20,6 +20,8 @@
   --ui-gold: #ffd46c;          /* the main action, rewards */
   --ui-gold-ink: #2b1f00;      /* text on gold */
   --ui-gold-deep: #b8891f;     /* the gold button's edge */
+  --ui-silver: #cfd8e3;        /* 2nd place on a board */
+  --ui-bronze: #d9915a;        /* 3rd place on a board */
   --ui-health: #5fc8ff;
   --ui-xp: #ffd46c;
   --ui-shield: #9fe8ff;
@@ -417,14 +419,15 @@
   /* --- the night ------------------------------------------------------------ */
   --night-fill: 0.12;          /* soft fill from the room's reflections: 0 = lamps only, 1 = daylight */
   --night-sky: #05060c;        /* what you see through the windows */
-  --skyline-radius: 90;        /* the 33rd floor's view (src/skyline.js): the ring of city round the apartment, metres out */
-  --skyline-up: 25;            /* how far it reaches above the horizon (the jelly's eye level), metres */
-  --skyline-down: 100;         /* and below it: 33 floors is about 100 m, so the streets are far down */
-  --skyline-tower: #080b16;    /* the towers about as tall as you */
-  --skyline-lights: #ffd9a0 #ffb468 #bcd6ff;   /* their lit windows */
-  --skyline-street: #ffa653;   /* the street lights far below */
-  --skyline-street-dots: 2600; /* how many of them */
-  --skyline-window-chance: 0.22; /* the share of tower windows lit */
+  --skyline-radius: 132;       /* metres from the room to the distant city backdrop */
+  --skyline-up: 84;            /* sky coverage in metres above the window horizon */
+  --skyline-down: 100;         /* streets about 100 m below the apartment */
+  --skyline-night-gain: 0.30;  /* dark surfaces at midnight, with brighter windows retained */
+  --skyline-day-gain: 2.2;     /* fill on dark surfaces after sunrise */
+  --skyline-dawn-start: 315;   --skyline-dawn-end: 475;  /* local clock minutes */
+  --skyline-dusk-start: 1090;  --skyline-dusk-end: 1230;
+  --surface-grain: 0.22;      /* the depth of dents and fine grain on hard floors */
+  --surface-paint: 0.19;      /* fine relief on paint and glazed finishes */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
 
@@ -435,7 +438,6 @@
   --dawn-sky: #141f3c;            --dawn-sky-late: #8a6a58;
   --dawn-haze: 0.14;              --dawn-haze-late: 0.16;
   --dawn-haze-color: #0b1226;     --dawn-haze-color-late: #301c10;
-  --dawn-window: #7ea0ee;         --dawn-window-late: #ffcf86;
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 

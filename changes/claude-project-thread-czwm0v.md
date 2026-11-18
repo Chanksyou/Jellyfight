@@ -1,0 +1,1 @@
+Act 4's Elites (the Singing Bowl, the Mushroom Pillow and the Headphones) attack faster: their hits land on the next half bar instead of the next whole bar, their wind-ups are a beat shorter, and they rest 0.6 s between attacks (0.4 s when angry). A minute of fighting now has about 38% more attacks (bowl 11 to 13, pillow 17 to 26, headphones 9 to 12). It is harder.
