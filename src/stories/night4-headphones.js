@@ -15,7 +15,7 @@ import { G, fresh, headphones, night4, ok, onCounter, r3, record, spy, startHead
 const offTable = () => tp(3.9, 0.02, 2.6, 0);                  // on the kitchen floor in front of the counter
 const SK = () => CONTENT.elites.headphones.skills;
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
+const offSnap = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const VENT = () => G().run.traversal.vents.find((v) => v.name === ELITES4.find((q) => q.kind === 'headphones').vent);
@@ -96,7 +96,7 @@ night4('headphones-shove-waves-on-the-bar', {
     });
     seen.done();
     const cups = seen.waves.map((w) => w.from), along = moved && seen.waves[0] ? moved.clone().normalize().dot(seen.waves[0].dir) : 0;
-    const good = seen.waves.length === W.waves && seen.waves.every((w) => offBar(w.beat) < 0.05) && flat(cups[0], cups[1]) > 0.1 && flat(cups[0], cups[2]) < 0.03
+    const good = seen.waves.length === W.waves && seen.waves.every((w) => offSnap(w.beat) < 0.05) && flat(cups[0], cups[1]) > 0.1 && flat(cups[0], cups[2]) < 0.03
       && white > 60 && edge > flat(cups[0], at) && !log.length && moved && along > 0.99 && Math.abs(moved.length() - W.push) < 0.03;
     return ok(good, { waves: seen.waves.map((w) => +w.beat.toFixed(2)), cupsApart: +flat(cups[0], cups[1]).toFixed(2), white, edge: +edge.toFixed(2), hurt: log.length, push: moved && +moved.length().toFixed(3), along: +along.toFixed(3) });
   },
@@ -166,7 +166,7 @@ night4('headphones-bass-shots-on-the-beat', {
     step(60 * 2);
     seen.done();
     const S = seen.shots, mid = player.position.y + CONFIG.player.height * 0.5, hits = hitsBy(log, 'headphones-bass');
-    const good = S.length === B.shots && offBar(S[0].beat) < 0.05 && S.every((s, k) => offBeat(s.beat) < 0.05 && (!k || Math.abs(s.beat - S[k - 1].beat - B.every) < 0.05))
+    const good = S.length === B.shots && offSnap(S[0].beat) < 0.05 && S.every((s, k) => offBeat(s.beat) < 0.05 && (!k || Math.abs(s.beat - S[k - 1].beat - B.every) < 0.05))
       && flat(S[0].from, S[1].from) > 0.1 && S.every((s) => Math.abs(s.to.y - mid) < 0.005) && tubes > 60 && hits.length === B.shots && hits.every((h) => h === B.dmg);
     return ok(good, { beats: S.map((s) => +s.beat.toFixed(2)), cupsApart: S[1] && +flat(S[0].from, S[1].from).toFixed(2), tubes, hits });
   },

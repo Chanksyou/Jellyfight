@@ -266,8 +266,8 @@ night4('the-dawn-look-warms-across-the-night', {
       && unlit && lights() === lit, { start, end, lit });
   },
 });
-night4('cicadas-from-1.30', {
-  about: 'A roll favouring the last eligible bug cannot spawn a cicada before 1.30 in the living room, but spawns one at exactly 1:30.',
+night4('cicadas-from-1-30', {
+  about: 'A roll favouring the last eligible bug cannot spawn a cicada before 1:30 in the living room, but spawns one at exactly 1:30.',
   setup() { fresh({ waves: true, elites: false }); },
   play() {
     const { run, enemies, player } = G();
@@ -283,8 +283,8 @@ night4('cicadas-from-1.30', {
 // for a minute on the run's own beat (the jelly held on its spot, no damage) and counts the attacks it starts
 // (`e.next` counts them). The bowl gains least: its rings stay a bar apart. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
 night4('elites-attack-faster', {
-  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and each at least 10% more (their old counts are in this story; now bowl 13, pillow 26, headphones 12 against 11, 17, 9).',
-  setup() { fresh(); },
+  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and each at least 10% more (their old counts are in this story).',
+  setup() {},
   play() {
     const BEFORE = { bowl: 11, pillow: 17, headphones: 9 }, out = {};
     for (const [kind, at] of [['bowl', kit.onChair], ['pillow', kit.onSofa], ['headphones', kit.onCounter]]) {

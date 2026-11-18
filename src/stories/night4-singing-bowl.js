@@ -14,7 +14,7 @@ const offChair = () => tp(2.6, 0.05, 1.5, 0);                // on the floor bes
 const isBowl = (o) => o.material.uniforms.uColor.value.getHex() === hostile('bowl').getHex();
 const bowlPairs = () => volumePairs().filter(([v, f]) => f && isBowl(v));
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
+const offSnap = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const SK = () => CONTENT.elites.bowl.skills;
 
 night4('bowl-sleeps-on-the-lounge-chair', {
@@ -61,7 +61,7 @@ night4('bowl-rim-ring-strikes-on-the-bar', {
       return e.state === 'idle' && beats.length && !run.elites.rings.length;
     });
     const hits = hitsBy(log, 'bowl-ring'), gaps = beats.slice(1).map((b, i) => +(b - beats[i]).toFixed(2));
-    return ok(warned > 30 && lifted > 0.1 && beats.length === SK().ring.rings && beats.every((b) => offBar(b) < 0.1) && gaps.every((g) => Math.abs(g - 4) < 0.1) && hits.length === beats.length * 2 && hits.every((n) => n === SK().ring.dmg),
+    return ok(warned > 30 && lifted > 0.1 && beats.length === SK().ring.rings && beats.every((b) => offSnap(b) < 0.1) && gaps.every((g) => Math.abs(g - 4) < 0.1) && hits.length === beats.length * 2 && hits.every((n) => n === SK().ring.dmg),
       { warned, lifted: +lifted.toFixed(2), beats, gaps, hits });
   },
 });
@@ -105,7 +105,7 @@ night4('bowl-angry-two-rings-a-bar-the-second-faster', {
       return e.state === 'idle' && beats.length && !run.elites.rings.length;
     });
     const R = SK().ring, gaps = beats.slice(1).map((b, i) => +(b - beats[i]).toFixed(2));
-    return ok(beats.length === R.angryRings && offBar(beats[0]) < 0.1 && gaps.every((g) => Math.abs(g - 2) < 0.1) && speeds.every((v, i) => v === (i % 2 ? R.angrySpeed : R.speed)) && R.angrySpeed > R.speed,
+    return ok(beats.length === R.angryRings && offSnap(beats[0]) < 0.1 && gaps.every((g) => Math.abs(g - 2) < 0.1) && speeds.every((v, i) => v === (i % 2 ? R.angrySpeed : R.speed)) && R.angrySpeed > R.speed,
       { beats, gaps, speeds });
   },
 });
@@ -180,7 +180,7 @@ night4('bowl-hum-hits-outside-the-safe-circle-not-inside', {
       step(60 * 12, () => { if (e.humAt && from === null) from = run.beat; if (e.humDone && at === null) at = run.beat; return e.state === 'idle' && !e.humAt && from !== null; });
       out[name] = { from: from && +from.toFixed(2), at: at && +at.toFixed(2), planned: e.humAt, hits: hitsBy(log, 'bowl-hum') };
     }
-    const good = (r) => r.at !== null && offBar(r.at) < 0.1 && r.at - r.from >= H.windup - 0.1;
+    const good = (r) => r.at !== null && offSnap(r.at) < 0.1 && r.at - r.from >= H.windup - 0.1;
     return ok(good(out.outside) && good(out['outside, jumping']) && good(out.inside)
       && out.outside.hits.length === 1 && out.outside.hits[0] === H.dmg && out['outside, jumping'].hits.length === 1 && out.inside.hits.length === 0, out);
   },
