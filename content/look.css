@@ -337,6 +337,8 @@
   --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre (on a row too narrow for it, it sits just clear of the centre card instead) */
   --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
   --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
+  --pick-bounce: 0.7;          /* how springy it is: 1 settles with no overshoot, lower overshoots a little more (0.7 is about 5%) */
+  --pick-squeeze: 0.08;        /* seconds the Play button squeezes before the run starts (the start waits this long) */
   --pick-aura-fps: 30;         /* frames a second the elements round the jellies on the cards draw at */
   --pick-aura-strength: 1;     /* how bright those elements are (0 hides them) */
   --pick-portrait-room: 1.3;   /* how far back a card's portrait stands from the jelly (1: as close as the leaderboard's), leaving room round it for the element */
@@ -946,7 +948,7 @@
   width: 47%; max-width: 610px; margin-left: 8%; padding-block: 30px; padding-inline: 0; align-items: flex-start;
 }
 #g-over h1 { text-shadow: 0 8px 35px #0005; transform-origin: left bottom; }
-#g-over:is(.menu-home, .menu-launching) h1 { animation: menu-arrive .55s cubic-bezier(.16,1,.3,1) both; }
+#g-over:is(.menu-home, .menu-launching) h1 { animation: menu-arrive var(--ui-slow) var(--ui-ease-arrive) both; }
 #g-over h1 span { color: var(--ui-mint); }
 #g-over .menu-help summary { list-style: none; width: fit-content; color: var(--ui-ink); }
 #g-over .menu-help summary::-webkit-details-marker { display: none; }
@@ -965,6 +967,10 @@
 @media (hover: hover) { #g-over .resume:not([hidden]) + .play:hover { background: var(--ui-glass-strong); filter: none; } }
 #g-over .menu-tiles { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }
 #g-over .menu-tiles .ui-tile { width: 104px; min-height: 72px; text-align: center; }
+/* the tiles come in one after another under the title (backwards fill: once in, a press can still move them) */
+#g-over:is(.menu-home, .menu-launching) .menu-tiles .ui-tile { animation: ui-in var(--ui-mid) var(--ui-ease-arrive) backwards; animation-delay: calc(var(--i, 0) * var(--ui-stagger)); }
+#g-over .menu-tiles .ui-tile:nth-child(2) { --i: 1; }
+#g-over .menu-tiles .ui-tile:nth-child(3) { --i: 2; }
 #g-over .menu-gear { position: fixed; z-index: 2; top: max(var(--ui-space-3), env(safe-area-inset-top)); right: max(var(--ui-space-3), env(safe-area-inset-right)); }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly {
   display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
@@ -981,8 +987,8 @@
 }
 #g-over:is(.menu-home, .menu-launching) button:focus-visible { outline: 2px solid var(--ui-mint); outline-offset: 5px; }
 #g-over:is(.menu-home, .menu-launching) .menu-jelly:active { transform: none; }
-#g-over:is(.menu-home, .menu-launching) .menu-pop { animation: menu-pop .24s ease-out; }
-#g-over.menu-launching { pointer-events: none; animation: menu-leave .28s ease-in both; }
+#g-over:is(.menu-home, .menu-launching) .menu-pop { animation: menu-pop var(--ui-mid) var(--ui-ease-settle); }
+#g-over.menu-launching { pointer-events: none; animation: menu-leave var(--ui-mid) var(--ui-ease-leave) both; }
 #g-over.menu-launching .menu-jelly, #g-over.menu-launching .menu-jelly-caption { display: none; }
 @keyframes menu-arrive { from { opacity: 0; transform: translateY(12px) scale(.98,1.04); } to { opacity: 1; transform: none; } }
 @keyframes menu-pop { 0% { transform: none; } 55% { transform: scale(1.035,1.02); } 100% { transform: none; } }

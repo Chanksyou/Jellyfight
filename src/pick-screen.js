@@ -32,7 +32,7 @@ const CSS = `
 #type-pick header { flex: none; margin-bottom: var(--ui-space-2); }
 #type-pick .tp-headline { display: flex; align-items: center; gap: var(--ui-space-3); }
 #type-pick .tp-dots { display: flex; gap: var(--ui-space-2); padding-right: var(--ui-space-2); }
-#type-pick .tp-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-glass-strong); transition: background-color var(--ui-mid), transform var(--ui-mid); }
+#type-pick .tp-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-glass-strong); transition: background-color var(--ui-mid), transform var(--ui-mid) var(--ui-ease-arrive); }
 #type-pick .tp-dots i.on { background: var(--ui-mint); transform: scale(1.4); }
 #type-pick .tp-stage { position: relative; flex: 1; min-height: 0; container-type: size; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 #type-pick .tp-stage.drag { cursor: grabbing; }
@@ -50,6 +50,9 @@ const CSS = `
 #type-pick .tp-card.locked { filter: grayscale(.9) brightness(.8); }
 #type-pick .tp-card h3 { margin: 0; text-align: center; color: var(--accent); }
 #type-pick .tp-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--ui-space-3); }
+/* Play squeezes just before the run starts (confirm()); the start waits --pick-squeeze for it */
+#type-pick .tp-play.tp-squeeze { animation: tp-squeeze calc(var(--pick-squeeze) * 1s) var(--ui-ease-settle) both; }
+@keyframes tp-squeeze { to { transform: scale(.94, .88); } }
 #type-pick .tp-art { position: relative; flex: none; width: var(--art); height: var(--art); align-self: center; border-radius: var(--ui-radius-m); overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); background: var(--ui-deep); }
 #type-pick .tp-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
@@ -95,7 +98,7 @@ export class TypePicker {
     this.lookKey = null;
     this.ids = Object.keys(CONTENT.jellies);
     this.frames = Object.fromEntries(this.ids.map((id) => [id, Array(VIEWS).fill(null)]));
-    this.pos = 0; this.target = 0; this.index = 0;
+    this.pos = 0; this.target = 0; this.vel = 0; this.index = 0;
     this.queue = []; this.spin = 0; this.drag = null; this.wheel = 0; this.wheelAt = 0;
     this.onPlay = null; this.onBack = null; this.raf = 0; this.last = 0;
     this.auraT = 0; this.auraAt = -1;   // the elements' clock, and when they were last drawn (-1: draw them now)
@@ -132,7 +135,7 @@ export class TypePicker {
       a.addEventListener('pointerdown', (e) => e.stopPropagation());   // not the start of a drag
       a.addEventListener('click', () => this.step(Number(a.dataset.dir)));
     }
-    this.panel.play.addEventListener('click', () => this.play());
+    this.panel.play.addEventListener('click', () => this.confirm());
     this.back.addEventListener('click', () => this.leave());
     this.panel.play.addEventListener('animationend', () => this.panel.play.classList.remove('ui-pop'));
     this.stage.addEventListener('pointerdown', (e) => this.down(e));
@@ -183,6 +186,7 @@ export class TypePicker {
     this.index = Math.max(0, this.ids.indexOf(start));
     this.pos = this.target = this.index;
     this.spin = 0;
+    this.vel = 0;
     this.measure();   // (draws the elements again: the size or Reduce motion may have changed)
     this.setCentre(this.index, true);
     this.place();
@@ -196,9 +200,20 @@ export class TypePicker {
 
   close() {
     this.root.hidden = true;
+    this.confirming = false;
+    this.panel.play.classList.remove('tp-squeeze');
     this.stopLive();
     this.drag = null;
     this.stage.classList.remove('drag');
+  }
+
+  // The Play button / Enter: the button squeezes for --pick-squeeze, then the run starts (at once with Reduce effects)
+  confirm() {
+    if (this.confirming || !this.isOpen || typeLock(this.centre)) return;
+    if (this.calm()) { this.play(); return; }
+    this.confirming = true;
+    this.panel.play.classList.add('tp-squeeze');
+    setTimeout(() => { if (this.confirming) this.play(); }, LOOK.num('pick-squeeze', 0.08) * 1000);
   }
 
   // Play: start a run as the centre type. A locked type can't be played.
@@ -328,9 +343,17 @@ export class TypePicker {
     this.last = now;
     let moving = !!this.drag;
     if (!this.drag) {
+      // the row settles on a card like a spring: it lands a touch past it and comes back
       const gap = this.target - this.pos;
-      if (Math.abs(gap) > 0.002 && !this.calm()) { this.pos += gap * (1 - Math.exp(-dt * LOOK.num('pick-snap', 14))); moving = true; }
-      else if (gap) this.pos = this.target;
+      if ((Math.abs(gap) > 0.002 || Math.abs(this.vel) > 0.02) && !this.calm()) {
+        const w = LOOK.num('pick-snap', 14), zeta = LOOK.num('pick-bounce', 0.7);
+        for (let left = dt; left > 0; left -= 1 / 60) {   // small steps keep the spring steady on a slow frame
+          const h = Math.min(left, 1 / 60);
+          this.vel += (w * w * (this.target - this.pos) - 2 * zeta * w * this.vel) * h;
+          this.pos += this.vel * h;
+        }
+        moving = true;
+      } else if (gap || this.vel) { this.pos = this.target; this.vel = 0; }
     }
     if (this.pos !== this.placed) { this.place(); this.auraAt = -1; }   // a card coming into view gets its element at once
     this.drawAuras(dt);
@@ -355,6 +378,7 @@ export class TypePicker {
   // --- moving the row --------------------------------------------------------------------------
   down(e) {
     if (e.button) return;
+    this.vel = 0;
     this.drag = { id: e.pointerId, x: e.clientX, pos: this.pos, moved: false, lastX: e.clientX, lastT: e.timeStamp, v: 0 };
   }
 
@@ -401,7 +425,7 @@ export class TypePicker {
     if (e.code === 'ArrowRight') this.step(1);
     else if (e.code === 'ArrowLeft') this.step(-1);
     else if (e.code === 'Escape') this.leave();
-    else if (e.code === 'Enter' && !e.target.closest?.('button')) this.play();
+    else if (e.code === 'Enter' && !e.target.closest?.('button')) this.confirm();
     else return;
     e.preventDefault();
     e.stopPropagation();

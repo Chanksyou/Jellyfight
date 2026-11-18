@@ -1,0 +1,1 @@
+gives the title tiles a quick cascade, springs buttons back past full size when you let go, has sheets rise then sink faster, makes the jelly pick row settle on a card with a small overshoot, and squeezes Play for 80 ms before a run starts.
