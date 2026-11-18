@@ -36,14 +36,16 @@ try {
       if (only && !only.includes(screen)) continue;
       const shown = await page.evaluate(async ({ screen, phone, large }) => {
         document.documentElement.dataset.textSize = large ? 'large' : 'normal';
-        const { fresh, step } = await import('/src/stories/kit.js'), ui = await import('/src/stories/ui.js');
+        const { fresh, step, tp } = await import('/src/stories/kit.js'), ui = await import('/src/stories/ui.js');
         const s = screen.startsWith('kit') ? { open() { this.el = ui.kitSheet(); if (screen === 'kit-sheet') this.el.querySelector('[data-kit=sheet-open]').click(); }, close() { this.el.remove(); } } : ui.SCREENS[screen];
         if (s.phone && !phone) return false;
         fresh({ elites: false, bubbles: false, lash: false });
+        if (!screen.startsWith('kit')) tp(3.2, 0.05, 3.0);   // in the room, so the 3D behind the screen is worth looking at
         step(30);                                         // the jelly settles and the HUD fills in
         s.open();
         step(30);                                         // the screen's own entrance plays out
         await document.fonts.ready;
+        window.GAME.render();                             // the loop is stopped: draw the frame the shot will show
         window.__shotClose = () => { try { s.close(); } finally { step(1); } };
         return true;
       }, { screen, phone: device.name === 'phone', large });
@@ -51,7 +53,7 @@ try {
       // the kit sheet scrolls: a shot per screenful
       for (let part = 1, more = true; more; part++) {
         const file = path.join(out, `${device.name}-${String(i).padStart(2, '0')}-${screen}${part > 1 ? '-' + part : ''}${large ? '-large' : ''}.jpg`);
-        await page.waitForTimeout(400);                   // CSS transitions run on real time
+        await page.waitForTimeout(1200);                  // CSS transitions run on real time, slower when the page is busy
         await page.screenshot({ path: file, type: 'jpeg', quality: 82, timeout: 120000 });
         console.log('✓ ' + path.relative(process.cwd(), file));
         more = screen === 'kit' && await page.evaluate(() => {
