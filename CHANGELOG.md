@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v517 dresses act 4's living room as a show about to start: a low barrier of Festival wristbands strung behind where the sun stops and cables running from the media console, with the LED cove strip, the Corner LED, the Spotlight floor lamp and the TV flashing on the song's beat; when time is up the TV flares and the media console lights up for eight beats (two with Reduce effects, or skip it with a jump) before the stage door opens.
+
 v516 starts every run after the first with a pick of 1 of 3 Attack upgrades from your jelly type's pool, before any bugs come (it doesn't use your level-up reroll).
 
 v515 gives the jelly's oral arms a life of their own: each swings on a soft chain in the water the bell carries along, so the arms keep going the old way through a turn, swing on after a stop and flare out as the bell relaxes after each stroke (they no longer wobble on a clock).
