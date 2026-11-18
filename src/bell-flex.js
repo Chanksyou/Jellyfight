@@ -16,7 +16,7 @@ const CROWN = LOOK.num('jelly-motion-crown-give', 0.12);  // how much of the squ
 const CURL = LOOK.num('jelly-motion-curl', 0.08);         // the margin curling in further on the power stroke
 export const RIM_LAG = LOOK.num('jelly-motion-rim-lag', 0.06);   // the rim's stroke behind the crown's, in cycles
 
-const f = (x) => x.toFixed(4);
+const f = (x) => x.toFixed(6);   // (the CPU mirror uses the full numbers: keep enough places that they agree)
 const GLSL = /* glsl */ `{
   float bfS = 1.0 - clamp(transformed.y / bellFlex.z, 0.0, 1.0);
   float bfC = mix(bellFlex.x, bellFlex.y, bfS);
