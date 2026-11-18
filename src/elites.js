@@ -134,11 +134,12 @@
 //                     it) fills, following you until a beat before; on the bar a white sound wave
 //                     rolls down it. It doesn't hurt: it shoves you along it, toward the edge. Jump it
 //                     to stay put, step out of it, or ride it if there's room behind you.
-//     Bass Shots:     the cups take turns, one a beat from a bar line: each Shot's Warning (a line on
-//                     the table and the tube over it to your middle) fills in its colour, locking just
-//                     before it fires: step sideways.
-//     Under 65% Health it's angry: with each wave the other cup fires a bass Shot at jump height
-//     along with it, so jumping the wave flies you into the Shot: stay down and ride the shove.
+//     Stereo:         a line down the counter through the Headphones splits its ground into two halves, one
+//                     per cup. A cup lights up and marks its half (a floor square and the slab over it, each
+//                     half in its own colour) filling to the beat; then that half bursts: cross to the
+//                     other half on the beat. The first half is the one you stand on.
+//     Under 65% Health it's angry: more bursts, and a beat after each the cup that burst sends a shove
+//                     wave at you across the line: jump it, or be shoved deeper into the half about to burst.
 //
 // To the rest of the game each elite is a "proxy" enemy (enemies.addProxy), so bubbles,
 // tentacles, treasures and the minimap treat it like any other target.
@@ -1184,7 +1185,7 @@ export class Elites {
   // One Headphones shove wave's cue, from cup `cup`, from beat `from` to beat `due` (Q: its lane's state, one per
   // attack). Its Warning (a white strip from the cup through the jelly to the counter's edge, and the low lane over
   // it) fills and follows the jelly until `lock` beats before; on `due` the wave rolls down it. True on that beat
-  shoveCue(e, Q, cup, from, due, lock, P, fwd) {
+  shoveCue(e, Q, cup, from, due, lock, P, fwd, dt) {
     const W = e.def.skills.shove, top = e.base.y, beat = this.beat, u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
     if (beat < due - lock) {                                          // following you
       this.headphonesMouth(e, cup, Q.start).setY(top + 0.002);
@@ -1203,7 +1204,7 @@ export class Elites {
     for (const m of Q.parts) { m.position.copy(Q.start); m.rotation.set(0, yaw, 0); m.scale.z = Q.len; m.material.progress = u; }
     Q.parts[0].position.y += 0.002;
     e.lit[cup] = u; e.model.glows[cup].material.color.copy(this.waveColor);
-    if (u < 1 && Math.random() < 0.23 * u) this.fx.glow.emit(this._mid.copy(Q.start).setY(top + 0.03 + Math.random() * 0.04), this.waveColor, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
+    if (u < 1 && Math.random() < dt * 14 * u) this.fx.glow.emit(this._mid.copy(Q.start).setY(top + 0.03 + Math.random() * 0.04), this.waveColor, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
     if (beat < due) return false;
     this.dropTele(e, Q.parts); Q.parts = null; Q.yaw = null;
     e.lit[cup] = 0; e.pump[cup] = 1; e.recoil = 0.4;
@@ -1223,15 +1224,6 @@ export class Elites {
       if (p.x < W.min[0] || p.x > W.max[0] || p.z < W.min[2] || p.z > W.max[2] || this.surfaceBelow(p) < from.y - 0.04) break;
     }
     return Math.max(0.1, d - 0.05);
-  }
-
-  // a Shot's Warning (the Headphones' bass): `strip` a line on the surface (y) from under `from` toward
-  // `to`, `tube` the lane volume round its path from `from` to `to`, both on past it by `on` m; size: the Shot's radius
-  aimLine(strip, tube, from, to, y, size, on) {
-    const dx = to.x - from.x, dz = to.z - from.z, flat = Math.max(0.01, Math.hypot(dx, dz)), rise = to.y - from.y, yaw = Math.atan2(dx, dz);
-    strip.position.set(from.x, y + 0.002, from.z); strip.rotation.set(0, yaw, 0); strip.scale.set(size * 3, 1, flat + on);
-    tube.position.set(from.x, from.y - size, from.z); tube.rotation.order = 'YXZ'; tube.rotation.set(-Math.atan2(rise, flat), yaw, 0);
-    tube.scale.set(size * 2, size * 2, Math.hypot(flat, rise) * (1 + on / flat));
   }
 
   // a Headphones sound wave from `from` (on the table) along unit flat `dir` for `len` m, at W.speed
@@ -2661,7 +2653,7 @@ export class Elites {
           if (L.k < n) {
             const due = L.due[L.k];
             e.locked = beat >= due - W.lock;                              // locked: it holds still
-            if (this.shoveCue(e, L.cue, L.k % 2, L.k ? L.due[L.k - 1] : L.from, due, W.lock, P, fwd)) L.k++;
+            if (this.shoveCue(e, L.cue, L.k % 2, L.k ? L.due[L.k - 1] : L.from, due, W.lock, P, fwd, dt)) L.k++;
           } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? W.angryRest : W.rest; }
         } else {
           // Stereo: a dividing line down the counter through the Headphones splits the ground (the wake box)
@@ -2673,7 +2665,8 @@ export class Elites {
           const S = SK.stereo, G = e.spec.wake;
           if (!e.plan) {
             const bursts = angry ? S.angryBursts : S.bursts, first = snapUp(beat + S.windup, S.snap);
-            e.plan = { from: beat, due: Array.from({ length: bursts }, (_, k) => first + k * S.every), k: 0, half: P.x < e.base.x ? 0 : 1, line: e.base.x, marks: null, cue: cue(), wave: null, angry };
+            e.plan = { from: beat, due: Array.from({ length: bursts }, (_, k) => first + k * S.every), k: 0, half: P.x < e.base.x ? 0 : 1, line: e.base.x, marks: null, cue: cue(), wave: null, angry,
+              lowCup: (M.mouths[0].x - M.mouths[1].x) * Math.cos(e.spec.face) <= 0 ? 0 : 1 };   // the cup on the low-x side as it faces its counter's length (not as it turns toward it)
             sfx.headphonesHum((first - beat) * 60 / this.bpm);
           }
           const L = e.plan, n = L.due.length;
@@ -2682,7 +2675,7 @@ export class Elites {
           e.holder.rotation.y += turn * (1 - Math.exp(-6 * dt));
           if (L.k < n) {
             const due = L.due[L.k], from = L.k ? L.due[L.k - 1] : L.from, h = (L.half + L.k) % 2;   // h 0: x under the line
-            const lowCup = this.headphonesMouth(e, 0, this._mid).x <= this.headphonesMouth(e, 1, this._mid2).x ? 0 : 1, cup = h ? 1 - lowCup : lowCup;
+            const cup = h ? 1 - L.lowCup : L.lowCup;
             const col = hostile(h ? 'headphones-right' : 'headphones'), x0 = h ? L.line : G.min[0], x1 = h ? G.max[0] : L.line, hw = (x1 - x0) / 2, hd = (G.max[2] - G.min[2]) / 2;
             if (!L.marks) {
               const mid = this._mid2.set(x0 + hw, top, G.min[2] + hd);
@@ -2691,7 +2684,6 @@ export class Elites {
             }
             const u = THREE.MathUtils.clamp((beat - from) / (due - from), 0, 1);
             for (const m of L.marks) m.material.progress = u;
-            L.marks[0].material.opacity = 0.85 + Math.sin(e.t * 12) * 0.15;
             e.lit[cup] = u; M.glows[cup].material.color.copy(col);
             if (u < 1 && Math.random() < dt * 14 * u) this.fx.glow.emit(this.headphonesMouth(e, cup, this._mid).setY(top + 0.03 + Math.random() * 0.04), col, 0.02, 0.006, 0.3, 0.7);   // the air in front of the cup trembling
             if (beat >= due) {                                            // on the beat: the half bursts
@@ -2710,7 +2702,7 @@ export class Elites {
               if (L.angry && L.k < n) L.wave = { cup, from: due, at: due + S.lead };   // the cup that just burst now aims a shove wave at you
             }
           } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest; }
-          if (L.wave && this.shoveCue(e, L.cue, L.wave.cup, L.wave.from, L.wave.at, S.lock, P, fwd)) L.wave = null;
+          if (L.wave && this.shoveCue(e, L.cue, L.wave.cup, L.wave.from, L.wave.at, S.lock, P, fwd, dt)) L.wave = null;
         }
       }
     }

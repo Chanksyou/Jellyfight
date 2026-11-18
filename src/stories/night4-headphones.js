@@ -21,13 +21,12 @@ const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const VENT = () => G().run.traversal.vents.find((v) => v.name === ELITES4.find((q) => q.kind === 'headphones').vent);
 const onTable = (e, p) => G().run.elites.onPlatform(e, p) && p.y > e.base.y - 0.02;   // (on the kitchen counter)
-// the waves and Shots it lets go, as they go: [beat, from, dir] and [beat, from, to, source]
+// the shove waves it lets go, as they go: [beat, from, dir]
 function watch() {
-  const { run } = G(), E = run.elites, waves = [], shots = [];
-  const w = E.wave, s = E.shoot;
+  const { run } = G(), E = run.elites, waves = [];
+  const w = E.wave;
   E.wave = function (from, dir, ...a) { waves.push({ beat: run.beat, from: from.clone(), dir: dir.clone() }); return w.call(this, from, dir, ...a); };
-  E.shoot = function (from, to, c, source, ...a) { shots.push({ beat: run.beat, from: from.clone(), to: to.clone(), source }); return s.call(this, from, to, c, source, ...a); };
-  return { waves, shots, done: () => { E.wave = w; E.shoot = s; } };
+  return { waves, done: () => { E.wave = w; } };
 }
 // play an attack to its end (or `n` frames), calling `during(i)` each frame
 function playOut(e, during, n = 60 * 14) {
@@ -139,7 +138,7 @@ night4('headphones-shove-off-the-edge-and-back-by-the-vent', {
     e.cool = 0;
     let again = false;
     step(60 * 4, () => (again = e.state !== 'idle'));
-    return ok(off && called && back != null && again && !hitsBy(log, 'headphones-bass').length, { off, called, back, again, at: r3(player.position), hurt: log.length });
+    return ok(off && called && back != null && again && !log.length, { off, called, back, again, at: r3(player.position), hurt: log.length });
   },
 });
 
@@ -201,8 +200,7 @@ night4('headphones-stereo-only-the-marked-half-hurts', {
     const S = SK().stereo, out = {};
     for (const jump of [false, true]) {
       const { e, player, top } = startHeadphones(1, { hold: true }), log = record('damage_taken');
-      const at = [];
-      const bursts = stereo(e, () => { if (jump && e.plan && e.plan.marks && e.plan.marks[0].material.progress > 0.9) player.position.y = top + 0.2; log.forEach((d, i) => { if (d.source === 'headphones-stereo' && at[i] == null) at[i] = G().run.beat; }); });
+      const bursts = stereo(e, () => { if (jump && e.plan && e.plan.marks && e.plan.marks[0].material.progress > 0.9) player.position.y = top + 0.2; });
       const hits = hitsBy(log, 'headphones-stereo');
       out[jump ? 'jumping' : 'standing'] = { bursts: bursts.map((b) => b.half), hits };
     }
@@ -298,15 +296,16 @@ night4('headphones-call-off-an-attack-when-the-beat-jumps', {
   play() {
     const out = {};
     for (const atk of [0, 1]) {
-      const { e } = startHeadphones(atk, { hold: true }), { run } = G(), seen = watch();
+      const { e } = startHeadphones(atk, { hold: true }), { run } = G(), seen = watch(), log = record('damage_taken');
       step(60 * 2, () => e.tele.length && e.tele[0].material.progress > 0.3);
       const warned = e.tele.length > 0;
       run.beat += 6;
       step(2);
-      const off = e.state === 'idle' && !e.tele.length && !e.plan && seen.waves.length + seen.shots.length === 0;
+      let off = e.state === 'idle' && !e.tele.length && !e.plan && !seen.waves.length;
       let again = false;
       step(60 * 4, () => (again = e.state !== 'idle'));
       seen.done();
+      off = off && !log.length;   // (a burst after the jump would have hurt the held jelly)
       out[atk ? 'stereo' : 'shove'] = { warned, off, again };
     }
     return ok(Object.values(out).every((r) => r.warned && r.off && r.again), out);
