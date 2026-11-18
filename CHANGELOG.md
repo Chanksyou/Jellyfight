@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v499 adds two snake plants to the layout editor's props, made from downloaded models: one in a white marble pot with pale variegated leaves, and a tall striped one in a ceramic pot with a saucer. Each is two draw calls and under 4,000 triangles, with its shading baked in.
+
 v498 gives the title tiles a quick cascade, springs buttons back past full size when you let go, has sheets rise then sink faster, makes the jelly pick row settle on a card with a small overshoot, and squeezes Play for 80 ms before a run starts.
 
 v497 moves the HUD only by transform and opacity, so it stops repainting every frame on phones: a hit squashes the Health bar and it settles, the low-Health glow breathes softly, a new Treasure pops into the row while one taken again bumps its count, and a level-up empties the XP bar quickly before refilling it.
