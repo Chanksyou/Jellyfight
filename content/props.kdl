@@ -1,0 +1,11 @@
+// The prop library: things the layout editor can add to a room (src/props.js loads them from
+// assets/props.glb, tools/props.mjs bakes that from the apartment source).
+//   prop "id" source="<builder in tools/props-export.js>" label="…" size=1 stick="surface"
+// size is the size the prop is drawn at (1 = as in the living room, the editor scales 0.5-2);
+// stick="surface" means it stands on whatever is under it (floor, table, shelf).
+prop "aloe" source="aloe" label="Aloe" size=1 stick="surface"
+prop "monstera" source="monstera" label="Monstera" size=1 stick="surface"
+prop "pothos" source="pothos" label="Pothos" size=1 stick="surface"
+prop "rubberPlant" source="rubber" label="Rubber plant" size=1 stick="surface"
+prop "snakePlant" source="snake" label="Snake plant" size=1 stick="surface"
+prop "spiderPlant" source="spider" label="Spider plant" size=1 stick="surface"
