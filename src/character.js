@@ -1589,6 +1589,7 @@ export function buildCharacter(look, heightMeters) {
   function update(dt, s) {
     if (s.rest) {
       t = phase = kick = roll = impact = impactV = idleSwim = surge = 0;
+      blinkIn = 1;   // eyes open
       spinners.forEach(([o, ax], i) => { o.rotation[ax] = baseSpin[i]; });
       scrollers.forEach(([tex], i) => { tex.offset.y = baseScroll[i]; });
       for (const G of googly) G.x = G.y = G.vx = G.vy = 0;
