@@ -6,6 +6,7 @@
 //   node tests/run.mjs --no-mobile     skip the phone check
 //   node tests/run.mjs --jobs=N        how many pages play side by side (default 3)
 //   node tests/run.mjs --shard=1/8     one of eight disjoint groups of stories, balanced by cost (CI)
+//   node tests/run.mjs --shard=1/8 --plan   print every shard's deal and exit (needs one boot to list the stories)
 //   node tests/run.mjs --force         play a full run even if this commit already passed one
 //   node tests/run.mjs --seed=42       reproduce a different deterministic set of story rolls
 //
@@ -83,42 +84,95 @@ const gate = async (f) => {
 };
 const prep = async (page) => page.evaluate(() => APT.renderer.setAnimationLoop(null));   // stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise
 const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
-// before the list exists, only the act a filter like "act2/" or "phone/" names is worth booting
-// Start on the likely first page of this shard instead of booting act 1 on every runner.
-const first = shardArg ? PAGES[shardIndex % PAGES.length] : PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'));
+// The page that lists the stories is the one this run plays first. Under --shard that's FIRST's entry
+// for this shard (the CI's eight: the reload check's new-player page, act 1 three times, then the other
+// big acts), so no runner boots a page it doesn't play; otherwise the act a filter like "act2/" names.
+const FIRST_RUN = { key: 'first-run', opts: { viewport: { width: 1100, height: 650 }, newPlayer: true } };
+const TOUCH = { key: 'touch' };
+const FIRST = ['first-run', 'act1', 'act1', 'act1', 'act2', 'act3', 'night4', 'phone'];
+const firstKey = (s) => FIRST[s % FIRST.length];
+const first = !shardArg ? PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'))
+  : firstKey(shardIndex) === FIRST_RUN.key ? FIRST_RUN : PAGES.find((P) => P.key === firstKey(shardIndex));
 let listing = await boot(env, first.opts);
 const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1']));
-// one task per page (the page that listed the stories plays its own act's), then the two checks that need a page of their own
+const reuse = (P) => { if (!listing || P !== first) return null; const got = listing; listing = null; return got; };
+// one task per page, then the two checks that need a page of their own. A page that crashes (the browser's
+// "Target crashed", not a story failing) is replayed once per run on a fresh page from the story it was
+// playing; a second crash fails the run.
+let crashed = false;
 const pageTask = (P, names) => async (e) => {
-  let got = listing && P === first ? listing : await boot(e, P.opts);
-  if (got === listing) listing = null;
-  const out = await playAll(got.page, got.errors, names);
+  let got = reuse(P) || await boot(e, P.opts);
+  const out = [];
+  while (out.length < names.length) {
+    try { await playAll(got.page, got.errors, names.slice(out.length), out); }
+    catch (err) {
+      if (crashed || !/Target crashed/.test(String(err))) throw err;
+      crashed = true;
+      const note = `The ${P.key} page crashed during ${names[out.length]}: replaying it and the rest on a fresh page (a second crash fails the run)`;
+      console.log(process.env.GITHUB_ACTIONS ? `::warning::${note}` : `⚠ ${note}`);
+      await got.page.close().catch(() => {});
+      got = await boot(e, P.opts);
+    }
+  }
   await got.page.close();
   return out;
 };
-// Under --shard, a page with many stories is split into chunks of about CHUNK that each boot a page of
-// their own, and the tasks are dealt to the shards by cost (a boot costs about as long as BOOT_COST
-// stories), so act 1's ~500 stories don't keep one runner going long after the rest are done.
-const CHUNK = 75, BOOT_COST = 70;
-let jobs = PAGES.flatMap((P) => {
-  const names = all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n);
-  const parts = !names.length ? 0 : shardArg ? Math.ceil(names.length / CHUNK) : 1;
-  return Array.from({ length: parts }, (_, i) => {
-    const mine = names.slice(Math.floor(i * names.length / parts), Math.floor((i + 1) * names.length / parts));
-    return { P, label: `${P.key} (${mine.length} stories)`, cost: BOOT_COST + mine.length, run: pageTask(P, mine) };
-  });
-});
-if (wants('first-run/survives-a-reload')) jobs.push({ label: 'first-run/survives-a-reload', cost: 3 * BOOT_COST, run: firstRunReload });
-if (MOBILE && wants('mobile/touch-controls')) jobs.push({ label: 'mobile/touch-controls', cost: BOOT_COST, run: touchControls });
+const BOOT_COST = 180;
+const byPage = PAGES.map((P) => ({ P, names: all.filter(([n, k]) => k === P.key && wants(n)).map(([n]) => n) })).filter((p) => p.names.length);
+const solo = [];
+// n: what a task costs beyond its first boot, in stories
+if (wants('first-run/survives-a-reload')) solo.push({ P: FIRST_RUN, label: 'first-run/survives-a-reload', n: 2 * BOOT_COST, run: firstRunReload });
+if (MOBILE && wants('mobile/touch-controls')) solo.push({ P: TOUCH, label: 'mobile/touch-controls', n: 0, run: touchControls });
+const pageJob = ({ P, names }) => ({ P, names, label: `${P.key} (${names.length} stories)`, run: pageTask(P, names) });
+let jobs = [...byPage.map(pageJob), ...solo];
 if (shardArg) {
-  // every shard starts with a task on the page it booted to list the stories, then the rest go, dearest
-  // first, to whichever shard has the least so far: the same deal on every runner
-  const load = Array(shardCount).fill(0), take = (j, s) => { j.shard = s; load[s] += j.cost; };
-  const dearest = [...jobs].sort((a, b) => b.cost - a.cost);
-  for (let s = 0; s < shardCount; s++) { const j = dearest.find((j) => j.shard == null && j.P === PAGES[s % PAGES.length]); if (j) take(j, s); }
-  for (const j of dearest) if (j.shard == null) take(j, load.indexOf(Math.min(...load)));
-  jobs = jobs.filter((j) => j.shard === shardIndex);
+  // Booting the game costs far more than a story (about 80 s against about 0.45 s in CI, Nov 2026), so
+  // the deal counts in stories with a boot as BOOT_COST of them. Every shard first gets a part of the page
+  // it listed from; the rest go, dearest first, wherever they finish soonest (a part of a page the shard
+  // already plays costs no boot: its parts play on one page). A page is split into as many parts as
+  // brings the slowest shard down. The same deal on every runner.
+  const deal = (parts) => {
+    const js = [...solo.map((j) => ({ ...j })), ...byPage.flatMap(({ P, names }) => Array.from({ length: parts.get(P) }, (_, i) => {
+      const mine = names.slice(Math.floor(i * names.length / parts.get(P)), Math.floor((i + 1) * names.length / parts.get(P)));
+      return { P, names: mine, n: mine.length };
+    }))].sort((a, b) => b.n - a.n);
+    const load = Array(shardCount).fill(0), plays = Array.from({ length: shardCount }, () => new Set());
+    const cost = (j, s) => j.n + (plays[s].has(j.P) ? 0 : BOOT_COST);
+    const put = (j, s) => { load[s] += cost(j, s); plays[s].add(j.P); j.shard = s; };
+    for (let s = 0; s < shardCount; s++) { const j = js.find((j) => j.shard == null && j.P.key === firstKey(s)); if (j) put(j, s); }
+    for (const j of js) if (j.shard == null) { let best = 0; for (let s = 1; s < shardCount; s++) if (load[s] + cost(j, s) < load[best] + cost(j, best)) best = s; put(j, best); }
+    return { js, slowest: Math.max(...load) };
+  };
+  const parts = new Map(byPage.map(({ P, names }) => [P, Math.min(names.length, Math.max(1, Array.from({ length: shardCount }, (_, s) => firstKey(s)).filter((k) => k === P.key).length))]));
+  let best = deal(parts);
+  for (let better = true; better;) {
+    better = null;
+    for (const { P, names } of byPage) {
+      if (parts.get(P) >= names.length) continue;
+      parts.set(P, parts.get(P) + 1);
+      const d = deal(parts);
+      if (d.slowest < best.slowest) { best = d; better = P; }
+      parts.set(P, parts.get(P) - 1);
+    }
+    if (better) parts.set(better, parts.get(better) + 1);
+  }
+  if (args.includes('--plan')) {
+    for (let s = 0; s < shardCount; s++) {
+      const js = best.js.filter((j) => j.shard === s), boots = new Set(js.map((j) => j.P)).size + (js.some((j) => j.P === FIRST_RUN) ? 2 : 0);
+      console.log(`shard ${s + 1}: ${boots} boots, ${js.reduce((t, j) => t + (j.names?.length || 0), 0)} stories, ${js.map((j) => j.run ? j.label : `${j.P.key} ${j.names.length}`).join(', ')}`);
+    }
+    await env.close(); process.exit(0);
+  }
+  const mine = new Map();
+  for (const j of best.js.filter((j) => j.shard === shardIndex)) {
+    if (j.run) mine.set(j, j);
+    else if (mine.has(j.P)) mine.get(j.P).names.push(...j.names);
+    else mine.set(j.P, { P: j.P, names: [...j.names] });
+  }
+  jobs = [...mine.values()].map((j) => j.run ? j : pageJob(j));
 }
+jobs.sort((a, b) => (b.P === first) - (a.P === first));   // the listing page plays first, so two game pages are never open at once
+if (!jobs.some((j) => j.P === first)) { await listing.page.close(); listing = null; }
 const tasks = jobs.map((j) => j.run);
 if (!tasks.length) throw new Error('No story tasks selected; check the filter and --shard');
 if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${jobs.map((j) => j.label).join(', ')}`);
@@ -129,8 +183,7 @@ await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, async (_,
 if (listing) await listing.page.close();
 await Promise.all(envs.slice(1).map((e) => e.close()));
 
-async function playAll(page, errors, names) {
-  const out = [];
+async function playAll(page, errors, names, out = []) {
   for (const name of names) {
     const before = errors.length;
     const r = await page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED });
@@ -149,7 +202,7 @@ function result(good, ...a) { good ? passed++ : failed++; return text(good, ...a
 
 // --- a player's first run survives a real reload, and ends for good once a run ends (first-run.js)
 async function firstRunReload(e) {
-  const { page, errors } = await boot(e, { viewport: { width: 1100, height: 650 }, newPlayer: true });
+  const { page, errors } = reuse(FIRST_RUN) || await boot(e, FIRST_RUN.opts);
   const ready = () => page.waitForFunction(() => window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
   // what the old page logs while the reload tears it down (a download still in flight, aborted)
   // isn't the game failing: only errors from the page that loads count

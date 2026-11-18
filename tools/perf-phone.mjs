@@ -1,0 +1,127 @@
+// Measures the game's busiest moments on the phone page (844x390, touch), for the
+// jelly-phone-performance workflow (.claude/skills/jelly-phone-performance/SKILL.md):
+// draw calls and triangles across all passes (gfx.frameInfo), shader programs (at startup and any
+// built during the moment), lights, the JS time a frame's game step and render call take under a 4x
+// CPU slowdown, and what the frames allocate (V8 sampling heap profiler, collected objects included).
+//
+//   node tools/perf-phone.mjs                       every act, Medium and Low
+//   node tools/perf-phone.mjs --tiers=medium        one tier
+//   node tools/perf-phone.mjs --only=night4,arena   some pages (act1, act3, night4, arena)
+//   node tools/perf-phone.mjs --json=out.json       also write the numbers as JSON
+//
+// Headless Chromium draws with SwiftShader (software WebGL): counts are real, times are not a
+// phone's. A phone's frame rate needs the game's own Diagnostics readout on the device.
+import fs from 'node:fs';
+import { start, openGame } from '../tests/lib.mjs';
+
+const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
+const TIERS = arg('tiers', 'medium,low').split(','), ONLY = arg('only', '').split(',').filter(Boolean), JSON_OUT = arg('json', '');
+const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4);
+
+// the runs tests/run.mjs carries into later acts
+const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
+const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
+const PAGES = {
+  act1: {},
+  act3: { act: { act: 3, carry: CARRY3 } },
+  night4: { act: { act: 4, carry: CARRY4 } },
+  arena: { act: { act: 4, scene: 2, carry: CARRY4 } },
+};
+
+// Each moment runs in the page with the story kit (src/stories/kit.js as K). It sets the moment up,
+// and returns nothing; the frames after it are measured. Bugs are held at 14 (act 3's most at once).
+const crowd = (kinds) => `(() => { const n = 14; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, r = 0.25 + (i % 3) * 0.1; K.spawn(${JSON.stringify(kinds)}[i % ${kinds.length}], K.near(Math.cos(a) * r, Math.sin(a) * r), { hp: 1e6 }); } })()`;
+const immortal = `K.stub(run, 'hurt', () => {}); run.health = 1e6;`;
+const MOMENTS = {
+  act1: {
+    'bugs + Controller': `K.startController(0); ${immortal} ${crowd(['roach', 'ants', 'mosquito', 'lanternfly'])}; const e = run.elites.list.find((x) => x.kind === 'controller'); e.hp = e.maxHp * 0.5;`,
+    'Vacuum fight': `K.startVacuum('spin'); ${immortal}`,
+  },
+  act3: {
+    'bugs + Alligator angry': `K.startCroc(0, { angry: true }); ${immortal} ${crowd(['dragonfly', 'mantis', 'beetle'])}`,
+    'shark fight': `K.sharkFight(); ${immortal}`,
+  },
+  night4: {
+    'three bugs + 12 Firefly pools': `K.fresh({ elites: false, bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); ${immortal} ${crowd(['firefly', 'moth', 'cicada'])};
+      const P = player.position, L = { flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12 };
+      for (let i = 0; i < 12; i++) { const to = P.clone().add(new THREE.Vector3(-0.3 + (i % 4) * 0.2, 0, -0.3 + Math.floor(i / 4) * 0.2)); enemies.glowPools.throw(to.clone().setY(to.y + 0.15), to, L, -1, 'firefly'); }
+      K.step(90);`,
+    'Singing Bowl angry': `K.startBowl(0, { angry: true }); ${immortal}`,
+    'Mushroom Pillow angry': `K.startPillow(0, { angry: true }); ${immortal}`,
+    'Headphones angry': `K.startHeadphones(0, { angry: true, hold: true }); ${immortal}`,
+    'bass wave + sun': `K.fresh({ bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); ${immortal} run.t = 150; K.step(2); K.stub(run, 'song', null); run.beat = run.bass.next - 3.5;`,
+    'stage door opens': `K.fresh({ bubbles: false, lash: false }); ${immortal} K.stub(NAV, 'reload', () => {}); run.t = run.duration - 1; K.tp(1.9, 0.05, 4.2, 0);`,
+  },
+  arena: {
+    'Encore disco': `K.encoreFight({ beat: 126 }); ${immortal}`,
+    'Encore drop (two waves + lasers)': `K.encoreFight({ beat: 96 }); ${immortal}`,
+  },
+};
+
+async function measure(env, pageKey, tier) {
+  const { page } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, ...PAGES[pageKey], seed: 1 });
+  // the tier is a stored choice (graphics.js); switching rebuilds behind the menu, so store it and reload
+  await page.evaluate((t) => localStorage.setItem('jellyrun.graphics', t), tier);
+  await page.reload();
+  await page.waitForFunction(() => window.GAME && window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 300000 });
+  await page.evaluate(async () => { APT.renderer.setAnimationLoop(null); await (window.gfx.ready || Promise.resolve()); });
+  const cdp = await page.context().newCDPSession(page);
+  const base = await page.evaluate(async () => {
+    window.K = await import('/src/stories/kit.js'); window.NAV = (await import('/src/stages.js')).nav;
+    const lights = []; APT.scene.traverse((o) => { if (o.isLight) lights.push(o.type); });
+    return { tier: gfx.quality, programs: APT.renderer.info.programs.length, lights: lights.length, pointLights: lights.filter((t) => t === 'PointLight').length, phone: matchMedia('(pointer: coarse)').matches };
+  });
+  const out = { page: pageKey, tier, ...base, moments: {} };
+  for (const [name, setup] of Object.entries(MOMENTS[pageKey])) {
+    const pre = await page.evaluate((src) => {
+      const G = window; new Function('K', 'run', 'player', 'enemies', 'THREE', 'G', 'NAV', src)(K, run, player, enemies, THREE, G, NAV);
+      K.step(30); GAME.render();
+      return APT.renderer.info.programs.length;
+    }, setup);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+    await cdp.send('HeapProfiler.enable');
+    await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.startSampling', { samplingInterval: 256, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+    const m = await page.evaluate((N) => {
+      const calls = [], tris = [], stepMs = [], renderMs = [], P = APT.renderer.info.programs.length, yaw0 = tpc.yaw;
+      for (let i = 0; i < N; i++) {
+        tpc.yaw = yaw0 + (i / N) * Math.PI * 2;   // turn the camera once round over the sample: the busiest view counts
+        const t0 = performance.now(); GAME.step(1 / 60); const t1 = performance.now(); GAME.render(); const t2 = performance.now();
+        stepMs.push(t1 - t0); renderMs.push(t2 - t1); calls.push(gfx.frameInfo.calls); tris.push(gfx.frameInfo.triangles);
+      }
+      const lights = []; APT.scene.traverse((o) => { if (o.isLight) lights.push(o); });
+      const q = (a, k) => { const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(k * s.length))].toFixed(2); };
+      return {
+        calls: { median: q(calls, 0.5), max: Math.max(...calls) }, triangles: { median: q(tris, 0.5), max: Math.max(...tris) },
+        stepMs: { median: q(stepMs, 0.5), p95: q(stepMs, 0.95), max: +Math.max(...stepMs).toFixed(1) },
+        renderCallMs: { median: q(renderMs, 0.5), p95: q(renderMs, 0.95) },
+        programsBuiltDuring: APT.renderer.info.programs.length - P, lights: lights.length,
+        bugs: enemies.list.filter((e) => !e.dead).length, newest: APT.renderer.info.programs.slice(P).map((p) => p.name || p.cacheKey.slice(0, 60)),
+      };
+    }, FRAMES);
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    // allocation sites: self bytes per frame, by function and line
+    const sites = new Map(); let total = 0;
+    const walk = (n) => { if (n.selfSize) { const f = n.callFrame, k = `${f.functionName || '(anon)'} ${f.url.replace(/^.*\/src\//, 'src/').replace(/^.*\/three\.\w+\.js/, 'three')}:${f.lineNumber + 1}`; sites.set(k, (sites.get(k) || 0) + n.selfSize); total += n.selfSize; } n.children.forEach(walk); };
+    walk(profile.head);
+    m.allocKBPerFrame = +(total / FRAMES / 1024).toFixed(1);
+    m.topAlloc = [...sites].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${(v / FRAMES / 1024).toFixed(2)} KB/f ${k}`);
+    m.programsBuiltInSetup = pre - base.programs;
+    out.moments[name] = m;
+    console.log(`${pageKey} ${tier} | ${name}: draws ${m.calls.median}/${m.calls.max}, tris ${m.triangles.max}, step ${m.stepMs.median}/${m.stepMs.p95} ms, alloc ${m.allocKBPerFrame} KB/f, programs +${m.programsBuiltInSetup} setup +${m.programsBuiltDuring} during, lights ${m.lights}`);
+  }
+  await page.close();
+  return out;
+}
+
+const env = await start(), results = [];
+try {
+  for (const tier of TIERS) for (const p of Object.keys(PAGES)) {
+    if (ONLY.length && !ONLY.includes(p)) continue;
+    const r = await measure(env, p, tier);
+    console.log(`${p} ${tier}: startup programs ${r.programs}, lights ${r.lights} (${r.pointLights} point), tier ${r.tier}, phone ${r.phone}`);
+    results.push(r);
+  }
+} finally { await env.close(); }
+if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(results, null, 1));

@@ -42,7 +42,7 @@ const solid = (world, node) => {
   }
   return false;
 };
-const plants = (L) => L.items.filter((x) => /^prop:pothos#/.test(x.key));
+const plants = (L) => L.items.filter((x) => /^prop:pothos#/.test(x.key) && !(x.key in L.baked));
 
 story('dev/layout-add-prop-on-shelf', {
   about: 'Add opens a drawer listing the prop library (content/props.kdl) by label. Tapping Pothos places it on the top of whatever is in the middle of the view (a media console top, not inside it), solid, saved as a prop:<id>#n entry at its size, selected, with stamping switched on.',
@@ -150,7 +150,9 @@ story('dev/layout-prop-size-and-stick', {
       const mid = onIt();
       if (!mid) return ok(false, { noGrip: true, scale: n.scale.x, visible: n.visible, sel: L.sel === it, items: L.byNode.has(n), box: visibleBox(n, new THREE.Box3()).min.toArray() });
       // dragged down in front of the console: it lands on whatever is there (the floor), not where it started
-      const spot = V(1.0, 0, 5.1), under = L.surfaceHit(onScreen(L, spot), { exclude: n, up: true });
+      // (once act 2's rooms are loaded the bathroom's vanity stands in front of the console, so find a spot with bare floor)
+      const spot = [V(1.0, 0, 5.1), V(0.4, 0, 5.1), V(2.0, 0, 5.1), V(1.0, 0, 3.9)].find((p) => L.surfaceHit(onScreen(L, p), { exclude: n, up: true })?.y < 0.2) || V(1.0, 0, 5.1);
+      const under = L.surfaceHit(onScreen(L, spot), { exclude: n, up: true });
       drag(mid, spot);
       const afterFloor = n.position.toArray().map((v) => +v.toFixed(3));
       const onFloor = Math.abs(n.position.y - under.y) < 0.02 && n.position.y < 0.5 && Math.hypot(n.position.x - under.x, n.position.z - under.z) < 0.25;
@@ -195,12 +197,12 @@ story('dev/layout-dressed-piece-not-copied', {
 });
 
 story('dev/layout-prop-moves-after-resize', {
-  about: 'A prop can still be picked up and dragged after it has been made smaller or bigger, and again after it is back at its own size: a placed plant at 50%, 150%, 200% and 100% follows the pointer to the floor and up onto the media console, a visible thing wins the pick over the invisible click box of the TV behind it, which used to swallow a small plant.',
+  about: 'A prop can still be picked up and dragged after it has been made smaller or bigger, and again after it is back at its own size: a placed plant at 50%, 150%, 200% and 100% follows the pointer across the floor, a visible thing wins the pick over the invisible click box of the TV behind it, which used to swallow a small plant.',
   setup() { fresh({ elites: false }); gone(); },
   async play() {
     const L = openEditor(), out = {};
     try {
-      look(L, 1.2, 0.6, 4.6);
+      look(L, 1.9, 0, 6.2);
       await L.addProp('pothos'); L.endStamp();
       const it = L.sel, n = it.node;
       const grab = (p) => { const e = onScreen(L, p); L.dom.dispatchEvent(new PointerEvent('pointerdown', { ...e, pointerId: 1, button: 0, bubbles: true })); return e; };
@@ -215,7 +217,7 @@ story('dev/layout-prop-moves-after-resize', {
         return null;
       };
       // the flow in the real editor: the size button (selection stays), then straight to dragging it
-      const spots = [V(1.0, 0, 5.1), V(1.3, 0.6, 4.6)];
+      const spots = [V(1.0, 0, 5.4), V(1.0, 0, 6.6)];
       for (const s of [0.5, 1.5, 2, 1]) {
         while (Math.abs(n.userData.s - s) > 1e-6) L.resize(n.userData.s < s ? 0.1 : -0.1);
         L.refresh();

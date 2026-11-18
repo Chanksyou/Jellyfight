@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
-import { squeeze, thrust } from './swim.js';
+import { squeeze, thrust, thrustPeak, holdOf, strokeAt, sinkOf, spring } from './swim.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
@@ -1579,12 +1579,31 @@ export function buildCharacter(look, heightMeters) {
   // long a page has been open (and when the jelly last blinked) can't change what the night rolls
   const blinkDice = rng(hash(look.body + 'blink'));
   let t = 0, phase = 0, impact = 0, impactV = 0, blinkIn = 1 + blinkDice() * 2;
-  let kick = 0, roll = 0, idleSwim = 0, surge = 0;
+  let kick = 0, idleSwim = 0, surge = 0;
+  // body weight: lean (pitch) and roll are springs chasing a goal that speed sets, and every change
+  // of speed kicks them (a start tips the jelly back, a stop rocks it on forward and through
+  // upright, then it settles). A kick per change of velocity, not per second, so 30 and 60 fps match
+  const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 }, dv = new THREE.Vector3();
+  let pvx = 0, pvz = 0, haveV = false;
+  const BODY = {
+    pitchKick: LOOK.num('jelly-motion-lean-kick', 1.2), pitchHalf: LOOK.num('jelly-motion-lean-halflife', 0.15), pitchFreq: LOOK.num('jelly-motion-lean-freq', 2),
+    rollKick: LOOK.num('jelly-motion-roll-kick', 0.8), rollHalf: LOOK.num('jelly-motion-roll-halflife', 0.2), rollFreq: LOOK.num('jelly-motion-roll-freq', 1.4),
+  };
   const baseRot = wobblers.map(([o, ax]) => o.rotation[ax]);
   const toUnits = 1 / (heightMeters * look.size);
   const localVel = new THREE.Vector3(), q = new THREE.Quaternion();
+  const baseSpin = spinners.map(([o, ax]) => o.rotation[ax]), baseScroll = scrollers.map(([tex]) => tex.offset.y);
 
+  // s.rest (see restPose): the pose with every clock, spring and input at zero
   function update(dt, s) {
+    if (s.rest) {
+      t = phase = kick = impact = impactV = idleSwim = surge = 0;
+      pitch.x = pitch.v = roll.x = roll.v = 0; haveV = false;
+      blinkIn = 1;   // eyes open
+      spinners.forEach(([o, ax], i) => { o.rotation[ax] = baseSpin[i]; });
+      scrollers.forEach(([tex], i) => { tex.offset.y = baseScroll[i]; });
+      for (const G of googly) G.x = G.y = G.vx = G.vy = 0;
+    }
     t += dt;
     const move = Math.min(1, s.speed / (s.walkSpeed || 0.35));
     phase += dt * s.speed * 60;
@@ -1597,20 +1616,31 @@ export function buildCharacter(look, heightMeters) {
       if (swim == null) swim = idleSwim = (idleSwim + dt * 0.6) % 1;
       kick = Math.max(0, kick - dt * 3);
       // power stroke: the bell squeezes narrow and tall; glide: it relaxes open, wide and flat
-      contract = kick > 0.05 ? Math.max(kick, squeeze(swim)) : squeeze(swim) * (0.45 + 0.55 * move);
+      // when it's still the stroke is quicker and the rest of the cycle a hold (swim.js)
+      const hold = s.rest ? 0 : holdOf(1 - move), stroke = strokeAt(swim, hold);
+      contract = s.rest ? 0 : kick > 0.05 ? Math.max(kick, squeeze(stroke)) : squeeze(stroke) * (0.45 + 0.55 * move);
       bell.scale.set(1 - 0.3 * contract, 1 + 0.24 * contract, 1 - 0.3 * contract);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
-      surge = thrust(swim) / 4.7 * move;
-      lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge;
+      surge = thrust(stroke) / thrustPeak() * move;
+      lean.position.y = 0.035 + Math.sin(t * 1.8) * 0.012 * (1 - move) + 0.07 * surge - sinkOf(swim, hold);
       // lean into the swim, and bank into turns (sideways speed, since facing lags behind)
       localVel.set(0, 0, 0);
+      dv.set(0, 0, 0);
       if (s.vel) {
         root.getWorldQuaternion(q);
-        localVel.copy(s.vel).applyQuaternion(q.invert()).multiplyScalar(toUnits);
-      }
-      roll += (THREE.MathUtils.clamp(-localVel.x * 0.05, -0.35, 0.35) - roll) * (1 - Math.exp(-8 * dt));
-      lean.rotation.z = roll;
+        q.invert();
+        localVel.copy(s.vel).applyQuaternion(q).multiplyScalar(toUnits);
+        if (haveV) dv.set(s.vel.x - pvx, 0, s.vel.z - pvz).applyQuaternion(q).multiplyScalar(toUnits);
+        pvx = s.vel.x; pvz = s.vel.z; haveV = true;
+      } else haveV = false;   // no velocity this frame (a menu): the next one isn't a start
+      const C = THREE.MathUtils.clamp;
+      if (Math.abs(dv.x) + Math.abs(dv.z) > 6) dv.set(0, 0, 0);   // more than swimming can change in a frame: a teleport or a shove isn't a start
+      roll.v -= dv.x * BODY.rollKick;
+      spring(roll, C(-localVel.x * 0.05, -0.35, 0.35), BODY.rollHalf, BODY.rollFreq, dt);
+      lean.rotation.z = roll.x;
+      pitch.v -= dv.z * BODY.pitchKick;
+      spring(pitch, move * 0.16 * (s.grounded ? 1 : 0.4), BODY.pitchHalf, BODY.pitchFreq, dt);
       // the hat rides on the crown as the bell squeezes and relaxes (a soft one squeezes with it)
       top.position.y = shape.topY + (bell.position.y - BELL_Y) + crownH * (bell.scale.y - 1);
       if (soft) top.scale.set(bell.scale.x, 1, bell.scale.z);
@@ -1625,13 +1655,13 @@ export function buildCharacter(look, heightMeters) {
     sy -= impact;
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
-    lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
-    rig?.update(dt, { localVel, contract, vy: s.vy || 0 });
+    lean.rotation.x = bell ? pitch.x + surge * 0.3 : move * 0.14 * (s.grounded ? 1 : 0.4);
+    rig?.update(dt, { localVel, contract, vy: s.vy || 0, rest: s.rest });
 
 
     spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });
     scrollers.forEach(([tex, sp]) => { tex.offset.y = (tex.offset.y + dt * sp) % 1; });
-    floaters.forEach(([o, y, amt], i) => { o.position.y = y + Math.sin(t * 1.6 + i) * amt; });
+    floaters.forEach(([o, y, amt], i) => { o.position.y = y + (s.rest ? 0 : Math.sin(t * 1.6 + i) * amt); });
     // steam from the golden kettle: puffs rise from the spout, swelling and thinning out
     steam.forEach(([o, ph]) => { const u = (t * 0.6 + ph) % 1; o.position.set(0, 0.09 + u * 0.1, 0.13 + u * 0.03); o.scale.setScalar(0.4 + u * 1.4 - (u > 0.8 ? (u - 0.8) * 7 : 0)); });
     // heart eyes beat; star eyes twinkle
@@ -1649,7 +1679,7 @@ export function buildCharacter(look, heightMeters) {
     if (gum) { const u = (t / 4) % 1; gum.scale.setScalar(u < 0.75 ? 0.15 + u * 1.1 : u < 0.8 ? 1 : 0.001); }
     wobblers.forEach(([o, ax, ph, amt], i) => {
       const drive = 0.3 + move * 0.7 + (s.grounded ? 0 : 0.6);
-      o.rotation[ax] = baseRot[i] + Math.sin(t * 6 + ph) * amt * drive - (ax === 'x' ? move * amt : 0);
+      o.rotation[ax] = baseRot[i] + (s.rest ? 0 : Math.sin(t * 6 + ph) * amt * drive) - (ax === 'x' ? move * amt : 0);
     });
 
     blinkIn -= dt;
@@ -1674,6 +1704,12 @@ export function buildCharacter(look, heightMeters) {
 
   function pulse(k = 1) { kick = Math.max(kick, k); }
 
+  // The rest pose: every animated value at its rest value (no stroke, breath, sway, lean, spring or
+  // tentacle ripple), so a look can be compared before and after a motion change. Motion code
+  // must leave it exactly as it is: add each new animated value's rest value here (`s.rest` in
+  // update), and the story look/rest-pose-unchanged keeps it honest.
+  function restPose() { update(0, { speed: 0, walkSpeed: 1, grounded: true, vy: 0, rest: true }); }
+
   // drying out in the sun (sunrise.js), k 0 (wet) to 1: the inner glow fades and the clear bell
   // goes dull and dusty. Only uniforms change, so no shader is rebuilt
   const wet = { glow: inner.emissiveIntensity, rough: outer.roughness, coat: outer.clearcoatRoughness, color: outer.color.clone() };
@@ -1691,5 +1727,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, update, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
+  return { root, lean, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
 }
