@@ -5,8 +5,8 @@ import { CONFIG } from '../config.js';
 import { STAGES, nav } from '../stages.js';
 import { serverBuild, reloadIfStale } from '../fresh.js';
 import { FramePacer, FrameGovernor } from '../pacing.js';
-import { checkBvhLayout } from '../collision.js';
-import { loadLayout, applyLayout } from '../layout.js';
+import { World, checkBvhLayout } from '../collision.js';
+import { loadLayout, applyLayout, visibleBox } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
@@ -328,7 +328,7 @@ story('menu/dev-tools-locked', {
 story('dev/layout-editor-acts-and-delete', {
   about: 'The layout editor binds the act it opened in, keeps each act\'s edits in their own slice of the saved layout, and can delete an object picked from its list (recorded as deleted, restorable).',
   setup() { fresh({ elites: false }); },
-  play() {
+  async play() {
     const { APT } = G();
     const over = document.querySelector('#g-over');
     over.hidden = false;
@@ -352,7 +352,7 @@ story('dev/layout-editor-acts-and-delete', {
     L.putBack();
     const back = it.node.visible && !it.deleted && !(it.key in L.data);
     // applyLayout honours the act it is given: a crafted act-2 edit moves the object
-    applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
+    await applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
     const moved = it.node.position.x === 9;
     it.node.position.fromArray(it.node.userData.home.p);
     try { localStorage.removeItem('jf-layout-v1'); } catch {}
@@ -376,6 +376,60 @@ story('dev/layout-editor-act-2', {
     const wantActs = STAGES.filter((s) => !s.arena).map((s) => s.id).filter((n) => n !== 2).map((n) => 'act' + n).join();
     L.onDone();
     return ok(L.act === 2 && bath && acts.join() === wantActs, { act: L.act, bath, acts });
+  },
+});
+
+story('dev/layout-duplicate-is-solid-and-saved', {
+  about: 'Duplicate (Ctrl+D) in the layout editor drops a copy of the selected object 10 cm aside and selects it. The copy blocks the jelly like the room\'s own furniture, is saved and exported as a copy:<key>#n entry, and is made again on a reload, before the collision world. Deleting it removes its entry, and undo puts it back.',
+  setup() { fresh({ elites: false }); try { localStorage.removeItem('jf-layout-v1'); } catch {} },
+  async play() {
+    const { APT, world } = G();
+    document.querySelector('#g-over').hidden = false;
+    document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+    const L = window.layout;
+    if (!L) return ok(false, { layout: null });
+    const src = L.items.find((x) => x.key === 'Lounge_chair#1');
+    L.sel = src;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', ctrlKey: true }));
+    dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD', ctrlKey: true }));
+    const c = L.sel, key = c?.key;
+    if (!c || c === src) return ok(false, { duplicated: false });
+    const aside = +c.node.position.distanceTo(src.node.position).toFixed(3);
+    // rays along the room's x into the copy's side, on a grid over it (it stands 10 cm toward +x, so it's hit before its source)
+    const b = visibleBox(c.node, new THREE.Box3()), mid = b.getCenter(new THREE.Vector3()), toward = V(-1, 0, 0);
+    const blocks = (w, node) => {
+      w._focusAge = Infinity; w.focus(mid, 0, 3);
+      for (let i = 1; i < 6; i++) for (let k = 1; k < 6; k++) {
+        const from = V(b.max.x + 0.02, b.min.y + (b.max.y - b.min.y) * i / 6, b.min.z + (b.max.z - b.min.z) * k / 6);
+        let o = w.cast(from, toward, 1)?.mesh;
+        while (o && o !== node) o = o.parent;
+        if (o) return true;
+      }
+      return false;
+    };
+    const solid = blocks(world, c.node);
+    const saved = loadLayout(1)[key];
+    L.showIo();
+    const io = document.querySelector('#jf-layout-io'), exported = JSON.parse(io.querySelector('textarea').value).edits[key];
+    io.remove();
+    // delete: its entry goes and it leaves the list; undo: the same one back
+    L.deleteSelected();
+    const deleted = !(key in loadLayout(1)) && !L.items.includes(c) && !c.node.visible;
+    L.undo();
+    const undone = !!loadLayout(1)[key] && L.byNode.has(c.node) && c.node.visible;
+    // a reload: the room without the copy, then the layout applied as the game boots (before its collision world)
+    L.drop(L.byNode.get(c.node));
+    try { localStorage.setItem('jf-layout-v1', JSON.stringify({ 1: { [key]: saved } })); } catch {}
+    const made = await applyLayout(APT.root, 1), again = made[0];
+    const back = made.length === 1 && again.userData.added === key && again.position.toArray().every((v, i) => Math.abs(v - saved.p[i]) < 1e-4);
+    const bootSolid = back && blocks(new World(again, { staticScene: true }), again);
+    again.removeFromParent();
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    world._focusAge = Infinity;
+    L.onDone();
+    const entry = (e) => !!e && e.from === 'Lounge_chair#1' && e.p?.length === 3 && e.q?.length === 4;
+    return ok(/^copy:Lounge_chair#1#\d+$/.test(key) && Math.abs(aside - 0.1) < 0.002 && solid && entry(saved) && entry(exported) && deleted && undone && back && bootSolid,
+      { key, aside, solid, saved, exported: !!exported, deleted, undone, back, bootSolid });
   },
 });
 
@@ -759,10 +813,11 @@ story('engine/fight-draw-calls', {
 });
 // (keep this one last among the in-room stories: it leaves act 2's rooms loaded)
 story('engine/act2-rooms-load-when-needed', {
-  about: 'Act 1 loads the living room and the hallway you can see (but not enter) from it; act 2 (bathroom, closets) loads on demand, solid and in place.',
+  about: 'Act 1 loads the living room and the hallway you can see (but not enter) from it; act 2 (bathroom, closets) loads on demand, solid and in place. A saved copy of a piece in the arriving rooms is made with them, solid and drawn.',
   setup() { fresh({ elites: false }); },
   async play() {
-    const { APT, world, GAME } = G();
+    const { APT, world, GAME, statics } = G();
+    try { localStorage.setItem('jf-layout-v1', JSON.stringify({ 1: { 'copy:Toilet#1#1': { from: 'Toilet#1' } } })); } catch {}
     const has = (n) => !!APT.root.getObjectByName(n);
     const lights = () => { let n = 0; APT.scene.traverse((o) => { if (o.isPointLight || o.isSpotLight) n++; }); return n; };
     const before = { act1Only: [...APT.loaded].join() === 'act1', sofa: has('Corduroy_sofa'), hallLights: has('Hall_lights'), washer: has('Washer'), toilet: has('Toilet'), lights: lights(), colliders: world.colliders.length };
@@ -772,9 +827,15 @@ story('engine/act2-rooms-load-when-needed', {
     // the vanity top is solid where the bathroom's vent throws you
     world._focusAge = Infinity; world.focus(new THREE.Vector3(1.5, 1, 5.52), 0);   // collision checks what's near; look in the bathroom
     const hit = world.cast(new THREE.Vector3(1.5, 1.3, 5.52), new THREE.Vector3(0, -1, 0), 1);
-    const keys = (await import('../layout.js')).movables(APT.root).map((m) => m.key);
-    const after = { loaded: [...APT.loaded].join(), toilet: has('Toilet'), added: added.length, lights: lights(), colliders: world.colliders.length, vanityTop: hit ? +hit.point.y.toFixed(3) : null, toiletKey: keys.includes('Toilet#1'), ms };
-    const good = before.act1Only && before.sofa && before.hallLights && !before.washer && !before.toilet && after.toilet && after.added > 15 && after.lights >= before.lights && after.colliders > before.colliders && hit && Math.abs(hit.point.y - 0.88) < 0.03 && after.toiletKey;
+    const { movables, addedThings } = await import('../layout.js'), keys = movables(APT.root).map((m) => m.key);
+    const copy = addedThings(APT.root).find((t) => t.key === 'copy:Toilet#1#1')?.node, pieces = [];
+    copy?.traverse((o) => { if (o.isMesh) pieces.push(o); });
+    const batched = new Set(statics.batches.flatMap((b) => b.pieces.map((p) => p.mesh)));
+    const copied = !!copy && pieces.length > 0 && pieces.every((m) => world.colliders.includes(m) && (batched.has(m) || m.layers.test(APT.camera.layers)));
+    try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    if (copy) { copy.visible = false; copy.removeFromParent(); }
+    const after = { loaded: [...APT.loaded].join(), toilet: has('Toilet'), added: added.length, lights: lights(), colliders: world.colliders.length, vanityTop: hit ? +hit.point.y.toFixed(3) : null, toiletKey: keys.includes('Toilet#1'), copied, ms };
+    const good = before.act1Only && before.sofa && before.hallLights && !before.washer && !before.toilet && after.toilet && after.added > 15 && after.lights >= before.lights && after.colliders > before.colliders && hit && Math.abs(hit.point.y - 0.88) < 0.03 && after.toiletKey && copied;
     return ok(good, { before, after });
   },
 });

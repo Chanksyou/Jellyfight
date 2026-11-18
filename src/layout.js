@@ -21,9 +21,15 @@
 // whatever surface is under the pointer; R/F nudge it up and down. Vent edits are saved and
 // exported with the furniture, keyed "vent:<name>" with `at` and `land` in world meters.
 // Other stage markers (treasure spots, elites) don't follow moved furniture yet.
+//
+// Added things: Duplicate (Ctrl+D) drops a copy of the selected object 10 cm aside, saved as
+// "copy:<object key>#n" { from, p, q }; a library prop (props.js) is "prop:<id>#n" { prop, p, q, s }.
+// They're made before the collision world is built, so they're solid like the room's own
+// furniture. Deleting one you added removes its entry; deleting a baked one records it deleted.
 import * as THREE from 'three';
 import { BAKED_LAYOUT, HIDDEN_SHELL } from './layout-baked.js';
 import { HIDDEN } from './batch.js';
+import { loadProps } from './props.js';
 
 const KEY = 'jf-layout-v1';
 const SKIP = /^(Shell|door-|Hall_lights|LED_cove|Kitchen_lights|Closet$)/;   // walls, doors and lights stay put
@@ -33,11 +39,54 @@ export function movables(root) {
   const app = root.getObjectByName('Apartment') || root;
   const seen = {}, out = [];
   for (const o of app.children) {
+    if (o.userData.added) continue;   // copies and props: keyed by their layout entry (addedThings), never renumbering the room's own
     const n = seen[o.name] = (seen[o.name] || 0) + 1;
     if (!o.name || SKIP.test(o.name)) continue;
     out.push({ key: `${o.name}#${n}`, node: o });
   }
   return out;
+}
+
+const ADDED = /^(copy|prop):[^"'<>&]+#\d+$/;
+// The copies and props added to the room (layout entries "copy:…" and "prop:…")
+export function addedThings(root) {
+  const app = root.getObjectByName('Apartment') || root;
+  return app.children.filter((o) => o.userData.added).map((o) => ({ key: o.userData.added, node: o, added: true }));
+}
+
+// A copy of a room object (or a prop's template): the same geometry and materials, so it's drawn
+// in the same batches (static-batch.js), and no lights (a light added during play rebuilds every shader)
+export function copyOf(src) {
+  const c = src.clone(), lights = [];
+  c.traverse((o) => {
+    if (o.isLight) lights.push(o);
+    else if (o.layers.isEnabled(HIDDEN)) o.layers.set(0);   // the source is drawn in a batch; the copy joins it there
+  });
+  for (const l of lights) l.removeFromParent();
+  return c;
+}
+
+// Make this act's added things that aren't in the room yet: a copy once its source's room is
+// loaded (a later act's rooms arrive with loadRooms), a prop once the library has it
+async function addThings(root, baked, data) {
+  const app = root.getObjectByName('Apartment') || root;
+  const have = new Set(addedThings(root).map((t) => t.key));
+  const want = [...new Set([...Object.keys(baked), ...Object.keys(data)])].filter((k) => ADDED.test(k) && !have.has(k)).map((k) => [k, { ...baked[k], ...data[k] }]);
+  if (!want.length) return [];
+  const ids = [...new Set(want.map(([, e]) => e.prop).filter(Boolean))];
+  const props = ids.length ? await loadProps(ids) : {};
+  const src = new Map(movables(root).map((m) => [m.key, m.node]));
+  const made = [];
+  for (const [key, e] of want) {
+    const from = e.from ? src.get(e.from) : props[e.prop];
+    if (!from) continue;
+    const node = copyOf(from);
+    node.userData = { added: key, ...(e.from ? { from: e.from } : { prop: e.prop, s: e.s ?? 1 }) };
+    applyEdit(node, e);   // where it was put: its home if it isn't baked
+    app.add(node);
+    made.push(node);
+  }
+  return made;
 }
 
 // Bounds of what you can see: objects carry invisible click boxes and flat see-through shadow
@@ -75,6 +124,7 @@ function saveLayout(act, data) {
 function applyEdit(node, e) {
   if (e.p) node.position.fromArray(e.p);
   if (e.q) node.quaternion.fromArray(e.q);
+  if (e.s) node.scale.setScalar(e.s);
   node.visible = !(e.hidden || e.deleted);
   node.updateMatrixWorld(true);
 }
@@ -102,15 +152,18 @@ export function applyVentLayout(vents, act, data = loadLayout(act)) {
   if (pruned) saveLayout(act, data);
 }
 
-// Call once after the apartment loads, before the collision world is built
-// The baked layout (layout-baked.js) goes first and becomes each object's "home"; your own
-// saved edits go on top. Saved edits that now match home are dropped.
-export function applyLayout(root, act, data = loadLayout(act)) {
+// Call once after the apartment loads, before the collision world is built (and again when more
+// rooms load). The baked layout (layout-baked.js) goes first and becomes each object's "home";
+// your own saved edits go on top. Saved edits that now match home are dropped; your added things
+// are never dropped (nothing baked to match). Returns the copies and props it made: a caller
+// adding them after the collision world exists makes them solid (world.addObjects) and batched.
+export async function applyLayout(root, act, data = loadLayout(act)) {
   const baked = BAKED_LAYOUT[act] || {};
-  let n = 0, pruned = false;
+  let pruned = false;
   const gone = HIDDEN_SHELL[act];
   if (gone) root.getObjectByName('Shell')?.traverse((o) => { if (gone.includes(o.name)) o.visible = false; });
-  for (const { key, node } of movables(root)) {
+  const made = await addThings(root, baked, data);
+  for (const { key, node, added } of [...movables(root), ...addedThings(root)]) {
     if (!node.userData.home) {
       if (baked[key]) applyEdit(node, baked[key]);
       node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: node.visible };
@@ -118,23 +171,23 @@ export function applyLayout(root, act, data = loadLayout(act)) {
     const e = data[key];
     if (!e) continue;
     const h = node.userData.home;
-    if (e.p && e.q && !e.deleted && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
+    if ((!added || key in baked) && e.p && e.q && !e.deleted && e.p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && e.q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && !e.hidden === h.v) { delete data[key]; pruned = true; continue; }
     applyEdit(node, e);
-    n++;
   }
   if (pruned) saveLayout(act, data);
-  return n;
+  return made;
 }
 
 export class LayoutEditor {
-  // ctx: { root, camera, dom, world, scene, onChange }
+  // ctx: { root, camera, dom, world, statics, scene, onChange }
   constructor(ctx) {
     Object.assign(this, ctx);
-    this.items = movables(this.root);
+    this.items = [...movables(this.root), ...addedThings(this.root)];
     this.byNode = new Map(this.items.map((it) => [it.node, it]));
     this.ventItems = this.traversal ? this.makeVentHandles() : [];
     for (const it of this.ventItems) this.byNode.set(it.node, it);
     this.act = ctx.act || 1;
+    this.baked = BAKED_LAYOUT[this.act] || {};
     this.data = loadLayout(this.act);
     for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
     this.undoStack = [];
@@ -240,13 +293,13 @@ export class LayoutEditor {
       #jf-layout-io div { display: flex; gap: 8px; justify-content: flex-end; }
       #jf-layout-io button { background: #2a2f4a; color: #fff; border: 1px solid #ffffff33; border-radius: 10px; padding: 9px 14px; font: 600 13px system-ui, sans-serif; }
     </style>
-    <div id="jf-layout-top">🛠 Layout editor (dev) · editing <b>Act ${this.act}</b>${(this.acts || [this.act]).filter((n) => n !== this.act).map((n) => ` <button data-a="act${n}" title="Edit Act ${n}'s layout instead">Act ${n}</button>`).join('')} · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Del delete · Ctrl+Z undo'}</div>
+    <div id="jf-layout-top">🛠 Layout editor (dev) · editing <b>Act ${this.act}</b>${(this.acts || [this.act]).filter((n) => n !== this.act).map((n) => ` <button data-a="act${n}" title="Edit Act ${n}'s layout instead">Act ${n}</button>`).join('')} · tap an object or a vent handle (🟠 grille, 🔵 landing) to select, drag it to move${matchMedia('(pointer: coarse)').matches ? '' : ' · WASD pan · wheel zoom · right-drag turn · Q/E rotate · R/F up/down · H hide · Del delete · Ctrl+D duplicate · Ctrl+Z undo'}</div>
     <div id="jf-layout">
       <div class="name">Nothing selected</div>
       <select class="list" title="Choose an object (hidden and deleted ones too)"><option value="">— choose an object —</option></select>
       <button data-a="rotL" title="Rotate left 15° (Q)">⟲</button><button data-a="rotR" title="Rotate right 15° (E)">⟳</button>
       <button data-a="up" title="Raise 1 cm (R)">⬆</button><button data-a="down" title="Lower 1 cm (F)">⬇</button>
-      <button data-a="hide" title="Hide / show (H)">👁</button><button data-a="del" title="Delete this object (Del)">🗑</button><button data-a="home" title="Put this one back">⌂</button>
+      <button data-a="hide" title="Hide / show (H)">👁</button><button data-a="del" title="Delete this object (Del)">🗑</button><button data-a="home" title="Put this one back">⌂</button><button data-a="dup" title="Duplicate: a copy 10 cm aside (Ctrl+D)">⧉</button>
       <button data-a="undo" title="Undo (Ctrl+Z)">↶</button>
       <button data-a="viewL" title="Turn view">◀</button><button data-a="viewR" title="Turn view">▶</button>
       <button data-a="io">⇄ Export</button><button data-a="reset">Reset all</button><button data-a="done" class="go">Done</button>
@@ -265,7 +318,7 @@ export class LayoutEditor {
       ({
         rotL: () => this.rotate(Math.PI / 12), rotR: () => this.rotate(-Math.PI / 12),
         up: () => this.raise(0.01), down: () => this.raise(-0.01),
-        hide: () => this.toggleHide(), del: () => this.deleteSelected(), home: () => this.putBack(), undo: () => this.undo(),
+        hide: () => this.toggleHide(), del: () => this.deleteSelected(), home: () => this.putBack(), dup: () => this.duplicate(), undo: () => this.undo(),
         viewL: () => { this.yaw += Math.PI / 8; }, viewR: () => { this.yaw -= Math.PI / 8; },
         io: () => this.showIo(), reset: () => this.resetAll(), done: () => this.onDone?.(),
       })[a]?.();
@@ -273,18 +326,20 @@ export class LayoutEditor {
     });
   }
 
+  label(x) { return x.node.name.replace(/_/g, ' ') + (!x.added ? '' : x.node.userData.from ? ' (copy)' : ' (added)'); }
   refresh() {
     const it = this.sel;
-    this.nameEl.textContent = it ? `${it.node.name.replace(/_/g, ' ')}${it.deleted ? ' (deleted)' : it.node.visible ? '' : ' (hidden)'}${this.data[it.key] && !it.deleted ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
+    this.nameEl.textContent = it ? `${it.vi != null ? it.node.name : this.label(it)}${it.deleted ? ' (deleted)' : it.node.visible ? '' : ' (hidden)'}${this.data[it.key] && !it.deleted ? ' · edited' : ''}` : `Nothing selected · ${Object.keys(this.data).length} edited`;
     this.el.querySelectorAll('[data-a=rotL],[data-a=rotR],[data-a=up],[data-a=down],[data-a=hide],[data-a=home]').forEach((b) => { b.disabled = !it || (it.vi != null && /rot|hide/.test(b.dataset.a)); });
     this.el.querySelector('[data-a=del]').disabled = !it || it.vi != null || !!it.deleted;
+    this.el.querySelector('[data-a=dup]').disabled = !it || it.vi != null || !!it.deleted;
     this.el.querySelector('[data-a=undo]').disabled = !this.undoStack.length;
     // the object list: rebuilt only when membership or states change; hidden and deleted stay listed
     const sig = this.items.map((x) => `${x.key}:${x.deleted ? 'd' : x.node.visible ? '' : 'h'}${this.data[x.key] ? 'e' : ''}`).join('|');
     if (sig !== this._listSig) {
       this._listSig = sig;
       this.listEl.innerHTML = '<option value="">— choose an object —</option>' + this.items.map((x) =>
-        `<option value="${x.key}">${x.node.name.replace(/_/g, ' ')}${x.deleted ? ' · deleted' : x.node.visible ? '' : ' · hidden'}${this.data[x.key] && !x.deleted ? ' · edited' : ''}</option>`).join('');
+        `<option value="${x.key}">${this.label(x)}${x.deleted ? ' · deleted' : x.node.visible ? '' : ' · hidden'}${this.data[x.key] && !x.deleted ? ' · edited' : ''}</option>`).join('');
     }
     this.listEl.value = it && it.vi == null ? it.key : '';
     if (it) { visibleBox(it.node, this.box.box); this.box.visible = true; this.box.updateMatrixWorld(true); } else this.box.visible = false;
@@ -292,7 +347,7 @@ export class LayoutEditor {
 
   // pick up objects that arrived since the editor was made (a later act's rooms)
   refreshItems() {
-    for (const it of movables(this.root)) if (!this.byNode.has(it.node)) { it.deleted = !!this.data[it.key]?.deleted; this.items.push(it); this.byNode.set(it.node, it); }
+    for (const it of [...movables(this.root), ...addedThings(this.root)]) if (!this.byNode.has(it.node)) { it.deleted = !!this.data[it.key]?.deleted; this.items.push(it); this.byNode.set(it.node, it); }
   }
 
   open() { this.refreshItems(); this.el.hidden = false; this.active = true; this.showVents(true); this.refresh(); }
@@ -303,11 +358,12 @@ export class LayoutEditor {
   snapshot(it) { return { key: it.key, before: this.data[it.key] ? { ...this.data[it.key] } : null }; }
   commit(it, snap) {
     if (it.vi != null) return this.commitVent(it, snap);
-    const n = it.node, h = n.userData.home;
+    const n = it.node, h = n.userData.home, u = n.userData;
     const p = n.position.toArray().map((v) => +v.toFixed(4)), q = n.quaternion.toArray().map((v) => +v.toFixed(5));
     const same = h && !it.deleted && p.every((v, i) => Math.abs(v - h.p[i]) < 1e-4) && q.every((v, i) => Math.abs(v - h.q[i]) < 1e-5) && n.visible === h.v;
-    if (same) delete this.data[it.key];
-    else this.data[it.key] = { p, q, ...(it.deleted ? { deleted: true } : n.visible ? {} : { hidden: true }) };
+    const what = !it.added ? {} : u.from ? { from: u.from } : { prop: u.prop, s: u.s };   // an added thing's entry is the thing
+    if (same && (!it.added || it.key in this.baked)) delete this.data[it.key];
+    else this.data[it.key] = { ...what, p, q, ...(it.deleted ? { deleted: true } : n.visible ? {} : { hidden: true }) };
     if (snap) this.undoStack.push(snap);
     if (this.undoStack.length > 100) this.undoStack.shift();
     saveLayout(this.act, this.data);
@@ -340,8 +396,44 @@ export class LayoutEditor {
   deleteSelected() {
     const it = this.sel; if (!it || it.vi != null || it.deleted) return;
     const snap = this.snapshot(it);
+    if (this.isNew(it)) { snap.node = it.node; this.drop(it); this.undoStack.push(snap); saveLayout(this.act, this.data); this.onChange?.(); return; }
     it.deleted = true; it.node.visible = false;
     this.commit(it, snap);
+  }
+
+  // ---------------------------------------------------------------- added things
+  isNew(it) { return it.added && !(it.key in this.baked); }   // added here, not baked in
+  // a new one leaves for good: its entry goes and it leaves the room (hidden, the collision world
+  // and the batches skip it; undo puts the same one back)
+  drop(it) {
+    delete this.data[it.key];
+    it.node.visible = false;
+    it.node.removeFromParent();
+    this.items.splice(this.items.indexOf(it), 1);
+    this.byNode.delete(it.node);
+    if (this.sel === it) this.sel = null;
+  }
+  // things applyLayout just made, made part of the room: solid, drawn in the batches, listed
+  place(nodes) {
+    for (const node of nodes) { node.updateMatrixWorld(true); this.world.addObjects([node]); this.statics?.add(node); }
+    this.refreshItems();
+  }
+  // a copy of the selected object (or prop) 10 cm aside along the room, selected
+  duplicate() {
+    const it = this.sel; if (!it || it.vi != null || it.deleted) return;
+    const u = it.node.userData, from = it.added ? u.from : it.key, base = from ? `copy:${from}` : `prop:${u.prop}`;
+    const taken = (k) => k in this.data || k in this.baked || this.items.some((x) => x.key === k);
+    let n = 1;
+    while (taken(`${base}#${n}`)) n++;
+    const key = `${base}#${n}`, node = copyOf(it.node), app = it.node.parent;
+    node.userData = { added: key, ...(from ? { from } : { prop: u.prop, s: u.s }) };
+    node.visible = true;
+    node.position.add(new THREE.Vector3(0.1, 0, 0).applyMatrix3(new THREE.Matrix3().setFromMatrix4(app.matrixWorld).invert()));
+    node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: true };
+    app.add(node);
+    this.place([node]);
+    this.sel = this.byNode.get(node);
+    this.commit(this.sel, { key, before: null });
   }
   putBack() {
     const it = this.sel; if (!it) return;
@@ -360,7 +452,11 @@ export class LayoutEditor {
       this.sel = vent;
       return;
     }
-    const it = this.items.find((x) => x.key === u.key), h = it.node.userData.home;
+    if (u.node && !this.byNode.has(u.node)) { (this.root.getObjectByName('Apartment') || this.root).add(u.node); this.refreshItems(); }   // a new thing deleted: the same one back
+    const it = this.items.find((x) => x.key === u.key);
+    if (!it) return;
+    if (this.isNew(it) && !u.before) { this.drop(it); saveLayout(this.act, this.data); this.onChange?.(); return; }   // undo a duplicate
+    const h = it.node.userData.home;
     if (u.before) applyEdit(it.node, u.before);
     else { it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
     it.deleted = !!u.before?.deleted;
@@ -369,7 +465,7 @@ export class LayoutEditor {
   }
   resetAll() {
     if (!confirm('Put every object back where it started?')) return;
-    for (const it of this.items) { const h = it.node.userData.home; if (!h) continue; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
+    for (const it of [...this.items]) { if (this.isNew(it)) { this.drop(it); continue; } const h = it.node.userData.home; if (!h) continue; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; it.node.updateMatrixWorld(true); }
     this.traversal?.vents.forEach((v, vi) => this.ventHome(vi));
     this.data = {}; this.undoStack = []; saveLayout(this.act, this.data); this.onChange?.();
   }
@@ -391,8 +487,8 @@ export class LayoutEditor {
           const wrapped = d && Number.isInteger(d.act) && d.edits && typeof d.edits === 'object';
           const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
           if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); box.querySelector('b').textContent = `Saved under Act ${d.act} — switch acts to see it`; return; }
-          for (const it of this.items) { const h = it.node.userData.home; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
-          this.data = edits; saveLayout(this.act, edits); applyLayout(this.root, this.act, edits);
+          for (const it of [...this.items]) { if (this.isNew(it)) { this.drop(it); continue; } const h = it.node.userData.home; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
+          this.data = edits; saveLayout(this.act, edits); this.place(await applyLayout(this.root, this.act, edits));
           for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
           this.traversal?.vents.forEach((v, vi) => { const e = edits[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
           this.onChange?.(); this.refresh(); box.remove();
@@ -493,7 +589,7 @@ export class LayoutEditor {
     d.addEventListener('wheel', (e) => { if (this.active) this.dist = THREE.MathUtils.clamp(this.dist * (1 + Math.sign(e.deltaY) * 0.1), 0.3, 7); }, { passive: true });
     addEventListener('keydown', (e) => {
       if (!this.active || e.target.closest?.('textarea, input')) return;
-      this.keys.add(e.code);
+      if (!e.ctrlKey && !e.metaKey) this.keys.add(e.code);   // Ctrl+D duplicates, it doesn't pan
       const big = e.shiftKey;
       if (e.code === 'KeyQ') this.rotate(big ? Math.PI / 2 : Math.PI / 12);
       else if (e.code === 'KeyE') this.rotate(big ? -Math.PI / 2 : -Math.PI / 12);
@@ -502,6 +598,7 @@ export class LayoutEditor {
       else if (e.code === 'KeyH') this.toggleHide();
       else if (e.code === 'Delete' || e.code === 'Backspace') this.deleteSelected();
       else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) this.undo();
+      else if (e.code === 'KeyD' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.duplicate(); }
       else if (e.code === 'Escape') this.onDone?.();
       else return;
       this.refresh();
