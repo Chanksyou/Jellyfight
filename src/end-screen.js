@@ -26,6 +26,7 @@ const CSS = `
 .jf-end h2 { display: flex; align-items: center; justify-content: center; gap: var(--ui-space-3); }
 .jf-end h2 > .ui-icon { color: var(--ui-gold); }
 .jf-end .sub { margin-bottom: var(--ui-space-3); }
+.jf-end .jf-stats small { white-space: nowrap; }   /* "· win a run" stays one piece */
 .jf-end .jf-stats .ui-icon { margin-right: var(--ui-space-1); color: var(--ui-mint); }
 /* the one stamp of an act cleared: a gold seal slams down beside the heading */
 .jf-stamp { display: inline-grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--ui-gold); color: var(--ui-gold-ink);
@@ -35,8 +36,7 @@ const CSS = `
 .jf-chips, .jf-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--ui-space-2); margin: 0 0 var(--ui-space-3); }
 /* the Treasures taken, a few rows at most (a long list scrolls) */
 .jf-tiles { max-height: 124px; overflow-y: auto; padding: 2px; }
-.jf-tile { min-width: 44px; min-height: 44px; padding: var(--ui-space-1); position: relative; cursor: default; font-size: 22px; line-height: 1; animation: ui-pop var(--ui-slow) var(--ui-ease-in) backwards; animation-delay: var(--d, 0ms); }
-.jf-tile:hover { background: var(--ui-glass); }
+.jf-tile { min-width: 44px; min-height: 44px; padding: var(--ui-space-1); position: relative; font-size: 22px; line-height: 1; animation: ui-pop var(--ui-slow) var(--ui-ease-in) backwards; animation-delay: var(--d, 0ms); }
 .jf-tile small { position: absolute; right: 2px; bottom: 1px; padding: 0 3px; border-radius: var(--ui-radius-pill); background: var(--ui-shade); color: var(--ui-ink); font: 700 var(--ui-size-label)/1.2 var(--ui-font-text); }
 .jf-tile.jf-evo { border-color: var(--ui-gold); }
 body.calm .jf-stamp, body.calm .jf-tile { animation-name: ui-fade-in; }

@@ -27,7 +27,7 @@ const CSS = `
 #type-pick { position: fixed; inset: 0; z-index: 15; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: none; box-sizing: border-box;
   padding: max(var(--ui-space-3), env(safe-area-inset-top, 0px)) max(var(--ui-space-4), env(safe-area-inset-right, 0px)) max(var(--ui-space-3), env(safe-area-inset-bottom, 0px)) max(var(--ui-space-4), env(safe-area-inset-left, 0px));
   background: radial-gradient(120% 90% at 50% 0%, var(--menu-water-shallow) 0%, var(--menu-water-deep) 62%, var(--ui-deep) 100%);
-  color: var(--ui-ink); font: 400 var(--ui-size-body)/1.4 var(--ui-font-text); --cw: clamp(280px, 26vw, 340px); }
+  color: var(--ui-ink); font: 400 var(--ui-size-body)/1.4 var(--ui-font-text); --cw: clamp(280px, 26vw, 480px); }
 #type-pick[hidden] { display: none; }
 #type-pick header { flex: none; margin-bottom: var(--ui-space-2); }
 #type-pick .tp-headline { display: flex; align-items: center; gap: var(--ui-space-3); }
@@ -41,8 +41,8 @@ const CSS = `
 #type-pick .tp-arrow[data-dir="1"] { right: 0; }
 #type-pick .tp-arrow[data-dir="1"] .ui-icon { transform: scaleX(-1); }
 #type-pick .tp-arrow[hidden] { display: none; }
-/* the centre card fills the stage's height; the portrait is as big as the card leaves room for (a square) */
-#type-pick .tp-card { --art: min(calc(var(--cw) - 32px), calc(100cqh - 247px)); position: absolute; left: 50%; top: 50%; width: var(--cw); height: calc(100cqh - 8px);
+/* a card is as tall as what it holds (never taller than the stage); the portrait is as big as the card leaves room for (a square) */
+#type-pick .tp-card { --art: min(calc(var(--cw) - 32px), calc(100cqh - 247px)); position: absolute; left: 50%; top: 50%; width: var(--cw); max-height: calc(100cqh - 8px);
   box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ui-space-2); padding: var(--ui-space-3);
   border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: var(--ui-radius-m); background: var(--ui-panel); will-change: transform;
   box-shadow: 0 10px 34px var(--ui-shade), inset 0 0 40px color-mix(in srgb, var(--accent) 12%, transparent); }
