@@ -148,13 +148,15 @@ export function cameraSpots(extra = []) {
 export function cameraTour(spots) {
   const { tpc, world, APT } = G(), cam = tpc.camera.position, last = V(0, 0, 0), toCam = V(0, 0, 0), seen = new Set();
   const F = tpc.fight, want = F ? [F.pitch, F.distance] : [tpc.pitch, tpc.distance], programs = APT.renderer.info.programs.length;
-  let moved = 0, blocked = 0, jumps = 0, maxJump = 0, views = 0;
+  let moved = 0, blocked = 0, jumps = 0, maxJump = 0, views = 0, pulled = 0;
   for (const p of spots) {
     for (let k = 0; k < 16; k++) {
       // build the shaders this view needs (see-through copies included) without drawing it: in a
       // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
       tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); G().GAME.compile(); views++;
-      if (Math.abs(cam.distanceTo(tpc.focus) - want[1]) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;   // (a fight view: eased in)
+      // moved: anything but a wall's clearance (tpc.pull) changed the view (a fight view: eased in)
+      if (Math.abs(cam.distanceTo(tpc.focus) - want[1] + tpc.pull) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;
+      if (tpc.pull > 1e-3) pulled++;
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();
       if (world.cast(tpc.focus, toCam.normalize(), len, tpc.over)) blocked++;   // something solid left between the jelly and the camera
@@ -162,18 +164,20 @@ export function cameraTour(spots) {
     tp(...p, 0); step(20); last.copy(cam);
     for (let i = 0; i < 240; i++) {
       tpc.yaw += (Math.PI * 2) / 240;
+      const was = tpc.pull;
       tpc.update(1 / 60, { x: 0, y: 0, wheel: 0 }, G().player.position);
       const j = cam.distanceTo(last); last.copy(cam);
-      if (j > 0.05) jumps++;   // a snap: turning moves it under 2 cm a frame
-      maxJump = Math.max(maxJump, j);
+      const snap = j - Math.abs(tpc.pull - was);   // what the wall's clearance doesn't account for
+      if (snap > 0.05) jumps++;   // a snap: turning moves it under 2 cm a frame
+      maxJump = Math.max(maxJump, snap);
     }
   }
   const newShaders = APT.renderer.info.programs.length - programs;
-  return { views, moved, blocked, jumps, maxJump: +maxJump.toFixed(3), newShaders, seeThrough: [...seen] };
+  return { views, moved, pulled, blocked, jumps, maxJump: +maxJump.toFixed(3), newShaders, seeThrough: [...seen] };
 }
 // `under`: a piece of furniture the jelly gets underneath on the tour, which it should see through
 export const cameraStory = (extra, under) => ({
-  about: `The camera never moves on its own: same tilt and distance at every spot and heading, no snaps while turning. Whatever would block the view fades out instead (furniture over the jelly like the ${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()}, a wall behind it), with no shader built on the spot, and turns solid again once clear.`,
+  about: `The camera keeps the tilt and distance you asked for at every spot and heading, no snaps while turning, except where a wall, floor or ceiling would be in the way (then it comes in along the same view: camera/stays-inside-the-shell). Furniture that blocks the view fades out instead (the ${under.replace(/_\d+$/, '').replace(/_/g, ' ').toLowerCase()} over the jelly), with no shader built on the spot, and turns solid again once clear.`,
   setup() { fresh({ elites: false }); },
   play() {
     const { tpc, run } = G(), spots = cameraSpots(extra), now = cameraTour(spots);
