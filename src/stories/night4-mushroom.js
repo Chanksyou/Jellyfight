@@ -47,7 +47,7 @@ night4('pillow-sleeps-on-the-sofa', {
     let started = false;
     step(60 * 4, () => { if (e.state !== 'idle') started = true; });
     const real = run.elites.findObject('Mushroom_pillow').visible;
-    const on = flat(e.base, { x: 1.165, z: 1.282 }) < 0.01 && Math.abs(e.base.y - 0.51) < 0.02;
+    const on = flat(e.base, { x: 1.196, z: 1.46 }) < 0.01 && Math.abs(e.base.y - 0.51) < 0.02;
     return ok(on && !real && !e.awake && !started && e.model.eyes.scale.y < 0.4, { at: r3(e.base), realShown: real, awake: e.awake, started, eyes: +e.model.eyes.scale.y.toFixed(2) });
   },
 });

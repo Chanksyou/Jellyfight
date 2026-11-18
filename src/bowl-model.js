@@ -74,7 +74,7 @@ export function buildBowl() {
   // right side of the rim, 1 on it), 'sing' (held to the rim, round at `turn` rad)
   const pose = (at, k = 0, turn = 0) => {
     if (at === 'strike') { orbit.rotation.y = 0; striker.position.set(0.15, 0.04, 0); striker.rotation.set(0, 0, THREE.MathUtils.lerp(-0.25, 0.97, k)); }
-    else { orbit.rotation.y = at === 'sing' ? turn : -2.2; striker.position.set(0.115, 0, 0); striker.rotation.set(0, 0, 0.51); }
+    else { orbit.rotation.y = at === 'sing' ? turn : -2.2; at === 'sing' ? (striker.position.set(0.085, 0, 0), striker.rotation.set(0, 0, 0.2)) : (striker.position.set(0.115, 0, 0), striker.rotation.set(0, 0, 0.51)); }
   };
   pose('rest');
   return { group: g, body, song, orbit, striker, eyes, pose };
