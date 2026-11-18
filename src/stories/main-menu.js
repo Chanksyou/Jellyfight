@@ -288,7 +288,7 @@ const settingsSheet = {
       const open = !sheet.hidden && !scrim.hidden && r.height > 0;
       const placed = phoneSized ? Math.abs(r.bottom - innerHeight) < 1 && r.width === innerWidth : Math.abs((r.top + r.bottom) / 2 - innerHeight / 2) < 2 && r.width < innerWidth;
       const rows = [...sheet.querySelectorAll('.set-row .ui-label')].map((l) => l.textContent).join();
-      const wanted = phoneSized ? 'Sound,Music,Graphics,Frame rate,Text size' : 'Sound,Music,Graphics,Text size';
+      const wanted = phoneSized ? 'Sound,Music,Graphics,Frame rate,Text size,Easy mode' : 'Sound,Music,Graphics,Text size,Easy mode';
       const shows = pressed('data-sound') === (wasMuted ? 'off' : 'on') && pressed('data-q') === gfx.choice && pressed('data-text') === 'normal';
       sheet.querySelector('[data-sound="off"]').click();
       const muted = isMuted() && pressed('data-sound') === 'off';
