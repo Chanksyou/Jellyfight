@@ -522,8 +522,8 @@ export const EVERY_ATTACK = {
     // the column over each) and its Fairy ring's (a circle and the column over each of its eight caps)
     pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, fairy: { is: 'volume', scene: 1, start: () => startPillow(1) } },
     // the Headphones on the kitchen counter (elites.js), in the room: its shove waves' Warning (a white strip
-    // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
-    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
+    // and the lane over it) and its Stereo's (a floor square and the slab over it)
+    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, stereo: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')
