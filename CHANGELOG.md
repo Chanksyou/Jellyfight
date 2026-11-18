@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v493 makes picks and end screens move smoothly on phones: a picked Treasure's icon now flies along a curve into its slot in the Treasure row (which pops as it lands), cards deal in one by one with the rarest last, the cards you didn't pick drop away fast, and the Legendary sheen, the won glow and the golden award's rays no longer repaint the screen every frame (the rays turn twice, then rest). On a death the jelly sags in under a second and the numbers wait for it before counting up.
+
 v492 adds Duplicate (Ctrl+D or ⧉) to the dev layout editor: a copy of the selected furniture drops 10 cm aside, solid and drawn in the same batches as the original, and saves and exports as a `copy:` entry; the layout can also hold `prop:` entries for the coming prop library.
 
 v491 keeps small props solid for the camera: a cup or teapot the camera's edge rays only brush past no longer fades out, and one that really sits between the jelly and the camera goes half see-through instead of vanishing (`src/camera.js`).
