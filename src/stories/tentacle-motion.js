@@ -24,12 +24,12 @@ function stroke(dt) {
 }
 
 story('motion/stroke-wave-travels-down', {
-  about: 'A still jelly\'s tentacles hang still (no ripple on a clock). After a stroke the tentacle moves furthest at the root first, then the middle, then the tip (a wave running down it), and it plays out the same at 30 and 60 fps.',
+  about: 'A still jelly\'s tentacles hang still (no ripple on a clock). After a stroke the tentacle moves furthest at the root first, then the middle, then the tip (a wave running down it), and it plays out the same at 30, 60 and 120 fps.',
   setup() {},
   play() {
-    const a = stroke(1 / 30), b = stroke(1 / 60);
+    const a = stroke(1 / 30), b = stroke(1 / 60), c = stroke(1 / 120);
     const down = (r) => r.times[0] < r.times[1] && r.times[1] < r.times[2] && r.tip > 0.005 && r.drift < 1e-3;
-    const same = Math.abs(a.tip - b.tip) < 0.2 * Math.max(a.tip, b.tip) && Math.abs(a.times[2] - b.times[2]) < 0.07;
-    return ok(down(a) && down(b) && same, { fps30: a, fps60: b });
+    const like = (x, y) => Math.abs(x.tip - y.tip) < 0.2 * Math.max(x.tip, y.tip) && Math.abs(x.times[2] - y.times[2]) < 0.07, same = like(a, b) && like(b, c);
+    return ok(down(a) && down(b) && down(c) && same, { fps30: a, fps60: b, fps120: c });
   },
 });

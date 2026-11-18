@@ -81,8 +81,7 @@ export class TentacleRig {
     this.weight = LOOK.num('jelly-motion-weight', 0.6);
     this.alongDrag = LOOK.num('jelly-motion-drag-along', 0.5);
     const kTip = LOOK.num('jelly-motion-tip-spring', 20), drag = LOOK.num('jelly-motion-drag', 7);
-    // bend (XPBD, Macklin 2016): each substep a fold past the pose's curve is undone by this share
-    this.bend = 1 / (1 + LOOK.num('jelly-motion-bend-compliance', 0.0002) / (STEP * STEP));
+    this.compliance = LOOK.num('jelly-motion-bend-compliance', 0.0002);   // bend (XPBD, Macklin 2016)
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
       const a = opts.angles?.[i] ?? (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face (unless placed)
@@ -186,7 +185,7 @@ export class TentacleRig {
       const n = Math.min(6, Math.max(1, Math.round(dt / STEP))), h = dt / n;
       if (!this.fresh) {
         this.work += n * SEG;
-        const slip = 1 - this.alongDrag, sink = this.weight * h;
+        const slip = 1 - this.alongDrag, sink = this.weight * h, bend = 1 / (1 + this.compliance / (h * h));   // share of a fold undone per substep
         for (let it = 0; it < n; it++) {
           T.sim[0].copy(T.goal[0]);
           for (let j = 1; j <= SEG; j++) {
@@ -203,7 +202,7 @@ export class TentacleRig {
             if (j > 1) {
               _d.copy(p).sub(T.sim[j - 2]);
               const len = _d.length(), want = T.goal[j].distanceTo(T.goal[j - 2]);
-              if (len < want && len > 1e-6) p.addScaledVector(_d, (want - len) / len * this.bend);
+              if (len < want && len > 1e-6) p.addScaledVector(_d, (want - len) / len * bend);
             }
             // keep the segment its length: the tentacle bends, it doesn't stretch
             const seg = T.goal[j].distanceTo(T.goal[j - 1]);
