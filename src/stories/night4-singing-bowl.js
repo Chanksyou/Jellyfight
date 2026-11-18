@@ -26,7 +26,7 @@ night4('bowl-sleeps-on-the-lounge-chair', {
     let started = false;
     step(60 * 4, () => { if (e.state !== 'idle') started = true; });
     const real = run.elites.findObject('Singing_bowl').visible;
-    const on = Math.hypot(e.base.x - 3.17, e.base.z - 0.903) < 0.01 && Math.abs(e.base.y - 0.435) < 0.01;
+    const on = Math.hypot(e.base.x - 3.17, e.base.z - 1.02) < 0.01 && Math.abs(e.base.y - 0.43) < 0.01;
     return ok(on && !real && !e.awake && !started && e.model.eyes.scale.y < 0.4, { at: r3(e.base), realShown: real, awake: e.awake, started, eyes: +e.model.eyes.scale.y.toFixed(2) });
   },
 });
@@ -173,7 +173,7 @@ night4('bowl-hum-hits-outside-the-safe-circle-not-inside', {
   setup() { startBowl(1); },
   play() {
     const out = {}, H = SK().hum;
-    for (const [name, x, z, up] of [['outside', 3.17, 1.223, 0], ['outside, jumping', 3.35, 1.263, 0.15], ['inside', 3.17, 0.903 + H.safe * 0.8, 0]]) {
+    for (const [name, x, z, up] of [['outside', 3.17, 1.223, 0], ['outside, jumping', 3.35, 1.263, 0.15], ['inside', 3.17, 1.02 + H.safe * 0.8, 0]]) {
       const { e, player, seat } = startBowl(1, { x, z }), { run } = G(), log = record('damage_taken');
       if (up) { player.position.y = seat + up; player.grounded = false; }
       let from = null, at = null;

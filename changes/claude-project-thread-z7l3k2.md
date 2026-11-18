@@ -1,0 +1,1 @@
+sets six Elites down clear of their furniture: the Mug and the Alligator no longer float over their desk and bed, the Kettle no longer sinks into the counter, the Soap Dispenser and the Coffer step out of the wall and riser behind them, and the Singing Bowl comes forward off the lounge chair's back; a new guard checks every Elite's body, landing spot and attacks against the room.
