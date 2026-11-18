@@ -1,1 +1,0 @@
-gives the jelly weight when it swims: each stroke pushes twice (a small second push as the bell recoils), a still jelly pulses then rests a beat while it sinks a little, and the body tips back when you start, rocks forward and through upright when you stop, and banks into turns.
