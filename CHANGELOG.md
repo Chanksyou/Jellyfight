@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v489 adds motion easing and stagger tokens, and two guard stories that fail when a screen animates a paint property or Reduce effects does more than fade.
+
 v488 replaces the Headphones' aimed bass Shots (act 4, the kitchen counter) with Stereo: a line down the counter through the Headphones splits its ground into two halves, and the cups burst them in turn, a cup lighting up and marking its half in its own colour (indigo, spearmint) two beats before, so you cross to the other half on the beat; angry, a shove wave also crosses the line between bursts.
 
 v487 adds a prop library for the dev layout editor: six plants (Aloe, Monstera, Pothos, Rubber plant, Snake plant, Spider plant), each whole with its pot, baked into one small file the game only downloads when a prop is asked for. Nothing in play changes yet.
