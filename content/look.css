@@ -198,6 +198,7 @@
   --gadget-chord-prepare: 0.25;
   --gadget-brick-drop: 0.16;
   --gadget-brick-lift: 0.02;
+  --gadget-brick-gravity: 6;
   --gadget-marble-trail-gap: 0.045;
   --gadget-marble-trail-width: 0.0014;
   --gadget-needle-width: 0.0013;

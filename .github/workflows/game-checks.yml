@@ -16,14 +16,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Guards and story shards run side by side. Shards are balanced by cost in tests/run.mjs
-  # (act 1's stories are split across several), so they finish at about the same time.
+  # Guards, the balance smoke check and story shards run side by side. Shards are balanced by cost in
+  # tests/run.mjs (act 1's stories are split across several), so they finish at about the same time.
   stories:
-    name: ${{ matrix.shard == 0 && 'Guards' || format('Stories ({0}/8)', matrix.shard) }}
+    name: ${{ matrix.shard == 0 && 'Guards' || matrix.shard == 9 && 'Balance smoke' || format('Stories ({0}/8)', matrix.shard) }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     runs-on: ubuntu-latest
     container:
       # Keep in sync with tests/package.json; the install step checks this pin.
@@ -49,9 +49,13 @@ jobs:
         run: |
           mkdir -p .wrangler
           node tests/check.mjs | tee .wrangler/ci-guards.log
-          node tests/balance-smoke.mjs | tee -a .wrangler/ci-guards.log
+      - name: Run the balance smoke check
+        if: matrix.shard == 9
+        run: |
+          mkdir -p .wrangler
+          node tests/balance-smoke.mjs | tee .wrangler/ci-balance-smoke.log
       - name: Run story shard
-        if: matrix.shard != 0
+        if: matrix.shard != 0 && matrix.shard != 9
         run: |
           mkdir -p .wrangler
           node tests/run.mjs --shard=${{ matrix.shard }}/8 --jobs=1 --boots=1 --force --seed=20261020 | tee .wrangler/ci-stories.log
