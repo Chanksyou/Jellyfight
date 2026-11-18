@@ -501,7 +501,7 @@ story('dev/layout-prop-entry-is-made', {
   setup() { fresh({ elites: false }); },
   async play() {
     const { APT } = G(), { loadProps } = await import('../props.js');
-    const data = { 'prop:monstera#1': { prop: 'monstera', p: [3.2, 0, 3.3], q: [0, 0, 0, 1], s: 1.5 }, 'prop:nothing#1': { prop: 'nothing', p: [3, 0, 3], q: [0, 0, 0, 1], s: 1 } };
+    const data = { 'prop:monstera#9': { prop: 'monstera', p: [3.2, 0, 3.3], q: [0, 0, 0, 1], s: 1.5 }, 'prop:nothing#1': { prop: 'nothing', p: [3, 0, 3], q: [0, 0, 0, 1], s: 1 } };
     const made = await applyLayout(APT.root, 1, data), node = made[0];
     try {
       const t = (await loadProps(['monstera'])).monstera, mine = [], theirs = [];
@@ -513,7 +513,7 @@ story('dev/layout-prop-entry-is-made', {
       const w = node && new World(node, { staticScene: true }), top = node && visibleBox(node, new THREE.Box3());
       if (w) { w._focusAge = Infinity; w.focus(node.position, 0, 3); }
       const hit = w && w.cast(V(node.position.x, top.max.y + 0.05, node.position.z), V(0, -1, 0), top.max.y + 0.1);
-      return ok(made.length === 1 && node.userData.added === 'prop:monstera#1' && node.scale.x === 1.5 && shared && !lights && !!hit,
+      return ok(made.length === 1 && node.userData.added === 'prop:monstera#9' && node.scale.x === 1.5 && shared && !lights && !!hit,
         { made: made.length, scale: node?.scale.x, shared, lights, hit: !!hit });
     } finally {
       for (const n of made) { n.visible = false; n.removeFromParent(); }
