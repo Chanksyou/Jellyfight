@@ -53,7 +53,7 @@ try {
       // the kit sheet scrolls: a shot per screenful
       for (let part = 1, more = true; more; part++) {
         const file = path.join(out, `${device.name}-${String(i).padStart(2, '0')}-${screen}${part > 1 ? '-' + part : ''}${large ? '-large' : ''}.jpg`);
-        await page.waitForTimeout(400);                   // CSS transitions run on real time
+        await page.waitForTimeout(1200);                  // CSS transitions run on real time, slower when the page is busy
         await page.screenshot({ path: file, type: 'jpeg', quality: 82, timeout: 120000 });
         console.log('✓ ' + path.relative(process.cwd(), file));
         more = screen === 'kit' && await page.evaluate(() => {
