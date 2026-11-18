@@ -154,6 +154,9 @@ const BUILDERS = [
   ['Shower curtain', buildCurtain],
 ];
 
+// the baked pieces it replaces, by node name (the layout editor can't copy these: a copy would be the flat baked one)
+export const DRESSED = BUILDERS.map(([name]) => THREE.PropertyBinding.sanitizeNodeName(name));
+
 // Hide each baked piece we have a builder for and put the detailed one in its place.
 // Call after the layout is applied and before the collision world is built (boot:
 // every loaded act is present, since acts reload the page rather than stream in).
