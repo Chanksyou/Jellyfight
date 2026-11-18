@@ -16,7 +16,7 @@ const offSofa = () => tp(0.3, 0.02, 2.9, 0);                    // on the floor 
 const isPillow = (o) => o.material.uniforms.uColor.value.getHex() === hostile('pillow').getHex();
 const pillowPairs = () => volumePairs().filter(([v, f]) => f && isPillow(v));
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offBar = (b) => Math.min(b % 4, 4 - (b % 4));              // beats from the nearest bar line
+const offSnap = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const SK = () => CONTENT.elites.pillow.skills;
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -78,7 +78,7 @@ night4('pillow-spores-settle-then-burst-on-the-bar', {
     const r = playSpores(e, () => { squashed = Math.min(squashed, e.model.cap.scale.y); });
     const hits = hitsBy(log, 'pillow-spores'), first = r.spots && flat(r.spots[0], at);
     const good = r.spots?.length === S.spots && first < 0.01 && r.columns === S.spots && squashed < 0.9
-      && offBeat(r.puff) < 0.05 && Math.abs(r.settle - r.puff - S.drift) < 0.05 && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
+      && offBeat(r.puff) < 0.05 && Math.abs(r.settle - r.puff - S.drift) < 0.05 && offSnap(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
       && hits.length === 1 && hits[0] === S.dmg;
     return ok(good, { spots: r.spots?.length, first: first && +first.toFixed(3), columns: r.columns, squashed: +squashed.toFixed(2), puff: +r.puff?.toFixed(2), settle: +r.settle?.toFixed(2), burst: +r.burst.toFixed(2), hits });
   },
@@ -130,7 +130,7 @@ night4('pillow-angry-more-spores-settling-faster', {
     const r = playSpores(e);
     const { e: c } = startPillow(0, { angry: true, x: 1.915, z: 1.682 }), corner = playSpores(c);   // by the sofa's back: every spot still on the seat
     const offSeat = (corner.spots || []).filter((s) => Math.abs(s.y - c.base.y) > 0.04).length;
-    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offBar(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
+    return ok(r.spots?.length === S.angrySpots && S.angrySpots > S.spots && Math.abs(r.settle - r.puff - S.angryDrift) < 0.05 && S.angryDrift < S.drift && offSnap(r.burst) < 0.05 && Math.abs(r.burst - r.settle - 1) < 0.05
       && corner.spots?.length > 1 && offSeat === 0,
       { spots: r.spots?.length, drift: +(r.settle - r.puff).toFixed(2), burst: +r.burst.toFixed(2), corner: corner.spots?.length, offSeat, ys: corner.spots?.map((s) => +s.y.toFixed(2)) });
   },
