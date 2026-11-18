@@ -1,0 +1,1 @@
+fixes the layout editor not letting you pick up or drag a small plant: the invisible click box of the TV (or other furniture) behind it was swallowing the tap, so a plant made smaller could no longer be moved.
