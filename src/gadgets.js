@@ -12,7 +12,7 @@ import { batcher } from './batch.js';
 import { knockFor } from './stats.js';
 import { HouseGadgets } from './house-gadgets.js';
 
-const _to = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+const _to = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
 
 export class Gadgets {
   constructor(scene, enemies, fx, world) {
@@ -319,6 +319,15 @@ export class Gadgets {
     this.brickPool.push(g);return g;
   }
 
+  // A brick falls until something solid is under it (the floor, a table top, the jelly's own perch), then stays put.
+  fallBrick(b, dt) {
+    b.vy -= LOOK.num('gadget-brick-gravity', 6) * dt;
+    const p = b.m.position, up = 0.01, step = -b.vy * dt;
+    const hit = this.world.cast(_o.copy(p).setY(p.y + up), DOWN, up + step);
+    if (hit && hit.normal.y > 0.3) { p.y = hit.point.y; b.landed = true; b.vy = 0; }
+    else { p.y -= step; if ((b.fell = (b.fell || 0) + step) > 3) b.landed = true; }   // nothing under it for 3 m (out of the world): it rests until it times out
+  }
+
   marbleMesh() {
     let g=this.marblePool.find(g=>!g.parent);
     if(g)return g;
@@ -549,13 +558,15 @@ export class Gadgets {
     for (const b of this.bricks) {
       b.t -= dt;
       b.age+=dt;const body=b.m.userData.body;
+      if (!b.landed) this.fallBrick(b, dt);   // dropped in mid-jump or up a wall: it falls to whatever is under it
       const drop=LOOK.num('gadget-brick-drop',.16),u=Math.min(1,b.age/drop);
       body.position.y=this.looks.quiet?0:LOOK.num('gadget-brick-lift',.02)*(1-u)*(1-u)+Math.sin(Math.max(0,u-.65)/.35*Math.PI)*.002;
       body.rotation.z=this.looks.quiet?0:(1-u)*.1;
       body.scale.set(1,this.looks.quiet?1:1+.035*Math.sin(b.age*3),1);
-      const hit = this.near(b.m.position, 0.012 * b.size, { proxies: false }).find((e) => !e.T.fly);
+      const stepped = (e) => !e.proxy ? !e.T.fly : !!e.boss;   // bugs that walk, and the act bosses (not Elites)
+      const hit = b.landed && this.near(b.m.position, 0.012 * b.size).find(stepped);
       if (hit) {
-        const hurt = b.burst ? this.near(b.m.position, b.burst, { proxies: false }) : [hit];
+        const hurt = b.burst ? this.near(b.m.position, b.burst).filter((e) => !e.proxy || e.boss) : [hit];
         for (const e of hurt) bus.emit('damage_taken', { targetId: e.id, amount: power * b.dmg, color: '#ff8a6a', source: 'brick' });
         fx.puff(b.m.position, this.looks.color.getHex(), 0.02 * b.size, 0.3);
         if (b.burst) this.looks.arc(b.m.position.clone().setY(b.m.position.y + 0.003), b.burst, this.looks.color, .35);
@@ -657,7 +668,7 @@ export class Gadgets {
       g.scale.setScalar(ef.size);
       g.userData.body.position.set(0,0,0);g.userData.body.rotation.set(0,0,0);g.userData.body.scale.setScalar(1);
       this.group.add(g);
-      this.bricks.push(Object.assign(g.userData.state ||= {}, { m: g, t: ef.last, age:0, dmg: ef.dmg, size: ef.size, burst: ef.burst }));
+      this.bricks.push(Object.assign(g.userData.state ||= {}, { m: g, t: ef.last, age:0, dmg: ef.dmg, size: ef.size, burst: ef.burst, landed: false, vy: 0, fell: 0 }));
       sfx.gadgetBrick();ctx.pulse?.(.15);
       while (this.bricks.length > ef.most) this.group.remove(this.bricks.shift().m);
     } else if (ef.kind === 'marble') {
