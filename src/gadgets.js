@@ -759,6 +759,12 @@ export class Gadgets {
           _cone.set(-Math.sin(a), 0, Math.cos(a));
           W.streaks(_to, _cone, 1, 0.5, w.r * 0.8);
         }
+        if (w.pull > 0.4) {   // a strong pull (Pocket Vacuum): air racing in from the rim to the middle
+          const a = Math.random() * Math.PI * 2;
+          _to.set(w.at.x + Math.cos(a) * w.r, w.at.y + w.r * 0.15 * Math.random(), w.at.z + Math.sin(a) * w.r);
+          _cone.set(-Math.cos(a), 0, -Math.sin(a));
+          W.streaks(_to, _cone, 2, 1.6, w.r * 0.7);
+        }
       }
       const sting = w.dmg > 0 && (w.sting -= dt) <= 0;   // dmg=: every 0.5 s each bug in it is stung
       if (sting) w.sting += 0.5;

@@ -488,9 +488,9 @@ treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="
 treasure "luckyCat" name="Lucky Cat" icon="🐱" rarity="legendary" needs-chance=#true text="Every '1 in N' chance of yours is rolled twice, and the better roll counts." {
     lucky-rolls 2
 }
-treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks sets off a mini tornado by the nearest bug: for 4 s it pulls bugs together and stings them a little." {
+treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks sets off a mini tornado by the nearest bug: for 4 s it sucks every bug round it hard into its middle and stings them a little." {
     on-attack chance=0.1 {
-        whirl radius=0.12 time=4 pull=0.15 range=0.6 dmg=0.15 most=3
+        whirl radius=0.3 time=4 pull=0.9 range=0.9 dmg=0.15 most=3
     }
 }
 treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 bugs you clear rises as a glowing ghost for 8 s, slamming into other bugs." stack=2 {
