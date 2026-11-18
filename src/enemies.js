@@ -12,7 +12,7 @@ import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
-import { hostile, FRIENDLY, TeleMaterial, blastHits, coneHits, shotHits } from './vfx.js';
+import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
 import { GlowPools } from './glow-pools.js';
 
 // what each type bursts into when it dies
@@ -268,7 +268,7 @@ export class Enemies {
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
     this.plungeMarks = [];    // pooled: the circle and column under each moth about to plunge (the plunge word)
-    this.songMarks = [];      // pooled: the wedge and cone about to sing at you (the sing word)
+    this.burrowMarks = [];    // pooled: the circle and dome over each locked mound about to burst up (the burrow word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
     this.pokeMarks = [];      // pooled: the line under each fly's poke (the poke word)
@@ -287,7 +287,7 @@ export class Enemies {
     });
     bus.on('status_applied', ({ targetId, status, duration, more }) => {
       const e = this.byId.get(targetId);
-      if (!e || e.dead) return;
+      if (!e || e.dead || e.under) return;   // (a bug under the floor can't be stunned, frozen or marked)
       if (status === 'spot') { e.spotUntil = (this.now ?? 0) + duration; e.spotMore = more ?? 1; return; }   // in the spotlight (Disco Ball): Elites and the boss too
       if (e.proxy) {   // Elites and bosses can't be stunned: say so, at most every 1.5 s each
         if ((status === 'stun' || status === 'pin') && !(this.frame < e.immuneAt)) {
@@ -318,8 +318,8 @@ export class Enemies {
     });
     bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0, lift = 0 }) => {
       const e = this.byId.get(targetId);
-      if (e && !e.dead && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
-      if (lift > 0 && e && !e.dead && !e.proxy && !e.T.fly && !e.T.rooted) { e.vy = lift; e.grounded = false; }   // thrown up (a geyser): gravity brings it down
+      if (e && !e.dead && !e.under && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
+      if (lift > 0 && e && !e.dead && !e.under && !e.proxy && !e.T.fly && !e.T.rooted) { e.vy = lift; e.grounded = false; }   // thrown up (a geyser): gravity brings it down
     });
   }
 
@@ -452,7 +452,7 @@ export class Enemies {
 
   // (the damage_taken listener) elites and bosses keep their own HP
   applyDamage(e, amount, color = '#fff', sound, feedback = {}) {
-    if (!e || e.dead) return;
+    if (!e || e.dead || e.under) return;   // under the floor (the burrow word): nothing reaches it
     amount *= this.damageMult ?? 1;      // shield-full-damage (treasures): the run sets it each frame
     if (!feedback.tick && !feedback.pass) {   // (a Cradle pass is plain: no status-damage or fresh-damage) status-damage: a hit on a bug with a status does more (Shatter thaws it)
       const k = this.statusMore(e, feedback.by), blast = this._blast, share = this._blastDmg;
@@ -505,7 +505,7 @@ export class Enemies {
     const from = this.center(e, new THREE.Vector3());
     let best = null, bestD = O.reach;
     for (const n of this.list) {
-      if (n === e || n.dead || n.proxy?.immune) continue;
+      if (n === e || n.dead || n.under || n.proxy?.immune) continue;
       const d = this.center(n, S.o).distanceTo(from);
       if (d <= bestD) { best = n; bestD = d; }
     }
@@ -557,7 +557,7 @@ export class Enemies {
     this.fx.ring(c.clone().setY(c.y - e.r * 0.8), BLAST.getHex(), r, 0.3);
     sfx.fireDeath();
     for (const n of this.list) {
-      if (n === e || n.dead || n.proxy?.immune) continue;
+      if (n === e || n.dead || n.under || n.proxy?.immune) continue;
       if (this.center(n, o).distanceTo(c) - n.r > r) continue;   // a sphere of r round its middle, touching n's body
       bus.emit('damage_taken', { targetId: n.id, amount, color: '#ffa65a', source: 'fire', feedback: { tick: true, element: 'fire' } });
     }
@@ -1221,48 +1221,54 @@ export class Enemies {
     for (let i = b; i < this.whipMarks.length; i++) this.whipMarks[i].visible = false;
     for (let i = k; i < this.burstMarks.length; i++) this.burstMarks[i].visible = false;
   }
-  // ---------------------------------------------------------------- the cicada (sing)
-  songWind(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.songWind(dur); }
-  breakSong(e) { e.chargeSound?.(); e.chargeSound = null; }
-  // the song lands: you're hit if you're in the cone it locked onto (a wedge as high as the Warning's cone), and shoved away
-  sing(e, c, { dmg, knock }) {
-    e.chargeSound = null;
-    sfx.songBlast();
-    const P = this.player, feet = c.realFoot || c.foot, col = hostile('cicada'), dir = e.songDir, len = e.songReach;
-    const apex = S.spot.copy(e.pos), hit = coneHits(apex, dir, len, e.songHalf, feet, P);
-    const mouth = S.o.set(e.pos.x + dir.x * e.r * 1.4, e.pos.y + e.r * 0.6, e.pos.z + dir.z * e.r * 1.4);
-    this.fx.impact(mouth, col, 0.025, 10);
-    if (hit) {
-      this.fx.impact((c.realPc || c.pc).clone(), col, 0.02, 10);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
-      bus.emit('knockback', { targetId: PLAYER, dir: S.dir.set(feet.x - e.pos.x, 0, feet.z - e.pos.z).normalize().clone(), force: knock, launch: 0.1 });
-    }
+  // ---------------------------------------------------------------- the cicada (burrow)
+  // it digs in: a puff of dust and a scrape (it sinks out of sight over the dig)
+  burrowDig(e) { sfx.burrowDig(); this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.6, 0.4); this.fx.burst(e.pos.clone(), [0x3a2a1e, 0x5a4636, 0x9ab85a], 6, 0.003, 0.3, e.pos.y); }
+  burrowRumble() { sfx.burrowRumble(); }
+  // it is under: the mound shows (its model), and the floor kicks up as it goes
+  burrowGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.2, 0.3); }
+  // it bursts up where it locked: a Blast on the floor, `radius` round. You're hurt if inside it (a jump high over the dome clears it),
+  // shoved away from the middle and tossed up
+  burrowBurst(e, c, { radius, dmg, knock, launch }) {
+    const at = e.burrowAt, col = hostile('cicada'), P = this.player, f = c.realFoot || c.foot;
+    sfx.burrowBurst();
+    this.fx.impact(S.o.set(at.x, at.y + 0.015, at.z).clone(), col, radius * 0.45, 16);
+    this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), col, radius * 1.05, 0.4);
+    this.fx.puff(S.spot.set(at.x, at.y + 0.015, at.z), 0xb8a890, radius * 0.9, 0.5);
+    this.fx.burst(at.clone().setY(at.y + 0.01), [0x3a2a1e, 0x5a4636, 0x9ab85a], 14, 0.004, 0.45, at.y);   // the floor thrown up
+    this.fx.splat(S.spot.set(at.x, at.y, at.z), SCUFF, radius * 0.6, 'dust');
+    if (P && blastHits(S.o.set(at.x, at.y, at.z), radius, P.position, P)) {
+      this.fx.impact((c.realPc || c.pc).clone(), col, 0.022, 12);
+      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
+      const away = S.dir.set(f.x - at.x, 0, f.z - at.z);
+      if (away.lengthSq() < 1e-8) away.set(Math.cos(e.phase), 0, Math.sin(e.phase));   // right on top of it: any way is away
+      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch });
+    } else if (P && P.position.distanceTo(at) < radius * 2.5) juice.feel('impact');   // a near miss still rocks the screen
   }
-  // the Warning under each cicada about to sing: a floor wedge and the cone over it, filling together
-  // as it draws breath, full while the song is out
-  drawSongs(t) {
+  // the Warning over each locked mound: a floor circle and the dome over it, filling together to the beat it bursts up on
+  drawBurrows(t) {
     let n = 0;
     for (const e of this.list) {
-      if (e.dead || !e.songDir || (e.state !== 'windup' && e.state !== 'sing')) continue;
-      let M = this.songMarks[n];
-      if (!M) {   // shortcut: one wedge shape per pool slot, so every singer shares one arc; give it its own pool if a second kind of singer needs another
-        const half = e.songHalf, geo = (this.songGeo ||= new THREE.CircleGeometry(1, 24, -half, half * 2).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2));
-        const floor = new THREE.Mesh(geo, new TeleMaterial(hostile('cicada'), 'wedge', half));
+      if (e.dead || !e.under || !e.burrowLocked) continue;
+      const w = e.T.words.find((x) => x.burrowRadius);
+      let M = this.burrowMarks[n];
+      if (!M) {
+        const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new TeleMaterial(hostile('cicada'), 'circle'));
         floor.renderOrder = 3; this.scene.add(floor);
-        const w = e.songReach * Math.tan(half), vol = this.fx.volume(hostile('cicada'), 'cone', e.pos, S.o.set(w, w, e.songReach));
-        vol.material.uniforms.uGlow.value = LOOK.num('cicada-cone-glow', 0.6);
-        M = { floor, vol }; this.songMarks.push(M);
+        const vol = this.fx.volume(hostile('cicada'), 'dome', e.pos, 1);
+        vol.material.uniforms.uGlow.value = LOOK.num('burrow-dome-glow', 0.8);
+        M = { floor, vol }; this.burrowMarks.push(M);
       }
       n++;
-      const k = e.state === 'sing' ? 1 : e.songK, heading = Math.atan2(e.songDir.x, e.songDir.z), pulse = e.state === 'sing' ? 1 : 0.85 + 0.15 * Math.abs(Math.sin(t * 16));
+      const a = e.burrowAt, pulse = 0.85 + 0.15 * Math.abs(Math.sin(t * 14));
       M.floor.visible = M.vol.visible = true;
-      M.floor.position.set(e.pos.x, e.pos.y + 0.003, e.pos.z); M.floor.rotation.y = heading; M.floor.scale.set(e.songReach, 1, e.songReach);
-      M.vol.position.copy(e.pos); M.vol.rotation.y = heading;
-      M.floor.material.progress = M.vol.material.progress = k;
-      M.floor.material.opacity = pulse * LOOK.num('cicada-wedge-opacity', 0.15);   // a quiet Warning: it must not drown the fight
-      M.vol.material.opacity = pulse * LOOK.num('cicada-cone-opacity', 0.22);
+      M.floor.position.set(a.x, a.y + 0.003, a.z); M.floor.scale.setScalar(w.burrowRadius);
+      M.vol.position.set(a.x, a.y, a.z); M.vol.scale.setScalar(w.burrowRadius);
+      M.floor.material.progress = M.vol.material.progress = e.burrowK;
+      M.floor.material.opacity = pulse * LOOK.num('burrow-floor-opacity', 0.3);
+      M.vol.material.opacity = pulse * LOOK.num('burrow-dome-opacity', 0.24);
     }
-    for (let i = n; i < this.songMarks.length; i++) this.songMarks[i].floor.visible = this.songMarks[i].vol.visible = false;
+    for (let i = n; i < this.burrowMarks.length; i++) this.burrowMarks[i].floor.visible = this.burrowMarks[i].vol.visible = false;
   }
   // the Warning under each moth about to plunge: a floor circle and the column over it, filling
   // together as it climbs (brighter once locked)
@@ -1594,10 +1600,10 @@ export class Enemies {
     // keep them from stacking into one blob
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
-      if (a.dead || a.proxy) continue;
+      if (a.dead || a.proxy || a.under) continue;   // (a mound under the floor is nobody's to shove: it must stay on its Warning)
       for (let j = i + 1; j < list.length; j++) {
         const b = list[j];
-        if (b.dead || b.proxy) continue;
+        if (b.dead || b.proxy || b.under) continue;
         const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
         const min = (a.r + b.r) * 1.05;
         const d2 = dx * dx + dz * dz;
@@ -1618,7 +1624,7 @@ export class Enemies {
     this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
-    this.drawSongs(t);
+    this.drawBurrows(t);
     this.drawPlunges(t);
     this.fx.smokeMat.userData.holdout.value.set(player.position.x, player.position.y + 0.05, player.position.z, 0.07);   // the jelly shows through its own smoke
     this.updateMissiles(dt, pc, player.radius || 0.03);

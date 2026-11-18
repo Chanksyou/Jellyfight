@@ -105,7 +105,7 @@ export class Lash {
   inReach(origin, reach, exclude) {
     const out = [];
     for (const e of this.enemies.list) {
-      if (e.dead || exclude?.has(e) || e.proxy?.immune) continue;   // a boss that can't be hurt right now (shielded, rising, doomed): don't spend a tentacle on it
+      if (e.dead || exclude?.has(e) || e.proxy?.immune || e.under) continue;   // a boss that can't be hurt right now (shielded, rising, doomed) or a bug under the floor: don't spend a tentacle on it
       const d = this.enemies.center(e, this._a).distanceTo(origin) - e.r;
       if (d <= reach) out.push([d, e]);
     }

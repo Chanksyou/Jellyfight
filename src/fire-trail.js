@@ -114,7 +114,7 @@ export class FireTrail {
     const damage = R.power * Q.dps * Q.tick, height = Q.height;
     let hit = false;
     for (const e of R.enemies.list) {
-      if (e.dead) continue;
+      if (e.dead || e.under) continue;
       const c = R.enemies.center(e, this.center), er = e.hitR || e.r;
       for (const s of this.segments) {
         this.dir.copy(s.b).sub(s.a);

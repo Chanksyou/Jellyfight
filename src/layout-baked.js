@@ -2,6 +2,9 @@
 // baked in so everyone gets them. The map is per act ({ 1: ..., 2: ... }); inside an act, keys are
 // "object name#n"; p = position, q = rotation (quaternion), both in the Apartment node's space;
 // hidden = not shown and not solid.
+// Added things (layout.js): "copy:<object key>#n" { from: '<object key>', p, q } is a copy of a room
+// object (its geometry and materials, no lights); "prop:<id>#n" { prop: '<id>', p, q, s } is a
+// library prop (props.js), s its size (0.5-2). Both are made at load, solid like the rest.
 // Loose plants (leaves, stalks, hanging air plants) that are part of the apartment's walls-and-floor
 // piece ("Shell"), so the editor can't select them: hidden at load and not solid. Same room in
 // acts 1 and 4. Names are the Shell's meshes (Shell_125 ...).
@@ -90,8 +93,8 @@ export const BAKED_LAYOUT = {
     'Wooden_bowl#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'Disco-ball_mobile#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     // the vents by the Elites land you across from them, not on them (the other three are stage1.js's)
-    'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.17, 0.435, 1.223] },
-    'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [0.9145, 0.511, 1.582] },
+    'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.36, 0.435, 1.27] },
+    'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [1.35, 0.511, 1.75] },
     'vent:Vent by the stove': { at: [4.221, 0.013, 2.78], land: [4.5, 0.94, 2.35] },
     // the two throw pillows at the desk end of the sofa make room for the Mushroom Pillow
     'Olive_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },

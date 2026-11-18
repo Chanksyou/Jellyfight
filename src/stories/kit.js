@@ -385,8 +385,8 @@ export function startCoffer(atk, { x = -1.52, z = 8.8, angry = false, hold = tru
 // the chair's seat 0.435 m up. Start one of its attacks with the jelly held on the seat in front of
 // it (x, z), facing it, on the run's own beat (no song)
 export const bowl = () => G().run.elites.list.find((e) => e.kind === 'bowl');
-export const onChair = (x = 3.17, z = 1.223) => tp(x, 0.48, z, 0);   // (yaw 0: the camera behind the jelly, looking at the bowl)
-export function startBowl(atk, { x = 3.17, z = 1.223, angry = false, hold = true } = {}) {
+export const onChair = (x = 3.17, z = 1.275) => tp(x, 0.48, z, 0);   // (yaw 0: the camera behind the jelly, looking at the bowl)
+export function startBowl(atk, { x = 3.17, z = 1.275, angry = false, hold = true } = {}) {
   fresh({ hurt: true, bubbles: false, lash: false }); onChair(x, z);
   stub(G().run, 'song', null);
   const e = bowl(), player = hold ? holdJelly() : G().player;
@@ -400,8 +400,8 @@ export function startBowl(atk, { x = 3.17, z = 1.223, angry = false, hold = true
 // up. Start one of its attacks with the jelly held on the seat (x, z: its stand point by default,
 // 48 cm from it toward the vent's landing), facing it, on the run's own beat (no song)
 export const pillow = () => G().run.elites.list.find((e) => e.kind === 'pillow');
-export const onSofa = (x = 1.215, z = 1.582) => tp(x, 0.53, z, Math.atan2(x - 1.165, z - 1.282));   // (the camera behind the jelly, looking along the seat at the pillow)
-export function startPillow(atk, { x = 1.215, z = 1.582, angry = false, hold = true } = {}) {
+export const onSofa = (x = 1.215, z = 1.70) => tp(x, 0.53, z, Math.atan2(x - 1.196, z - 1.46));   // (the camera behind the jelly, looking along the seat at the pillow)
+export function startPillow(atk, { x = 1.215, z = 1.70, angry = false, hold = true } = {}) {
   fresh({ hurt: true, bubbles: false, lash: false }); onSofa(x, z);
   stub(G().run, 'song', null);
   const e = pillow(), player = hold ? holdJelly() : G().player;
@@ -523,11 +523,11 @@ export const EVERY_ATTACK = {
     // the low ring wall over it), its hum's (a rectangle over the seat and the slab over it, all but a safe circle)
     bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, hum: { is: 'volume', scene: 1, start: () => startBowl(1) } },
     // the Mushroom Pillow on the sofa (elites.js), in the room: its spore spots' Warnings (a circle and
-    // the column over each) and its hop-slam's (a circle and the half sphere over it where it lands)
-    pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, hop: { is: 'volume', scene: 1, start: () => startPillow(1) } },
+    // the column over each) and its Fairy ring's (a circle and the column over each of its eight caps)
+    pillow: { spores: { is: 'volume', scene: 1, start: () => startPillow(0) }, fairy: { is: 'volume', scene: 1, start: () => startPillow(1) } },
     // the Headphones on the kitchen counter (elites.js), in the room: its shove waves' Warning (a white strip
-    // and the lane over it) and its bass Shots' (a line on the table and the tube over it)
-    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, bass: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
+    // and the lane over it) and its Stereo's (a floor square and the slab over it)
+    headphones: { shove: { is: 'volume', scene: 1, start: () => startHeadphones(0, { hold: true }) }, stereo: { is: 'volume', scene: 1, start: () => startHeadphones(1, { hold: true }) } },
   },
 };
 // which Boss this act has (run.js BOSSES: the Clog's kind is 'hair')

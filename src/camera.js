@@ -12,9 +12,12 @@ import * as THREE from 'three';
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
 // ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
 // for HOLD s after it's last in the way, so pieces don't flicker in and out as the rays sweep past
-// them, and small clutter (a mug, a teapot on a shelf, under SMALL m across) fades all the way out
-// rather than to see-through (still there to bump into: hiding it would take it out of collisions): a shelf of half-transparent cups drawn over each other looked broken.
+// them. Small clutter (a mug, a teapot on a shelf, under SMALL m across) stays solid when a ray
+// only grazes it (a shelf of cups fading in and out, or of half-transparent cups drawn over each
+// other, looked broken, and a cup that vanishes is still there to bump into): only a cup the
+// jelly-to-camera ray itself hits, one that really hides the jelly, goes part way see-through.
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
+const SMALL_SEE = 0.5;         // how solid a small prop looks when it's right in front of the jelly: never gone
 const HOLD = 0.4;
 const SMALL = 0.15;
 const LAYERS = 5;              // how many things one ray may look through
@@ -75,7 +78,10 @@ export class ThirdPersonCamera {
     this._up = new THREE.Vector3();
     this._ray = new THREE.Vector3();
     this._end = new THREE.Vector3();
-    this.over = new Set();     // what the camera sees through: over the jelly, or between it and the jelly
+    this.over = new Set();     // what the rays found: over the jelly, or between it and the jelly
+    this.solid = new Set();    // ...of which these stay solid: small props only grazed by a ray, and their instanced parts
+    this.partly = new Set();   // ...and these small props fade part way: the jelly-to-camera ray hits them
+    this._jelly = new THREE.Vector3();   // where the jelly is now (the focus follows a little behind it)
     this.keep = new Map();     // mesh -> how solid: kept faint whether in the way or not (a boss fight's seeThrough: the Clog's curtain and door)
     this._fades = new Map();   // mesh -> { mats: its own material(s), see: the fading copies, k: opacity }
     this.pull = 0;             // m the clearance has dollied the camera in by (0: the view as asked for)
@@ -111,45 +117,55 @@ export class ThirdPersonCamera {
   }
 
   // What's right over the jelly, and what's between it and the camera: up to LAYERS things along
-  // the ray straight up and along five rays to the camera (its centre and four points around it)
+  // the ray from the jelly to the camera, along the ray straight up and along four more to the
+  // camera's corners. The jelly-to-camera ray goes first and starts at the jelly itself (the focus
+  // lags it in a jump), so what it hits is a direct blocker whatever the other rays skip after
   findOver(camPos) {
-    this.over.clear();
+    this.over.clear(); this.solid.clear(); this.partly.clear();
     if (this.cfg.seeThrough === false) return;
-    this.look(UP, this.currentDistance);
-    const dir = this._dir.subVectors(camPos, this.focus), far = dir.length();
+    const dir = this._dir.subVectors(camPos, this._jelly), far = dir.length();
     if (far < 1e-6) return;
     dir.multiplyScalar(1 / far);
+    const r = this.cfg.clearRadius ?? 0.015;
+    this.look(this._jelly, dir, far + r, true);
+    this.look(this.focus, UP, this.currentDistance);
     this._side.crossVectors(dir, UP);
     if (this._side.lengthSq() < 1e-6) this._side.set(1, 0, 0);
     this._side.normalize();
     this._up.crossVectors(this._side, dir).normalize();
-    const r = this.cfg.clearRadius ?? 0.015;
-    this.look(dir, far + r);
     for (let i = 0; i < 4; i++) {
       this._end.copy(camPos).addScaledVector(this._side, i & 1 ? r : -r).addScaledVector(this._up, i & 2 ? r : -r);
       const len = this._ray.subVectors(this._end, this.focus).length();
-      this.look(this._ray.multiplyScalar(1 / len), len + r);
+      this.look(this.focus, this._ray.multiplyScalar(1 / len), len + r);
     }
   }
 
-  look(dir, far) {
+  // `direct`: the jelly-to-camera ray, the only one that says a small prop really hides the jelly.
+  // (It goes first, so the other rays skip what it found: that's why it's told apart here.)
+  look(from, dir, far, direct = false) {
     for (let i = 0; i < LAYERS; i++) {
-      const h = this.world.cast(this.focus, dir, far, this.over);
+      const h = this.world.cast(from, dir, far, this.over);
       if (!h?.mesh) return;
-      this.over.add(h.mesh);
+      const m = h.mesh, small = sizeOf(m) < SMALL;
+      this.over.add(m);
+      if (small) (direct ? this.partly : this.solid).add(m);
       // and the instanced parts of the same piece (a sideboard's flutes): nothing collides with
-      // instanced meshes, so no ray finds them
-      const kin = h.mesh.parent && !h.mesh.parent.isScene ? h.mesh.parent.children : NONE;   // not the scene's: the bugs are instanced
-      for (let k = 0; k < kin.length; k++) if (kin[k].isInstancedMesh && kin[k].visible) this.over.add(kin[k]);
+      // instanced meshes, so no ray finds them. They fade like the piece they're part of
+      const kin = m.parent && !m.parent.isScene ? m.parent.children : NONE;   // not the scene's: the bugs are instanced
+      for (let k = 0; k < kin.length; k++) {
+        if (!kin[k].isInstancedMesh || !kin[k].visible) continue;
+        this.over.add(kin[k]);
+        if (small) (direct ? this.partly : this.solid).add(kin[k]);
+      }
     }
   }
 
   // Fade what's in the way out, and back in (on its own material again) once it's clear
   fade(dt) {
-    for (const m of this.over) this.startFade(m);
+    for (const m of this.over) if (!this.solid.has(m)) this.startFade(m);
     for (const m of this.keep.keys()) this.startFade(m);
     for (const [m, f] of this._fades) {
-      if (this.over.has(m) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;
+      if ((this.over.has(m) && !this.solid.has(m)) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;
       const goal = f.hold > 0 ? this.keep.get(m) ?? f.low : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
       if (goal === 1 && f.k > 0.98) { this.unfade(m, f); continue; }
@@ -160,7 +176,7 @@ export class ThirdPersonCamera {
   startFade(m) {
     if (m.userData.structural || (m.userData.noCameraFade && !this.keep.has(m)) || this._fades.has(m)) return;
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
-    this._fades.set(m, { mats, see, k: 1, hold: 0, low: sizeOf(m) < SMALL ? 0 : SEE_THROUGH });
+    this._fades.set(m, { mats, see, k: 1, hold: 0, low: this.partly.has(m) ? SMALL_SEE : SEE_THROUGH });
     m.material = see;
     // High's N8AO draws every see-through thing again to keep its shading off them; a faded piece
     // is mostly the room behind it, so that room's shading may show through it, and it's drawn once
@@ -174,6 +190,9 @@ export class ThirdPersonCamera {
     for (const c of [].concat(f.see)) c.dispose();
     this._fades.delete(m);
   }
+
+  // Everything faded back on its own material at once (the layout editor opening)
+  unfadeAll() { for (const [m, f] of this._fades) this.unfade(m, f); }
 
   // Keep these meshes faint (opacity: how solid) until dropKeep: they fade like anything in the way
   keepFaint(meshes, opacity) { for (const m of meshes) this.keep.set(m, opacity); }
@@ -206,8 +225,8 @@ export class ThirdPersonCamera {
     this.currentDistance = k ? this.distance + (F.distance - this.distance) * k : this.distance;
 
     // Smooth follow on the focus point
-    this._end.set(target.x, target.y + c.height, target.z);
-    this.focus.lerp(this._end, 1 - Math.exp(-20 * dt));
+    this._jelly.set(target.x, target.y + c.height, target.z);
+    this.focus.lerp(this._jelly, 1 - Math.exp(-20 * dt));
 
     this.dirAt(this.viewPitch, this._dir);
     // Clearance: in at once where a wall would be in the way, back out after a pause (the view's
@@ -248,6 +267,7 @@ export class ThirdPersonCamera {
 
   snapTo(target) {
     this.focus.set(target.x, target.y + this.cfg.height, target.z);
+    this._jelly.copy(this.focus);
     this.pull = 0;   // somewhere new: clearance starts over
   }
 

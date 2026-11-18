@@ -88,6 +88,7 @@ verification across all player attack families.
 | Attack upgrades (the pick after each of the first three bosses) | `content/upgrades.kdl` | 12 per type, each `jelly="<id>"`, Treasure words; one of a kind, never in a chest. Needs a story |
 | Evolutions (Legendary treasures that change what the jelly is) | `content/evolutions.kdl` | They are offered in the Legendary pick after each boss; `not-for=` keeps one off a type it doesn't fit. Treasure words; each changes how you play, has a cost, and an `adorn` piece (`src/adornments.js`) drawn on top of the player's own jelly, never changing it |
 | Treasures | `content/treasures.kdl` | Effect words from `src/words.js` (`TREASURE_WORDS`, `TIMED_WORDS` for `every N { … }`). Systems read the run's combined effects (`run.mods`), never treasure ids. Stacking: a treasure with `level` blocks levels up when taken again (no `stack=`); one without levels stacks by default (3 copies, `stack=N` up to 5; `stack=1` for a rule-changer); Legendary treasures are one of a kind. Give it a `rarity=`: for damage, run `node tests/clear.mjs <id>` using paired controls and several scenarios ([Balance tools](docs/agents/balance-tools.md); quick encounter checks need no permission). The old clear-strength thresholds (Legendary 3.5x+, Epic 2x+, Rare 1.4x+) are rough guides, not automatic rarity assignments; historical `tests/clear-baseline.txt` numbers use the old measurement schema; for anything else, by how unique the effect is. Chest rarity weights live in `src/stats.js` (`CHEST_WEIGHTS`): room Common/Rare/Epic/Legendary 60/30/8/2; Elite 40/40/15/5 per option at 0 Luck, with no forced minimum rarity. Boss rewards are Legendary only (evolutions included), then an Attack upgrade. Before adding one, check no existing treasure already does nearly the same thing |
+| Props the layout editor can add (plants: Aloe, Monstera, Pothos, Rubber plant, Snake plant, Spider plant) | `content/props.kdl`; `src/props.js` (`loadProps(ids)`); builders in `tools/props-export.js`, then `node tools/props.mjs` (also run by `tools/export.mjs`) writes `assets/props.glb` | One group per prop, at most 2 vertex-coloured materials; the file downloads only when something asks for a prop; story `props/every-prop-loads` |
 | Elites (Controller, Mug, Kettle) | `src/elites.js` | Not words yet |
 | The boss (Vacuum) | `src/vacuum.js` | Not words yet |
 | Bug models / the jelly's model | `src/critters.js` / `src/character.js` | Procedural three.js, no assets |
@@ -177,6 +178,13 @@ For combat design/feel reviews, phone performance investigations, and playtest
 analysis, use the focused [game toolkit](docs/agents/game-toolkit.md). Shared
 workflows live in `.claude/skills/jelly-*/SKILL.md`; `.agents/skills/` provides
 Codex discovery entries. Load only the workflow relevant to the request.
+
+### Motion design
+
+For any UI animation, transition or micro-interaction, follow `.claude/skills/motion-design/SKILL.md`
+(LottieFiles, MIT; Codex entry in `.agents/skills/motion-design`). Use the `--ui-fast/mid/slow` and
+`--ui-ease-*` tokens in `content/look.css`, animate only `transform` and `opacity` on phones, and keep
+Reduce effects (`body.calm`, OS reduced motion) to fades.
 
 ### Issue tracker
 
