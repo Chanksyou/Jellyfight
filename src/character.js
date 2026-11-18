@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
+import { ArmRig } from './arms.js';
 import { squeeze, thrust } from './swim.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
@@ -402,7 +403,7 @@ export function buildCharacter(look, heightMeters) {
   const wobblers = [];                       // things that sway: [object, axis, phase, amount]
   const spinners = [];                       // things that turn: [object, axis, speed]
   const scrollers = [];                      // textures that run down the bell: [texture, speed]
-  let bell = null, rig = null;               // jellyfish only: the pulsing bell and its tentacles
+  let bell = null, rig = null, arms = null;   // jellyfish only: the pulsing bell, its tentacles and oral arms
 
   // --- Body: the jellyfish -------------------------------------------------
   // A fluorescent jelly in the dark: a clear bell over a glowing inner bell (radial canals,
@@ -539,6 +540,7 @@ export function buildCharacter(look, heightMeters) {
   // the arms' style (look.arms) stretches the species' own arms: longer, narrower, coiled, or ending in a puff
   const AS = ARM_STYLES[look.arms] || ARM_STYLES.frilly;
   const A = { ...sp.arms, len: sp.arms.len * AS.len, width: sp.arms.width * AS.width, frill: sp.arms.frill * AS.frill, twist: sp.arms.twist * AS.twist };
+  arms = new ArmRig(A.len, scaler, root);   // each arm swings on its own chain (arms.js), with its own copy of armMat
   for (let k = 0; k < A.n; k++) {
     const a = (k / A.n) * Math.PI * 2 + Math.PI / 4;
     const pivot = new THREE.Group();
@@ -556,10 +558,11 @@ export function buildCharacter(look, heightMeters) {
       ap.setXYZ(q, xx * Math.cos(tw) - zz * Math.sin(tw), y, xx * Math.sin(tw) + zz * Math.cos(tw));
     }
     armGeo.computeVertexNormals();
-    mesh(armGeo, armMat, pivot);
-    if (AS.puff) mesh(new THREE.IcosahedronGeometry(sp.arms.width * AS.puff, 1), armMat, pivot, 0, -L, 0);   // a pom-pom on the end
-    wobblers.push([pivot, 'x', k * 1.3, 0.16], [pivot, 'z', k * 2.1, 0.1]);
+    const mat = arms.add(pivot, armMat);
+    mesh(armGeo, mat, pivot);
+    if (AS.puff) mesh(new THREE.IcosahedronGeometry(sp.arms.width * AS.puff, 1).translate(0, -L, 0), mat, pivot);   // a pom-pom on the end (it rides the chain's end)
   }
+  armMat.dispose();   // only its copies are drawn
   // the species' own feature
   const crownH = sp.profile[sp.profile.length - 1][1] * R;
   if (sp.extra === 'rings') {
@@ -1636,6 +1639,7 @@ export function buildCharacter(look, heightMeters) {
     squash.scale.set(sxz, sy, sxz);
     lean.rotation.x = move * (bell ? 0.16 : 0.14) * (s.grounded ? 1 : 0.4) + surge * 0.3;
     rig?.update(dt, { localVel, contract, vy: s.vy || 0, rest: s.rest });
+    arms?.update(dt, { contract, rest: s.rest });
 
 
     spinners.forEach(([o, ax, sp]) => { o.rotation[ax] += dt * sp; });
@@ -1706,5 +1710,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, squash, hatTop };
+  return { root, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, arms, squash, hatTop };
 }
