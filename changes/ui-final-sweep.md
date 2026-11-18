@@ -1,1 +1,0 @@
-swaps the last emoji in toasts, screen titles, hints and the leaderboard for the UI's own icons (gold, silver and bronze ranks, a trophy beside a winning score), and the minimap no longer measures itself every frame.
