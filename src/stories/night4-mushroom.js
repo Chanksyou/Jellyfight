@@ -84,6 +84,25 @@ night4('pillow-spores-settle-then-burst-on-the-bar', {
   },
 });
 
+night4('pillow-spore-columns-stay-dim-until-their-last-beat', {
+  about: 'Five to eight tall spore columns at once are busy, so while they fill each column shows dim (look.css --pillow-column-opacity) and its floor circle quiet (--pillow-spot-warning); on the last beat, settled, they flash up to full, and they still fill to the burst on the bar.',
+  setup() { startPillow(0); },
+  play() {
+    const { e } = startPillow(0), dim = LOOK.num('pillow-column-opacity', 0.2), spot = LOOK.num('pillow-spot-warning', 0.6);
+    let before = 0, circles = 0, flash = 0, full = 0;
+    playSpores(e, (i, plan) => {
+      const pairs = pillowPairs().filter(([v]) => v.material.kind === 'disc');
+      if (!pairs.length || !plan || plan.burst <= G().run.beat) return;
+      const o = Math.max(...pairs.map(([v]) => v.material.opacity));
+      if (!plan.settled) { before = Math.max(before, o); circles = Math.max(circles, ...pairs.map(([, f]) => f.material.opacity)); }
+      else flash = Math.max(flash, o);
+      full = Math.max(full, Math.min(...pairs.map(([v]) => v.material.progress)));
+    });
+    return ok(dim <= 0.25 && before > 0 && before <= dim + 1e-6 && circles <= spot + 1e-6 && flash > 0.95 && full > 0.9,
+      { dim, before: +before.toFixed(2), spot, circles: +circles.toFixed(2), flash: +flash.toFixed(2), full: +full.toFixed(2) });
+  },
+});
+
 night4('pillow-spore-columns-hit-as-tall-as-drawn', {
   about: 'Each spore spot bursts as a column that hits as high as its Warning\'s volume is drawn (look.css --pillow-column), which is taller than a full jump: a jelly at the top of a jump over its spot is hit all the same, so step off the spot; a jump does not clear it. Over the drawn column (extra jumps) it is not hit.',
   setup() { startPillow(0); },
