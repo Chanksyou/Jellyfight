@@ -476,6 +476,13 @@
   --jelly-tip-glow: 0.9;       /* the tentacle tips, lit in the second color */
   --jelly-tip-size: 0.8;       /* a tentacle tip's radius, in tentacle thicknesses */
   --tentacle-curl: 0.07;       /* how wide Curly tentacles wind (model units) */
+  /* the tentacles' physics (tentacles.js): each stroke squeezes the roots in and the chain carries it down as a wave */
+  --jelly-motion-root-squeeze: 0.3;     /* how far the roots pull in on a full power stroke (share of the anchor ring) */
+  --jelly-motion-tip-spring: 20;        /* how firmly a tip is pulled back to its pose (1/s²; the root stays 700, firm for the Lash) */
+  --jelly-motion-drag: 7;               /* water drag across a tentacle (1/s); at least this much everywhere along it */
+  --jelly-motion-drag-along: 0.5;       /* drag along a tentacle, as a share of across (slender things slip lengthwise) */
+  --jelly-motion-weight: 0.6;           /* how hard a tentacle sinks against its pose (model units/s²) */
+  --jelly-motion-bend-compliance: 0.0002; /* how easily a tentacle folds past its pose's curve (XPBD; higher = kinks more) */
   --comb-ripple: 0.35;         /* how fast the Comb Jelly's rainbow runs down its rows */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
   --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */

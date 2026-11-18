@@ -3,9 +3,11 @@
 //
 // Each tentacle is a chain of points simulated like a soft rope in water: every point is pulled
 // toward a resting pose (hanging under the bell, flaring and pulling in with its pulse), firmly
-// at the root and loosely at the tip, slowed by the water and kept at its length. So when the
-// bell squeezes or the jelly turns, the motion travels down the tentacle as a wave, the tips
-// trail behind and swing on after it stops, the way real ones do.
+// at the root and softly at the tip, sinking a little, slowed by the water (more across the
+// tentacle than along it, like any slender thing), kept at its length and kept from folding
+// sharper than its pose. Nothing ripples on a clock: each stroke squeezes the roots in, and the
+// chain carries that down as a wave; when the jelly turns or stops, the tips trail behind and
+// swing on after it, the way real ones do.
 //
 // The pose is in the character's model units (1 unit = the character's height, feet at y = 0,
 // facing +z); the chain is simulated in world space (scaled to model units), so the jelly
@@ -15,8 +17,9 @@ import { LOOK } from './look.js';
 
 const SEG = 20;       // rings along a tentacle (and points in its chain)
 const RAD = 8;        // vertices around a ring
-// the chain: spring toward the pose (1/s², root -> tip), damping ratio, simulation step
-const K_ROOT = 700, K_TIP = 45, DAMP = 0.55, STEP = 1 / 120;
+// the chain: spring toward the pose at the root (1/s²; firm, so the Lash leaves from the bell),
+// damping ratio, simulation step (fixed, so 30 and 60 fps step the same: Macklin 2019, small steps)
+const K_ROOT = 700, DAMP = 0.55, STEP = 1 / 60;
 // how much of the length rule's correction becomes speed: all of it makes the tips whip (the
 // energy piles up at the end of the chain), none makes them stiff
 const KEEP = 0.15;
@@ -74,6 +77,12 @@ export class TentacleRig {
     this.style = STYLES[opts.style] ? opts.style : 'straight';
     this.tipSize = opts.tipSize ?? 0.45;
     this.curl = LOOK.num('tentacle-curl', 0.07);
+    this.squeeze = LOOK.num('jelly-motion-root-squeeze', 0.3);
+    this.weight = LOOK.num('jelly-motion-weight', 0.6);
+    this.alongDrag = LOOK.num('jelly-motion-drag-along', 0.5);
+    const kTip = LOOK.num('jelly-motion-tip-spring', 20), drag = LOOK.num('jelly-motion-drag', 7);
+    // bend (XPBD, Macklin 2016): each substep a fold past the pose's curve is undone by this share
+    this.bend = 1 / (1 + LOOK.num('jelly-motion-bend-compliance', 0.0002) / (STEP * STEP));
     this.list = [];
     for (let i = 0; i < opts.count; i++) {
       const a = opts.angles?.[i] ?? (i / opts.count) * Math.PI * 2 + Math.PI / opts.count;   // none straight under the face (unless placed)
@@ -95,7 +104,6 @@ export class TentacleRig {
         aim: null, k: 0, golden: false,
       });
     }
-    this.trail = new THREE.Vector3();   // smoothed local velocity (units/s)
     this.t = 0;
     this.work = 0;                      // chain points stepped in the last update (story engine/jelly-motion-budget)
     this.fresh = true;                  // first frame (or a jump cut): start the chain on its pose
@@ -103,8 +111,8 @@ export class TentacleRig {
     this.inv = new THREE.Matrix4();
     this.tipWorld = new THREE.Matrix4();
     // each point's spring and damping, root to tip
-    this.K = Array.from({ length: SEG + 1 }, (_, j) => K_ROOT + (K_TIP - K_ROOT) * (j / SEG) ** 0.6);
-    this.C = this.K.map((k) => 2 * DAMP * Math.sqrt(k));
+    this.K = Array.from({ length: SEG + 1 }, (_, j) => K_ROOT + (kTip - K_ROOT) * (j / SEG) ** 0.6);
+    this.C = this.K.map((k) => Math.max(drag, 2 * DAMP * Math.sqrt(k)));   // across the tentacle
   }
 
   // Direction (world, horizontal) a tentacle's root points out from the body. Used to pick
@@ -125,17 +133,15 @@ export class TentacleRig {
     T.impact = impact;
   }
 
-  // state: { localVel (units/s, in the parent's frame), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
+  // state: { localVel (not read: the chain drags behind on its own), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
   update(dt, state) {
     this.work = 0;
     const rest = state.rest;           // the rest pose (character.js restPose): no clock-driven ripple or flutter
-    if (rest) { this.t = 0; this.trail.set(0, 0, 0); this.fresh = true; }
+    if (rest) { this.t = 0; this.fresh = true; }
     this.t += dt;
-    if (!rest) this.trail.lerp(state.localVel, 1 - Math.exp(-6 * dt));
     const L = this.length * (this.barbed ? this.barbLength : 1), contract = state.contract;
     const fall = THREE.MathUtils.clamp(-state.vy * 3, 0, 1);          // falling: stream upward
     const rise = THREE.MathUtils.clamp(state.vy * 3, 0, 1);           // jumping: trail straight down
-    const moving = Math.min(1, this.trail.length() / 6);
     this.parent.updateWorldMatrix(true, false);
     const M = this.parent.matrixWorld;
     // world meters per model unit, fixed once (the body's squash and stretch must not move the chain)
@@ -150,17 +156,18 @@ export class TentacleRig {
 
     for (const T of this.list) {
       // --- the pose the chain is pulled toward: hang close under the bell (a lean jelly),
-      // flaring a little as the bell relaxes and pulling in on the power stroke, with a slow
-      // ripple; the chain's lag turns each squeeze into a wave running down to the tip
+      // flaring a little as the bell relaxes and pulling in on the power stroke, the roots
+      // squeezed in with the bell (shortcut: a stand-in for the rim's real flex, T5 puts the
+      // roots on bell-flex.js); the softer springs down the chain turn each squeeze into a wave
+      // running down to the tip
       const flare = this.flare - 0.09 * contract - 0.06 * rise;
       const side = _b.set(T.out.z, 0, -T.out.x);
+      const pull = -this.squeeze * Math.max(0, contract) * Math.hypot(T.anchor.x, T.anchor.z);
       for (let j = 0; j <= SEG; j++) {
         const s = j / SEG, s15 = s ** 1.5;
-        const wave = rest ? 0 : Math.sin(this.t * (1.6 + moving * 1.4) - s * 4.5 + T.phase) * (0.035 + 0.025 * moving) * s;
         const p = T.goal[j].copy(T.anchor);
         p.y -= L * s * (1 - 0.55 * fall);
-        p.addScaledVector(T.out, flare * s + wave * 0.5);
-        p.addScaledVector(side, wave);
+        p.addScaledVector(T.out, flare * s + pull);
         if (this.style === 'curly') { const c = this.curl * Math.sqrt(s), a = s * 14 + T.phase; p.addScaledVector(T.out, Math.cos(a) * c).addScaledVector(side, Math.sin(a) * c); }
         if (this.breeze) {   // streaming back (the model faces +z), fluttering a little
           p.z -= L * this.breezeStream * s15 * (1 + (rest ? 0 : 0.2 * Math.sin(this.t * 3.1 + T.phase)));
@@ -173,28 +180,37 @@ export class TentacleRig {
       }
       if (this.fresh) for (let j = 0; j <= SEG; j++) { T.sim[j].copy(T.goal[j]); T.vel[j].set(0, 0, 0); }
 
-      // --- the chain: root pinned under the bell, each point sprung toward its pose and
-      // damped by the water, then kept its length from the one above it (follow the leader)
-      const n = Math.min(6, Math.max(1, Math.ceil(dt / STEP))), h = dt / n;
+      // --- the chain: root pinned under the bell, each point sprung toward its pose, sinking a
+      // little and dragged by the still water (across twice as hard as along), then kept from
+      // folding sharper than its pose and kept its length from the one above (follow the leader)
+      const n = Math.min(6, Math.max(1, Math.round(dt / STEP))), h = dt / n;
       if (!this.fresh) {
         this.work += n * SEG;
+        const slip = 1 - this.alongDrag, sink = this.weight * h;
         for (let it = 0; it < n; it++) {
           T.sim[0].copy(T.goal[0]);
           for (let j = 1; j <= SEG; j++) {
-            const p = T.sim[j], v = T.vel[j], g = T.goal[j];
-            v.x += (this.K[j] * (g.x - p.x) - this.C[j] * v.x) * h;
-            v.y += (this.K[j] * (g.y - p.y) - this.C[j] * v.y) * h;
-            v.z += (this.K[j] * (g.z - p.z) - this.C[j] * v.z) * h;
+            const p = T.sim[j], v = T.vel[j], g = T.goal[j], C = this.C[j];
+            _d.copy(p).sub(T.sim[j - 1]);
+            const along = _d.dot(v) / (_d.lengthSq() || 1) * C * slip;  // drag given back along the tentacle
+            v.x += (this.K[j] * (g.x - p.x) - C * v.x + along * _d.x) * h;
+            v.y += (this.K[j] * (g.y - p.y) - C * v.y + along * _d.y) * h - sink;
+            v.z += (this.K[j] * (g.z - p.z) - C * v.z + along * _d.z) * h;
             p.addScaledVector(v, h);
+            _o.copy(p);
+            // bend: folded tighter than the pose (two points up the chain closer than in the pose)?
+            // undo most of the fold, so it curves instead of kinking
+            if (j > 1) {
+              _d.copy(p).sub(T.sim[j - 2]);
+              const len = _d.length(), want = T.goal[j].distanceTo(T.goal[j - 2]);
+              if (len < want && len > 1e-6) p.addScaledVector(_d, (want - len) / len * this.bend);
+            }
             // keep the segment its length: the tentacle bends, it doesn't stretch
             const seg = T.goal[j].distanceTo(T.goal[j - 1]);
             _d.copy(p).sub(T.sim[j - 1]);
             const len = _d.length();
-            if (len > 1e-6) {
-              _o.copy(p);
-              p.copy(T.sim[j - 1]).addScaledVector(_d, seg / len);
-              v.addScaledVector(_o.sub(p), -KEEP / h);                  // a little of the correction carries on
-            }
+            if (len > 1e-6) p.copy(T.sim[j - 1]).addScaledVector(_d, seg / len);
+            v.addScaledVector(_o.sub(p), -KEEP / h);                    // a little of the correction carries on
           }
         }
       }
