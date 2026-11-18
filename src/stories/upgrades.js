@@ -548,3 +548,23 @@ story('upgrades/tentacle-pool', {
     return ok(!wrong.length && pool.length === 12 && pool.every((id) => TENTACLE_POOL.includes(id)) && own && clean, { wrong, pool: pool.length, own, offered: offered.size, clean });
   },
 });
+
+story('types/run-starts-with-an-upgrade-pick', {
+  about: 'A run after the first opens with 1 of 3 Attack upgrades from its jelly type\'s pool, without using the level-up reroll; taking one starts the run with it. A first run and a later act open nothing.',
+  setup() { fresh({ types: 'fire' }); },
+  play() {
+    const { run, menus } = G();
+    const modal = () => document.querySelectorAll('.jf-modal .jf-card').length;
+    run.start(); run.startPicked = false; menus.close();
+    step(3);
+    const cards = modal(), open = menus.open, rerolls = run.rerolls;
+    document.querySelector('.jf-modal .jf-card')?.click(); step(60);
+    const took = run.upgrades.length === 1, closed = !menus.open;
+    fresh({ types: 'fire', firstRun: true }); step(3);
+    const first = !menus.open;
+    fresh({ types: 'fire' }); G().run.carry = { ...G().run.carryOver() }; G().run.startPicked = false; step(3);
+    const later = !G().menus.open;
+    fresh();
+    return ok(open && cards === 3 && rerolls === 1 && took && closed && first && later, { cards, open, rerolls, took, closed, first, later });
+  },
+});

@@ -569,6 +569,8 @@ export class Run {
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
+      // a returning player's run opens with 1 of 3 Attack upgrades from the jelly's pool (not a first run, a dev run or a later act)
+      if (!this.carry && !this.dev && !this.firstRun.active) this.pickUpgrade(null, () => this.resume());
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
       if (hint) { this.hint = hint; this.hintT = 7; }
     }
@@ -1403,13 +1405,14 @@ export class Run {
   forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }
 
   // The end of an act (with jelly types): 1 of 3 Attack upgrades from the jelly's pool
-  // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after
+  // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after.
+  // next: the act it is for, or null at the start of a run
   pickUpgrade(next, then) {
     const pool = CONTENT.upgrades.filter((u) => u.jelly === this.jelly && !this.upgrades.includes(u.id) && (!u.needs || this.upgrades.includes(u.needs)));
     const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
     if (!left.length) { then(); return; }
     sfx.treasure();
-    this.ui.choose('An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
+    this.ui.choose('An Attack upgrade', next ? `Choose how your attack grows for act ${next.id}.` : 'Choose how your attack grows to start the run.', left, (u) => {
       const before = this.S.health;
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
