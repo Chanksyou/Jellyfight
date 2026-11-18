@@ -1,0 +1,1 @@
+puts the dev tools in one compact Dev panel: Play (Fight boss, 1 on 1, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, with AO, Bloom and Lamps as On/Off switches), and it remembers the last group you used.
