@@ -1359,3 +1359,16 @@ story('words/burrow-dazed', {
     return ok(frames > 90 && frames < 102 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 5, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
   },
 });
+story('words/burrow-mound-is-dimmer-than-the-warning', {
+  about: 'The mound that trails the jelly has a dim rim, dimmer than the locked circle, so the moment it locks (the moment to step off) stands out.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    step(60 * 8, () => e.state === 'under');
+    step(30);
+    let rim = null;
+    e.root.traverse((o) => { if (o.material && o.material.blending === 2 && o.material.opacity < 1 && !rim) rim = o.material; });
+    const floor = LOOK.num('burrow-floor-opacity', 0.3);
+    return ok(!!rim && e.under && !e.burrowLocked && rim.opacity <= floor, { under: e.under, locked: e.burrowLocked, rim: rim && rim.opacity, floor });
+  },
+});
