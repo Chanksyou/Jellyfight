@@ -50,7 +50,7 @@ story('dev/layout-add-prop-on-shelf', {
   async play() {
     const L = openEditor(), { world } = G();
     try {
-      look(L, 1.9, 0, 6.2);
+      look(L, 1.2, 0.6, 4.6);
       L.el.querySelector('[data-a=add]').click();
       const tiles = [...document.querySelectorAll('.jf-lt-sheet [data-prop]')].map((t) => t.dataset.prop);
       const wantTiles = (await import('../content.js')).CONTENT.props.map((p) => p.id);
@@ -120,7 +120,7 @@ story('dev/layout-prop-size-and-stick', {
   async play() {
     const L = openEditor();
     try {
-      look(L, 1.9, 0, 6.2);
+      look(L, 1.2, 0.6, 4.6);
       await L.addProp('pothos'); L.endStamp();
       const it = L.sel, n = it.node, key = it.key;
       const base = n.position.y;
