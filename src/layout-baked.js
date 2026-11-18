@@ -2,6 +2,9 @@
 // baked in so everyone gets them. The map is per act ({ 1: ..., 2: ... }); inside an act, keys are
 // "object name#n"; p = position, q = rotation (quaternion), both in the Apartment node's space;
 // hidden = not shown and not solid.
+// Added things (layout.js): "copy:<object key>#n" { from: '<object key>', p, q } is a copy of a room
+// object (its geometry and materials, no lights); "prop:<id>#n" { prop: '<id>', p, q, s } is a
+// library prop (props.js), s its size (0.5-2). Both are made at load, solid like the rest.
 // Loose plants (leaves, stalks, hanging air plants) that are part of the apartment's walls-and-floor
 // piece ("Shell"), so the editor can't select them: hidden at load and not solid. Same room in
 // acts 1 and 4. Names are the Shell's meshes (Shell_125 ...).

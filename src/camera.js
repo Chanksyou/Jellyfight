@@ -157,6 +157,9 @@ export class ThirdPersonCamera {
     this._fades.delete(m);
   }
 
+  // Everything faded back on its own material at once (the layout editor opening)
+  unfadeAll() { for (const [m, f] of this._fades) this.unfade(m, f); }
+
   // Keep these meshes faint (opacity: how solid) until dropKeep: they fade like anything in the way
   keepFaint(meshes, opacity) { for (const m of meshes) this.keep.set(m, opacity); }
 
