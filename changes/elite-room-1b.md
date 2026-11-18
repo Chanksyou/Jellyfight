@@ -1,1 +1,0 @@
-moves the Mushroom Pillow, the Singing Bowl and the Bull's table out of their furniture: the Pillow sits 25 cm forward on the sofa, the Bowl 10 cm forward on its chair with a shorter-held striker, the Bull's rush stops short of the changing pad's raised ends and the baby wipes and a desk-edge trinket are gone, so no Elite attack passes through furniture.

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v490 moves the Mushroom Pillow, the Singing Bowl and the Bull's table out of their furniture: the Pillow sits 25 cm forward on the sofa, the Bowl 10 cm forward on its chair with a shorter-held striker, the Bull's rush stops short of the changing pad's raised ends and the baby wipes and a desk-edge trinket are gone, so no Elite attack passes through furniture.
+
 v489 adds motion easing and stagger tokens, and two guard stories that fail when a screen animates a paint property or Reduce effects does more than fade.
 
 v488 replaces the Headphones' aimed bass Shots (act 4, the kitchen counter) with Stereo: a line down the counter through the Headphones splits its ground into two halves, and the cups burst them in turn, a cup lighting up and marking its half in its own colour (indigo, spearmint) two beats before, so you cross to the other half on the beat; angry, a shove wave also crosses the line between bursts.
