@@ -632,6 +632,7 @@
   --headphones-scuff: #6c6680;   /* and the fading scuff it leaves (under a jelly it hit; the half itself, a bigger one), muted: harmless leftovers never wear a hostile hue */
   --headphones-scuff-size: 0.014;
   --hostile-cicada: #9dff00;     /* the cicada's burrow: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2): its mound's rim, the circle and dome over the spot it will burst up from, and the burst */
+  --burrow-mound-rim: 0.25;      /* the trailing mound's rim: dimmer than the locked circle, so the moment it locks stands out */
   --burrow-floor-opacity: 0.3;   /* the circle on the floor over a locked mound */
   --burrow-dome-opacity: 0.24;   /* and the dome over it */
   --burrow-dome-glow: 0.8;       /* and the dome's brightness (the normal volume's is --warning-volume-glow) */
@@ -710,9 +711,9 @@
      furniture tops glows where the sun is, with a hard hot rim on its line, and a low hex volume
      stands on the line over the strip it moves into next (its Warning) */
   --hostile-sun: #ffcf7a;        /* the sun: hot pale gold (paler than the Kettle's and the Clock's yellows and the Encore's gold) */
-  --sun-fill: 0.25;              /* how much light it adds to what it covers (the room stays dim: the attacks must still read) */
+  --sun-fill: 0.35;              /* how much light it adds to what it covers (the room stays dim: the attacks must still read) */
   --sun-rim: 0.035;              /* m: the hot band along its line */
-  --sun-rim-glow: 0.7;           /* how bright that band is */
+  --sun-rim-glow: 0.85;          /* how bright that band is */
   --sun-pulse: 0.8;              /* how much brighter the band flares each second it bites the jelly */
   --sun-tick: 1;                 /* s between those bites (a tremor: --feel-sun) */
   --sun-volume-height: 0.04;     /* m: the low hex wall on its line */
@@ -733,7 +734,7 @@
   /* act 4's bass wave (src/bass-wave.js): the Soundbar's low wave rolling down the room on the bar.
      Painted, never a light: its floor strip and the hex volume over it */
   --hostile-bass: #ff2448;       /* hot speaker red: not the Encore's blue, gold, magenta or green, nor the sun's pale gold */
-  --bass-volume-opacity: 0.8;
+  --bass-volume-opacity: 0.5;    /* the floor shows through the wave */
   --bass-lift: 0.003;            /* m its floor strip floats over the floor */
   --bass-mote-gap: 0.05;         /* s between the motes it lifts off the floor behind it */
   --bass-mote-life: 0.5;         /* s each mote lasts */
