@@ -1,0 +1,1 @@
+Act 4 no longer hitches on phones the first time the Encore's lasers or disco ball light up, or a moth leaves its black smoke: their graphics are now prepared while the act loads. A new guard story keeps act 4 inside the phone budget for draw calls, shaders and lights.
