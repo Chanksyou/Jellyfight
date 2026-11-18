@@ -323,7 +323,7 @@ Reports are JSON Lines, with progress on stderr; save them and compare revisions
 
 ## Dev: layout editor
 
-**Dev tools** sit behind one **🔒 Dev** button on the main screen: the Worker checks the password against its `DEV_PASSWORD` secret (set it with `npx wrangler secret put DEV_PASSWORD`; it isn't in the game's files, and a plain local file server opens them with any password), and it shows 🛠 Layout, 👹 Fight boss, 🐞 1 on 1, 🧪 Test kit, ⚖️ Tuner and 🩺 Diagnostics.
+**Dev tools** sit behind one **🔒 Dev** button on the main screen: the Worker checks the password against its `DEV_PASSWORD` secret (set it with `npx wrangler secret put DEV_PASSWORD`; it isn't in the game's files, and a plain local file server opens them with any password), and it opens one sheet in four groups: Play (👹 Fight boss, 🐞 1 on 1, Act 4 preview), Tune (🧪 Test kit, ⚖️ Tuner), Build (🛠 Layout) and Check (🩺 Diagnostics), opening on the group you used last.
 Unlocking them, or opening the test kit or tuner on a run, makes that run and every later one in the tab a dev run, which never reaches the leaderboard or the run log.
 They stay open for the tab (sessionStorage).
 
@@ -351,6 +351,7 @@ Things you added, and copies, stick to the top of whatever is under the pointer 
 
 Edits are saved in the browser (`localStorage` key `jf-layout-v1`, one slice per act) and applied on every load before collisions are built, so moved furniture is solid where it is.
 The **Act** buttons in the top bar switch which act you're editing — one per act in the game, so a new act gets one automatically — the game reloads into that act with the editor open, and each act's edits are kept and exported separately, so an edit can never leak into another act's rooms. **Export** shows a JSON code tagged with its act; paste it back to Claude to bake the layout into the stage for everyone.
+Claude bakes it with `node tools/bake-layout.mjs`.
 Baked edits live per act in `src/layout-baked.js`; they load first and become each object's "home", with your own browser edits on top.
 Hide just stops showing an object; **delete** (🗑) also records it as `deleted` in the export, so the bake drops it for good. **Vents** are edited here too: each shows an orange disc (the grille on the floor) and a cyan ball (where it throws you) joined by the jump's arc.
 Drag either and it sticks to whatever surface is under the pointer (point at a cushion or a shelf); R/F nudge it up or down, ⌂ puts it back.
