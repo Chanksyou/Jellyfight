@@ -40,7 +40,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v490';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v492';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -243,7 +243,7 @@ picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------
 const ARENA = APT.arena || null;       // an act in a built arena (act 4's concert: boot.js), not the apartment
-if (!ARENA) applyLayout(APT.root, stage.id);   // your saved furniture edits for this act (dev layout editor)
+if (!ARENA) await applyLayout(APT.root, stage.id);   // your saved furniture edits for this act (dev layout editor), copies and props too
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
@@ -491,12 +491,13 @@ const systems = {
 let layoutChanged = false;
 function openLayout() {
   run.disqualifyChallenges();
-  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, scene, traversal, act: stage.id, acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (act 4: its room; the arena behind its stage door is built, with no furniture)
+  const layout = state.layout ||= new LayoutEditor({ root: APT.root, camera, dom: renderer.domElement, world, statics, scene, traversal, act: stage.id, acts: STAGES.filter((s) => !s.arena).map((s) => s.id),   // (act 4: its room; the arena behind its stage door is built, with no furniture)
     onAct: (n) => goToAct(n, null, { layout: true }) });
   window.layout = layout;
   layout.onChange = () => { layoutChanged = true; world._focusAge = Infinity; };
   layout.onDone = closeLayout;
   layoutChanged = false;
+  tpc.unfadeAll();   // what the camera saw through is solid again while you edit (and a copy takes its own material)
   state.mode = 'layout';
   input.enabled = false;
   if (document.pointerLockElement) document.exitPointerLock();
@@ -552,9 +553,9 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
-  applyLayout(APT.root, stage.id);
-  world.addObjects(added);
-  added.forEach((o) => statics.add(o));
+  const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
+  world.addObjects([...added, ...made]);
+  [...added, ...made].forEach((o) => statics.add(o));
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
   added.forEach((o) => box.expandByObject(o));

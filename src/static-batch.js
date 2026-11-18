@@ -23,38 +23,53 @@ export class StaticBatches {
     this.batches = [];   // { batch, pieces: [{ mesh, id, material, matrix }] }
   }
 
-  // batch the pieces under root (an act's rooms; called again for rooms loaded later)
+  // batch the pieces under root (an act's rooms; called again for rooms loaded later, and for a
+  // copy the layout editor drops in, whose pieces join their source's batches: no new draw)
   add(root) {
     const groups = new Map();
+    root.updateMatrixWorld(true);
     root.traverse((o) => {
       if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.isBatchedMesh || Array.isArray(o.material) || o.layers.mask !== 1) return;
       const m = o.material;
       if ((m.transparent && !m.isMeshBasicMaterial) || m.transmission > 0 || o.morphTargetInfluences || o.userData.noBatch) return;   // the see-through soft-shadow cards are fine: the batch sorts them
       const key = m.uuid + '|' + shape(o.geometry);
+      if (this.join(o, key)) return;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(o);
     });
-    root.updateMatrixWorld(true);
-    for (const meshes of groups.values()) {
+    for (const [key, meshes] of groups) {
       if (meshes.length < 2) continue;
       let verts = 0, index = 0;
       for (const o of meshes) { verts += o.geometry.attributes.position.count; index += o.geometry.index?.count || 0; }
       const batch = new THREE.BatchedMesh(meshes.length, verts, index, meshes[0].material);
       batch.name = 'batch:' + meshes[0].material.name;
-      const ids = new Map(), pieces = [];   // a geometry shared by several pieces goes in once
+      const b = { batch, pieces: [], ids: new Map(), key };   // ids: a geometry shared by several pieces goes in once
       for (const o of meshes) {
-        if (!ids.has(o.geometry)) ids.set(o.geometry, batch.addGeometry(o.geometry));
-        const id = batch.addInstance(ids.get(o.geometry));
-        batch.setMatrixAt(id, o.matrixWorld);
-        const vis = shown(o);
-        batch.setVisibleAt(id, vis);
-        pieces.push({ mesh: o, id, material: o.material, matrix: o.matrixWorld.clone(), inBatch: vis });
-        if (vis) o.layers.set(HIDDEN);
+        if (!b.ids.has(o.geometry)) b.ids.set(o.geometry, batch.addGeometry(o.geometry));
+        this.place(b, o);
       }
       batch.frustumCulled = false;   // its pieces are culled one by one (perObjectFrustumCulled); its own bounds don't follow a door's swing
       this.scene.add(batch);
-      this.batches.push({ batch, pieces });
+      this.batches.push(b);
     }
+  }
+
+  place({ batch, pieces, ids }, o) {
+    const id = batch.addInstance(ids.get(o.geometry));
+    batch.setMatrixAt(id, o.matrixWorld);
+    const vis = shown(o);
+    batch.setVisibleAt(id, vis);
+    pieces.push({ mesh: o, id, material: o.material, matrix: o.matrixWorld.clone(), inBatch: vis });
+    if (vis) o.layers.set(HIDDEN);
+  }
+
+  // a piece whose geometry is already in a batch of its material (a copy) goes in that batch
+  join(o, key) {
+    const b = this.batches.find((x) => x.key === key && x.ids.has(o.geometry));
+    if (!b) return false;
+    if (b.batch.instanceCount >= b.batch.maxInstanceCount) b.batch.setInstanceCount(b.batch.maxInstanceCount + 8);
+    this.place(b, o);
+    return true;
   }
 
   // once a frame, before drawing
