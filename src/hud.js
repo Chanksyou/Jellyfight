@@ -101,6 +101,7 @@ body.calm #hud .shield-bar.charging > i { animation: none; }
 #hud .toast { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: block; max-width: 92vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font: 600 var(--ui-size-heading)/1.3 var(--ui-font-text); opacity: 0; transition: opacity .3s; }
 #hud .toast.on { opacity: 1; }
+#hud .toast .ui-icon { margin-right: .35em; color: var(--ui-mint); }
 /* a boss cleared: the toast stamps in, big and gold (toast(text, ms, 'stamp')) */
 #hud .toast.stamp { top: 28%; overflow: visible; font: 600 40px/1.1 var(--ui-font-display); color: var(--ui-gold); background: none; border-color: transparent; box-shadow: none;
   text-shadow: 0 3px 0 var(--ui-gold-deep), var(--hud-outline), 0 6px 22px var(--ui-deep); }
@@ -208,6 +209,7 @@ export class Hud {
     this.scale = Math.round(s * 100) / 100;
     this.el.style.zoom = this.scale === 1 ? '' : String(this.scale);
     this.touch = document.body.classList.contains('touch');
+    this.mapCss = 0;   // the map's CSS width is read again (once) on the next frame: a layout read is too dear to do every frame
   }
 
   set(key, sel, fn) { // only touch the DOM when a value changes
@@ -415,9 +417,12 @@ export class Hud {
   }
 
   // kind 'stamp': big and gold, stamped in (a boss cleared)
-  toast(text, ms = 1800, kind = '') {
+  // `ic`: a kit icon name (src/icons.js) shown before the words
+  toast(text, ms = 1800, kind = '', ic = '') {
     const t = this.$('.toast');
-    t.textContent = text;
+    t.replaceChildren();
+    if (ic) t.insertAdjacentHTML('afterbegin', icon(ic));
+    t.append(text);
     t.classList.remove('on');
     t.classList.toggle('stamp', kind === 'stamp');
     void t.offsetWidth;   // restart the stamp's animation
@@ -464,7 +469,8 @@ export class Hud {
     const c = this.map, g = this.ctx, C = this.mapLook;
     const dpr = Math.min(3, devicePixelRatio || 1);
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
-    const css = (c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
+    if (!this.mapCss) this.mapCss = c.clientWidth || 285;
+    const css = this.mapCss * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapCone = null; }
     const b = this.bounds, R = W / 2, TAU = Math.PI * 2;

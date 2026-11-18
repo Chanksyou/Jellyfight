@@ -18,6 +18,8 @@
   --ui-line: #e8f4f82e;        /* hairlines and outlines */
   --ui-mint: #a3f5d5;          /* yours, friendly, selected */
   --ui-gold: #ffd46c;          /* the main action, rewards */
+  --ui-silver: #c9d6df;        /* second place */
+  --ui-bronze: #d58a52;        /* third place */
   --ui-gold-ink: #2b1f00;      /* text on gold */
   --ui-gold-deep: #b8891f;     /* the gold button's edge */
   --ui-health: #5fc8ff;

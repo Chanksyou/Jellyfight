@@ -193,7 +193,7 @@ export class Sunrise {
         run.fx.impact(mid, colour, K.flash, 6);
         sfx.sunIn();
         if (run.t - this.tagT > 3 || !this.tagT) { this.tagT = run.t; run.fx.number(_o.set(P.x, P.y + run.cfg.height * 1.1, P.z), 'DRYING', '#' + colour.getHexString(), 13); }
-        if (!this.told) { this.told = true; run.hud.toast('☀️ The sun dries you out: keep to the shade', 2600); }
+        if (!this.told) { this.told = true; run.hud.toast('The sun dries you out: keep to the shade', 2600, '', 'sun'); }
         this.tickT = K.tick;
       }
       if ((this.tickT -= dt) <= 0) { this.tickT += K.tick; juice.feel('sun'); U.uPulse.value = K.pulse; }   // it bites: a tremor, the rim flares

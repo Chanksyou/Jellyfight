@@ -145,6 +145,11 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-board .jf-stats > span { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; color: var(--ui-ink); }
 .jf-board .jf-stats > b { align-self: center; font-size: 24px; }
 .jf-board .jf-rank { font-style: normal; min-width: 1.6em; }
+.jf-board .jf-rank .ui-icon { width: 1.4em; height: 1.4em; }
+.jf-board .jf-rank.m1 { color: var(--ui-gold); }
+.jf-board .jf-rank.m2 { color: var(--ui-silver); }
+.jf-board .jf-rank.m3 { color: var(--ui-bronze); }
+.jf-board .jf-score .ui-icon { color: var(--ui-gold); }
 .jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px var(--ui-line), 0 4px 14px var(--ui-shade); flex: none; }
 .jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .jf-score { font-size: 1.5em; color: var(--ui-gold); }

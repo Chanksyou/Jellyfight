@@ -9,6 +9,7 @@
 // The score itself is Run.score() (run.js). A run only replaces your entry when it beats it.
 export const BEST_KEY = 'jellyrun.best';   // also read by first-run.js: a saved best means a returning player
 import { RunLog } from './run-log.js';
+import { icon } from './icons.js';
 const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
 const PLAYER_KEY = 'jellyrun.player';
 const API = 'api/scores';  // relative: works wherever the game is served from
@@ -218,8 +219,8 @@ export class Leaderboard {
   table(face = null, typeName = null) {
     if (this.status === 'offline') return [];
     return this.shown().map((r, i) => [
-      `<i class="jf-rank">${['🥇', '🥈', '🥉'][i] || `${i + 1}.`}</i>${face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : ''}<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}${typeName ? ` <small class="jf-type">${esc(typeName(r.jelly))}</small>` : ''}</span>`,
-      `${Number(r.score).toLocaleString()}${r.won ? ' 🏆' : ''}`,
+      `<i class="jf-rank${i < 3 ? ` m${i + 1}` : ''}">${i < 3 ? icon('medal', `${i + 1}`) : `${i + 1}.`}</i>${face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : ''}<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}${typeName ? ` <small class="jf-type">${esc(typeName(r.jelly))}</small>` : ''}</span>`,
+      `${Number(r.score).toLocaleString()}${r.won ? ' ' + icon('trophy', 'won') : ''}`,
     ]);
   }
 

@@ -2,6 +2,7 @@
 // screen is held to on a phone: no text under 12 px, nothing to tap under 44 px.
 import { story, G, fresh, ok, step, offs } from './kit.js';
 import { icon, ICON_NAMES } from '../icons.js';
+import { Leaderboard } from '../leaderboard.js';
 
 // --- every piece of the kit on one sheet (index.html?story=ui/kit)
 export function kitSheet() {
@@ -180,3 +181,28 @@ const guard = (kind, about) => story('ui/' + (kind === 'text' ? 'text-at-least-1
 });
 guard('text', 'On a phone held sideways, no text on the main screens (title, pause, HUD, type pick, level-up, treasure pick, book, achievements, leaderboard, Change your look, act complete, death, win, turn your phone) is smaller than 12 px, apart from today\'s known offenders, which their screen\'s redo removes.');
 guard('targets', 'On a phone held sideways, nothing to tap on the main screens is smaller than 44 x 44 px, apart from today\'s known offenders, which their screen\'s redo removes.');
+
+story('ui/chrome-has-no-emoji', {
+  about: 'A toast can carry a kit icon in front of its words, the Leaderboard marks the top three with a medal icon and a win with a trophy icon, and none of them use emoji; the minimap reads its width once, not every frame.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G();
+    const emoji = /\p{Extended_Pictographic}/u;
+    run.hud.toast('Time\'s up!', 1000, '', 'clock');
+    const toast = run.hud.$('.toast');
+    const toastOk = !!toast.querySelector('svg.ui-icon') && !emoji.test(toast.textContent) && toast.textContent === 'Time\'s up!';
+    const B = Object.create(Leaderboard.prototype);
+    B.status = 'ok'; B.id = 'me';
+    B.shown = () => [1, 2, 3, 4].map((n) => ({ id: 'p' + n, name: 'P' + n, score: 1000 * (5 - n), won: n === 1 }));
+    const rows = B.table().map((r) => r.join(' '));
+    const medals = rows.slice(0, 3).every((r, i) => r.includes(`jf-rank m${i + 1}`) && r.includes('<svg')) && !rows[3].includes('<svg class="ui-icon" role="img" aria-label="4"');
+    const trophy = rows[0].includes('aria-label="won"') && !rows.slice(1).some((r) => r.includes('aria-label="won"'));
+    const plain = !rows.some((r) => emoji.test(r));
+    run.hud.showMap(true);
+    const m = run.hud.map; let reads = 0;
+    Object.defineProperty(m, 'clientWidth', { configurable: true, get() { reads++; return 285; } });
+    for (let i = 0; i < 5; i++) run.hud.update({ x: 1, y: 0, z: 1 }, 0, 0, []);
+    delete m.clientWidth;
+    return ok(toastOk && medals && trophy && plain && reads <= 1, { toastOk, medals, trophy, plain, reads });
+  },
+});
