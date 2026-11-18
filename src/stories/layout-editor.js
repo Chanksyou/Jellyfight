@@ -150,7 +150,9 @@ story('dev/layout-prop-size-and-stick', {
       const mid = onIt();
       if (!mid) return ok(false, { noGrip: true, scale: n.scale.x, visible: n.visible, sel: L.sel === it, items: L.byNode.has(n), box: visibleBox(n, new THREE.Box3()).min.toArray() });
       // dragged down in front of the console: it lands on whatever is there (the floor), not where it started
-      const spot = V(1.0, 0, 5.1), under = L.surfaceHit(onScreen(L, spot), { exclude: n, up: true });
+      // (once act 2's rooms are loaded the bathroom's vanity stands in front of the console, so find a spot with bare floor)
+      const spot = [V(1.0, 0, 5.1), V(0.4, 0, 5.1), V(2.0, 0, 5.1), V(1.0, 0, 3.9)].find((p) => L.surfaceHit(onScreen(L, p), { exclude: n, up: true })?.y < 0.2) || V(1.0, 0, 5.1);
+      const under = L.surfaceHit(onScreen(L, spot), { exclude: n, up: true });
       drag(mid, spot);
       const afterFloor = n.position.toArray().map((v) => +v.toFixed(3));
       const onFloor = Math.abs(n.position.y - under.y) < 0.02 && n.position.y < 0.5 && Math.hypot(n.position.x - under.x, n.position.z - under.z) < 0.25;
