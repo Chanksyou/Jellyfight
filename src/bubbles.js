@@ -196,7 +196,7 @@ export class Bubbles {
   inRange(origin, range, exclude) {
     const E = this.enemies, c = this._ic, es = [], ds = [];
     for (const e of E.list) {
-      if (e.dead || exclude?.has(e) || e.proxy?.immune) continue;   // a boss that can't be hurt right now isn't worth a bubble
+      if (e.dead || exclude?.has(e) || e.proxy?.immune || e.under) continue;   // a boss that can't be hurt right now (or a bug under the floor) isn't worth a bubble
       const d = E.center(e, c).distanceTo(origin) - e.r;
       if (d <= range) { es.push(e); ds.push(d); }
     }
@@ -502,7 +502,7 @@ export class Bubbles {
       // touching an enemy?
       for (const e of E.list) {
         if (b.rebound && b.hit.size >= b.pierce) break;
-        if (e.dead || b.hit.has(e)) continue;
+        if (e.dead || e.under || b.hit.has(e)) continue;   // (a bug under the floor: shots fly over its mound)
         if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
           const chilled = b.ep?.chillPierce && e.chillT > 0;   // Icicle Lance: a shard flies through a bug that was already Chilled
@@ -555,7 +555,7 @@ export class Bubbles {
     const E = this.enemies, c = this._ic;
     let best = null, bd = reach;
     for (const e of E.list) {
-      if (e.dead || exclude.has(e) || e.proxy?.immune) continue;
+      if (e.dead || exclude.has(e) || e.proxy?.immune || e.under) continue;
       const d = E.center(e, c).distanceTo(at) - e.r;
       if (d <= bd) { bd = d; best = e; }
     }

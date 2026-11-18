@@ -1241,55 +1241,107 @@ story('words/leap-subtle-warning', {
   },
 });
 
-// --- the cicada (act 4): a slow tank that plants itself and sings a cone that shoves and hurts
-const cicadaAt = (d = 0.3) => { const e = spawn('cicada', near(d, 0)); e.songCd = 0.2; return e; };
-story('words/sing', {
-  about: 'Within reach the cicada stops and turns to you for 1.2 s while a floor wedge and a cone over it fill together, then sings: a jelly still in the cone takes 4 and is shoved away from it; the Warning is gone once it rests.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(); },
+// --- the cicada (act 4): a slow tank that digs in, trails you as a mound, locks and bursts up (a Blast that hurts and tosses)
+// it starts at once (its cooldown is spent) and, with on-beat, on the next bar line
+const cicadaAt = (d = 0.3) => { const e = spawn('cicada', near(d, 0)); e.burrowCd = 0; return e; };
+story('words/burrow', {
+  about: 'Within reach on the bar the cicada digs in (0.45 s, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for a bar of the song (4 beats), then locks and a circle and dome over the spot fill together for 2 beats; on that beat it bursts up as a Blast under the jelly that stood still (4 Health) and the Warning is gone.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
   play() {
-    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
-    step(60 * 3, () => e.state === 'windup');
-    const at = e.pos.clone();
-    let frames = 0, moved = 0, both = true, grew = true, last = 0;
-    step(60 * 3, () => {
-      if (e.state === 'windup') {
-        frames++; moved = Math.max(moved, e.pos.distanceTo(at));
-        const M = enemies.songMarks[0];
-        both = both && !!M && M.floor.visible && M.vol.visible && M.floor.material.progress === M.vol.material.progress;
-        if (M) { grew = grew && M.floor.material.progress >= last; last = M.floor.material.progress; }
+    const { enemies, run } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
+    step(60 * 8, () => e.state === 'dig');
+    let dig = 0;
+    while (e.state === 'dig' && dig < 120) { step(1); dig++; }
+    const under = e.under && e.state === 'under';
+    // the mound trails: a jelly that moves off finds it closer a moment later
+    const P = G().player.position, off = P.clone(); tp(P.x + 0.5, P.y, P.z, 0);
+    const d0 = e.pos.distanceTo(G().player.position); step(40); const d1 = e.pos.distanceTo(G().player.position);
+    const trails = d1 < d0 - 0.05 && !e.burrowLocked && !enemies.burrowMarks.some((M) => M.floor.visible);
+    step(60 * 8, () => e.burrowLocked);
+    const lockedAt = e.pos.clone(), beatsAtLock = e.burrowBeats;
+    step(30);
+    const stays = e.pos.distanceTo(lockedAt) < 1e-4 && e.burrowAt.distanceTo(lockedAt) < 1e-4;
+    let both = true, grew = true, last = 0, shown = 0;
+    step(60 * 8, () => {
+      if (e.under) {
+        const M = enemies.burrowMarks[0];
+        both = both && !!M && M.floor.visible && M.vol.visible && M.floor.material.progress === M.vol.material.progress && M.floor.scale.x === 0.1 && M.vol.scale.x === 0.1;
+        if (M) { grew = grew && M.floor.material.progress >= last; last = M.floor.material.progress; shown++; }
       }
-      return e.state !== 'windup';
+      return e.state === 'dazed';
     });
-    step(60, () => log.some((d) => d.source === 'cicada'));
-    const hit = log.find((d) => d.source === 'cicada'), secs = frames / 60;
-    step(60 * 3, () => e.state === 'approach');
-    const gone = !enemies.songMarks.some((M) => M.floor.visible || M.vol.visible);
-    return ok(secs > 1.1 && secs < 1.3 && moved < 0.005 && both && grew && hit?.amount === 4 && shoves.some((k) => k.targetId === PLAYER && k.force === 0.8) && gone, { secs: +secs.toFixed(2), moved: +moved.toFixed(4), both, grew, hit: hit?.amount, gone });
+    const bursts = log.filter((d) => d.source === 'cicada' && d.amount === 4);
+    const gone = !enemies.burrowMarks.some((M) => M.floor.visible || M.vol.visible);
+    step(2);
+    return ok(dig > 20 && dig < 40 && under && trails && beatsAtLock >= 4 && beatsAtLock < 4.6 && stays && both && grew && shown > 30 && e.state === 'dazed' && !e.under && bursts.length === 1 && gone,
+      { dig, under, trails, beatsAtLock: +beatsAtLock.toFixed(2), stays, drift: [e.pos.distanceTo(lockedAt), e.burrowAt.distanceTo(lockedAt)], both, grew, shown, state: e.state, gone });
   },
 });
-story('words/sing-dodge', {
-  about: 'The cicada\'s aim locks half way through its wind-up: stepping out of the wedge after that, the song goes past and the jelly is not hurt.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.35); },
+story('words/burrow-hits', {
+  about: 'If you are inside the circle when it bursts up you take 4 Health, are shoved away from its middle and tossed up.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
+    step(60 * 25, () => e.state === 'dazed');
+    const hit = log.find((d) => d.source === 'cicada' && d.amount === 4), shove = shoves.find((k) => k.targetId === PLAYER && k.launch);
+    return ok(!!hit && !!shove && shove.force === 0.5 && shove.launch === 0.5 && Math.abs(shove.dir.length() - 1) < 1e-6 && shove.dir.y === 0, { hit: hit?.amount, shove: shove && { force: shove.force, launch: shove.launch } });
+  },
+});
+story('words/burrow-dodge', {
+  about: 'Stepping off the circle once it has locked: the burst goes off without touching the jelly (no Health lost, no toss).',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
+    step(60 * 25, () => e.burrowLocked);
+    const P = G().player.position;
+    tp(P.x + 0.3, P.y, P.z, 0);
+    step(60 * 8, () => e.state === 'dazed');
+    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 4) && !shoves.some((k) => k.targetId === PLAYER && k.launch), { state: e.state });
+  },
+});
+story('words/burrow-jump', {
+  about: 'The burst is a half sphere 10 cm round: a jelly at the top of a jump over the circle when it bursts up is not hurt.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
-    step(60 * 3, () => e.state === 'windup');
-    step(60 * 3, () => e.songK > 0.55);
-    const P = player.position, side = V(-e.songDir.z, 0, e.songDir.x).normalize();
-    tp(P.x + side.x * 0.4, P.y, P.z + side.z * 0.4);
-    step(60 * 3, () => e.state === 'rest');
-    return ok(e.state === 'rest' && !log.some((d) => d.source === 'cicada'), { state: e.state });
+    step(60 * 25, () => e.burrowLocked && e.burrowK > 0.85);
+    const P = player.position;
+    stub(player, 'update', () => {});   // hold it up there for the frame the burst lands
+    player.position.set(P.x, P.y + 0.2, P.z); player.velocity.set(0, 0, 0);
+    step(60 * 3, () => e.state === 'dazed');
+    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 4), { state: e.state });
   },
 });
-story('words/sing-breaks-off', {
-  about: 'Freezing a cicada half way through its wind-up breaks the song off: its Warning goes, its drone stops and it goes back to walking.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(); },
+story('words/burrow-untouchable', {
+  about: 'Under the floor the cicada can\'t be hurt, frozen, stunned, shot or touched: a hit does nothing, your own attack passes over its mound and standing on it costs nothing; once it bursts up and stands dazed (1.6 s) it can be hit again, then it walks.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: true, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
-    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    step(60 * 3, () => e.state === 'windup');
-    step(60 * 3, () => e.songK > 0.5);
-    e.freezeT = 1;
-    step(5);
-    const marks = enemies.songMarks.some((M) => M.floor.visible || M.vol.visible);
-    return ok(e.state === 'approach' && !marks && !e.chargeSound && !log.some((d) => d.source === 'cicada'), { state: e.state, marks, sound: !!e.chargeSound });
+    const { enemies, run } = G(), e = enemies.list[0], log = record('damage_taken');
+    step(60 * 8, () => e.under);
+    log.length = 0;
+    const hp = e.hp;
+    bus.emit('damage_taken', { targetId: e.id, amount: 50, color: '#fff', source: 'story' });
+    bus.emit('status_applied', { targetId: e.id, status: 'freeze', duration: 2 });
+    bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: 2 });
+    step(60 * 2);
+    const near = run.gadgets.near(e.pos, 0.3).includes(e);
+    const unhurt = e.hp === hp && !(e.freezeT > 0) && !(e.stunT > 0) && !near && !log.some((d) => d.source === 'cicada' && d.contact) && e.under;
+    step(60 * 8, () => e.state === 'dazed');
+    const dazedAt = e.hp;
+    step(90);
+    const hittable = e.hp < dazedAt || e.dead;
+    return ok(unhurt && hittable, { unhurt, hittable, hp, now: e.hp, dazedAt, frozen: e.freezeT, stunned: e.stunT, near, touched: log.filter((d) => d.source === 'cicada' && d.contact).length, under: e.under });
+  },
+});
+story('words/burrow-dazed', {
+  about: 'After it bursts up the cicada stands still for 1.6 s, dazed, then walks again and can dig in once its 6 s are up.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0];
+    step(60 * 25, () => e.state === 'dazed');
+    const at = e.pos.clone();
+    let frames = 0; step(60 * 4, () => { if (e.state === 'dazed') frames++; return e.state === 'approach'; });
+    const moved = e.pos.distanceTo(at);
+    return ok(frames > 90 && frames < 102 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 5, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
   },
 });

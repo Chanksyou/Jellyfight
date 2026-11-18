@@ -466,42 +466,37 @@ export const ENEMY_WORDS = {
     }),
   },
 
-  sing: {
-    doc: 'Within `range` m every `every` s or so, plants itself, turns to you and draws breath for `windup` s (its wings lift and quiver; a Warning wedge on the floor fills with a cone over it, `arc` degrees wide and `reach` m long; its aim locks `lock` of the way through), then sings: anything of you inside the cone takes `dmg` and a `knock` shove away from it. The cone is low near its mouth (jump it there) and too tall to jump further out. It rests `rest` s. Freezing or stunning it breaks the song off. List it after the walking word.',
-    props: { range: 0.5, every: 4, windup: 1.2, lock: 0.5, reach: 0.45, arc: 70, dmg: 3, knock: 0.8, rest: 1 },
+  burrow: {
+    doc: 'Within `range` m every `every` s or so, digs in for `dig` s, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up. It stands dazed for `daze` s (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
+    props: { range: 0.55, every: 6, dig: 0.45, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, daze: 1.6 },
     make: (_, p) => ({
-      init(e) { e.songCd = 1 + Math.random() * 2; e.songDir = new THREE.Vector3(0, 0, 1); e.songK = 0; e.songReach = p.reach; e.songHalf = THREE.MathUtils.degToRad(p.arc) / 2; },
+      burrowRadius: p.radius,
+      init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
-        e.songCd -= c.dt;
-        if (e.state === 'windup' && !live) { en.breakSong(e); e.state = 'approach'; e.faceLock = false; e.songK = 0; e.songCd = 1.5; }
+        e.burrowCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.songCd <= 0 && live && e.grounded) {
-            e.state = 'windup'; e.stateT = p.windup; e.faceLock = true; e.songK = 0; e.songDir.copy(c.flatDir);
-            e.vel.set(0, 0, 0);
-            en.songWind(e, p.windup);
-          }
-        } else if (e.state === 'windup') {
-          c.speed = 0;
-          e.vel.set(0, 0, 0);
-          e.stateT -= c.dt;
-          e.songK = Math.min(1, 1 - e.stateT / p.windup);
-          if (e.songK < p.lock) {                                    // it turns after you until its aim locks
-            e.songDir.copy(c.flatDir);
-            let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;
-            d = Math.atan2(Math.sin(d), Math.cos(d));
-            e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-12 * c.dt)), -4 * c.dt, 4 * c.dt);
-          }
-          if (e.stateT <= 0) { e.state = 'sing'; e.stateT = 0.35; en.sing(e, c, p); }
-        } else if (e.state === 'sing') {
-          c.speed = 0;
-          e.vel.set(0, 0, 0);
-          e.stateT -= c.dt;   // the song ends on time even if it is frozen: its Warning must not hang
-          if (e.stateT <= 0) { e.state = 'rest'; e.stateT = p.rest; e.songK = 0; }
-        } else if (e.state === 'rest') {
+          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig; e.vel.set(0, 0, 0); en.burrowDig(e); }
+        } else if (e.state === 'dig') {
           c.speed = 0;
           e.stateT -= c.dt * live;
-          if (e.stateT <= 0) { e.state = 'approach'; e.faceLock = false; e.songCd = p.every; }
+          e.digK = 1 - Math.max(0, e.stateT) / p.dig;
+          if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowBeats = 0; e.beatSeen = c.beat; en.burrowGo(e); }
+        } else if (e.state === 'under') {
+          c.speed = 0;
+          en.burrowRumble();
+          e.burrowBeats += THREE.MathUtils.clamp(c.beat - e.beatSeen, 0, 0.5);   // a song handing over (the beat jumping) can't strand it down there
+          e.beatSeen = c.beat;
+          if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); }
+          if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
+          else {
+            e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
+            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
+          }
+        } else if (e.state === 'dazed') {
+          c.speed = 0;
+          e.stateT -= c.dt;
+          if (e.stateT <= 0) { e.state = 'approach'; e.burrowCd = p.every; }
         }
       },
     }),
@@ -791,7 +786,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);

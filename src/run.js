@@ -864,7 +864,7 @@ export class Run {
     const P = this.player.position;
     const pc = _mid.copy(P).setY(P.y + this.cfg.height * 0.5);
     for (const e of this.enemies.list) {
-      if (e.dead || e.proxy || e.freezeT > 0) continue;     // frozen things can't hurt you
+      if (e.dead || e.proxy || e.freezeT > 0 || e.under) continue;     // frozen things (and a bug under the floor) can't hurt you
       if (e.airborne) continue;                             // mid-leap: its landing does the hurting (the leap word)
       if (!e.T.dmg) continue;                               // harmless to touch (an Aerial root: its hold does the hurting)
       const d = this.enemies.center(e, _bug).distanceTo(pc);
@@ -1260,7 +1260,7 @@ export class Run {
     if (!T || (this.phase !== 'explore' && this.phase !== 'boss')) return false;
     let best = null, bestD = Infinity, top = 0;
     for (const e of this.enemies.list) {
-      if (e.dead || e.proxy?.immune) continue;   // a shielded or rising boss is no step to spring off
+      if (e.dead || e.proxy?.immune || e.under) continue;   // a shielded or rising boss is no step to spring off
       const r = e.hitR || e.r, c = this.enemies.center(e, _bug), t = c.y + r;
       if (t > from || t < to || P.peakY - t < T.drop) continue;
       const d = Math.hypot(c.x - P.position.x, c.z - P.position.z);
