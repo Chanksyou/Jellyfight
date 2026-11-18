@@ -319,7 +319,7 @@ export class Enemies {
     bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0, lift = 0 }) => {
       const e = this.byId.get(targetId);
       if (e && !e.dead && !e.under && !e.proxy && !e.T.rooted) this.push(e, dir, force, collisionDamage, pushHits);
-      if (lift > 0 && e && !e.dead && !e.proxy && !e.T.fly && !e.T.rooted) { e.vy = lift; e.grounded = false; }   // thrown up (a geyser): gravity brings it down
+      if (lift > 0 && e && !e.dead && !e.under && !e.proxy && !e.T.fly && !e.T.rooted) { e.vy = lift; e.grounded = false; }   // thrown up (a geyser): gravity brings it down
     });
   }
 
@@ -505,7 +505,7 @@ export class Enemies {
     const from = this.center(e, new THREE.Vector3());
     let best = null, bestD = O.reach;
     for (const n of this.list) {
-      if (n === e || n.dead || n.proxy?.immune) continue;
+      if (n === e || n.dead || n.under || n.proxy?.immune) continue;
       const d = this.center(n, S.o).distanceTo(from);
       if (d <= bestD) { best = n; bestD = d; }
     }
@@ -557,7 +557,7 @@ export class Enemies {
     this.fx.ring(c.clone().setY(c.y - e.r * 0.8), BLAST.getHex(), r, 0.3);
     sfx.fireDeath();
     for (const n of this.list) {
-      if (n === e || n.dead || n.proxy?.immune) continue;
+      if (n === e || n.dead || n.under || n.proxy?.immune) continue;
       if (this.center(n, o).distanceTo(c) - n.r > r) continue;   // a sphere of r round its middle, touching n's body
       bus.emit('damage_taken', { targetId: n.id, amount, color: '#ffa65a', source: 'fire', feedback: { tick: true, element: 'fire' } });
     }
@@ -1600,10 +1600,10 @@ export class Enemies {
     // keep them from stacking into one blob
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
-      if (a.dead || a.proxy) continue;
+      if (a.dead || a.proxy || a.under) continue;   // (a mound under the floor is nobody's to shove: it must stay on its Warning)
       for (let j = i + 1; j < list.length; j++) {
         const b = list[j];
-        if (b.dead || b.proxy) continue;
+        if (b.dead || b.proxy || b.under) continue;
         const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
         const min = (a.r + b.r) * 1.05;
         const d2 = dx * dx + dz * dz;

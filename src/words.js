@@ -491,7 +491,7 @@ export const ENEMY_WORDS = {
           if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
           else {
             e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
-            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
+            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
           }
         } else if (e.state === 'dazed') {
           c.speed = 0;

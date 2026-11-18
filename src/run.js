@@ -925,7 +925,7 @@ export class Run {
       this.gadgets.looks.squeak(P,Q.radius);sfx.gadgetSqueak();
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
       for (const e of this.enemies.list) {
-        if (e.dead || e.proxy) continue;
+        if (e.dead || e.proxy || e.under) continue;
         const away = e.pos.clone().sub(P).setY(0);
         const d = away.length();
         if (d > Q.radius) continue;
@@ -1294,7 +1294,7 @@ export class Run {
       this.player.avatar?.pulse(.4); sfx.windLaunch();
     } else { this.gadgets.looks.cushion(c,radius);this.player.avatar?.pulse(.3);sfx.gadgetCotton(); }
     for (const e of this.enemies.list) {
-      if (e.dead || e.proxy) continue;
+      if (e.dead || e.proxy || e.under) continue;
       if (this.enemies.center(e).distanceTo(c) < radius + e.r) {
         if (dmg > 0) { this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.cotton,.008);bus.emit('damage_taken', { targetId: e.id, amount: dmg, color: '#ffd0ec', source: 'shockwave' }); }
         if (push > 0 && !e.dead) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(c).setY(0).normalize(), force: push });
@@ -1307,7 +1307,7 @@ export class Run {
     if (!B) return;
     this.gadgets.looks.salt(c,B.radius);sfx.gadgetSalt();
     for (const e of this.enemies.list) {
-      if (e.dead || e.proxy) continue;
+      if (e.dead || e.proxy || e.under) continue;
       if (this.enemies.center(e).distanceTo(c) < B.radius + e.r) {this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.silver,.006);bus.emit('damage_taken', { targetId: e.id, amount: this.power * B.dmg, color: '#bfe8ff', source: 'burst' });}
     }
   }
