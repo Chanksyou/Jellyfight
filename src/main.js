@@ -40,13 +40,14 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v483';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v490';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
 import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run, makeBoss, DEV_KEY } from './run.js';
+import { devSheetHtml, initDevPanel } from './dev-panel.js';
 import { TYPE_PICK } from './jelly-types.js';
 import { TypePicker } from './pick-screen.js';
 import { AttackPreview } from './attack-preview.js';
@@ -142,12 +143,16 @@ ui.innerHTML = `
   #g-over .trophy-btns .ui-btn { justify-content: flex-start; min-height: 56px; }
   #g-over .row { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); justify-content: center; align-items: center; margin-top: var(--ui-space-3); }
   /* dev tools: one Dev button; the password opens the rest */
-  #g-over .dev-lock, #g-over .dev-tools, #g-over .dev-btn, #g-over #g-fps { display: none; }
+  #g-over .dev-lock, #g-over .dev-btn, #g-over #g-fps { display: none; }
   #g-over.dev-reveal .dev-btn { display: inline-flex; }   /* tapping the version 5 times */
   #g-over.dev-open #g-fps { display: inline; }
   #g-over.dev-ask .dev-lock { display: flex; }
-  #g-over.dev-open .dev-tools { display: flex; }
-  #g-over.dev-open .dev-btn { display: none; }
+  #g-over.dev-open .dev-btn { display: inline-flex; }
+  #g-over.dev-open .dev-lock { display: none; }
+  #g-over .menu-dev .ui-seg[aria-label="Group"] { display: flex; }
+  #g-over .menu-dev .ui-seg[aria-label="Group"] > button { flex: 1; }
+  #g-over .dev-pane { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--ui-space-3); margin-top: var(--ui-space-3); }
+  #g-over .dev-pane[hidden] { display: none; }
   #g-over .dev-lock input { font: var(--ui-size-body) var(--ui-font-text); width: 150px; min-height: var(--ui-target); box-sizing: border-box; padding: 0 var(--ui-space-3); border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-shade); color: var(--ui-ink); }
   #g-over .dev-lock input.wrong { border-color: var(--ui-boss); }
   /* phones play sideways only: held upright, the game is covered until it's turned (iOS can't lock orientation) */
@@ -199,10 +204,10 @@ ui.innerHTML = `
   <div class="set-grid"></div>
   <button class="ui-btn" data-act="install" hidden>${icon('install')}Install app</button>
   <div class="row dev-lock"><input type="password" name="dev-pass" placeholder="Dev password" autocomplete="off"><button class="ui-btn" data-act="dev-unlock">Unlock</button></div>
-  <div class="row dev-tools"><button class="ui-btn" data-act="layout">🛠 Layout</button><button class="ui-btn" data-act="arena4">Act 4 preview</button><button class="ui-btn" data-act="boss">👹 Fight boss</button><button class="ui-btn" data-act="duel">🐞 1 on 1</button><button class="ui-btn" data-act="kit">🧪 Test kit</button><button class="ui-btn" data-act="tuner">⚖️ Tuner</button><button class="ui-btn" data-act="diag">🩺 Diagnostics</button><button class="ui-btn" data-act="pass-ao">AO on</button><button class="ui-btn" data-act="pass-bloom">Bloom on</button><button class="ui-btn" data-act="pass-lamps">Lamps on</button></div>
   <div class="row"><button class="ui-btn ui-btn--ghost dev-btn" data-act="dev">${icon('lock')}Dev</button></div>
   <p class="set-ver">Version ${BUILD.replace(/^v/, '')}<span id="g-fps"></span></p>
 </section>
+${devSheetHtml(icon)}
 <section class="ui-sheet menu-trophies" role="dialog" aria-modal="true" aria-label="Trophies" hidden>
   <div class="ui-header"><h2>Trophies</h2><button class="ui-btn ui-btn--icon" data-act="sheet-close" aria-label="Close">${icon('close')}</button></div>
   <div class="trophy-btns"><button class="ui-btn" data-act="achievements">${icon('medal')}Achievements</button><button class="ui-btn" data-act="board">${icon('trophy')}Leaderboard</button></div>
@@ -795,7 +800,7 @@ function syncSettings() {
 }
 syncSettings();
 // the sheets over the menu (Settings, Trophies), under one scrim
-const scrim = overlay.querySelector('.ui-scrim'), sheets = { settings: overlay.querySelector('.menu-settings'), trophies: overlay.querySelector('.menu-trophies') };
+const scrim = overlay.querySelector('.ui-scrim'), sheets = { settings: overlay.querySelector('.menu-settings'), trophies: overlay.querySelector('.menu-trophies'), dev: overlay.querySelector('.menu-dev') };
 function openSheet(name) {
   for (const [k, el] of Object.entries(sheets)) { el.hidden = k !== name; el.classList.toggle('ui-enter', k === name); }
   scrim.hidden = !name; scrim.classList.toggle('ui-enter', !!name);
@@ -839,41 +844,17 @@ overlay.addEventListener('click', (e) => {
   else if (b.dataset.act === 'main-menu') {
     if (leaveBtn.dataset.sure) { askLeave(false); run.onMainMenu(); } else { askLeave(true); setTimeout(() => askLeave(false), 4000); }
   }
-  else if (b.dataset.act === 'dev') { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
+  else if (b.dataset.act === 'dev') {
+    if (overlay.classList.contains('dev-open')) openSheet('dev');
+    else { overlay.classList.add('dev-ask'); overlay.querySelector('[name="dev-pass"]').focus(); }
+  }
   else if (b.dataset.act === 'dev-unlock') unlockDev();
   else if (b.dataset.act === 'install') { installOffer?.prompt(); installOffer = null; installBtn.hidden = true; }
   else if (b.dataset.act === 'home-tip') { homeTip.hidden = true; try { localStorage.setItem(HOME_TIP_KEY, 'off'); } catch {} }
   else if (b.dataset.act === 'creator') openCreator();
-  else if (b.dataset.act === 'layout') openLayout();
-  else if (b.dataset.act === 'arena4') location.href='?arena=act4';
-  else if (b.dataset.act === 'duel') {   // dev: a fresh run with just the one enemy you pick
-    overlay.hidden = true;
-    const picks = run.duelChoices();
-    run.ui.message('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', [],
-      [...picks.map((p) => ({ label: p.name, onClick: () => { run.startDuel(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
-  }
-  else if (b.dataset.act === 'kit') {    // dev: try any treasure or evolution on this run (test-kit.js)
-    overlay.hidden = true;
-    kit.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
-  }
-  else if (b.dataset.act === 'tuner') {    // dev: edit bug and treasure numbers, live (balance-editor.js)
-    overlay.hidden = true;
-    tuner.show(run, { onPlay: () => { play(); endContinue(); }, onBack: () => { overlay.hidden = false; } });
-  }
-  else if (b.dataset.act === 'boss') {   // dev: a fresh run straight to the boss you pick (level 1, no treasures)
-    overlay.hidden = true;
-    const picks = run.bossChoices();
-    run.ui.message('👹 Fight boss (dev)', 'Pick a boss: a fresh run straight to its intro. A boss from another act reloads the game into that act first.', [],
-      [...picks.map((p) => ({ label: p.name, onClick: () => { run.startBossFight(p); play(); } })), { label: 'Back', go: true, onClick: () => { overlay.hidden = false; } }]);
-  }
   else if (b.dataset.act === 'board') { openSheet(null); overlay.hidden = true; run.showBoard(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'achievements') { openSheet(null); overlay.hidden = true; run.showAchievements(() => { overlay.hidden = false; }); }
   else if (b.dataset.act === 'book') { overlay.hidden = true; run.showBook(() => { overlay.hidden = false; }); }
-  else if (b.dataset.act === 'diag') { enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }
-  else if (b.dataset.act?.startsWith('pass-')) {   // dev: switch a costly part of drawing off, to feel what it costs on a phone
-    const pass = b.dataset.act.slice(5), on = pass === 'lamps' ? toggleLamps() : gfx.toggle(pass);
-    b.textContent = b.textContent.replace(/ on$| off$/, on ? ' on' : ' off');
-  }
 });
 // dev: every lamp (a phone's shared light slots) dark or lit again. The light count changes, so
 // every lit shader rebuilds once: a stall a player never sees, since it's only here.
@@ -885,6 +866,11 @@ function toggleLamps() {
 }
 const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
+initDevPanel(sheets.dev, {
+  overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
+  passOn: (pass) => (pass === 'lamps' ? lampsOn : !gfx.off.has(pass)),
+  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : gfx.toggle(pass)),
+});
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;
 window.dendi = dendi;   // stories check on the cat (models/dendi-*)
@@ -909,6 +895,7 @@ async function unlockDev() {
   overlay.classList.add('dev-open');
   try { sessionStorage.setItem(DEV_KEY, '1'); } catch {}
   run.devRun();   // the run in progress stops counting too
+  openSheet('dev');
 }
 // Players never see the Dev button: five quick taps on the version bring it up (the fps readout shows once unlocked)
 let verTaps = 0, verTimer = 0;

@@ -2,6 +2,20 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v490 moves the Mushroom Pillow, the Singing Bowl and the Bull's table out of their furniture: the Pillow sits 25 cm forward on the sofa, the Bowl 10 cm forward on its chair with a shorter-held striker, the Bull's rush stops short of the changing pad's raised ends and the baby wipes and a desk-edge trinket are gone, so no Elite attack passes through furniture.
+
+v489 adds motion easing and stagger tokens, and two guard stories that fail when a screen animates a paint property or Reduce effects does more than fade.
+
+v488 replaces the Headphones' aimed bass Shots (act 4, the kitchen counter) with Stereo: a line down the counter through the Headphones splits its ground into two halves, and the cups burst them in turn, a cup lighting up and marking its half in its own colour (indigo, spearmint) two beats before, so you cross to the other half on the beat; angry, a shove wave also crosses the line between bursts.
+
+v487 adds a prop library for the dev layout editor: six plants (Aloe, Monstera, Pothos, Rubber plant, Snake plant, Spider plant), each whole with its pot, baked into one small file the game only downloads when a prop is asked for. Nothing in play changes yet.
+
+v486 replaces the Cicada's cone of sound in Act 4 with a Burrow: on the bar it digs into the floor and can't be hit while under. A glowing mound trails after you for a bar of the song, then locks, and a circle and dome fill over the spot for two beats. On the beat it bursts up there, hurting and tossing you if you're still inside. Step off the circle. Afterwards it stands dazed for a moment: that's when to hit it.
+
+v485 replaces the Mushroom Pillow's hop with the Fairy ring: eight spore caps sprout in a ring round where the jelly stands and burst as columns, so hold still in the middle (run and you cross one); angry, a second ring sprouts where the jelly would flee.
+
+v484 puts the dev tools in one compact Dev panel: Play (Fight boss, 1 on 1, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, with AO, Bloom and Lamps as On/Off switches), and it remembers the last group you used.
+
 v483 rearranges Act 1 props, including the pet corner and shelves, removes the smart speaker, and moves five floor vents.
 
 v482 puts the sunset canyon wallpaper and centered Jelly Run title window from the desk photo on the apartment's curved monitor.

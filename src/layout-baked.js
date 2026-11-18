@@ -90,8 +90,8 @@ export const BAKED_LAYOUT = {
     'Wooden_bowl#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'Disco-ball_mobile#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     // the vents by the Elites land you across from them, not on them (the other three are stage1.js's)
-    'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.17, 0.435, 1.223] },
-    'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [0.9145, 0.511, 1.582] },
+    'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.36, 0.435, 1.27] },
+    'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [1.35, 0.511, 1.75] },
     'vent:Vent by the stove': { at: [4.221, 0.013, 2.78], land: [4.5, 0.94, 2.35] },
     // the two throw pillows at the desk end of the sofa make room for the Mushroom Pillow
     'Olive_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },

@@ -93,9 +93,9 @@ function watchSpiral(e, each) {
 
 act3('bull-spiral', {
   about: 'Spiral: a Warning circle fills round the Bull, then it spins and fires red Shots in two arms, always opposite each other, one at floor level and one at jump height; the arms turn as it fires (more than a full turn), so the Shots wind out into a spiral.',
-  setup() { startBull(1, { x: -0.3 }); },
+  setup() { startBull(1, { x: -0.45 }); },
   play() {
-    const { e } = startBull(1, { x: -0.3 });
+    const { e } = startBull(1, { x: -0.45 });
     let warned = false;
     const shots = watchSpiral(e, () => { if (e.tele.length && e.tele[0].material.progress > 0.3) warned = true; });
     const byFrame = {};
@@ -226,9 +226,9 @@ act3('bull-rush-feel', {
 
 act3('bull-spiral-feel', {
   about: 'Spiral feel: each beat flashes where its Shots leave, its body pulses and a puff sounds; a Shot that reaches the jelly throws a little stuffing, leaves a scuff under it that fades and thuds.',
-  setup() { startBull(1, { x: -0.3 }); },
+  setup() { startBull(1, { x: -0.45 }); },
   play() {
-    const { e } = startBull(1, { x: -0.3 }), { run } = G(), log = record('damage_taken'), beats = spy(sfx, 'bullShot'), struck = spy(sfx, 'bullHit'), splats = spy(G().fx, 'splat');
+    const { e } = startBull(1, { x: -0.45 }), { run } = G(), log = record('damage_taken'), beats = spy(sfx, 'bullShot'), struck = spy(sfx, 'bullHit'), splats = spy(G().fx, 'splat');
     let pulse = 0;
     step(60 * 6, () => { if (e.attack === 1 && e.stateT > CONTENT.elites.bull.skills.spiral.warn) pulse = Math.max(pulse, e.hitPop); return e.state === 'idle' && beats.length && !run.elites.bullets.length; });
     const hits = log.filter((d) => d.source === 'bull-spiral').length;
@@ -251,9 +251,9 @@ act3('bull-minis-feel', {
 
 act3('bull-angry', {
   about: 'Under 65% Health the Bull is angry: its horns swell bigger and its rush winds up quicker, its spiral has three arms turning faster, and its little bulls charge faster.',
-  setup() { startBull(1, { angry: true, x: -0.3 }); },
+  setup() { startBull(1, { angry: true, x: -0.45 }); },
   play() {
-    let { e } = startBull(1, { angry: true, x: -0.3 });
+    let { e } = startBull(1, { angry: true, x: -0.45 });
     const shots = watchSpiral(e), byFrame = {};
     for (const s of shots) (byFrame[s.frame] ||= []).push(s);
     const arms = Math.max(...Object.values(byFrame).map((p) => p.length));

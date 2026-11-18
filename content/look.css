@@ -57,9 +57,16 @@
   --ui-fast: 120ms;
   --ui-mid: 240ms;
   --ui-slow: 480ms;
-  --ui-ease-in: cubic-bezier(.34, 1.5, .64, 1);
-  --ui-ease-out: cubic-bezier(.5, 0, .9, .5);
+  --ui-ease-arrive: cubic-bezier(.34, 1.5, .64, 1);   /* friendly things land with a little overshoot */
+  --ui-ease-leave: cubic-bezier(.5, 0, .9, .5);
+  --ui-ease-settle: cubic-bezier(.2, 0, 0, 1);        /* heavy or hostile things: no overshoot */
+  --ui-ease-float: cubic-bezier(.37, 0, .63, 1);      /* ambient loops: a sine */
+  --ui-stagger: 60ms;                                 /* gap between things dealt in one after another */
+  /* --ui-ease-in / --ui-ease-out are the old names, kept so nothing breaks: new code uses the names above */
+  --ui-ease-in: var(--ui-ease-arrive);
+  --ui-ease-out: var(--ui-ease-leave);
 }
+@media (pointer: coarse) { :root { --ui-stagger: 40ms; } }
 
 :root {
   --portrait-resolution: 256;
@@ -555,7 +562,7 @@
   --bowl-song-glow: 0.8;         /* its song glowing in the bowl as it charges and rings out, */
   --bowl-ring-out: 0.8;          /* how fast a strike's ringing fades (a second), */
   --bowl-tremble: 0.03;          /* and how much its rim trembles with it */
-  --hostile-pillow: #e040ff;     /* the Mushroom Pillow's spores, spots and hop: hot spore violet, apart from act 4's dawn oranges, golds and reds and the cicada's green (and from the Encore's disco magenta, the rule it teaches) */
+  --hostile-pillow: #e040ff;     /* the Mushroom Pillow's spores, spots and Fairy ring: hot spore violet, apart from act 4's dawn oranges, golds and reds and the cicada's green (and from the Encore's disco magenta, the rule it teaches) */
   --pillow-spot-glow: 0.9;       /* the Mushroom Pillow: its cap's spots glowing as it gathers spores, */
   --pillow-inhale: 0.16;         /* how far its cap squashes as it breathes in, */
   --pillow-pop: 0.18;            /* and pops up as it puffs, */
@@ -570,25 +577,25 @@
   --pillow-column-burst: 0.5;    /* how strongly a burst's column shows as it fades, */
   --pillow-burst-flash: 0.03;    /* the flash at a spot's foot as it bursts (m), */
   --pillow-column-life: 0.3;     /* how long a burst's column lingers, fading (s), */
-  --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst or a landing leaves (fading), */
+  --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst leaves (fading), */
   --pillow-dust-size: 0.7;       /* its size as a part of the spot's radius, */
-  --pillow-crouch: 0.22;         /* how low it crouches before a hop, */
-  --pillow-fluff: #f4ecdc #c8312b #f0c8ff;   /* and the fluff a landing throws */
-  --hostile-headphones: #5a40ff; /* the Headphones' bass Shots: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
+  --pillow-cap: #ff7ae8;         /* the little caps of its Fairy ring as they sprout */
+  --hostile-headphones: #5a40ff; /* the Headphones' Stereo, the half the low-x cup marks and bursts: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
+  --hostile-headphones-right: #00ffa8; /* and the half the other cup does: hot spearmint, the second hue the two cups' halves tell apart by (cooler than the cicada's acid green, greener than the friendly cyan) */
   --headphones-wave-warning: 0.15; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint; it shoves, never hurts, so it stays under the hurting Warnings), */
   --headphones-wave-volume: 0.15; /* and the lane over it (was 0.35), */
   --headphones-speaker-glow: 0.9; /* the Headphones: a cup's speaker glowing as it gets ready to play, */
   --headphones-kick: 0.012;      /* how far a cup kicks back as it plays (m), */
   --headphones-wave-flash: 0.025; /* the flash at a cup as a wave leaves (m), */
-  --headphones-bass-flash: 0.02; /* and as a bass Shot does (m), */
+  --headphones-stereo-flash: 0.025; /* as a cup's half of the counter bursts (m), */
+  --headphones-stereo-scuff: 0.1; /* and the fading scuff that leaves in the middle of the half (m), */
   --headphones-shove-flash: 0.02; /* the white flash on the jelly a wave shoves (m), */
-  --headphones-buzz: #ffffff #b8a8ff #5a40ff;   /* the sparks off a jelly a bass Shot hits, */
-  --headphones-scuff: #6c6680;   /* and the fading scuff it leaves under it, */
+  --headphones-scuff: #6c6680;   /* and the fading scuff it leaves (under a jelly it hit; the half itself, a bigger one), muted: harmless leftovers never wear a hostile hue */
   --headphones-scuff-size: 0.014;
-  --hostile-cicada: #9dff00;     /* the cicada's song: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2) */
-  --cicada-wedge-opacity: 0.15;  /* the cicada's floor wedge: kept quiet (Chan, Nov 16: the first cone was too much) */
-  --cicada-cone-opacity: 0.22;   /* its cone over the wedge */
-  --cicada-cone-glow: 0.6;       /* and the cone's brightness (the normal volume's is --warning-volume-glow) */
+  --hostile-cicada: #9dff00;     /* the cicada's burrow: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2): its mound's rim, the circle and dome over the spot it will burst up from, and the burst */
+  --burrow-floor-opacity: 0.3;   /* the circle on the floor over a locked mound */
+  --burrow-dome-opacity: 0.24;   /* and the dome over it */
+  --burrow-dome-glow: 0.8;       /* and the dome's brightness (the normal volume's is --warning-volume-glow) */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
