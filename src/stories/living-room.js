@@ -102,8 +102,9 @@ story('room/copies-share-batches', {
     const draws = () => { let n = 0; scene.traverseVisible((o) => { if (o.isMesh && o.layers.test(APT.camera.layers)) n++; }); return n; };
     const before = draws();
     L.sel = src;
+    const had = new Set(L.items);
     for (let i = 0; i < 10; i++) L.duplicate();
-    const copies = L.items.filter((x) => x.added), own = meshes(src.node);
+    const copies = L.items.filter((x) => !had.has(x)), own = meshes(src.node);
     const shared = copies.every((c) => meshes(c.node).every((m, i) => m.geometry === own[i].geometry && m.material === own[i].material));
     const lights = copies.reduce((n, c) => { c.node.traverse((o) => { if (o.isLight) n++; }); return n; }, 0);
     const after = draws();

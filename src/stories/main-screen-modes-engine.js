@@ -465,6 +465,37 @@ story('dev/layout-duplicate-is-solid-and-saved', {
   },
 });
 
+story('dev/layout-baked-copy-prunes-and-deletes', {
+  about: 'A copy baked into the layout is made at load like any added thing. A saved edit that matches the bake is pruned, as for the room\'s own furniture, and deleting the copy in the editor records it as deleted (so the bake drops it) instead of removing its entry.',
+  setup() { fresh({ elites: false }); try { localStorage.removeItem('jf-layout-v1'); } catch {} },
+  async play() {
+    const { APT } = G(), key = 'copy:Lounge_chair#1#9', at = { from: 'Lounge_chair#1', p: [0.6, 0, -0.4971], q: [0, 0, 0, 1] };
+    BAKED_LAYOUT[1][key] = at;
+    let node = null;
+    try {
+      const data = { [key]: { ...at } }, made = await applyLayout(APT.root, 1, data);
+      node = made[0];
+      const loaded = made.length === 1 && node.userData.added === key && node.position.x === 0.6, pruned = !(key in data);
+      document.querySelector('#g-over').hidden = false;
+      document.querySelector('#g-over [data-act="layout"]').click(); step(30);
+      const L = window.layout;
+      L.place(made);
+      L.sel = L.byNode.get(node);
+      L.deleteSelected();
+      const deleted = loadLayout(1)[key]?.deleted === true && loadLayout(1)[key].from === 'Lounge_chair#1' && !node.visible && L.items.some((x) => x.key === key);
+      L.putBack();
+      const back = node.visible && !(key in loadLayout(1));
+      L.onDone();
+      return ok(loaded && pruned && deleted && back, { loaded, pruned, deleted, back });
+    } finally {
+      delete BAKED_LAYOUT[1][key];
+      const it = node && window.layout?.byNode.get(node);
+      if (it) window.layout.drop(it); else if (node) { node.visible = false; node.removeFromParent(); }
+      try { localStorage.removeItem('jf-layout-v1'); } catch {}
+    }
+  },
+});
+
 // --- modes
 story('modes/creator-layout-debug', {
   about: 'The Look screen, the layout editor and the F3 readout (with the whole frame\'s draw calls and shaders) open and close cleanly.',

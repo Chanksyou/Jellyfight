@@ -74,14 +74,15 @@ async function addThings(root, baked, data) {
   const want = [...new Set([...Object.keys(baked), ...Object.keys(data)])].filter((k) => ADDED.test(k) && !have.has(k)).map((k) => [k, { ...baked[k], ...data[k] }]);
   if (!want.length) return [];
   const ids = [...new Set(want.map(([, e]) => e.prop).filter(Boolean))];
-  const props = ids.length ? await loadProps(ids) : {};
+  const props = ids.length ? await loadProps(ids).catch(() => ({})) : {};   // a prop that can't load is skipped, like a missing source
   const src = new Map(movables(root).map((m) => [m.key, m.node]));
   const made = [];
   for (const [key, e] of want) {
     const from = e.from ? src.get(e.from) : props[e.prop];
     if (!from) continue;
     const node = copyOf(from);
-    node.userData = { added: key, ...(e.from ? { from: e.from } : { prop: e.prop, s: e.s ?? 1 }) };
+    const { home, ...own } = node.userData;   // keep the source's own flags (noCollide, noCameraFade…), not its home
+    node.userData = { ...own, added: key, ...(e.from ? { from: e.from } : { prop: e.prop, s: e.s ?? 1 }) };
     applyEdit(node, e);   // where it was put: its home if it isn't baked
     app.add(node);
     made.push(node);
@@ -426,7 +427,8 @@ export class LayoutEditor {
     let n = 1;
     while (taken(`${base}#${n}`)) n++;
     const key = `${base}#${n}`, node = copyOf(it.node), app = it.node.parent;
-    node.userData = { added: key, ...(from ? { from } : { prop: u.prop, s: u.s }) };
+    const { home, ...own } = node.userData;
+    node.userData = { ...own, added: key, ...(from ? { from } : { prop: u.prop, s: u.s }) };
     node.visible = true;
     node.position.add(new THREE.Vector3(0.1, 0, 0).applyMatrix3(new THREE.Matrix3().setFromMatrix4(app.matrixWorld).invert()));
     node.userData.home = { p: node.position.toArray(), q: node.quaternion.toArray(), v: true };
@@ -488,7 +490,7 @@ export class LayoutEditor {
           const edits = wrapped ? d.edits : d;   // codes from before the wrapper are the bare edits, for this act
           if (wrapped && d.act !== this.act) { saveLayout(d.act, edits); box.querySelector('b').textContent = `Saved under Act ${d.act} — switch acts to see it`; return; }
           for (const it of [...this.items]) { if (this.isNew(it)) { this.drop(it); continue; } const h = it.node.userData.home; it.deleted = false; it.node.position.fromArray(h.p); it.node.quaternion.fromArray(h.q); it.node.visible = h.v; }
-          this.data = edits; saveLayout(this.act, edits); this.place(await applyLayout(this.root, this.act, edits));
+          this.data = edits; this.undoStack = []; saveLayout(this.act, edits); this.place(await applyLayout(this.root, this.act, edits));
           for (const it of this.items) it.deleted = !!this.data[it.key]?.deleted;
           this.traversal?.vents.forEach((v, vi) => { const e = edits[`vent:${v.name}`]; if (e) this.setVent(vi, e); else this.ventHome(vi); });
           this.onChange?.(); this.refresh(); box.remove();
