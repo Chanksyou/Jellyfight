@@ -292,8 +292,39 @@ story('menu/reduce-effects', {
       { button: !!btn, follows, full, calm, ladder: [kShake, kStop] });
   },
 });
+story('dev/panel-has-every-tool', {
+  about: 'The Dev panel is one sheet in four groups: Play (Fight boss, 1 on 1, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, and AO, Bloom and Lamps as On/Off switches). Every tool is a tap away and does what it did in the old row: the pickers and tools open, the switches change the drawing, and the last group used is remembered.',
+  setup() { fresh({ elites: false }); try { localStorage.removeItem('jellyrun.dev-group'); } catch {} },
+  play() {
+    const { run } = G(), over = document.querySelector('#g-over'), sheet = over.querySelector('.menu-dev'), $ = (s) => sheet.querySelector(s);
+    const tab = (id) => $(`[data-group="${id}"]`), pane = (id) => $(`[data-pane="${id}"]`), visible = (id) => !pane(id).hidden;
+    over.classList.add('dev-open'); over.hidden = false;
+    over.querySelector('[data-act="dev"]').click();
+    const opened = !sheet.hidden;
+    const groups = {};
+    for (const id of ['play', 'tune', 'build', 'check']) { tab(id).click(); groups[id] = [...pane(id).querySelectorAll('[data-act]')].map((b) => b.dataset.act).join() + (visible(id) ? '' : '!hidden'); }
+    const grouped = JSON.stringify(groups) === JSON.stringify({ play: 'boss,duel,arena4', tune: 'kit,tuner', build: 'layout', check: 'diag' });
+    const remembered = localStorage.getItem('jellyrun.dev-group') === 'check';
+    // the boss and 1 on 1 pickers open and offer their fights
+    const pick = (act) => { over.hidden = false; $(`[data-act="${act}"]`).click(); const names = [...document.querySelectorAll('.btns button')].map((b) => b.textContent); const hid = over.hidden; [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'Back')?.click(); return { names: names.length, hid, back: !over.hidden }; };
+    const boss = pick('boss'), duel = pick('duel'), sheetBack = !sheet.hidden;
+    // the test kit and the tuner open and bring the pause menu back
+    const tools = {};
+    for (const t of ['kit', 'tuner']) { over.hidden = false; const w = window[t]; let back; const real = w.show; w.show = (r, o) => { back = o.onBack; }; $(`[data-act="${t}"]`).click(); w.show = real; tools[t] = over.hidden && !!back; back?.(); tools[t] = tools[t] && !over.hidden && !sheet.hidden; }
+    // the switches really switch, and read their own state back
+    const gfx = window.gfx, ao = (on) => $(`[data-pass="ao"][data-on="${on}"]`);
+    const was = !gfx.off.has('ao');
+    ao(was ? 'off' : 'on').click();
+    const switched = gfx.off.has('ao') === was && ao(was ? 'off' : 'on').getAttribute('aria-pressed') === 'true';
+    ao(was ? 'on' : 'off').click();
+    const restored = gfx.off.has('ao') === !was;
+    over.classList.remove('dev-open'); over.hidden = true;
+    return ok(opened && grouped && remembered && boss.names > 1 && boss.hid && boss.back && duel.names > 1 && duel.back && sheetBack && tools.kit && tools.tuner && switched && restored,
+      { opened, groups, remembered, boss, duel, tools, switched, restored, run: !!run });
+  },
+});
 story('menu/dev-tools-locked', {
-  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button. The Worker checks the password (it is not in the page): a wrong one keeps them hidden, the right one shows them (Layout, Fight boss, 1 on 1, Test kit, Tuner, Diagnostics, the AO, Bloom and Lamps switches, and the jelly Types switch) and makes the run a dev run, which never reaches the leaderboard.',
+  about: 'The main screen has no Restart button and no Auto graphics; the dev tools wait behind one 🔒 Dev button. The Worker checks the password (it is not in the page): a wrong one keeps them hidden, the right one opens the Dev panel (Fight boss, 1 on 1, Act 4 preview, Test kit, Tuner, Layout, Diagnostics) and makes the run a dev run, which never reaches the leaderboard.',
   setup() { fresh({ elites: false }); try { sessionStorage.removeItem('jellyrun.dev'); } catch {} },
   async play() {
     const over = document.querySelector('#g-over'), shown = (sel) => getComputedStyle(over.querySelector(sel)).display !== 'none';
@@ -302,16 +333,17 @@ story('menu/dev-tools-locked', {
     over.classList.remove('dev-ask', 'dev-open');
     over.hidden = false;
     const restart = !!over.querySelector('[data-act="restart"]'), graphics = [...over.querySelectorAll('[data-q]')].map((b) => b.dataset.q);
-    const hiddenAtFirst = !shown('.dev-tools');
+    const hiddenAtFirst = !shown('.dev-btn');
     over.querySelector('[data-act="dev"]').click();
     const asks = shown('.dev-lock');
     const box = over.querySelector('[name="dev-pass"]');
     const devBefore = G().run.dev;
     const settle = () => new Promise((ok) => setTimeout(ok, 50));
     box.value = 'chan'; over.querySelector('[data-act="dev-unlock"]').click(); await settle();
-    const oldPassFails = !shown('.dev-tools');
+    const oldPassFails = over.querySelector('.menu-dev').hidden && !over.classList.contains('dev-open');
     box.value = 'sea-secret'; over.querySelector('[data-act="dev-unlock"]').click(); await settle();
-    const tools = shown('.dev-tools') ? [...over.querySelectorAll('.dev-tools button')].map((b) => b.dataset.act) : [];
+    const tools = [...over.querySelectorAll('.menu-dev [data-act]')].map((b) => b.dataset.act).filter((a) => a !== 'sheet-close');
+    const sheetOpened = !over.querySelector('.menu-dev').hidden;
     const devRun = G().run.dev, notInPage = !document.documentElement.outerHTML.includes('sea-secret');
     G().run.start();
     const nextRunDev = G().run.dev;
@@ -319,9 +351,9 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     G().run.start();
     const afterLock = G().run.dev;
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && tools.join() === 'layout,arena4,boss,duel,kit,tuner,diag,pass-ao,pass-bloom,pass-lamps'
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && sheetOpened && tools.join() === 'boss,duel,arena4,kit,tuner,layout,diag'
       && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
-      { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, asked, devBefore, devRun, nextRunDev, afterLock });
+      { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, sheetOpened, asked, devBefore, devRun, nextRunDev, afterLock });
   },
 });
 
