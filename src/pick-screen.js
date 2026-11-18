@@ -250,6 +250,13 @@ export class TypePicker {
   // --- where the cards sit ---------------------------------------------------------------------
   measure() {
     this.cardW = this.cards[0].offsetWidth || 280;
+    // card spacing and a neighbour's size: --pick-step and --pick-side-scale, unless the row is too narrow
+    // for the next card to fit (a phone on its side); then the next card shrinks a little and sits just
+    // clear of the centre card, so its name shows whole inside the screen
+    const step = LOOK.num('pick-step', 0.96), side = LOOK.num('pick-side-scale', 0.78), half = (this.stage.clientWidth || innerWidth) / 2;
+    const fits = this.cardW * (step + side / 2) <= half;
+    this.side = fits ? side : Math.min(side, 0.7);
+    this.spacing = fits ? this.cardW * step : this.cardW * (1 + this.side) / 2 + 8;
     // the elements' canvases at the screen's sharpness (at most 2x: they're soft anyway)
     const px = Math.round((this.auras[0].clientWidth || 160) * Math.min(2, devicePixelRatio || 1));
     for (const c of this.auras) if (c.width !== px) c.width = c.height = px;
@@ -273,7 +280,7 @@ export class TypePicker {
 
   place() {
     this.placed = this.pos;
-    const step = this.cardW * LOOK.num('pick-step', 0.96), side = LOOK.num('pick-side-scale', 0.78);
+    const step = this.spacing, side = this.side;
     this.cards.forEach((c, i) => {
       const d = i - this.pos, a = Math.abs(d);
       const s = Math.max(0.5, 1 - (1 - side) * Math.min(a, 1) - 0.18 * Math.max(0, Math.min(a, 2) - 1));
@@ -357,7 +364,7 @@ export class TypePicker {
     const dx = e.clientX - d.x;
     if (!d.moved && Math.abs(dx) < 8) return;
     if (!d.moved) { d.moved = true; this.stage.setPointerCapture?.(e.pointerId); this.stage.classList.add('drag'); }
-    const step = this.cardW * LOOK.num('pick-step', 0.96);
+    const step = this.spacing;
     this.pos = this.target = Math.max(0, Math.min(this.ids.length - 1, d.pos - dx / step));
     const dt = Math.max(1, e.timeStamp - d.lastT);
     d.v = 0.6 * d.v + 0.4 * ((d.lastX - e.clientX) / step / (dt / 1000));   // cards a second, smoothed
