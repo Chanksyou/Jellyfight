@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v510 Act 4 no longer hitches on phones the first time the Encore's lasers or disco ball light up, or a moth leaves its black smoke: their graphics are now prepared while the act loads. A new guard story keeps act 4 inside the phone budget for draw calls, shaders and lights.
+
 v509 bakes Chan's act 1 and act 2 layout edits: plants moved and added in the living room and the bathroom, a few small items removed, and the round plant stand hidden.
 
 v508 adds the tests and tools for the coming jelly motion work, with no change to how the game looks or plays: a rest pose for every jelly (`restPose`), a story that keeps every look's rest pose exactly as it was, a story that caps the work one jelly does per frame, and `tools/motion-reel.mjs` for before/after reels.
