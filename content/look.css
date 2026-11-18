@@ -320,7 +320,7 @@
   --type-wind: #c4f0e0;
   --type-glitter: #ff9ae8;
   --type-tentacle: #c79bff;
-  --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre */
+  --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre (on a row too narrow for it, it sits just clear of the centre card instead) */
   --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
   --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
   --pick-aura-fps: 30;         /* frames a second the elements round the jellies on the cards draw at */

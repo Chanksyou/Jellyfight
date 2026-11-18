@@ -84,7 +84,7 @@ body.calm #hud .shield-bar.charging > i { animation: none; }
 #hud .tc { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); text-align: center; white-space: nowrap; text-shadow: var(--hud-outline); }
 #hud .clock { font: 700 24px/1 var(--ui-font-text); font-variant-numeric: tabular-nums; }
 #hud .clock.dry { color: var(--ui-boss); }   /* the boss is almost here */
-#hud .stage { margin-top: 4px; font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); letter-spacing: .03em; color: var(--ui-ink-dim); }
+#hud .stage { margin-top: 4px; font: 600 var(--ui-size-body)/1.2 var(--ui-font-text); letter-spacing: .02em; color: var(--ui-ink); }   /* full ink and body size: it sits on the bright room (final look) */
 /* a boss's or an Elite's name and Health (hot, like everything hostile), under the clock */
 #hud .boss { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 116px); transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
 #hud .boss .bar { height: 14px; }
