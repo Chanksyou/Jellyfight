@@ -7,6 +7,10 @@ import { paintInteriorFinish } from './interior-finishes.js';
 T.ColorManagement.enabled = false;   // the apartment converts its own colors from sRGB
 window.THREE = { ...T, OrbitControls };
 window.paintInteriorFinish = paintInteriorFinish;
+const monitorWallpaper = new Image();
+monitorWallpaper.src = new URL('./monitor-wallpaper.jpg', import.meta.url).href;
+await monitorWallpaper.decode();
+window.monitorWallpaper = monitorWallpaper;
 const script = document.createElement('script');
 script.textContent = document.getElementById('apartment-src').textContent;
 document.body.appendChild(script);
