@@ -236,6 +236,8 @@
   --coffer-scuff-size: 0.45;
   --coffer-shards: #b89a6a;
   --coffer-shards-size: 0.25;
+  --coffer-jewel-warning: 0.6;   /* how strongly each jewel's floor circle shows (10 to 14 at once: kept quiet, Chan Nov 18), */
+  --coffer-jewel-volume: 0.4;    /* and the half sphere over it */
   /* the Mug's and Kettle's kick as they attack (radians back, and squash) */
   --elite-recoil-squash: 0.12;
   --mug-coffee: #3a2214;         /* coffee drops flying off a lob or the spill */
@@ -563,7 +565,9 @@
   --pillow-spore-size: 0.008;    /* a spore drifting (m), */
   --pillow-spore-arc: 0.12;      /* how high spores float on their way (m), */
   --pillow-column: 0.35;         /* how tall a spot's column is drawn (m: over a full jump; it hits all the way up), */
-  --pillow-column-opacity: 0.5;  /* how strongly it shows while it fills (it flashes full as it's about to burst), */
+  --pillow-column-opacity: 0.2;  /* how strongly it shows while it fills (it flashes full on its last beat, about to burst; was 0.5: too busy, Chan Nov 18), */
+  --pillow-spot-warning: 0.6;    /* and each spot's floor circle (5 to 8 at once: kept quiet), */
+  --pillow-column-burst: 0.5;    /* how strongly a burst's column shows as it fades, */
   --pillow-burst-flash: 0.03;    /* the flash at a spot's foot as it bursts (m), */
   --pillow-column-life: 0.3;     /* how long a burst's column lingers, fading (s), */
   --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst or a landing leaves (fading), */
@@ -571,8 +575,8 @@
   --pillow-crouch: 0.22;         /* how low it crouches before a hop, */
   --pillow-fluff: #f4ecdc #c8312b #f0c8ff;   /* and the fluff a landing throws */
   --hostile-headphones: #5a40ff; /* the Headphones' bass Shots: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
-  --headphones-wave-warning: 0.3; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint), */
-  --headphones-wave-volume: 0.35; /* and the lane over it, */
+  --headphones-wave-warning: 0.15; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint; it shoves, never hurts, so it stays under the hurting Warnings), */
+  --headphones-wave-volume: 0.15; /* and the lane over it (was 0.35), */
   --headphones-speaker-glow: 0.9; /* the Headphones: a cup's speaker glowing as it gets ready to play, */
   --headphones-kick: 0.012;      /* how far a cup kicks back as it plays (m), */
   --headphones-wave-flash: 0.025; /* the flash at a cup as a wave leaves (m), */
@@ -724,7 +728,8 @@
   /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
      space the attack will fill, in the source's hostile colour, filling up from the floor */
   --warning-volume-hex: 90;      /* hex cells per metre (about 1.1 cm across) */
-  --warning-volume-glow: 1.5;    /* brightness boost (the floor Warning's is 1.7) */
+  --warning-volume-glow: 1.1;    /* brightness boost (was 1.5: Elite Warnings read too bright and busy, Chan Nov 18) */
+  --warning-floor-glow: 1.45;    /* the floor Warning's (src/vfx.js TeleMaterial) brightness boost: lights up a dark stove, still covers a pale floor (was 1.7) */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
