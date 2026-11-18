@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { TentacleRig } from './tentacles.js';
 import { squeeze, thrust } from './swim.js';
-import { bellFlex, patchBell, RIM_LAG } from './bell-flex.js';
+import { bellFlex, flexWeights, FLEXK, patchBell, RIM_LAG } from './bell-flex.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
@@ -844,7 +844,8 @@ export function buildCharacter(look, heightMeters) {
       o.renderOrder = 3;
       const toBell = new THREE.Matrix4().multiplyMatrices(bell.matrixWorld.clone().invert(), o.matrixWorld);
       const fromBell = toBell.clone().invert();
-      const positions = o.geometry.attributes.position;
+      const positions = o.geometry.attributes.position, e = fromBell.elements, moved = [];
+      faceBent.set(o, { wrapped: null, moved: null, y: [e[4], e[5], e[6]] });
       for (let i = 0; i < positions.count; i++) {
         point.fromArray(faceVertices.get(o), i * 3).applyMatrix4(toBell);
         const y = point.y / R;
@@ -855,12 +856,36 @@ export function buildCharacter(look, heightMeters) {
         if (Math.abs(point.x) >= bellHalfWidth(sp, radius) * 0.98) faceFits = false;
         const z = bellFront(sp, radius, point.x);
         point.z = z + faceOffset + o.parent.children.indexOf(o) * faceLayer;
+        // each point the bend reaches: [index, s, w, t3, and its rest offset from the bell's axis, in the face's frame]
+        const W = flexWeights(point.y, crownH, weight);
+        if (W.w > 1e-5) moved.push(i * 3, W.s, W.w, W.t3, e[0] * point.x + e[8] * point.z, e[1] * point.x + e[9] * point.z, e[2] * point.x + e[10] * point.z);
         point.applyMatrix4(fromBell);
         positions.setXYZ(i, point.x, point.y, point.z);
       }
       positions.needsUpdate = true;
       o.geometry.computeVertexNormals();
+      Object.assign(faceBent.get(o), { wrapped: positions.array.slice(), moved: new Float32Array(moved) });
     });
+    faceFlat = true;
+  }
+  // the face bends with the bell beneath it (bell-flex.js), point by point from where it was wrapped at rest
+  // (normals stay as wrapped: the face sits on the upper bell, which barely bends)
+  let faceFlat = true;
+  const faceBent = new Map(), weight = {};
+  function bendFace(u) {
+    if (!u.x && !u.y) { if (!faceFlat) for (const [o, b] of faceBent) { o.geometry.attributes.position.array.set(b.wrapped); o.geometry.attributes.position.needsUpdate = true; } faceFlat = true; return; }
+    faceFlat = false;
+    for (const [o, b] of faceBent) {
+      // (bell-flex.js bend, written out: k - 1 scales the offset from the axis, dy moves along the bell's up)
+      const a = o.geometry.attributes.position.array, W = b.wrapped, M = b.moved, [yx, yy, yz] = b.y;
+      for (let j = 0; j < M.length; j += 7) {
+        const i = M[j], c = u.x + (u.y - u.x) * M[j + 1], m = c * M[j + 2];
+        const k1 = -(FLEXK.squeeze * m + (c > 0 ? FLEXK.curl * c * M[j + 3] : 0)), dy = -FLEXK.stretch * u.z * m;
+        a[i] = W[i] + k1 * M[j + 4] + dy * yx; a[i + 1] = W[i + 1] + k1 * M[j + 5] + dy * yy; a[i + 2] = W[i + 2] + k1 * M[j + 6] + dy * yz;
+      }
+      const positions = o.geometry.attributes.position;
+      positions.needsUpdate = true;
+    }
   }
   wrapFace();
   for (let i = 0; !faceFits && i < 32; i++) {
@@ -1595,8 +1620,6 @@ export function buildCharacter(look, heightMeters) {
   const baseSpin = spinners.map(([o, ax]) => o.rotation[ax]), baseScroll = scrollers.map(([tex]) => tex.offset.y);
 
   const contractAt = (p, move) => kick > 0.05 ? Math.max(kick, squeeze(p)) : squeeze(p) * (0.45 + 0.55 * move);
-  // the face is wrapped onto the bell at rest; it follows the bell's bend at its middle
-  const faceRest = { s: face.scale.x, y: face.position.y }, faceMid = headHeight * 0.5;
   const gumAt = gum ? gum.position.clone() : null;
 
   // s.rest (see restPose): the pose with every clock, spring and input at zero
@@ -1684,16 +1707,11 @@ export function buildCharacter(look, heightMeters) {
     const closing = blinkIn < 0 && blinkIn > -0.12;
     if (blinkIn < -0.12) blinkIn = 2 + blinkDice() * 3.5;
     const eyeHeight = closing && blinks ? 0.12 : 1;
-    face.scale.setScalar(faceRest.s); face.position.y = faceRest.y;   // (wrapFace wraps it onto the bell at rest)
     if (eyes[0].scale.y !== eyeHeight) {
       eyes.forEach((e) => { e.scale.y = eyeHeight; });
       wrapFace();
     }
-    if (bell) {
-      bellFlex(faceMid, flex.value, flexAt);
-      face.scale.set(faceRest.s * flexAt.k, faceRest.s, faceRest.s * flexAt.k);
-      face.position.y = faceRest.y + flexAt.dy;
-    }
+    bendFace(flex.value);
   }
 
   // landing: squash flat (impact > 0), harder the faster it came down; the spring overshoots

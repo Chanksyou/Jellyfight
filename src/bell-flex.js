@@ -29,9 +29,20 @@ const GLSL = /* glsl */ `{
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // the CPU mirror: at bell-space height y, how much the bell's radius is scaled (k) and how far it drops (dy)
 export function bellFlex(y, u, out = { k: 1, dy: 0 }) {
-  const s = 1 - Math.min(1, Math.max(0, y / u.z)), c = u.x + (u.y - u.x) * s;
-  const w = CROWN * s * s + (1 - CROWN) * smooth(FLEX - 0.15, 1, s), t = Math.min(1, Math.max(0, (s - FLEX) / (1 - FLEX)));
-  out.k = 1 - SQUEEZE * c * w - CURL * Math.max(c, 0) * t * t * t;
+  flexWeights(y, u.z, out);
+  return bend(out.s, out.w, out.t3, u, out);
+}
+// what bellFlex needs of a height that doesn't change while the bell moves (a point that rides on it
+// can keep these): s (0 crown, 1 rim), the squeeze's weight w and the curl's t3
+export function flexWeights(y, crownH, out = {}) {
+  const s = 1 - Math.min(1, Math.max(0, y / crownH)), t = Math.min(1, Math.max(0, (s - FLEX) / (1 - FLEX)));
+  out.s = s; out.w = CROWN * s * s + (1 - CROWN) * smooth(FLEX - 0.15, 1, s); out.t3 = t * t * t;
+  return out;
+}
+export const FLEXK = { squeeze: SQUEEZE, stretch: STRETCH, curl: CURL };   // (character.js bendFace writes bend out for speed)
+export function bend(s, w, t3, u, out) {
+  const c = u.x + (u.y - u.x) * s;
+  out.k = 1 - SQUEEZE * c * w - CURL * Math.max(c, 0) * t3;
   out.dy = -STRETCH * u.z * c * w;
   return out;
 }
