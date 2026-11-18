@@ -149,3 +149,29 @@ story('hud/reads-on-any-floor', {
     return ok(Object.values(sizes).every((s) => s >= 12) && outline && numbers && toast && jump, { sizes, outline, numbers, toast, jump });
   },
 });
+
+story('hud/motion-squash-pop-and-refill', {
+  about: 'The HUD moves only by transform and opacity: a hit squashes the Health bar flat (scaleY) and it settles back, the liquid edge rides a track moved by translateX, a Treasure new to the row pops in while one taken again only bumps its count, and a level-up empties the XP bar quickly before it refills.',
+  setup,
+  async play() {
+    const { hud: h } = G(), N = h.hpNodes;
+    h.setHealth(100, 100); h.setHealth(60, 100);
+    const kick = h.hpAnimations.kick, frames = kick?.effect.getKeyframes() || [];
+    const squash = frames.length === 2 && /^scaleY\(0\.\d+\)$/.test(frames[0].transform) && frames.every((f) => Object.keys(f).every((k) => ['transform', 'offset', 'computedOffset', 'easing', 'composite'].includes(k)));
+    const edge = N['hp-edge-track'].style.transform === 'translateX(60%)' && !N['hp-edge'].style.left;
+    const T = (id, n) => ({ id, icon: n > 1 ? `🍋<sub>×${n}</sub>` : '🍋', name: id, text: '' });
+    h.cache.items = undefined; h.itemCounts = undefined;
+    h.setItems([T('a', 1)]);
+    const first = !h.$('.items .pop');                                   // a row's first fill doesn't pop
+    h.setItems([T('a', 1), T('b', 1)]);
+    const popped = h.$('.items [data-id="b"]').classList.contains('pop') && !h.$('.items [data-id="a"]').classList.contains('pop');
+    h.setItems([T('a', 2), T('b', 1)]);
+    const bumped = !!h.$('.items [data-id="a"] sub.bump') && !h.$('.items [data-id="a"]').classList.contains('pop');
+    const fill = h.$('.xp i');
+    h.setXp(3, 90, 100); h.setXp(4, 10, 120);
+    const emptied = fill.style.transform === 'scaleX(0)';
+    await new Promise((r) => setTimeout(r, h.ui.fast + 40));
+    const refilled = !h.xpRefill && !fill.style.transition && Math.abs(parseFloat(fill.style.transform.slice(7)) - h.xpFrac) < 1e-4;   // (the running game may have moved XP on meanwhile)
+    return ok(squash && edge && first && popped && bumped && emptied && refilled, { squash, edge, first, popped, bumped, emptied, refilled });
+  },
+});
