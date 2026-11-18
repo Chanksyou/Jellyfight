@@ -1,0 +1,1 @@
+stops building what stands inside the hall closets (washer and dryer, coats, shoes, supplies), which nobody can enter or see into: act 2 downloads 205 KB less and draws about two dozen fewer objects; the doors are unchanged.
