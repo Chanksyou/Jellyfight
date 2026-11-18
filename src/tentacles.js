@@ -25,6 +25,7 @@ const K_ROOT = 700, DAMP = 0.55, STEP = 1 / 60;
 const KEEP = 0.15;
 const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
+const NO_RIM = { k: 1, dy: 0 };
 const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 
 // The tentacles' styles (look.tentacles): every ring's shape. bead: every third ring this much
@@ -77,7 +78,6 @@ export class TentacleRig {
     this.style = STYLES[opts.style] ? opts.style : 'straight';
     this.tipSize = opts.tipSize ?? 0.45;
     this.curl = LOOK.num('tentacle-curl', 0.07);
-    this.squeeze = LOOK.num('jelly-motion-root-squeeze', 0.3);
     this.weight = LOOK.num('jelly-motion-weight', 0.6);
     this.alongDrag = LOOK.num('jelly-motion-drag-along', 0.5);
     const kTip = LOOK.num('jelly-motion-tip-spring', 20), drag = LOOK.num('jelly-motion-drag', 7);
@@ -132,13 +132,13 @@ export class TentacleRig {
     T.impact = impact;
   }
 
-  // state: { localVel (not read: the chain drags behind on its own), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), vy (m/s) }
+  // state: { localVel (not read: the chain drags behind on its own), contract (1 = squeezed, 0 = rest, below 0 = relaxed open), rim ({ k: the rim's radius scale, dy: how far it has dropped, in the rig's frame }), vy (m/s) }
   update(dt, state) {
     this.work = 0;
     const rest = state.rest;           // the rest pose (character.js restPose): no clock-driven ripple or flutter
     if (rest) { this.t = 0; this.fresh = true; }
     this.t += dt;
-    const L = this.length * (this.barbed ? this.barbLength : 1), contract = state.contract;
+    const L = this.length * (this.barbed ? this.barbLength : 1), contract = state.contract, rim = state.rim || NO_RIM;
     const fall = THREE.MathUtils.clamp(-state.vy * 3, 0, 1);          // falling: stream upward
     const rise = THREE.MathUtils.clamp(state.vy * 3, 0, 1);           // jumping: trail straight down
     this.parent.updateWorldMatrix(true, false);
@@ -156,17 +156,16 @@ export class TentacleRig {
     for (const T of this.list) {
       // --- the pose the chain is pulled toward: hang close under the bell (a lean jelly),
       // flaring a little as the bell relaxes and pulling in on the power stroke, the roots
-      // squeezed in with the bell (shortcut: a stand-in for the rim's real flex, T5 puts the
-      // roots on bell-flex.js); the softer springs down the chain turn each squeeze into a wave
-      // running down to the tip
+      // riding the bell's rim as it flexes (state.rim: how far in it pulls, how far it drops);
+      // the softer springs down the chain turn each squeeze into a wave running down to the tip
       const flare = this.flare - 0.09 * contract - 0.06 * rise;
       const side = _b.set(T.out.z, 0, -T.out.x);
-      const pull = -this.squeeze * Math.max(0, contract) * Math.hypot(T.anchor.x, T.anchor.z);
       for (let j = 0; j <= SEG; j++) {
         const s = j / SEG, s15 = s ** 1.5;
         const p = T.goal[j].copy(T.anchor);
+        p.x *= rim.k; p.z *= rim.k; p.y += rim.dy;
         p.y -= L * s * (1 - 0.55 * fall);
-        p.addScaledVector(T.out, flare * s + pull);
+        p.addScaledVector(T.out, flare * s);
         if (this.style === 'curly') { const c = this.curl * Math.sqrt(s), a = s * 14 + T.phase; p.addScaledVector(T.out, Math.cos(a) * c).addScaledVector(side, Math.sin(a) * c); }
         if (this.breeze) {   // streaming back (the model faces +z), fluttering a little
           p.z -= L * this.breezeStream * s15 * (1 + (rest ? 0 : 0.2 * Math.sin(this.t * 3.1 + T.phase)));
