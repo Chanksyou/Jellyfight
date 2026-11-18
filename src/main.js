@@ -56,6 +56,7 @@ import { CONTENT } from './content.js';
 import { bagHtml } from './treasure-bag.js';
 import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
+import { easyChosen, chooseEasy } from './easy.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -138,6 +139,8 @@ ui.innerHTML = `
   #g-over .set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: var(--ui-space-3) var(--ui-space-5); }
   #g-over .set-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3); }
   #g-over .set-row .ui-label { color: var(--ui-ink); }
+  #g-over .set-easy { grid-column: 1 / -1; }
+  #g-over .set-easy p { margin: var(--ui-space-1) 0 0; color: var(--ui-ink-dim); }
   #g-over .set-ver { margin: var(--ui-space-3) 0 0; text-align: center; color: var(--ui-ink-dim); font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); }
   #g-over .trophy-btns { display: grid; gap: var(--ui-space-2); }
   #g-over .trophy-btns .ui-btn { justify-content: flex-start; min-height: 56px; }
@@ -794,9 +797,10 @@ const settingsGrid = overlay.querySelector('.set-grid');
 const segRow = (label, attr, choices) => `<div class="set-row"><span class="ui-label">${label}</span><div class="ui-seg" role="group" aria-label="${label}">${choices.map(([v, text]) => `<button type="button" ${attr}="${v}" aria-pressed="false">${text}</button>`).join('')}</div></div>`;
 settingsGrid.innerHTML = segRow('Sound', 'data-sound', [['on', 'On'], ['off', 'Off']]) + segRow('Music', 'data-music', [['on', 'On'], ['off', 'Off']])
   + segRow('Graphics', 'data-q', CHOICES.map((q) => [q, q[0].toUpperCase() + q.slice(1)])) + (IS_TOUCH ? segRow('Frame rate', 'data-fps', FPS_CHOICES.map((f) => [f, f])) : '')
-  + segRow('Text size', 'data-text', [['normal', 'Normal'], ['large', 'Large']]);
+  + segRow('Text size', 'data-text', [['normal', 'Normal'], ['large', 'Large']])
+  + `<div class="set-easy">${segRow('Easy mode', 'data-easy', [['off', 'Off'], ['on', 'On']])}<p class="ui-text">From your next run: twice the damage you deal, half the damage you take, half the Pearls, and no leaderboard score.</p></div>`;
 function syncSettings() {
-  const now = { sound: isMuted() ? 'off' : 'on', music: musicOn ? 'on' : 'off', q: gfx.choice, fps: String(phoneFps), text: textSize };
+  const now = { sound: isMuted() ? 'off' : 'on', music: musicOn ? 'on' : 'off', q: gfx.choice, fps: String(phoneFps), text: textSize, easy: easyChosen() ? 'on' : 'off' };
   for (const b of settingsGrid.querySelectorAll('button')) { const [k, v] = Object.entries(b.dataset)[0]; b.setAttribute('aria-pressed', String(now[k] === v)); }
 }
 syncSettings();
@@ -833,6 +837,7 @@ overlay.addEventListener('click', (e) => {
     try { localStorage.setItem(MUSIC_KEY, musicOn ? 'on' : 'off'); } catch {}
     syncSettings();
   }
+  else if (b.dataset.easy) { chooseEasy(b.dataset.easy === 'on'); syncSettings(); }
   else if (b.dataset.text) {
     textSize = b.dataset.text;
     document.documentElement.dataset.textSize = textSize;
