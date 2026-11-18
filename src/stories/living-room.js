@@ -2,6 +2,7 @@
 // its windows (skyline.js: the apartment is on the 33rd floor).
 import { movables, visibleBox } from '../layout.js';
 import { ELITES4 } from '../stage4.js';
+import { HIDDEN_SHELL } from '../layout-baked.js';
 import * as THREE from 'three';
 import { G, night4, ok, story } from './kit.js';
 
@@ -12,7 +13,10 @@ const near = (v, w, e = 0.05) => v.every((n, i) => Math.abs(n - w[i]) <= e);
 // where the sofa, the coffee table and the lounge chair stand in the new layout (min x,z and max x,z)
 const SPOTS = { Corduroy_sofa: [0.49, 0.47, 2.91, 2.08], Glass_coffee_table: [1.3, 1.89, 2.67, 2.88], Lounge_chair: [2.82, 0.59, 3.49, 1.43] };
 const layoutOk = () => {
-  const gone = GONE.filter((k) => box(k)), moved = Object.entries(SPOTS).filter(([k, w]) => { const b = box(k); return !b || !near([b.min.x, b.min.z, b.max.x, b.max.z], w); }).map(([k]) => k);
+  // the plants that are loose pieces of the walls-and-floor mesh (no editor handle) are hidden too
+  const shell = G().APT.root.getObjectByName('Shell'), loose = [];
+  shell.traverse((o) => { if (HIDDEN_SHELL[G().run.stage.id].includes(o.name) && o.visible) loose.push(o.name); });
+  const gone = [...GONE.filter((k) => box(k)), ...loose], moved = Object.entries(SPOTS).filter(([k, w]) => { const b = box(k); return !b || !near([b.min.x, b.min.z, b.max.x, b.max.z], w); }).map(([k]) => k);
   return ok(!gone.length && !moved.length, { gone, moved });
 };
 

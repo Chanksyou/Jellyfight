@@ -1,0 +1,1 @@
+hides the plants that were baked into the living room's walls-and-floor piece (the spiky air plants over the sofa and by the window, hanging plants, the leaves by the lounge chair), which could not be clicked or deleted in the layout editor.
