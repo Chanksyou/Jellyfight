@@ -62,7 +62,7 @@ export function clipsOf(e) {
       _m.multiplyMatrices(_inv, p.matrixWorld);
       c.geometry.boundsTree.bvhcast(p.geometry.boundsTree, _m, {
         intersectsTriangles(t1, t2) {
-          if (!t1.intersectsTriangle(t2, _seg)) return false;
+          if (!t1.intersectsTriangle(t2, _seg, true)) return false;   // (coplanar: a base lying flat on its top, never a clip)
           for (const v of [_seg.start, _seg.end]) {
             v.applyMatrix4(c.matrixWorld);
             if (above(v) >= LIFT) (hits[nameOf(c)] ||= new THREE.Box3()).expandByPoint(v);
@@ -166,13 +166,16 @@ function suggest(e, where) {
   } finally { e.base.copy(home); e.holder.position.copy(home); e.holder.updateMatrixWorld(true); }
 }
 
-// one attack, the jelly held at `at`: the worst crossing on the way, and how far it got off its surface
-function moves(kind, attack, name, at) {
+// one attack, the jelly held at `at` (angry if that's the only way it comes: the clock's hour): the
+// worst crossing on the way, and how far it got off its surface
+function moves(kind, attack, name, at, angry = false) {
   fresh({ bubbles: false, lash: false });
   const e = elite(kind);
+  if (angry) e.hp = e.maxHp * e.def.angry * 0.9;
   e.cool = 99; tp(...at); holdJelly(); step(10);
   e.cool = 0; e.next = attack;
   const started = step(240, () => e.state !== 'idle') < 240;
+  if (started && e.attack !== attack) { restore(); return angry ? { attack, name, started: false, moved: 0, drop: 0, clips: {} } : moves(kind, attack, name, at, true); }
   const clips = {}, home = e.home.clone();
   let moved = 0, drop = 0;
   for (let i = 0; i < 900 && started; i++) {
@@ -185,7 +188,7 @@ function moves(kind, attack, name, at) {
     if (e.state === 'idle' && i > 30) break;
   }
   restore();
-  return { attack, name, started, moved: +moved.toFixed(3), drop: +drop.toFixed(3), clips };
+  return { attack: ATTACKS[kind][attack], name, angry, started, moved: +moved.toFixed(3), drop: +drop.toFixed(3), clips };
 }
 
 const cases = [
@@ -194,14 +197,15 @@ const cases = [
   [act3, 'croc'], [act3, 'bull'], [act3, 'coffer'],
   [night4, 'bowl'], [night4, 'pillow'], [night4, 'headphones'],
 ];
-// Known to fail, waiting on a bigger move (task 1b, /mnt/project-files/elite-fixes-nov18/room-check.md):
-// a story here passes while it still fails, and fails once it's fixed (take it off then)
+// Known to fail, waiting on a bigger move (Elite fixes task 1b): each failure by what failed ('rest', 'gap',
+// 'room:<spot>' or the attack). The story still fails on anything else, and on a known one that's fixed (take it off then)
 const KNOWN = {
-  pillow: 'its back half is inside the sofa back cushion',
-  bull: 'it stands in the baby wipes, and its rush runs into the changing pad\'s raised ends',
-  bowl: 'its striker, running round the rim for the Hum, pokes 2 cm into the chair\'s back',
-  coffer: 'its Accordion lid, slamming down by the stand spot, goes 2 cm into the piece on the desk\'s front edge',
+  pillow: { why: 'its back half is inside the sofa back cushion; from the sofa vent it can\'t see the jelly', keys: ['rest', 'room:Vent by the sofa', 'spores', 'hop'] },
+  bull: { why: 'it stands in the baby wipes, and its rush runs into the changing pad\'s raised ends', keys: ['rest', 'rush', 'spiral', 'minis'] },
+  bowl: { why: 'its back half is inside the chair\'s back; the seat is too shallow to clear it and stay 30 cm from the vent\'s landing (night4/each-elite-spot-is-on-its-furniture-and-clear)', keys: ['rest', 'ring', 'hum'] },
+  coffer: { why: 'its Accordion lid, slamming down by the stand spot, goes 2 cm into the piece on the desk\'s front edge', keys: ['accordion'] },
 };
+const keyOf = (b) => b.rest ? 'rest' : b.gap !== undefined ? 'gap' : b.stayed !== undefined ? 'room:' + b.name : b.attack ?? String(b);
 for (const [register, kind] of cases) register(`${register === story ? 'elites/' : ''}room-${kind}`, {
   about: `The ${kind} stands clear of furniture and walls, the jelly lands beside it on its own surface with a clear swim to it, and none of its attacks carries it into scenery or off its surface.`,
   setup() { fresh({ bubbles: false, lash: false }); const s = spotsFor(elite(kind))[0]; if (s) tp(...s[1]); },
@@ -212,6 +216,7 @@ for (const [register, kind] of cases) register(`${register === story ? 'elites/'
     const gap = e.wall ? 0 : gapOf(e);
     const rest = clipsOf(e), where = { ...WHERE }, spots = spotsFor(e), more = roundSpots(e);
     if (e.wall) { tp(...spots[0][1]); holdJelly(); e.cool = 99; step(200); Object.assign(rest, Object.fromEntries(Object.entries(clipsOf(e)).map(([k, v]) => [k + ' (down)', v]))); restore(); }
+    if (!spots.length) return ok(false, { bad: 'no stand or vent landing on its furniture' });
     const rooms = spots.map(([n, at]) => room(kind, n, at));
     const acts = [];
     for (let a = 0; a < ATTACKS[kind].length; a++) {
@@ -224,10 +229,12 @@ for (const [register, kind] of cases) register(`${register === story ? 'elites/'
     if (Math.abs(gap) > 0.02) bad.push({ gap });
     for (const r of rooms) if (!(r.stayed && r.surface && r.sees && r.reach)) bad.push(r);
     for (const m of acts) if (worst(m.clips) > CLIP || m.drop > SAME) bad.push(m);
-    if (!spots.length) bad.push('no stand or vent landing on its furniture');
     const during = { ...WHERE };
     const move = (worst(rest) > CLIP || Math.abs(gap) > 0.02) && !e.wall ? suggest(e, where) : undefined;
-    if (KNOWN[kind]) return ok(bad.length, { known: KNOWN[kind], fixed: !bad.length && 'take it off KNOWN', bad, move, during });
+    if (KNOWN[kind]) {
+      const got = new Set(bad.map(keyOf)), K = KNOWN[kind], added = [...got].filter((k) => !K.keys.includes(k)), fixed = K.keys.filter((k) => !got.has(k));
+      return ok(!added.length && !fixed.length, { known: K.why, new: added, fixed: fixed.length ? `${fixed.join(', ')}: take off KNOWN` : [], bad, move, during });
+    }
     return ok(!bad.length, { bad, move, gap, where, during, rest, rooms, acts: acts.map((m) => [m.attack, m.name, m.started, m.moved, m.drop, worst(m.clips)]) });
   },
 });
