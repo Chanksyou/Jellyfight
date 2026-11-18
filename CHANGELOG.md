@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v498 gives the title tiles a quick cascade, springs buttons back past full size when you let go, has sheets rise then sink faster, makes the jelly pick row settle on a card with a small overshoot, and squeezes Play for 80 ms before a run starts.
+
+v497 moves the HUD only by transform and opacity, so it stops repainting every frame on phones: a hit squashes the Health bar and it settles, the low-Health glow breathes softly, a new Treasure pops into the row while one taken again bumps its count, and a level-up empties the XP bar quickly before refilling it.
+
 v496 Motion M4: the loading and turn-sideways screens use the shared motion tokens for their loops, and the loading jelly only glows (no swim or wave) under Reduce effects.
 
 v495 Layout edits now bake in with one command: `node tools/bake-layout.mjs <export code>` merges the export into the baked layout and re-bakes shadows for the acts it touched.
