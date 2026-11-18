@@ -106,7 +106,7 @@ export class BassWave {
     for (let i = 0; i < 5; i++) run.fx.impact(_o.set(THREE.MathUtils.lerp(b.min.x, b.max.x, (i + 0.5) / 5), (b.min.y + b.max.y) / 2, b.min.z - 0.01), c, 0.02, 4);
     juice.feel('bass');
     sfx.bassWave();
-    if (!this.told) { this.told = true; run.hud.toast('🔊 The Soundbar\'s bass wave: jump it, or be up on the furniture', 2800); }
+    if (!this.told) { this.told = true; run.hud.toast('The Soundbar\'s bass wave: jump it, or be up on the furniture', 2800); }
   }
 
   // the wave rolling down the room: where its back edge is, how far it went since last frame, the hit

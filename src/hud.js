@@ -208,6 +208,7 @@ export class Hud {
     this.scale = Math.round(s * 100) / 100;
     this.el.style.zoom = this.scale === 1 ? '' : String(this.scale);
     this.touch = document.body.classList.contains('touch');
+    this.mapPx = 0;   // (the minimap's size is read again on the next draw)
   }
 
   set(key, sel, fn) { // only touch the DOM when a value changes
@@ -464,7 +465,7 @@ export class Hud {
     const c = this.map, g = this.ctx, C = this.mapLook;
     const dpr = Math.min(3, devicePixelRatio || 1);
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
-    const css = (c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
+    const css = (this.mapPx ||= c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
     if (c.width !== W) { c.width = c.height = W; this.mapCone = null; }
     const b = this.bounds, R = W / 2, TAU = Math.PI * 2;
