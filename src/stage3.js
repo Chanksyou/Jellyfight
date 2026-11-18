@@ -57,7 +57,7 @@ export const STAGE3 = {
   // model's shared leaf meshes (Shell_114/115: plants elsewhere use them too), so only the ones
   // under the shelf go; its trailing strands are parts of the shelf (Floating_shelf_3-5)
   // Vanity_desk_22 is the inlaid wooden box on the vanity desk: the Coffer takes its place
-  hide: ['Ornate wall clock', 'Pothos', 'Pothos_planter', 'Plush_crocodile', 'Yellow_plush', 'Red_plush', 'Vanity_desk_22',
+  hide: ['Baby_wipes', 'Ornate wall clock', 'Pothos', 'Pothos_planter', 'Plush_crocodile', 'Yellow_plush', 'Red_plush', 'Vanity_desk_22', 'Vanity_desk_26',
     'Floating_shelf_3', 'Floating_shelf_4', 'Floating_shelf_5',
     { name: 'Shell_114', within: [[-1.6, 0.9, 10.8], [0.3, 1.85, 11.21]] }, { name: 'Shell_115', within: [[-1.6, 0.9, 10.8], [0.3, 1.85, 11.21]] }],
   noCollide: [],
@@ -105,7 +105,7 @@ export const STAGE3 = {
     // the plush bull on the changing table: the dresser on the north wall (Dresser_and_changing_station,
     // x -1.01 to -0.25, z 8.13 to 8.6), its pad 1.146 up. It sits at the west end of the pad, facing
     // the room; the vent by the dresser lands you 27 cm east of it. Awake while you're on the table top
-    { kind: 'bull', at: [-0.82, 1.146, 8.36], face: 0.3, area: 'changing table', wake: { min: [-1.02, 1.1, 8.12], max: [-0.24, 1.7, 8.62] }, stand: [-0.5, 1.146, 8.36] },
+    { kind: 'bull', at: [-0.82, 1.146, 8.36], face: 0.3, area: 'changing table', wake: { min: [-1.02, 1.1, 8.2], max: [-0.4, 1.7, 8.53] }, stand: [-0.5, 1.146, 8.36] },
     // the Latticework Coffer on the vanity desk, where its inlaid wooden box sat (hidden above), at
     // the back of the desk's open front strip, facing down it (south); the vent by the vanity lands
     // you 70 cm in front of it. Awake while you're on the desk top (its jewels rain anywhere in `wake`)

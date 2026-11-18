@@ -200,10 +200,6 @@ const cases = [
 // Known to fail, waiting on a bigger move (Elite fixes task 1b): each failure by what failed ('rest', 'gap',
 // 'room:<spot>' or the attack). The story still fails on anything else, and on a known one that's fixed (take it off then)
 const KNOWN = {
-  pillow: { why: 'its back half is inside the sofa back cushion; from the sofa vent it can\'t see the jelly', keys: ['rest', 'room:Vent by the sofa', 'spores', 'fairy'] },
-  bull: { why: 'it stands in the baby wipes, and its rush runs into the changing pad\'s raised ends', keys: ['rest', 'rush', 'spiral', 'minis'] },
-  bowl: { why: 'its back half is inside the chair\'s back; the seat is too shallow to clear it and stay 30 cm from the vent\'s landing (night4/each-elite-spot-is-on-its-furniture-and-clear)', keys: ['rest', 'ring', 'hum'] },
-  coffer: { why: 'its Accordion lid, slamming down by the stand spot, goes 2 cm into the piece on the desk\'s front edge', keys: ['accordion'] },
 };
 const keyOf = (b) => b.rest ? 'rest' : b.gap !== undefined ? 'gap' : b.stayed !== undefined ? 'room:' + b.name : b.attack ?? String(b);
 for (const [register, kind] of cases) register(`${register === story ? 'elites/' : ''}room-${kind}`, {
