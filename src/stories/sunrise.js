@@ -3,13 +3,14 @@
 import { bus, PLAYER } from '../events.js';
 import { STAGE4 } from '../stage4.js';
 import { juice } from '../juice.js';
-import { G, V, fresh, night4, ok, record, spy, step, tp } from './kit.js';
+import { BAKED_AO } from '../baked-ao.js';
+import { G, V, fresh, night4, ok, record, spy, step, story, tp } from './kit.js';
 
 const FLOOR = [3.4, 0, 2.2];   // open floor by the lounge chair (act 1's spot): sunlit from 2:24
 const lineAt = (t) => G().run.sunrise.lineAt(t);
 
 night4('the-sun-line-advances-on-time', {
-  about: 'The sun\'s line runs across the room in x and moves from z 0.3 at the start of the night to z 3.3 at 3:00 (so 1.8 half way), then stays. It is painted, not lit: one sheet over the floor and furniture tops and its Warning volume on the line, no light added, and no shader built while it plays.',
+  about: 'The sun\'s line runs across the room in x and moves from z 0.3 at the start of the night to z 3.3 at 3:00 (so 1.8 half way), then stays. It is lit by the room\'s own shaders (the baked-ao.js patch every apartment material shares, reading the line), so nothing is draped over the furniture: only its Warning volume on the line is drawn, no light added, and no shader built while it plays.',
   setup() { fresh(); },
   play() {
     const { run, APT, batcher, GAME } = G(), S = run.sunrise, lights = [];
@@ -20,17 +21,29 @@ night4('the-sun-line-advances-on-time', {
     for (const t of [0, 90, 180, 250]) { run.t = t; step(1); at[t] = +S.line.toFixed(3); }
     run.t = 90; step(1);
     const volOnLine = S.vol.position.z === S.line && Math.abs(S.line - 1.8) < 0.01;
-    const shown = S.sheet.visible && S.sheet.parent === APT.scene && S.vol.visible && S.vol.parent === APT.scene;
+    const U = BAKED_AO.uniforms;
+    let patched = 0, sheets = 0;
+    let lights4 = false;   // the shared patch really lights it: run it on a stand-in shader
+    APT.root.traverse((o) => {
+      const m = o.isMesh && [].concat(o.material).find((m) => m.onBeforeCompile && m.isMeshStandardMaterial);
+      if (!m) return;
+      patched++;
+      const sh = { uniforms: {}, vertexShader: '#include <common>\n#include <project_vertex>', fragmentShader: '#include <common>\n#include <aomap_fragment>' };
+      m.onBeforeCompile(sh);
+      lights4 ||= sh.uniforms.sunLine === U.sunLine && sh.fragmentShader.includes('sunLine - vAoPos.z');
+    });
+    APT.scene.traverse((o) => { if (o.name === 'Sunlight') sheets++; });
+    const shown = U.sunLine.value === S.line && U.sunFill.value > 0 && patched > 0 && lights4 && sheets === 0 && S.vol.visible && S.vol.parent === APT.scene;
     run.t = 200; step(1);
-    const stopped = !S.vol.visible && S.sheet.visible;   // the line has stopped: nothing more to warn of
+    const stopped = !S.vol.visible && U.sunLine.value === 3.3;   // the line has stopped: nothing more to warn of
     // stepping into it: the steam, the flash, the tag, the drying bell, all built already
     run.t = 150; tp(...FLOOR); step(60);
     batcher.sync(); GAME.compile();
     const newShaders = APT.renderer.info.programs.length - programs, after = [];
     APT.scene.traverse((o) => { if (o.isLight) after.push(o); });
-    const across = S.sheet.geometry.boundingSphere && STAGE4.sun.across.join() === '0,5';
+    const across = STAGE4.sun.across.join() === '0,5';
     return ok(at[0] === 0.3 && at[90] === 1.8 && at[180] === 3.3 && at[250] === 3.3 && volOnLine && shown && stopped && newShaders === 0 && after.length === lights.length && across,
-      { at, volOnLine, shown, stopped, newShaders, lights: [lights.length, after.length] });
+      { at, volOnLine, shown, patched, lights4, sheets, stopped, newShaders, lights: [lights.length, after.length] });
   },
 });
 
@@ -113,5 +126,17 @@ night4('chests-never-turn-up-where-the-sun-will-reach', {
     run.t = 170;
     const late = run.spots.filter((sp) => run.sunrise.shaded(sp.at[2], 170 + stay)).every((sp) => sp.at[2] > 3.36);
     return ok(!bad.length && seen.size > 3 && late, { bad, seen: [...seen] });
+  },
+});
+
+story('sunrise/no-sun-in-a-stage-without-one', {
+  about: 'Act 1 is the same living room, but its stage has no sun: the room\'s shaders get no sunlit side (the line is far off) and nothing hurts by the window.',
+  setup() { fresh({ hurt: true }); },
+  play() {
+    const { run } = G();
+    tp(3.4, 0, 0.5); step(30);
+    const line = BAKED_AO.uniforms.sunLine.value, hp = run.health;
+    step(60);
+    return ok(!run.sunrise.sun && line < -1e3 && run.health === hp, { line, hp: [hp, run.health] });
   },
 });

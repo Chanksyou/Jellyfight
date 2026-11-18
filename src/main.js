@@ -286,7 +286,7 @@ const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hi
 if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
-if (APT.bakedAO) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO
+if (APT.bakedAO || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun
 const statics = new StaticBatches(scene);   // the furniture drawn a material at a time (static-batch.js)
 if (!ARENA) statics.add(APT.root);
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
