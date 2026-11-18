@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v475 recreates the apartment's 33rd-floor Greenpoint window views with a painted city backdrop, nearby tower silhouettes, and city lights that fade toward dawn.
+
 v474 swaps the last emoji in toasts, screen titles, hints and the leaderboard for the UI's own icons (gold, silver and bronze ranks, a trophy beside a winning score), and the minimap no longer measures itself every frame.
 
 v473 hides the plants that were baked into the living room's walls-and-floor piece (the spiky air plants over the sofa and by the window, hanging plants, the leaves by the lounge chair), which could not be clicked or deleted in the layout editor.
