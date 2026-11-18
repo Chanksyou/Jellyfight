@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v480 sets five Elites down clear of their furniture: the Mug and the Alligator no longer float over their desk and bed, the Kettle no longer sinks into the counter, and the Soap Dispenser and the Coffer step out of the backsplash and riser behind them; a new guard checks every Elite's body, landing spots and attacks against the room.
+
 v479 fixes the last UI problems from the final look: on a phone with Large text the death screen's hint, chips and numbers fit above the buttons again (the time/Level/bugs chips sit under the numbers on a death), "The Vacuum was 4:20 away" stays on one line, the HUD's clock-and-boss line under the timer is bigger and brighter, the next jelly on the phone's pick screen shows its whole name, and a row of looks cut at the fold in Change your look fades out instead of looking broken.
 
 v478 calms Elite Warnings: every floor Warning and its hex volume glow a little less (look.css `--warning-floor-glow` 1.45, was a 1.7 in code; `--warning-volume-glow` 1.1, was 1.5); the Coffer's 10 to 14 jewel Warnings each show quieter, the Mushroom Pillow's spore columns stay dim until their last beat (then flash full as before), and the Headphones' white shove lane is fainter (it shoves, never hurts).
