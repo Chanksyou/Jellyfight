@@ -38,15 +38,22 @@ night4('the-room-has-the-same-new-layout', {
 });
 
 story('engine/the-view-is-from-the-33rd-floor', {
-  about: 'Through the windows you look out over a city far below, not at a flat dark wall: one unlit ring of towers and street lights round the apartment (skyline.js), about 100 m down to the streets, a single draw call that is never a light and never solid.',
+  about: 'The 33rd-floor view shares one opaque draw and one atlas for the painted panorama and close towers. Its geometry never joins the collision world.',
   setup() {},
   play() {
-    const { APT } = G(), ring = APT.scene.getObjectByName('Skyline');
-    const lights = []; APT.scene.traverse((o) => { if (o.isLight) lights.push(o); });
-    const stuff = ring && ring.geometry.parameters;
-    return ok(ring && ring.isMesh && !Array.isArray(ring.material) && ring.material.isMeshBasicMaterial && !ring.material.depthWrite && ring.userData.noCollide
-      && stuff.radiusTop > 20 && stuff.height >= 100 && ring.position.y + stuff.height / 2 >= 0 && ring.position.y - stuff.height / 2 <= -90
-      && APT.scene.children.filter((o) => o.name === 'Skyline').length === 1,
-      { ring: !!ring, stuff, y: ring?.position.y, lights: lights.length });
+    const { APT, world, run } = G(), ring = APT.scene.getObjectByName('Skyline');
+    if (!ring) return ok(false, { ring: false });
+    run.setNight(0);
+    const { geometry, material } = ring;
+    geometry.computeBoundingBox();
+    const triangles = geometry.index.count / 3, { min, max } = geometry.boundingBox;
+    const image = material.map?.image;
+    const solid = world.colliders.includes(ring);
+    return ok(ring.isMesh && material.isMeshBasicMaterial && material.depthWrite && !material.transparent
+      && !material.fog && !ring.castShadow && ring.userData.noCollide && !solid
+      && APT.scene.children.filter((o) => o.name === 'Skyline').length === 1
+      && geometry.groups.length === 0 && triangles <= 320 && min.y <= -90 && max.y >= 25
+      && image?.width === 2048 && image.height === 512 && material.userData.daylight.value === 0,
+      { triangles, height: [min.y, max.y], atlas: [image?.width, image?.height], solid });
   },
 });

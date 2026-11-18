@@ -247,22 +247,24 @@ night4('the-act-plays-sunrise-set', {
 });
 
 night4('the-dawn-look-warms-across-the-night', {
-  about: 'Act 4\'s room is lit by the dawn values (look.css --dawn-*), not the night\'s: the blue hour at 6:00 AM (fill, sky, haze, an unlit glow card on the window wall) warming to gold by 8:00 AM, with no light added or removed.',
+  about: 'The interior dawn fill, sky and haze warm across Act 4. The city remains visible and brightens on the same mesh and atlas, with no light added or removed.',
   setup() { fresh(); },
   play() {
-    const { run, APT } = G(), S = APT.scene, card = () => S.getObjectByName('Dawn window');
+    const { run, APT } = G(), S = APT.scene, city = S.getObjectByName('Skyline');
+    if (!city) return ok(false, { city: false });
+    const daylight = city.material.userData.daylight, map = city.material.map;
     const near = (a, b) => Math.abs(a - b) < 0.005;   // a frame or two into the night
     const hex = (c) => '#' + c.getHexString();
     const lights = () => { let n = 0; S.traverse((o) => { if (o.isLight) n++; }); return n; };
     step(2);
-    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, window: hex(card().material.color) };
+    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, daylight: daylight.value };
     run.t = run.duration; run.nightT = 0;
     step(2);
-    const end = { fill: S.environmentIntensity, sky: hex(S.background), window: hex(card().material.color) };
-    const unlit = card().material.isMeshBasicMaterial && card().position.x < 0;
-    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze')) && start.window === LOOK.color('dawn-window')
-      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late') && end.window === LOOK.color('dawn-window-late')
-      && unlit && lights() === lit, { start, end, lit });
+    const end = { fill: S.environmentIntensity, sky: hex(S.background), daylight: daylight.value };
+    return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze'))
+      && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late')
+      && start.daylight > 0 && start.daylight < 0.5 && end.daylight === 1
+      && !S.getObjectByName('Dawn window') && city.material.map === map && lights() === lit, { start, end, lit });
   },
 });
 night4('cicadas-from-1-30', {

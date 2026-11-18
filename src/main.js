@@ -249,18 +249,16 @@ scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'),
 // A stage with a `sky` (act 4's dawn) reads `--<sky>-*` from look.css instead of the night's values: each
 // at the night's first clock minute, and `-late` at its last. setNight (below) moves them along.
 const SKY = !ARENA && stage.sky || null;
-const SKY_STEP = { fill: 0, haze: 0, sky: new THREE.Color(), hazeColor: new THREE.Color(), window: new THREE.Color() };
+const SKY_STEP = { fill: 0, haze: 0, sky: new THREE.Color(), hazeColor: new THREE.Color() };
 function skyNow(t) {
   const mix = (n, d) => LOOK.num(`${SKY}-${n}`, d) + (LOOK.num(`${SKY}-${n}-late`, d) - LOOK.num(`${SKY}-${n}`, d)) * t;
   const tint = (out, n) => out.set(LOOK.color(`${SKY}-${n}`, '#000000')).lerp(new THREE.Color(LOOK.color(`${SKY}-${n}-late`, '#000000')), t);
   SKY_STEP.fill = mix('fill', 0.12); SKY_STEP.haze = mix('haze', 0.14);
-  tint(SKY_STEP.sky, 'sky'); tint(SKY_STEP.hazeColor, 'haze-color'); tint(SKY_STEP.window, 'window');
+  tint(SKY_STEP.sky, 'sky'); tint(SKY_STEP.hazeColor, 'haze-color');
   scene.environmentIntensity = SKY_STEP.fill;
   scene.background.copy(SKY_STEP.sky);
   scene.fog.density = SKY_STEP.haze; scene.fog.color.copy(SKY_STEP.hazeColor);
-  if (skyWindow) skyWindow.material.color.copy(SKY_STEP.window);
 }
-let skyWindow = null;
 if (!ARENA) dressSet(scene, APT.root);   // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
 const world = new World(scene, { staticScene: true });
@@ -283,17 +281,12 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
 if (APT.bakedAO) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO
 const statics = new StaticBatches(scene);   // the furniture drawn a material at a time (static-batch.js)
 if (!ARENA) statics.add(APT.root);
-// the window is the bright thing at dawn: a flat unlit card just outside the glass on the desk wall (never a light: a new light rebuilds every shader)
-if (SKY && stage.window) {
-  const { x, y, z } = stage.window;
-  skyWindow = new THREE.Mesh(new THREE.PlaneGeometry(z[1] - z[0], y[1] - y[0]), new THREE.MeshBasicMaterial({ fog: false }));
-  skyWindow.position.set(x, (y[0] + y[1]) / 2, (z[0] + z[1]) / 2);
-  skyWindow.rotation.y = Math.PI / 2;   // facing into the room
-  skyWindow.name = 'Dawn window';
-  scene.add(skyWindow);
+const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
+function setNight(minutes) {
+  cityTime?.(minutes);
+  if (SKY) skyNow(THREE.MathUtils.clamp((minutes - stage.clock[0]) / (stage.clock[1] - stage.clock[0]), 0, 1));
 }
-if (SKY) skyNow(0);
-if (!ARENA) addSkyline(scene, [1.5, 5.5]);   // the view from the 33rd floor, through every window (skyline.js)
+setNight(stage.clock[0]);
 
 applyVentLayout(stage.vents, stage.id);   // vents moved in the layout editor (baked, then your own)
 const traversal = new Traversal(scene, stage);
@@ -349,7 +342,7 @@ const song = {
 };
 const run = new Run({
   scene, stage, plan, world, player, cfg: CONFIG.player, enemies, lash, xpDrops, gfx,
-  traversal, hud, ui: menus, fx, tpc, input, setNight: SKY ? (minutes) => skyNow(Math.min(1, Math.max(0, (minutes - stage.clock[0]) / (stage.clock[1] - stage.clock[0])))) : () => {}, touch: IS_TOUCH, apartment: APT.root,
+  traversal, hud, ui: menus, fx, tpc, input, setNight, touch: IS_TOUCH, apartment: APT.root,
   carry: carried(),                    // a later act: the run so far (stages.js)
   arena: ARENA, song,                  // act 4's built arena and the song its boss plays to (encore.js)
 });
