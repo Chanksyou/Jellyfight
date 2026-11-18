@@ -1,1 +1,0 @@
-replaces the Mushroom Pillow's hop with the Fairy ring: eight spore caps sprout in a ring round where the jelly stands and burst as columns, so hold still in the middle (run and you cross one); angry, a second ring sprouts where the jelly would flee.
