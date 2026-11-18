@@ -57,9 +57,16 @@
   --ui-fast: 120ms;
   --ui-mid: 240ms;
   --ui-slow: 480ms;
-  --ui-ease-in: cubic-bezier(.34, 1.5, .64, 1);
-  --ui-ease-out: cubic-bezier(.5, 0, .9, .5);
+  --ui-ease-arrive: cubic-bezier(.34, 1.5, .64, 1);   /* friendly things land with a little overshoot */
+  --ui-ease-leave: cubic-bezier(.5, 0, .9, .5);
+  --ui-ease-settle: cubic-bezier(.2, 0, 0, 1);        /* heavy or hostile things: no overshoot */
+  --ui-ease-float: cubic-bezier(.37, 0, .63, 1);      /* ambient loops: a sine */
+  --ui-stagger: 60ms;                                 /* gap between things dealt in one after another */
+  /* --ui-ease-in / --ui-ease-out are the old names, kept so nothing breaks: new code uses the names above */
+  --ui-ease-in: var(--ui-ease-arrive);
+  --ui-ease-out: var(--ui-ease-leave);
 }
+@media (pointer: coarse) { :root { --ui-stagger: 40ms; } }
 
 :root {
   --portrait-resolution: 256;

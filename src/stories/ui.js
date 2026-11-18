@@ -2,6 +2,7 @@
 // screen is held to on a phone: no text under 12 px, nothing to tap under 44 px.
 import { story, G, fresh, ok, step, offs } from './kit.js';
 import { icon, ICON_NAMES } from '../icons.js';
+import { juice } from '../juice.js';
 
 // --- every piece of the kit on one sheet (index.html?story=ui/kit)
 export function kitSheet() {
@@ -210,3 +211,64 @@ story('ui/death-screen-fits-at-large-text', {
     } finally { try { SCREENS.death.close(); } catch {} step(1); root.dataset.textSize = was || 'normal'; }
   },
 });
+
+// --- motion guards (the motion-design plan): what moves on each screen, and how
+// The HUD's own moving states, set going the way the game does; each screen's own animations come from SCREENS.
+const HUD_STATES = {
+  'hud: low Health': { open() { const h = G().hud; h.resetHealth(); h.setHealth(100, 100); h.setHealth(20, 100); h.setHealth(60, 100); h.setHealth(20, 100); const e = h.hpNodes['hp-edge']; e.style.transitionDuration = '180ms'; e.style.left = '90%'; }, close() { G().hud.resetHealth(); } },
+  'hud: Shield charging': { open() { const h = G().hud; h.setShield({ hp: 1, max: 3, state: 'broken', charging: false }); h.setShield({ hp: 1, max: 3, state: 'charging', charging: true }); h.setShield({ hp: 3, max: 3, state: 'full', charging: false }); h.setShield({ hp: 1, max: 3, state: 'charging', charging: true }); }, close() { G().hud.setShield({ hp: 0, max: 0, state: null, charging: false }); } },
+  'hud: Treasure pop': { open() { const items = G().hud.$('.items'), el = items.firstElementChild || items.appendChild(document.createElement('span')); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }, close() { G().hud.$('.items').querySelectorAll('.pop').forEach((e) => e.classList.remove('pop')); } },
+  'treasure pick: outro': { open() { G().run.pickTreasure(); const cards = [...G().run.ui.modal.querySelectorAll('.jf-card')]; cards[0]?.classList.add('jf-sheen'); cards[0]?.click(); }, close() { G().run.ui.close(); } },
+  'hud: level ding': { open() { G().hud.levelDing(innerWidth / 2, innerHeight / 2); }, close() { document.querySelectorAll('.jf-ding-ring').forEach((e) => e.remove()); G().hud.$('.lvl').classList.remove('ding'); } },
+};
+// Everything animating (CSS animations and transitions) while each screen is open, as "<name>: <property>".
+// Read straight after the screen opens and again two steps in, so short and delayed ones are both caught.
+function motionOf() {
+  const found = new Map(), failed = [];
+  for (const [screen, s] of Object.entries({ ...SCREENS, ...HUD_STATES })) {
+    const read = () => { for (const a of document.getAnimations()) {
+      const target = a.effect?.target; if (!target) continue;
+      const name = a.animationName || (a.transitionProperty ? 'transition ' + a.transitionProperty : 'script ' + nameOf(target));
+      for (const kf of a.effect.getKeyframes()) for (const prop of Object.keys(kf)) {
+        if (!['offset', 'computedOffset', 'easing', 'composite'].includes(prop)) found.set(`${screen} | ${name}: ${prop}`, true);
+      }
+    } };
+    try { s.open(); read(); step(2); read(); }
+    catch (e) { failed.push(`${screen}: ${e.message}`); }
+    finally { try { s.close(); } catch {} step(1); }
+  }
+  return { list: [...found.keys()], failed };
+}
+// Allowed for now, as "animation name: property" tagged by the task that removes it (a name matches on any screen).
+// A new offender fails the story: use transform and opacity (a glow is a pre-painted layer whose opacity moves).
+const KNOWN_MOTION = {
+  'jf-ding: boxShadow': 'M1', 'jf-hp-breathe: boxShadow': 'M1', 'jf-pop: boxShadow': 'M1',
+  'jf-shield-charge: backgroundPositionX': 'M1', 'jf-shield-charge: backgroundPositionY': 'M1',
+  'transition left: left': 'M1',   // .hp-edge slides by left
+  'script div.player-health > div.bar.ui-bar.moist.low: boxShadow': 'M1', 'script div.vit > div.player-health: filter': 'M1',
+  'script div.vit > div.bar.ui-bar.shield-bar.charging: boxShadow': 'M1',
+  'jfWon: boxShadow': 'M3', 'jfSheen: backgroundPositionX': 'M3', 'jfSheen: backgroundPositionY': 'M3', 'jfBurn: filter': 'M3',
+};
+const KNOWN_CALM = {
+  'jf-swim: transform': 'M2', 'jf-wave: transform': 'M2', 'jf-shine: transform': 'M2',   // the title screen's ambient loops keep going
+  'transition transform: transform': 'M1', 'transition left: left': 'M1', 'jf-glow: boxShadow': 'M1',   // bar fills and slides, the Treasure glow
+};
+const motionGuard = (name, about, calm, bad, known) => story(name, {
+  phone: true,
+  about,
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const was = document.body.classList.contains('calm'), wasJuice = juice.calm;
+    document.body.classList.toggle('calm', calm); juice.calm = calm;
+    let r;
+    try { r = motionOf(); } finally { document.body.classList.toggle('calm', was); juice.calm = wasJuice; }
+    const key = (k) => k.split(' | ')[1];
+    const hits = r.list.filter((k) => bad.test(key(k).split(': ').pop()));
+    const added = [...new Set(hits.filter((k) => !(key(k) in known)).map(key))];
+    const fixed = Object.keys(known).filter((k) => !hits.some((h) => key(h) === k));
+    const byTask = {}; for (const k of Object.keys(known)) (byTask[known[k]] ||= []).push(k);
+    return ok(!r.failed.length && !added.length, { new: added, failed: r.failed, fixed, known: byTask, animating: r.list.length });
+  },
+});
+motionGuard('ui/motion-is-cheap', 'On every main screen and the HUD\'s moving states (low Health, Shield charging, a Treasure pop, a level ding), nothing animates box-shadow, filter, left, top, width, height or background-position (they repaint every frame on a phone), apart from today\'s known offenders, each listed under the task that removes it.', false, /^(boxShadow|filter|left|top|width|height|backgroundPosition[XY]?)$/, KNOWN_MOTION);
+motionGuard('ui/calm-only-fades', 'With Reduce effects on, everything that animates on the main screens only fades: opacity (and colour) are the only properties that change, apart from today\'s known offenders.', true, /^(?!opacity$|color$|backgroundColor$|borderColor$|visibility$|display$)/, KNOWN_CALM);
