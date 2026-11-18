@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v507 makes a dropped Lego Brick fall to whatever is under it (a jump, a ledge) instead of hanging in the air, and lets the act bosses step on a brick and take its hit and burst (Elites still don't).
+
 v506 The ant's pushpin is easier to read: once an ant locks its aim, a dotted glow line shows where the pin will fly, and a thrown pin is drawn bigger with a brighter halo and trail. A missed pin glows where it sticks until it goes. Damage and hit size are unchanged.
 
 v505 makes the Pocket Vacuum's mini tornado much stronger: it is 2.5 times wider and its pull is six times harder, so every bug round it is sucked hard into the middle, with air streaking in from the rim.
