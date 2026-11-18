@@ -1,0 +1,1 @@
+gives Act 4's living room exactly Act 1's furniture layout, plants and things on the shelves and tables included; only the three Elites' own furniture and Act 4's vents differ, and from now on any layout change made in Act 1 shows up in Act 4 too.
