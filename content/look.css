@@ -484,6 +484,12 @@
   --jelly-motion-drag-along: 0.5;       /* drag along a tentacle, as a share of across (slender things slip lengthwise) */
   --jelly-motion-weight: 0.6;           /* how hard a tentacle sinks against its pose (model units/s²) */
   --jelly-motion-bend-compliance: 0.0002; /* how easily a tentacle folds past its pose's curve (XPBD; higher = kinks more) */
+  --jelly-motion-arm-spring: 60;        /* how firmly an oral arm's end is pulled back to hanging (1/s²; its root 500): arms.js */
+  --jelly-motion-arm-drag: 9;           /* water drag across an oral arm (1/s): draggier than a tentacle, so it lags turns */
+  --jelly-motion-arm-weight: 1.5;       /* how hard an oral arm sinks against its pose (model units/s²): heavier than a tentacle */
+  --jelly-motion-arm-carry: 0.8;        /* share of the jelly's speed the water round its arms moves with (it carries water along): less = they trail further */
+  --jelly-motion-arm-carry-max: 6;      /* fastest the carried water goes (model units/s; full swim is ~4.7): a blink or a shove doesn't whip the arms */
+  --jelly-motion-arm-flare: 0.5;        /* how far the arms' ends are pushed out as the bell relaxes (share of arm length per unit of relax) */
   --comb-ripple: 0.35;         /* how fast the Comb Jelly's rainbow runs down its rows */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
   --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */

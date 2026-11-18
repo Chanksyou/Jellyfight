@@ -1,0 +1,1 @@
+gives the jelly's oral arms a life of their own: each swings on a soft chain in the water the bell carries along, so the arms keep going the old way through a turn, swing on after a stop and flare out as the bell relaxes after each stroke (they no longer wobble on a clock).

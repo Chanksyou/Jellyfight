@@ -149,7 +149,7 @@ story('look/rest-pose-unchanged', {
 // Raise it on purpose, with the bench numbers (jelly-motion in the PR), never to make a test pass.
 const MOTION_WORK_BUDGET = 1200;   // chain points per avatar.update at dt 1/30 (today's worst species: see `seen`)
 story('engine/jelly-motion-budget', {
-  about: 'One update of any jelly at 30 fps steps no more chain points than the budget (substeps x points on every tentacle, and later every arm).',
+  about: 'One update of any jelly at 30 fps steps no more chain points than the budget (substeps x points on every tentacle and every oral arm).',
   setup() {},
   play() {
     const seen = {};
@@ -157,7 +157,7 @@ story('engine/jelly-motion-budget', {
       const c = buildCharacter({ accent: ACC, body }, 1);
       c.update(1 / 30, idle);   // the first frame only places the chains
       c.update(1 / 30, idle);
-      seen[body] = c.tentacles ? c.tentacles.work : 0;
+      seen[body] = (c.tentacles ? c.tentacles.work : 0) + (c.arms ? c.arms.work : 0);
       c.dispose();
     }
     const worst = Math.max(...Object.values(seen));
