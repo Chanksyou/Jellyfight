@@ -6,6 +6,7 @@ import { HIDDEN_SHELL } from '../layout-baked.js';
 import { meshesNamed } from '../traversal.js';
 import * as THREE from 'three';
 import { G, fresh, night4, ok, step, story } from './kit.js';
+import { LOOK } from '../look.js';
 
 // objects the new layout deleted: every plant that lost its pot or stand (and the Monstera and Tall snake plant), the pillows and the rest
 const GONE = ['Round_plant_stand', 'Snake_plant', 'Tall_snake_plant', 'Rubber_plant', 'Monstera', 'Aloe', 'Cat_window_perches', 'Globe_clamp_lamp', 'Olive_pillow', 'Fluffy_white_pillow', 'Red_hardcover'];
@@ -82,6 +83,26 @@ story('engine/the-view-is-from-the-33rd-floor', {
       && geometry.groups.length === 0 && triangles <= 320 && min.y <= -90 && max.y >= 25
       && image?.width === 2048 && image.height === 512 && material.userData.daylight.value === 0,
       { triangles, height: [min.y, max.y], atlas: [image?.width, image?.height], solid });
+  },
+});
+
+story('engine/the-window-sky-follows-the-clock', {
+  about: 'The photo\'s dusk sky stays untouched through acts 1 to 3 (up to 4:00 AM). By act 4\'s 6:00 AM it is swapped for a sunrise sky with a low sun and a warm horizon, and by 8:00 AM for a bright morning with the sun high and a pale horizon. The same atlas and the same draw: no new texture, no light added.',
+  setup() {},
+  play() {
+    const { APT, run } = G(), city = APT.scene.getObjectByName('Skyline');
+    if (!city) return ok(false, { city: false });
+    const map = city.material.map, sky = city.material.userData.sky, hex = (c) => '#' + c.getHexString();
+    const at = (m) => { run.setNight(m); return { mix: sky.mix.value, up: sky.up.value, sunY: sky.sunAt.value.y, horizon: hex(sky.horizon.value), sun: hex(sky.sun.value) }; };
+    const dark = at(0), late = at(240), dawn = at(360), noon = at(480);
+    run.setNight(0);
+    const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+    return ok(dark.mix === 0 && late.mix === 0 && dawn.mix === 1 && noon.mix === 1
+      && dawn.up === 0 && noon.up === 1 && dawn.sunY < noon.sunY
+      && same(dawn.horizon, LOOK.color('skyline-horizon')) && same(noon.horizon, LOOK.color('skyline-horizon-late'))
+      && same(dawn.sun, LOOK.color('skyline-sun')) && same(noon.sun, LOOK.color('skyline-sun-late'))
+      && city.material.map === map && APT.scene.children.filter((o) => o.name === 'Skyline').length === 1,
+      { dark, late, dawn, noon });
   },
 });
 

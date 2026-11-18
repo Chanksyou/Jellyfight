@@ -440,6 +440,14 @@
   --skyline-day-gain: 2.2;     /* fill on dark surfaces after sunrise */
   --skyline-dawn-start: 315;   --skyline-dawn-end: 475;  /* local clock minutes */
   --skyline-dusk-start: 1090;  --skyline-dusk-end: 1230;
+  /* the morning sky (act 4): the photo's dusk sky is swapped for a gradient from the scene's own sky colour
+     (--dawn-sky) down to a horizon colour, with the sun rising on it. Each value at 6:00 AM, then "-late" at 8:00 AM. */
+  --skyline-sky-start: 300;    --skyline-sky-end: 350;       /* clock minutes the photo's sky is swapped (acts 1 to 3 end at 240) */
+  --skyline-sun-start: 360;    --skyline-sun-end: 480;       /* clock minutes the sun climbs */
+  --skyline-horizon: #f29a6a;  --skyline-horizon-late: #a9d3f5;
+  --skyline-sun: #ffb070;      --skyline-sun-late: #fff3d8;
+  --skyline-sun-x: 640;        /* where the sun is, in atlas pixels across the panorama */
+  --skyline-sun-low: 0.03;     --skyline-sun-high: 0.4;     /* its height above the horizon, as a share of the sky */
   --surface-grain: 0.22;      /* the depth of dents and fine grain on hard floors */
   --surface-paint: 0.19;      /* fine relief on paint and glazed finishes */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
@@ -449,7 +457,7 @@
      them across the 3 minutes. A bit brighter than the night but still dim, so cool friendly and hot hostile
      attacks read. The window is the bright thing: an unlit card on the window wall. */
   --dawn-fill: 0.2;               --dawn-fill-late: 0.34;
-  --dawn-sky: #141f3c;            --dawn-sky-late: #8a6a58;
+  --dawn-sky: #26407a;            --dawn-sky-late: #4a8fe0;
   --dawn-haze: 0.14;              --dawn-haze-late: 0.16;
   --dawn-haze-color: #0b1226;     --dawn-haze-color-late: #301c10;
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
