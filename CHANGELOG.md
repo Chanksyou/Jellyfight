@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v502 fixes the type pick's Play button going dead after turning onto a locked card while it squeezes.
+
 v501 the dev layout editor is now compact and built on the UI kit: act chips and a ? help button on top, a slim bar (Add, Undo, Export, Done) below, and a selection bar only while something is selected (rotate, up/down, a prop's size, Stick, Duplicate, hide, delete, put back); Reset all moved into the Export sheet. Add opens a drawer of the prop library: tapping a plant places it on the surface in the middle of the view, and every tap on a surface after that stamps another until Esc, the Stamping chip or Done. Things you added stick to the top of whatever is under the pointer as you drag them (Stick switches it on for furniture); props resize 50-200% in 10% steps. The TV and soundbar can't be duplicated (the room draws them separately).
 
 v500 swaps the dusk sky in the 33rd-floor window for a sunrise sky in Act 4's living room, a gradient with a low warm sun at 6:00 AM that brightens to a clear blue morning by 8:00 AM. Nothing new is downloaded.
