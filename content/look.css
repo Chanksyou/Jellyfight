@@ -424,6 +424,8 @@
   --skyline-day-gain: 2.2;     /* fill on dark surfaces after sunrise */
   --skyline-dawn-start: 315;   --skyline-dawn-end: 475;  /* local clock minutes */
   --skyline-dusk-start: 1090;  --skyline-dusk-end: 1230;
+  --surface-grain: 0.22;      /* the depth of dents and fine grain on hard floors */
+  --surface-paint: 0.19;      /* fine relief on paint and glazed finishes */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
 

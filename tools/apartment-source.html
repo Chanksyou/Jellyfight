@@ -230,6 +230,7 @@ function tex(w,h,draw,rep,lin){const c=document.createElement('canvas');c.width=
  if(MOBILE&&w*h>=512*512){img=document.createElement('canvas');img.width=w>>1;img.height=h>>1;img.getContext('2d').drawImage(c,0,0,img.width,img.height);}
  const t=new THREE.CanvasTexture(img);if(!lin)t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(MOBILE?4:8,renderer.capabilities.getMaxAnisotropy());if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep[0],rep[1]);}return t;}
 const ITEMS=[],PROMO=[];let curItem=null;
+function finish(t, name){window.paintInteriorFinish(t.image, name);t.needsUpdate=true;}
 function item(id,name,fn,extra,passable,opts){opts=opts||{};curItem={id,name,objs:[],extra:extra||[],passable:!!passable,parentId:opts.parent||'',small:!!opts.small,desc:opts.desc||'',tints:[]};fn();ITEMS.push(curItem);curItem=null;}
 
 // small movable piece (pillow, plant, decor) that sits on a parent item, or on the floor/counter when parent is ''
@@ -312,7 +313,7 @@ const magnetTex=tex(256,640,(g,w,h)=>{g.fillStyle='#f3f2ee';g.fillRect(0,0,w,h);
 // ---------- materials ----------
 const walnutT=woodTex('#6b4226','40,20,8',[1,1]),kitT=woodTex('#b8906e','92,62,40',[1,1]),oakT=woodTex('#c49a68','90,60,30',[1,1]),birchT=woodTex('#d8b98a','120,85,45',[1,1]);
 const mat={
- wall:M('#e2dfd9',{roughness:.95}),ceil:M('#f3f0eb',{roughness:1}),base:M('#f7f5f1',{roughness:.6}),frame:M('#1d1e20',{roughness:.45,metalness:.4}),
+ wall:M('#e2dfd9',{roughness:.88}),ceil:M('#f3f0eb',{roughness:1}),base:M('#f7f5f1',{roughness:.6}),frame:M('#1d1e20',{roughness:.45,metalness:.4}),
  glass:new THREE.MeshStandardMaterial({color:C('#b7cad4'),transparent:true,opacity:.08,roughness:.05,metalness:.2,depthWrite:false,side:DS}),
  glassTop:new THREE.MeshPhysicalMaterial({color:C('#cfe6e0'),transparent:true,opacity:.24,roughness:.02,metalness:.1,clearcoat:1,clearcoatRoughness:.03,reflectivity:.9,depthWrite:false}),
  clear:new THREE.MeshStandardMaterial({color:C('#e8f2f5'),transparent:true,opacity:.35,roughness:.05,depthWrite:false}),
@@ -327,6 +328,7 @@ const mat={
  mat:M('#4b5a2b',{roughness:1}),matDark:M('#3b4722'),tan:M('#d2a57c',{roughness:.6}),
  white:M('#f4f2ee',{roughness:.55}),door:M('#f1efea',{roughness:.5}),rug:M('#e2ddd3',{roughness:1}),cardboard:M('#c7a174',{roughness:1}),bowl:M('#b98552',{roughness:.45,side:DS})
 };MATS.push(mat.glassTop);
+finish(floorTex,'floor');finish(cordTex,'cord');finish(kitT,'veneer');finish(mat.counter.map,'counter');
 // close-up detail textures (the game's player is 3.5 cm tall). A material whose bump map is its
 // own color map keeps its bump through the game bake (tools/exporter.js tags it).
 function bumpy(m,t,s){m.bumpMap=t;m.bumpScale=s;m.needsUpdate=true;return m;}
@@ -342,7 +344,7 @@ const coatT=tex(128,256,(q,w,h)=>{q.fillStyle='#e4e4e4';q.fillRect(0,0,w,h);for(
 // painted door: three recessed shaker panels, lit from above
 {const dT=tex(256,512,(q,w,h)=>{q.fillStyle='#f1efea';q.fillRect(0,0,w,h);speck(q,w,h,1400,.035);
   [[30,30,196,150],[30,200,196,120],[30,340,196,142]].forEach(([x,y,pw,ph])=>{q.fillStyle='rgba(0,0,0,.05)';q.fillRect(x,y,pw,ph);q.fillStyle='rgba(0,0,0,.22)';q.fillRect(x,y,pw,4);q.fillRect(x,y,4,ph);q.fillStyle='rgba(255,255,255,.7)';q.fillRect(x,y+ph-4,pw,4);q.fillRect(x+pw-4,y,4,ph);});});
- mat.door.map=dT;mat.door.color=C('#ffffff');bumpy(mat.door,dT,.02);}
+ finish(dT,'enamel');mat.door.map=dT;mat.door.color=C('#ffffff');bumpy(mat.door,dT,.02);}
 
 {const vt=tex(128,128,(q,w,h)=>{q.fillStyle='#ffffff';q.fillRect(0,0,w,h);q.strokeStyle='rgba(205,232,185,.95)';q.lineWidth=3;[0,w/2,w].forEach(x=>{q.beginPath();q.moveTo(x,0);q.lineTo(x,h);q.stroke();});
   q.lineWidth=1.3;q.strokeStyle='rgba(195,225,175,.7)';for(let y=8;y<h+10;y+=14)[0,w/2].forEach(x=>{q.beginPath();q.moveTo(x,y);q.lineTo(x+22,y-10);q.moveTo(x+w/2,y);q.lineTo(x+w/2-22,y-10);q.stroke();});
@@ -435,7 +437,8 @@ const S9=segment(PM[9],PM[10],{soffit:.36});
 const S10=segment(PM[10],PM[0],{kind:'window',x0:.07,x1:2.49,mull:[.76,1.53],soffit:.45});
 // bathroom: behind the TV wall, west of the hall; door in the hall's west wall
 const wTileTex=tex(256,256,(g,w,h)=>{g.fillStyle='#e4e4e0';g.fillRect(0,0,w,h);for(let c=0;c<2;c++)for(let r=0;r<8;r++){g.fillStyle=`hsl(40,6%,${rr(94,97)}%)`;g.fillRect(c*128+2,r*32+2,124,28);}},[1,1]);
-function tileMat(L){const t=wTileTex.clone();t.needsUpdate=true;t.repeat.set(L/.6,H/.6);return M('#ffffff',{map:t,roughness:.22});}
+finish(wTileTex,'glaze');
+function tileMat(L){const t=wTileTex.clone();t.needsUpdate=true;t.repeat.set(L/.6,H/.6);return M('#ffffff',{map:t,roughness:.31});}
 const PB=[[.05,4.42],[1.39,4.42],[1.39,6.87],[.05,6.87]],PBs=PB.map(p=>[p[0]*K,p[1]*K]);
 const PR=[[-1.65,7.01],[1.39,7.01],[1.39,9.75],[-1.65,9.75]],PRs=PR.map(p=>[p[0]*K,p[1]*K]);
 const R0=segment(PR[0],PR[1],{hall:1}),R1=segment([1.39,7.83],PR[2],{hall:1}),R2=segment(PR[2],PR[3],{hall:1}),R3=segment(PR[3],PR[0],{hall:1,kind:'window',x0:.62,x1:2.7,mull:[1.66]});
@@ -460,7 +463,8 @@ function polyShape(pts,flip){const s=new THREE.Shape();pts.forEach((p,i)=>{const
   const sd=mesh(new THREE.CylinderGeometry(.055,.055,.025,20),M('#f4f3ef'),hallCeil,false,false);sd.position.set(2.2,2.435,7.6);}}
 
 {const bt=tex(256,256,(g,w,h)=>{g.fillStyle='#2e3032';g.fillRect(0,0,w,h);for(let c=0;c<16;c++)for(let r=0;r<4;r++){g.fillStyle=`hsl(210,4%,${rr(13,19)}%)`;g.fillRect(c*16+1,r*64+1,14,62);}},[3.5,3.5]);
- const bf=mesh(new THREE.ShapeGeometry(polyShape(PB,true)),M('#ffffff',{map:bt,roughness:.35}),scene,false,true);bf.rotation.x=-PI/2;bf.position.y=.004;bf.userData.shape=true;
+ finish(bt,'slate');
+ const bf=mesh(new THREE.ShapeGeometry(polyShape(PB,true)),M('#ffffff',{map:bt,roughness:.47}),scene,false,true);bf.rotation.x=-PI/2;bf.position.y=.004;bf.userData.shape=true;
  box(.19,.006,.86,M('#111113',{roughness:.3}),1.46,0,5.67,scene,false);
  const bc=mesh(new THREE.ShapeGeometry(polyShape(PB,false)),mat.ceil,hallCeil,false,false);bc.rotation.x=PI/2;bc.position.y=2.45;bc.userData.shape=true;
  const vt=mesh(new THREE.PlaneGeometry(.3,.2),M('#ffffff',{map:ventTex}),hallCeil,false,false);vt.rotation.x=PI/2;vt.position.set(.45,2.447,5.7);
@@ -1212,6 +1216,7 @@ item('gym','Play gym',()=>{{const g=grp(1.18,0,3.35);g.rotation.y=.3;info(g,'Bab
  rbox(.5,.8,.62,.004,kw,3.17,.1,.31,kg);
  {const cs=new THREE.Shape();cs.moveTo(.65,0);cs.lineTo(2.16,0);cs.lineTo(2.16,.64);cs.lineTo(.65,.64);cs.lineTo(.65,0);const hl=new THREE.Path(),r=.02,x0=.76,x1=1.3,z0=.14,z1=.5;hl.moveTo(x0+r,z0);hl.lineTo(x1-r,z0);hl.absarc(x1-r,z0+r,r,-PI/2,0);hl.lineTo(x1,z1-r);hl.absarc(x1-r,z1-r,r,0,PI/2);hl.lineTo(x0+r,z1);hl.absarc(x0+r,z1-r,r,PI/2,PI);hl.lineTo(x0,z0+r);hl.absarc(x0+r,z0+r,r,PI,PI*1.5);cs.holes.push(hl);const cg=new THREE.ExtrudeGeometry(cs,{depth:.04,bevelEnabled:false,curveSegments:6});cg.rotateX(PI/2);const ct=mesh(cg,mat.counter,kg);ct.position.y=.94;}box(.5,.04,.64,mat.counter,3.17,.9,.32,kg);
  {const bs=M('#b9bdc1',{roughness:.35,metalness:.85,side:DS}),y0=.78,d=.158;box(.54,.006,.36,bs,1.03,y0,.32,kg);box(.54,d,.006,bs,1.03,y0,.143,kg);box(.54,d,.006,bs,1.03,y0,.497,kg);box(.006,d,.36,bs,.763,y0,.32,kg);box(.006,d,.36,bs,1.297,y0,.32,kg);cyl(.034,.034,.003,mat.steel,1.03,y0+.006,.32,kg,24);cyl(.024,.024,.002,M('#1a1a1c',{roughness:.6}),1.03,y0+.009,.32,kg,20);[-.012,0,.012].forEach(dx=>box(.003,.001,.03,mat.steel,1.03+dx,y0+.011,.32,kg,false));}{rbox(.18,.04,.12,.01,new THREE.MeshStandardMaterial({color:C('#e8f0f0'),transparent:true,opacity:.45,roughness:.05}),3.3,.94,.5,kg);}{const dc=box(.09,.13,.006,M('#e8c040',{roughness:1}),1.1,1.12,.2,kg,false);dc.rotation.x=.25;}rod(V(1.1,.94,.06),V(1.1,1.28,.06),.012,mat.steel,kg);rod(V(1.1,1.28,.06),V(1.1,1.25,.26),.012,mat.steel,kg);
+ finish(mat.tile.map,'backsplash');
  box(2.77,.51,.01,mat.tile,2.035,.94,.005,kg,false);
  const ref=grp(0,0,0,kg);info(ref,'Refrigerator','Panel-ready fridge behind the tall wood doors at the hallway end.');rbox(.59,2.42,.62,.004,kw,3.715,0,.31,ref);seam(3.715,.92,.59,.004);seam(3.715,1.82,.59,.004);box(.012,.4,.02,mat.black,3.46,1.2,.635,ref);box(.26,.012,.02,mat.black,3.715,.88,.635,ref);box(.26,.012,.02,mat.black,3.715,1.78,.635,ref);
  box(.75,.97,.02,mat.black,1.025,1.45,.01,kg);[.65,1.4].forEach(x=>box(.02,.97,.34,mat.black,x,1.45,.17,kg));[1.45,1.72,1.99,2.24,2.4].forEach(y=>box(.75,.018,.34,mat.black,1.025,y,.17,kg));
@@ -1677,6 +1682,7 @@ item('bathstool','Bath step stool',()=>{{const g=grp(.48,0,5.17);info(g,'Step st
  for(let i=0;i<9000;i++){const y=rr(0,h),t=(Math.sin(y/h*PI*5.2)+1)/2;g.fillStyle=`rgba(${rnd()<t?'255,255,250':'120,104,86'},${rr(.15,.4)})`;g.fillRect(rr(0,w),y,2,2);}});
 item('bed','Bed',()=>{{const g=grp(u(-.18),0,u(10.17));info(g,'Bed','Queen platform bed in warm wood on chunky pinned legs. The adjustable base is raised at the head, with ivory sheets, a cover draped over the gray headboard, an ombre knit throw at the foot and fabric storage bins underneath. The pillows, bolster and plush crocodile are separate pieces.');
   const wm=M('#9a663a',{roughness:.6}),wmD=M('#80542e',{roughness:.6}),ivory=M('#efe8dc',{roughness:1}),ivoryD=M('#e6ddce',{roughness:1,side:DS}),knit=M('#ffffff',{map:tex(128,128,(q,w,h)=>{const gr=q.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#efe9e0');gr.addColorStop(.35,'#b9ada0');gr.addColorStop(.6,'#8f857c');gr.addColorStop(.8,'#c9beb2');gr.addColorStop(1,'#eee8de');q.fillStyle=gr;q.fillRect(0,0,w,h);for(let y=1;y<h;y+=4)for(let x=(y%8?0:2);x<w;x+=4){q.fillStyle='rgba(255,255,255,.18)';q.fillRect(x,y,2,2);q.fillStyle='rgba(0,0,0,.08)';q.fillRect(x+1,y+2,2,1);}},[1,1]),roughness:1});
+  finish(knit.map,'knit');
   [-.8,.8].forEach(x=>box(.07,.14,2.14,wm,x,.14,0,g));[-1.04,1.04].forEach(z=>box(1.66,.14,.07,wm,0,.14,z,g));
   [[-.8,-1.04],[.8,-1.04],[-.8,1.04],[.8,1.04]].forEach(([x,z])=>{box(.1,.34,.12,wmD,x,0,z,g);box(.03,.05,.13,wm,x+Math.sign(x)*.05,.2,z,g,false);});
   box(1.56,.03,2.04,wmD,0,.26,0,g,false);box(1.5,.07,2.0,M('#4a4b4d',{roughness:.7}),0,.29,0,g,false);
