@@ -17,7 +17,7 @@
  "step": 0.04,
  "reach": 0.3,
  "rays": 48,
- "open": 0.632,
+ "open": 0.631,
  "parts": [
   "act1",
   "act2"
@@ -25,7 +25,7 @@
  "made": {
   "files": {
    "act1": "ccbc7fb9ba8344f5",
-   "act2": "7771d7fef076d963"
+   "act2": "2f944d3f94ce12b0"
   },
   "layout": "44136fa355b3678a"
  }

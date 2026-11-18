@@ -22,6 +22,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 export const ACTS = { 'Living room': 1, Hallway: 1, Bathroom: 2, 'Laundry closet': 2, 'Coat closet': 2, Bedroom: 3 };
+const EMPTY_ROOMS = new Set(['Laundry closet', 'Coat closet']);   // nobody can go in or see in, so what stands inside them is not built (the doors are Shell-style act 1 pieces and stay)
 const ALWAYS_ACT1 = /^(Shell|door-)/;   // the rooms' walls and floors, and the doors between them
 
 const inPoly = (x, z, poly) => {
@@ -40,6 +41,7 @@ export async function split(assets) {
     'meshopt.encoder': MeshoptEncoder,
     'meshopt.decoder': MeshoptDecoder,
   });
+  const report0 = {};
   const plan = JSON.parse(fs.readFileSync(path.join(assets, 'apartment.json'), 'utf8')).plan;
   const source = await io.read(path.join(assets, 'apartment-q.glb'));   // quantized, not meshopt-packed
   const app = source.getRoot().listNodes().find((n) => n.getName() === 'Apartment');
@@ -52,7 +54,7 @@ export async function split(assets) {
     const cx = (min[0] + max[0]) / 2, cz = (min[2] + max[2]) / 2;
     const home = plan.find(([room, poly]) => ACTS[room] && inPoly(cx, cz, poly));
     const spread = max[0] - min[0] > 1.5 || max[2] - min[2] > 1.5;   // one object across rooms (all the window shades)
-    if (home && !spread) return ACTS[home[0]];
+    if (home && !spread) return EMPTY_ROOMS.has(home[0]) ? 0 : ACTS[home[0]];   // act 0 = in no file
     let best = Infinity;
     for (let i = 0; i <= 4; i++) for (let k = 0; k <= 4; k++) {
       const x = min[0] + ((max[0] - min[0]) * i) / 4, z = min[2] + ((max[2] - min[2]) * k) / 4;
@@ -60,6 +62,8 @@ export async function split(assets) {
     }
     return Number.isFinite(best) ? best : 1;
   });
+
+  report0.dropped = app.listChildren().filter((n, i) => actOf[i] === 0).map((n) => n.getName());
 
   // the floor plan gets the acts, and each light the act it shines in, so the game only loads
   // (and lights) what the current act needs
@@ -85,6 +89,7 @@ export async function split(assets) {
     fs.writeFileSync(small + '.gz', zlib.gzipSync(fs.readFileSync(small), { level: 9 }));   // what the game downloads (apartment.js)
     report[`act${act}`] = { objects: kept.length, mb: +(fs.statSync(small).size / 1e6).toFixed(2), fallbackMb: +(fs.statSync(q).size / 1e6).toFixed(2), sample: kept.filter((k) => !ALWAYS_ACT1.test(k)).slice(0, 8) };
   }
+  Object.assign(report, report0);
   report.lights = Object.fromEntries(['act1', 'act2', 'act3'].map((a) => [a, meta.lights.filter((L) => L.act === a).length]));
   return report;
 }
