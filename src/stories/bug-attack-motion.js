@@ -10,7 +10,7 @@ import { CONTENT, compileEnemies } from '../content.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
 import { ENEMY_WORDS } from '../words.js';
-import { TIERS, WORK, WORK_BUDGET, attackPuff, beginFrame, knobs, roll } from '../attack-motion.js';
+import { TIERS, WORK, WORK_BUDGET, attackClock, attackPuff, beginFrame, knobs, newAttack, roll } from '../attack-motion.js';
 import { G, fresh, holdJelly, near, offs, ok, spawn, stub, story, tp } from './kit.js';
 
 // Each attack: the bug, where it starts (m from the jelly, along +x and +z), what says its attack has
@@ -334,5 +334,33 @@ story('engine/bug-attack-work-is-bounded', {
     film();
     const most = WORK.most;
     return ok(most > 0 && most <= WORK_BUDGET, { most, budget: WORK_BUDGET });
+  },
+});
+
+// A bug's states stepped by hand through one attack (no game), the attack clock read each frame
+function drive(T, steps, dt = 1 / 60) {
+  const e = { T, atk: newAttack({ attackMotion: { style: 'throw', tier: 'mid' } }), state: 'approach', stateT: 0, aimT: 0, firedT: 0, phase: 1.7 };
+  const seen = [];
+  for (const [state, secs, set] of steps) {
+    Object.assign(e, { state, stateT: secs }, set || {});
+    for (let t = 0; t < secs - 1e-9; t += dt) {
+      attackClock(e, dt);
+      seen.push({ phase: e.atk.phase, k: e.atk.k, n: e.atk.n });
+      e.stateT -= dt; if (e.aimT > 0) e.aimT = Math.max(0, e.aimT - dt); if (e.firedT > 0) e.firedT = Math.max(0, e.firedT - dt);
+    }
+  }
+  return seen;
+}
+const dropped = (S) => S.some((f, i) => i && f.phase === S[i - 1].phase && f.phase !== 'idle' && f.k < S[i - 1].k - 1e-9);
+story('motion/multi-step-phases-run-on', {
+  about: 'An attack whose build-up or recoil takes several of its word\'s steps (the Ladybug\'s land, raise and aim, then close and rest) runs each phase on through them, its k never dropping back; a Shot without states (the Ant\'s spit: aimT, then firedT) is a build-up, a swing and a recoil too; each counts as one attack.',
+  setup() {},
+  play() {
+    const lady = drive(CONTENT.enemies.ladybug, [['approach', 0.2], ['land', 0.8], ['raise', 0.45], ['aim', 0.6], ['close', 0.5], ['rest', 1], ['approach', 0.2]]);
+    const ant = drive(CONTENT.enemies.ants, [['approach', 0.2, {}], ['approach', 0.7, { aimT: 0.7, aimMax: 0.7 }], ['approach', 0.25, { aimT: 0, firedT: 0.25 }], ['approach', 0.2]]);
+    const order = (S) => S.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1]).join(' ');
+    const end = (S, p) => of(S, p).at(-1)?.k ?? 0;
+    const good = (S) => !dropped(S) && order(S) === 'idle build swing recoil idle' && S.at(-1).n === 1 && end(S, 'build') > 0.95 && end(S, 'recoil') > 0.95;
+    return ok(good(lady) && good(ant), { ladybug: { order: order(lady), dropped: dropped(lady), attacks: lady.at(-1).n, build: +end(lady, 'build').toFixed(2), recoil: +end(lady, 'recoil').toFixed(2) }, ant: { order: order(ant), dropped: dropped(ant), attacks: ant.at(-1).n, build: +end(ant, 'build').toFixed(2), recoil: +end(ant, 'recoil').toFixed(2) } });
   },
 });

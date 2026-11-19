@@ -625,7 +625,7 @@ export class Enemies {
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
-    if (e.atk && (e.atk.phase === 'swing' || e.atk.phase === 'recoil')) e.atk.hit = true;   // its attack landed: the contact pose holds
+    if (e.atk?.phase === 'swing') e.atk.hit = true;   // its swing landed: the contact pose holds (a Shot landing later, or a touch while it rests, doesn't)
     if (contact) {
       const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
       this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);

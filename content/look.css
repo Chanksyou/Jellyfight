@@ -364,6 +364,7 @@
   --bug-attack-smear: 1.3;       /* the striking part's stretch on the one smear frame of a swing, */
   --bug-attack-smear-at: 0.03;   /* s into the swing it comes */
   --bug-attack-vary: 0.1;        /* each attack rolls its own size, up to this much bigger or smaller (seeded), and a side to lean */
+  --bug-attack-lock-beat: 0.067;  /* s after the aim locks that the lock beat (a head dip, wide eyes) shows: two frames at 30 fps */
   --bug-attack-puffs: 4;         /* weight puffs in one frame, at most (none for far or off-screen bugs) */
   /* each style: hold (k of the build-up by which the coiled pose is reached, then held), over (its overshoot
      getting there), strike (s the swing takes to reach full stretch), bounces and damp (its settle in recoil),

@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
-import { coil, eyes, knobs, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
+import { coil, eyes, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -305,7 +305,7 @@ export function buildMosquito() {
     if (ph === 'build') {
       const c = coil(A.k, A.style.hold, A.style.over) * A.vary;
       back = -0.3 * c; rear = 0.35 * c; reach = Math.min(1, c);
-      if (A.lockT >= 0 && A.lockT < 0.067) rear -= 0.12;          // the lock: its head dips at you
+      if (lockBeat(A)) rear -= 0.12;             // the lock: its head dips at you
       still = A.still ? 1 : 0;
       shake = (1 - still) * quiver(A.k, A.t, e.phase) * A.quiet;
     } else if (ph === 'swing') {
@@ -347,7 +347,7 @@ export function buildMosquito() {
     stretch(body, len);
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; fwd = 0; side = 0; legs.forEach(L => { L.sp.x = 0; L.sp.v = 0; L.sway = 0; }); };
+  anim.reset = () => { t = 0; fwd = 0; side = 0; legs.forEach(L => { L.sp.x = 0; L.sp.v = 0; L.sway = 0; }); stretch(body, 1); body.position.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-bite)
   return { body: outer, face: new THREE.Group(), anim };
 }
 

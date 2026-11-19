@@ -24,7 +24,7 @@ let K = null;
 export function knobs() {
   if (K) return K;
   const n = (name, d) => LOOK.num('bug-attack-' + name, d);
-  K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), quiver: n('quiver', 1), style: {}, tier: {} };
+  K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), beat: n('lock-beat', 0.067), style: {}, tier: {} };
   for (const s of STYLES) K.style[s] = { hold: n(s + '-hold', 0.35), over: n(s + '-over', 0.08), strike: n(s + '-strike', 0.08), bounces: n(s + '-bounces', 2), damp: n(s + '-damp', 2), follow: n(s + '-follow', 0.06) };
   for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
   return K;
@@ -60,11 +60,13 @@ export function mixPose(A, B, k, out, lag = 0) {
   for (let i = 0; i < A.length; i++) { const j = clamp01(k - i * lag); out[i] = A[i] + (B[i] - A[i]) * j; }
   return out;
 }
+// the two frames after the aim locks (the lock beat)
+export const lockBeat = (A) => A.lockT >= 0 && A.lockT < knobs().beat;
 // the angry eyes (enemies.js angryEyes): narrow through the build-up, wide at the lock, shut on a landed hit,
 // drooping after a miss
 export function eyes(face, A) {
   let y = 1, droop = 0;
-  if (A.phase === 'build') y = A.lockT >= 0 && A.lockT < 0.067 ? 1.35 : 1 - 0.45 * clamp01(A.k / 0.6);
+  if (A.phase === 'build') y = lockBeat(A) ? 1.35 : 1 - 0.45 * clamp01(A.k / 0.6);
   else if (A.phase === 'swing') y = A.hit ? 0.12 : 0.6;
   else if (A.phase === 'recoil') { const q = 1 - A.k; y = A.hit ? 1 - 0.4 * q : 1 - 0.3 * q; droop = A.hit ? 0 : 0.25 * q; }
   const C = face.children;
@@ -75,7 +77,7 @@ export function eyes(face, A) {
 // One per bug, made at spawn (enemies.js). `style` and `tier` are its look.css numbers.
 export function newAttack(T) {
   const k = knobs(), m = T.attackMotion;
-  return { phase: 'idle', k: 0, pt: 0, t: 0, lock: -1, lockT: -1, hit: false, still: false, smear: false, n: 0, vary: 1, side: 1, quiet: 1, style: k.style[m.style], tier: k.tier[m.tier], key: '', len: 0, st: 0, rt: 0, r0: 0, rkey: '', rec: false };
+  return { phase: 'idle', k: 0, pt: 0, t: 0, lock: -1, lockT: -1, hit: false, still: false, smear: false, n: 0, vary: 1, side: 1, quiet: 1, style: k.style[m.style], tier: k.tier[m.tier], key: '', len: 0, st: 0, rt: 0, r0: 0, rkey: '', rec: false, k0: 0, carry: '' };
 }
 
 // puffs this frame (at most knobs().puffs), counted by beginFrame
@@ -109,9 +111,9 @@ export function attackClock(e, dt, fx = null, calm = false) {
   if (!kind) key = '';
   const was = A.phase;
   if (key !== A.key) {
-    A.key = key; A.st = 0;
+    A.key = key; A.st = 0; A.k0 = A.k; A.carry = A.phase;   // a phase that runs on into its next step carries its k
     A.len = P.span[key] ?? Math.max(0, left);   // a step with no clock of its own (a dart) has a span instead
-    if (kind === 'build' && (was === 'idle' || was === 'recoil')) {   // a new attack: its own seeded roll
+    if (kind === 'build' && was !== 'build') {   // a new attack: its own seeded roll
       A.n++; A.t = 0; A.hit = false; A.rec = false;
       roll(A, e.phase, A.n);
     }
@@ -125,7 +127,7 @@ export function attackClock(e, dt, fx = null, calm = false) {
     phase = 'build'; kk = k;
     const lock = P.lock[key];
     if (lock != null) { A.lock = lock; if (k >= lock) A.lockT = (k - lock) * A.len; }
-    A.still = A.len > 0 && (1 - k) * A.len <= C.still;
+    A.still = !P.more[key] && A.len > 0 && (1 - k) * A.len <= C.still;
   } else if (kind === 'swing' || (kind === 'fire' && A.st < C.fire)) {
     phase = 'swing'; kk = kind === 'fire' ? A.st / C.fire : k;
   } else if (kind) {                         // recoil, after its holds: contact (a landed hit only), then follow-through
@@ -140,7 +142,9 @@ export function attackClock(e, dt, fx = null, calm = false) {
     }
   } else A.hit = false;
   if (since >= 0) A.pt = since; else if (phase !== was) A.pt = 0; else if (!frozen) A.pt += dt;
-  if (!frozen) A.k = kk;
+  // a step that another step of the same phase follows fills only half of what is left of it, so k never drops
+  const share = P.more[key] && (kind !== 'fire' || phase === 'recoil') ? 0.5 : 1;
+  if (!frozen) A.k = phase === A.carry && phase !== 'idle' ? A.k0 + (1 - A.k0) * kk * share : kk * share;
   A.phase = phase;
   if (phase === 'swing' && !frozen) A.smear = A.pt >= C.smearAt && A.pt < C.smearAt + 1 / 30;
   if (phase !== was && ((phase === 'swing' && !frozen && A.tier.puff.includes('launch')) || (phase === 'recoil' && A.tier.puff.includes('land')))) attackPuff(fx, e);
