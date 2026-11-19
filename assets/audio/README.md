@@ -47,5 +47,5 @@ to the synthesized `SONGS.encore` (`src/music.js`) if it can't load.
 The jelly's everyday sounds, from the Soundza library (https://soundza.com), loaded as soon as sound is on.
 The bubble's blow, pop (small and big) and hit, a crit, a bug dying (small and large), jump, land, hurt, and the jelly's Shield coming up, taking a hit and breaking.
 Chan picked each from an audition board; the Vacuum's Shield keeps its synthesized sound.
-Six takes (two each for the bubble's hit, its small pop and a small bug dying) are AI-made variations of the library sound beside them, from Soundza's `vary_sound`.
+Three takes (one each for the bubble's hit, its small pop and a small bug dying) are AI-made variations of the library sound beside them, from Soundza's `vary_sound`.
 Every take's Soundza id is in `credits.json`.

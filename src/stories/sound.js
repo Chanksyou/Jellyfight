@@ -175,3 +175,37 @@ story('sound/everyday-sounds-leave-voices-for-the-rarer-ones', {
     return ok(loaded && swarm === 4 && started.length === 5, { loaded, swarm, after: started.length });
   },
 });
+
+story('sound/rewards-play-recorded-before-a-run-starts', {
+  about: 'The rewards pack loads with sound itself (no run needed): the menu tap and pick, a pickup, the chest, level-up, reveal by tier, award and buying each play a recorded take instead of the synthesized sound, and the XP take plays faster the longer the chain.',
+  setup() { setupFight(); },
+  async play() {
+    unlockAudio();
+    const S = await freshSfx();
+    S.unlock();
+    const loaded = await S.wantPacks();   // no act or type tag: only the 'unlock' packs
+    const { ctx } = S.audio(), packs = await packList();
+    await wait(50);
+    const rates = [], make = ctx.createBufferSource.bind(ctx);
+    stub(ctx, 'createBufferSource', () => {
+      const s = make(), start = s.start.bind(s);
+      s.start = (...a) => { if (s.buffer?.duration > 5) rates.push(s.playbackRate.value); return start(...a); };
+      return s;
+    });
+    const log = S.cueLog(() => 0), roles = Object.keys(packs.rewards.roles);
+    await wait(100);
+    // at most 6 recorded voices at once, so the sounds go in groups, each left to ring out
+    const play = (...calls) => calls.forEach(([name, ...args]) => S.sfx[name](...args));
+    play(['tap'], ['pick'], ['treasure'], ['levelUp'], ['chestCreak', 0]);
+    await wait(1500);
+    play(['chestPop', 1], ['buy'], ['reveal', 0], ['reveal', 1], ['reveal', 2]);
+    await wait(1600);
+    play(['reveal', 3], ['award']);
+    rates.length = 0;
+    S.sfx.xp(0); await wait(60); S.sfx.xp(8);
+    S.cueLog(null);
+    const played = new Set(log.filter((c) => c.recorded).map((c) => c.cue)), missing = roles.filter((r) => r !== 'xp-pickup' && !played.has(r));
+    await ctx.close();
+    return ok(loaded && !missing.length && played.has('xp-pickup') && rates.length === 2 && rates[1] > rates[0] * 2, { loaded, missing, rates });
+  },
+});
