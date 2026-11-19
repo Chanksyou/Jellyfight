@@ -372,7 +372,7 @@
   --bug-attack-lunge-hold: 0.34;  --bug-attack-lunge-over: 0.08;  --bug-attack-lunge-strike: 0.06;  --bug-attack-lunge-bounces: 2;  --bug-attack-lunge-damp: 2;  --bug-attack-lunge-follow: 0.06;
   --bug-attack-throw-hold: 0.35;  --bug-attack-throw-over: 0.1;   --bug-attack-throw-strike: 0.06;  --bug-attack-throw-bounces: 2;  --bug-attack-throw-damp: 2;  --bug-attack-throw-follow: 0.08;
   --bug-attack-pounce-hold: 0.4;  --bug-attack-pounce-over: 0.08; --bug-attack-pounce-strike: 0.1;  --bug-attack-pounce-bounces: 2; --bug-attack-pounce-damp: 2; --bug-attack-pounce-follow: 0.06;
-  --bug-attack-swipe-hold: 0.6;   --bug-attack-swipe-over: 0.1;   --bug-attack-swipe-strike: 0.05;  --bug-attack-swipe-bounces: 2;  --bug-attack-swipe-damp: 2;  --bug-attack-swipe-follow: 0.1;
+  --bug-attack-swipe-hold: 0.4;   --bug-attack-swipe-over: 0.1;   --bug-attack-swipe-strike: 0.05;  --bug-attack-swipe-bounces: 2;  --bug-attack-swipe-damp: 2;  --bug-attack-swipe-follow: 0.1;
   --bug-attack-roll-hold: 0.4;    --bug-attack-roll-over: 0.05;   --bug-attack-roll-strike: 0.1;    --bug-attack-roll-bounces: 1;   --bug-attack-roll-damp: 3;   --bug-attack-roll-follow: 0.08;
   --bug-attack-nip-hold: 0.4;     --bug-attack-nip-over: 0.05;    --bug-attack-nip-strike: 0.04;    --bug-attack-nip-bounces: 2;    --bug-attack-nip-damp: 2;    --bug-attack-nip-follow: 0.04;
   --bug-attack-nip-near: 5;       /* a bug that only touches you (the Cockroach) leans in within this many of its radii of you, */
@@ -384,7 +384,7 @@
      contact (s the contact pose holds when the hit lands), puff (when a weight puff kicks up: launch, land) */
   --bug-attack-fodder-stretch: 1.1;  --bug-attack-fodder-over: 0.05; --bug-attack-fodder-contact: 0;    --bug-attack-fodder-puff: none;
   --bug-attack-light-stretch: 1.2;   --bug-attack-light-over: 0.12;  --bug-attack-light-contact: 0.05;  --bug-attack-light-puff: none;
-  --bug-attack-mid-stretch: 1.2;     --bug-attack-mid-over: 0.15;    --bug-attack-mid-contact: 0.05;    --bug-attack-mid-puff: land;
+  --bug-attack-mid-stretch: 1.25;    --bug-attack-mid-over: 0.15;    --bug-attack-mid-contact: 0.05;    --bug-attack-mid-puff: land;
   --bug-attack-heavy-stretch: 1.3;   --bug-attack-heavy-over: 0;     --bug-attack-heavy-contact: 0.08;  --bug-attack-heavy-puff: launch land;
 
   /* Confirmed enemy damage text: independent from hit rules and world effects. */

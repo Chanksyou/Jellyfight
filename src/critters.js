@@ -1837,7 +1837,7 @@ export function buildMantis({ dead = false } = {}) {
     const A = e.atk, ph = A ? A.phase : 'idle';
     let z = 0, y = 0, rx = 0, cross = 0, len = 1, shake = 0;
     if (ph === 'build') {
-      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;      // open by 60% (0.18 s), past raised, then held
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;      // open by 40% (0.12 s), past raised, then held
       for (let i = 0; i < 3; i++) P[i] = PRAY[i] + (RAISED[i] - PRAY[i]) * c;
       shake = (A.still ? 0 : 1) * quiver(A.k, A.t, e.phase) * A.quiet;
       z = -0.1 * c; y = 0.06 * c; rx = -0.22 * c + (lockBeat(A) ? 0.08 : 0);   // the lock: its head dips at you
@@ -2127,7 +2127,7 @@ export function buildCicada() {
     mt += dt;
     const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
     const dig = e.state === 'dig' ? e.digK || 0 : 0, P = Math.PI * 6;   // (three pulses: 6π)
-    let sink = e.under ? 1 : dig - Math.sin(dig * P) / P, up = 0, len = 1, open = 0, daze = 0, shut = 0, squash = 0, shake = 0;
+    let sink = e.under ? 1 : dig - Math.sin(dig * P) / P, up = 0, len = 1, open = 0, daze = 0, shut = 0, squash = 0, shake = 0, lean = 0;
     if (ph === 'swing') { up = 1; open = 1; len = A.smear ? knobs().smear : A.tier.stretch; }
     else if (ph === 'recoil') {
       const p = A.pt, left = e.state === 'dazed' ? Math.max(0, e.stateT) : 0;
@@ -2137,6 +2137,7 @@ export function buildCicada() {
       open = 1 - S(p, 0, 0.15);
       shut = left < 0.25 ? 1 - left / 0.25 : 0;
       shake = Math.sin(A.t * 45) * 0.25 * shut * (1 - shut) * 4;
+      if (!A.hit) lean = A.side * 0.3 * daze * (1 - shut) * S(p, 0.05, 0.2);   // a burst that missed lands lopsided, tipped onto one side
     }
     for (const L of legs) {
       // digging: the forelegs scoop in turn
@@ -2147,7 +2148,7 @@ export function buildCicada() {
     for (const W of wings) W.hinge.rotation.set(0, 0, W.s * (-0.35 - 0.2 * daze * (1 - shut) + buzz + open * 1.2));
     body.visible = sink < 0.97;
     body.position.y = -sink * 1.5 + up * 0.2 - squash * 0.15 + Math.abs(Math.sin(t)) * 0.015 * k;
-    body.rotation.set(0.18 * daze, shake, Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) + (dig > 0 ? Math.sin(dig * P) * 0.08 : 0));
+    body.rotation.set(0.18 * daze, shake, lean + Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) + (dig > 0 ? Math.sin(dig * P) * 0.08 : 0));
     { const y = squash ? 1 - squash : len, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); }   // stretched up, squashed down
     // the mound: swells as it digs, heaves as it travels, shakes harder as it locks over its spot
     const rise = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
@@ -2207,7 +2208,7 @@ export function buildWorm() {
     const K = e.atk, ph = K ? K.phase : 'idle';
     let wind = 0, out = 0, rise = -1, wig = 1, tipQ = 0, thin = 0, rip = 0, at = 0, sway = 0;
     if (ph === 'build') {
-      wind = coil(K.k, K.style.hold, K.style.over) * K.vary;           // reared back by 60%, past, then held
+      wind = coil(K.k, K.style.hold, K.style.over) * K.vary;           // reared back by 40%, past, then held
       wig = K.still ? 0 : 1;
       tipQ = wig * quiver(Math.max(0, (K.k - 0.57) / 0.43), K.t, e.phase) * K.quiet;   // the tip, over the last 0.3 s
     } else if (ph === 'swing') {

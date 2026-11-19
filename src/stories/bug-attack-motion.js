@@ -338,6 +338,19 @@ story('motion/a-miss-recovers-differently', {
   },
 });
 
+story('motion/cicada-burst-lands-or-misses', {
+  about: 'A Cicada whose burst hits the jelly counts it as landed (its swing\'s contact pose holds) and sways dazed upright; one whose burst misses (the jelly swam off its locked spot) lands tipped onto one side.',
+  setup() {},
+  play() {
+    // the miss: the jelly swims away once the mound has locked onto its spot, inside the Warning's beats
+    const away = (S) => { const go = S.advance; let moved = false; S.advance = () => { if (!moved && S.e.burrowLocked) { G().player.position.z += 0.6; moved = true; } return go(); }; return null; };
+    const H = of(film('cicada'), 'recoil'), M = of(film('cicada', { also: away }), 'recoil');
+    const tip = (R) => (R.length ? Math.abs(R.reduce((a, f) => a + f.rz, 0) / R.length) : 9);
+    const landed = !!H[0]?.hit && tip(H) < 0.08, missed = !!M[0] && !M[0].hit && tip(M) > 0.15;
+    return ok(landed && missed, { hit: H[0]?.hit, hitTip: +tip(H).toFixed(3), missHit: M[0]?.hit, missTip: +tip(M).toFixed(3), frames: [H.length, M.length] });
+  },
+});
+
 story('motion/recoil-ends-ready', {
   about: 'Hit or miss, a Mosquito is back in its ready stance (no pull-back, roll or squash) over the last fifth of its rest: the punish window is honest.',
   setup() {},
@@ -407,13 +420,13 @@ story('motion/attacks-never-recolour-the-bug', {
 });
 
 story('motion/bigger-bugs-move-bigger', {
-  about: 'The attack tiers (fodder, light, mid, heavy) stretch further and hold contact longer as they go up, and the heavy tier never bounces.',
+  about: 'The attack tiers (fodder, light, mid, heavy) each stretch further than the one below and hold contact at least as long, and the heavy tier never bounces.',
   setup() {},
   play() {
     const K = knobs(), T = TIERS.map((t) => K.tier[t]);
-    const rising = (key) => T.every((x, i) => i === 0 || x[key] >= T[i - 1][key]);
+    const rising = (key, by = 0) => T.every((x, i) => i === 0 || x[key] >= T[i - 1][key] + by);
     const heavy = K.tier.heavy;
-    return ok(rising('stretch') && rising('contact') && T[3].stretch > T[0].stretch && !heavy.bounce && heavy.over === 0, { stretch: T.map((x) => x.stretch), contact: T.map((x) => x.contact), heavyBounces: heavy.bounce, heavyOver: heavy.over });
+    return ok(rising('stretch', 0.01) && rising('contact') && T[3].stretch > T[0].stretch && !heavy.bounce && heavy.over === 0, { stretch: T.map((x) => x.stretch), contact: T.map((x) => x.contact), heavyBounces: heavy.bounce, heavyOver: heavy.over });
   },
 });
 
