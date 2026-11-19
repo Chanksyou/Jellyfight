@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v543 stops the pop at the end of the Vacuum's suck: its breathing wobble (and the wobble in the Vacuum's brushes, the millipede's rev and the dragonfly's charge hum) now fades with the sound instead of playing on after it and being cut off, and a recorded hit that has to start part-way through fades in instead of clicking.
+
 v542 keeps vent rides smooth on phones: while the air carries the jelly up, the camera turns nothing new see-through (a ride up through the bathroom vanity had started 30+ see-through copies at once).
 
 v541 gives act 2's Elites recorded sounds layered over their synthesized ones: the Soap Dispenser's pump, foam, popping bubbles and breaking glass, the Wall Clock's sweep, strike, bell chime, wreath and breaking, and the Cream Whipper's balloon fill, squeal, burst, cream spray and splat, and breaking; beating one of them plays its own breaking sound, and the Cream Whipper's deep sound still slows the recordings.
