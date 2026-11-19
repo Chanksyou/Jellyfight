@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v542 keeps vent rides smooth on phones: while the air carries the jelly up, the camera turns nothing new see-through (a ride up through the bathroom vanity had started 30+ see-through copies at once).
+
 v541 gives act 2's Elites recorded sounds layered over their synthesized ones: the Soap Dispenser's pump, foam, popping bubbles and breaking glass, the Wall Clock's sweep, strike, bell chime, wreath and breaking, and the Cream Whipper's balloon fill, squeal, burst, cream spray and splat, and breaking; beating one of them plays its own breaking sound, and the Cream Whipper's deep sound still slows the recordings.
 
 v540 turns every sound effect down 20%, so effects sit a little lower than the music; the volume setting and music are unchanged.
