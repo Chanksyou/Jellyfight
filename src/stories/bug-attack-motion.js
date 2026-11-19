@@ -432,7 +432,7 @@ story('motion/build-up-changes-the-outline', {
       const most = (set) => set.map(measures).reduce((m, v) => v.map((x, i) => Math.max(m[i] || 0, x)), []);
       const quiet = most(idle), moved = most(build), best = moved.map((v, i) => (v >= 1 && v >= quiet[i] + 0.3 ? v : 0));
       const top = Math.max(...best);
-      out[id] = { by: +top.toFixed(2), part: best.indexOf(top), idle: idle.length, build: build.length, dbg: moved.map((v, i) => [i, +v.toFixed(2), +quiet[i].toFixed(2)]).sort((a, b) => b[1] - a[1]).slice(0, 4).join(' | ') };
+      out[id] = { by: +top.toFixed(2), part: best.indexOf(top), idle: idle.length, build: build.length };
     }
     return ok(Object.values(out).every((o) => o.by >= 1), out);
   },

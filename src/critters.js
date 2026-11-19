@@ -228,7 +228,7 @@ export function buildAnts() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       brace = Math.max(0, 1 - s); coilK = A.vary * Math.max(0, 1 - s); thrust = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(Math.min(1, A.k / 0.8), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
+    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(Math.min(1, A.k / A.tier.end), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
     // the throw (the spit word's firedT): the pin goes the frame it is thrown, then a new one swells into its jaws
     if ((e.firedT || 0) > fired) since = 0;
     fired = e.firedT || 0;
@@ -735,7 +735,7 @@ export function buildSpider() {
       rearUp = A.vary * Math.max(0, 1 - s); flick = s; rock = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
-      const b = settle(Math.min(1, A.k / 0.8), 1, 1);          // (one bounce, home by the last fifth: its recoil is a quarter second)
+      const b = settle(Math.min(1, A.k / A.tier.end), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
       flick = rock = (1 + A.tier.over) * b;
       bend = 1 - A.k;                                              // its knees bend to take the throw, then straighten
     }
@@ -2449,7 +2449,7 @@ export function buildWasp() {
     } else if (ph === 'recoil') {
       const u = settle(A.k, A.style.bounces, A.style.damp), p = A.pt;
       pitch = 0.05 + (down - 0.05) * u; curl = S(1 - p / 0.4, 0, 1); sweep = 1 - S(p, 0.05, 0.3); tuck = 1 - S(p, 0, 0.3);
-      roll = A.side * 0.52 * Math.sin(Math.PI * Math.min(1, A.k / 0.8));   // banks past level, and is level again by the last fifth
+      roll = A.side * 0.52 * Math.sin(Math.PI * Math.min(1, A.k / A.tier.end));   // banks past level, and is level again by the last fifth
       foreAmp = S(p, 0.1, 0.25); hindAmp = S(p, 0.2, 0.35);              // the wings restart, fore then hind
       len = 1 + (A.tier.stretch - 1) * Math.max(0, u);
       bob = S(p, 0.3, 0.6);
