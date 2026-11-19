@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v537 draws the Praying mantis's swat on the frame it hits you: its forelegs are shut on the jelly as the hurt shows, instead of closing two or three frames later.
+
 v536 evens out how the basic bugs' attacks move: the Praying mantis and Horsehair worm reach their wind-up pose sooner and hold it longer, mid-sized bugs stretch a little further at full reach than light ones, and a Cicada whose burst misses you lands tipped onto one side (one that hits stands dazed upright).
 
 v535 makes the Giant millipede's body chain about seven times cheaper on a phone (no behind-the-scenes number allocation), so a crowd of bugs attacking no longer stutters.
