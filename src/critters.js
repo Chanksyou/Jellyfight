@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
-import { coil, eyes, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
+import { coil, eyes, heavy, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -491,37 +491,54 @@ export function buildLanternfly() {
   const face = angryEyes({ y: 0.48, z: 0.96, size: 0.13, gap: 0.12 });
   body.add(face);
 
-  let t = 0, k = 0, crouch = 0, open = 0, squash = 0;
+  let t = 0, k = 0;
+  // its pounce (attack-motion "pounce", src/attack-motion.js): crouches deep and holds, flicks its forewings open
+  // to flash the red as its spot locks, dips once more, then springs off stretched, wings flared and beating,
+  // hangs with its legs trailing and swings them forward, nose down, to land. It hits the floor squashed and
+  // bounces twice, its legs splayed then gathered, its wings folding late (hind first). Landed on you, it shakes
+  // itself off; missed, it looks round for you. It squares up for the last of its rest.
   const anim = (dt, e) => {
     t += dt;
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
-    const air = e.state === 'leap';
-    crouch += ((e.state === 'crouch' ? 1 : 0) - crouch) * (1 - Math.exp(-12 * dt));
-    open += ((air ? 1 : 0) - open) * (1 - Math.exp(-(air ? 18 : 6) * dt));
-    if (e.landT > 0) { squash = 1; e.landT = 0; }
-    squash *= Math.exp(-7 * dt);
-    const walk = (1 - crouch) * (1 - open);
+    const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    let crouch = 0, fore = 0, hind = 0, beat = 0, trail = 0, ahead = 0, nose = 0, squash = 0, len = 1, splay = 0, turn = 0, roll = 0;
+    if (ph === 'build') {
+      crouch = coil(A.k, A.style.hold, A.style.over) * A.vary + (A.still ? 0.35 : 0);   // the last 0.1 s: a second, deeper dip
+      if (lockBeat(A)) fore = 0.6;                                                      // the lock: a flash of red
+      roll = (A.still ? 0 : quiver(A.k, A.t, e.phase)) * 0.04 * A.quiet;
+    } else if (ph === 'swing') {
+      const down = S(A.k, 0.45, 0.85);           // through the leap: up with its legs trailing, then legs forward to land
+      fore = hind = 1; beat = 1; trail = 1 - down; ahead = down;
+      nose = -0.35 * (1 - down) + 0.3 * down;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.max(0, 1 - A.pt / 0.1);   // launched stretched
+    } else if (ph === 'recoil') {
+      const p = A.pt;
+      squash = 0.2 * settle(Math.min(1, p / 0.4), A.style.bounces, A.style.damp);
+      hind = 1 - S(p, 0.3, 0.5); fore = 1 - S(p, 0.4, 0.6); beat = fore * 0.5;     // the wings fold late, hind first
+      splay = heavy(Math.min(1, p / 0.5));
+      if (A.hit) roll = Math.sin((p - 0.5) * 50) * 0.15 * (p > 0.5 && p < 0.75 ? (0.75 - p) * 4 : 0);   // shakes itself off
+      else turn = A.side * 0.35 * Math.sin(Math.PI * S(p, 0.25, 0.75));                                   // where did you go?
+    }
+    const walk = 1 - Math.min(1, crouch + fore);
     const step = t * (4 + 14 * k);
     for (const L of legs) {
       const sw = Math.sin(step + L.phase) * 0.35 * k * walk;
-      L.pivot.rotation.y = sw * -L.s;
-      L.pivot.rotation.z = Math.max(0, Math.cos(step + L.phase)) * 0.25 * k * walk * L.s;
-      // crouching folds the jumping legs; in the air every leg trails back
-      L.pivot.rotation.x = (L.i === 2 ? -0.5 : -0.15) * crouch + (L.i === 2 ? 0.9 : 0.5) * open;
+      // crouching folds the jumping legs; in the air every leg trails back, then swings forward to land
+      // (one set() per joint: each rotation write rebuilds its quaternion)
+      L.pivot.rotation.set((L.i === 2 ? -0.5 : -0.15) * crouch + (L.i === 2 ? 0.9 : 0.5) * trail - 0.4 * ahead, sw * -L.s, (Math.max(0, Math.cos(step + L.phase)) * 0.25 * k * walk + 0.45 * splay) * L.s);
     }
-    // the body: a crawl's sway, a crouch down and back, nose up in the air, a squash on landing
     body.position.y = Math.abs(Math.sin(step)) * 0.02 * k * walk - crouch * 0.14 - squash * 0.1;
-    body.rotation.x = -crouch * 0.18 + open * (e.leapK < 0.5 ? -0.35 : 0.25);
-    body.rotation.z = Math.sin(step * 0.5) * 0.03 * k * walk;
-    body.scale.set(1 + squash * 0.12, 1 - squash * 0.2, 1 + squash * 0.06);
+    body.rotation.set(-crouch * 0.18 + nose, turn, Math.sin(step * 0.5) * 0.03 * k * walk + roll);
+    if (squash) { const y = 1 - squash, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); } else stretch(body, len);
     // wings: a roof at rest, lifted a little in the crouch, flared and beating mid-leap to flash the red
-    const flap = open * Math.sin(t * 38) * 0.35;
+    const flap = beat * Math.sin(t * 38) * 0.35;
     // (roll: negative drapes a wing down over the side, positive lifts it up and out)
-    for (const W of foreW) { W.pivot.rotation.z = W.s * (-0.62 + crouch * 0.2 + open * 1.5 + flap); W.pivot.rotation.y = W.s * (0.04 + open * 0.5); }
-    for (const W of hindW) { W.pivot.rotation.z = W.s * (-0.72 + crouch * 0.15 + open * 1.45 - flap); W.pivot.rotation.y = W.s * (0.02 + open * 0.9); }
+    for (const W of foreW) W.pivot.rotation.set(0, W.s * (0.04 + fore * 0.5), W.s * (-0.62 + crouch * 0.2 + fore * 1.5 + flap));
+    for (const W of hindW) W.pivot.rotation.set(0, W.s * (0.02 + hind * 0.9), W.s * (-0.72 + crouch * 0.15 + hind * 1.45 - flap));
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; crouch = 0; open = 0; squash = 0; };
+  anim.reset = () => { t = 0; k = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1821,7 +1838,7 @@ export function buildCicada() {
     hip.position.set(s * 0.45, 0.48, L.z);
     hip.add(new THREE.Mesh(L.geo[j], M.matte));
     body.add(hip);
-    legs.push({ hip, base: s * (L.z - 0.1) * 0.5, s, phase: (L.z > 0.3) !== (s > 0) ? Math.PI : 0 });
+    legs.push({ hip, base: s * (L.z - 0.1) * 0.5, s, front: L.z > 0.3, phase: (L.z > 0.3) !== (s > 0) ? Math.PI : 0 });
   });
   // the four wings: hinged on its back, each a (left, right) pair lying along its sides like a roof
   const wings = [[G.fore, 0.2], [G.hind, 0.05]].flatMap(([geo, z]) => [-1, 1].map((s) => {
@@ -1843,34 +1860,47 @@ export function buildCicada() {
   mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
   mound.visible = false;
   outer.add(mound);
-  let t = 0, k = 0, sink = 0, daze = 0, mt = 0;
+  let t = 0, k = 0, mt = 0;
+  // its burrow (attack-motion "pounce" tier="heavy", src/attack-motion.js): digging in, its forelegs scoop in turn
+  // and it shimmies down in three pulses; under, the mound heaves after you. On the beat it bursts up stretched,
+  // wings thrown open, and hangs there a moment, then lands squashed and heavy and sways dazed, wings drooped and
+  // buzzing. For the last 0.25 s it shakes its head and snaps its wings shut: the window to hit it is closing.
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 10) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (2 + 8 * k);
     mt += dt;
-    for (const L of legs) {
-      L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
-      L.hip.rotation.z = -L.s * Math.max(0, Math.cos(t + L.phase)) * 0.2 * k;
+    const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    const dig = e.state === 'dig' ? e.digK || 0 : 0, P = Math.PI * 6;   // (three pulses: 6π)
+    let sink = e.under ? 1 : dig - Math.sin(dig * P) / P, up = 0, len = 1, open = 0, daze = 0, shut = 0, squash = 0, shake = 0;
+    if (ph === 'swing') { up = 1; open = 1; len = A.smear ? knobs().smear : A.tier.stretch; }
+    else if (ph === 'recoil') {
+      const p = A.pt, left = e.state === 'dazed' ? Math.max(0, e.stateT) : 0;
+      up = 1 - S(p, 0, 0.1);                                    // down it comes
+      squash = 0.3 * heavy(Math.min(1, p / 0.6)) * S(p, 0, 0.1);
+      daze = 1 - S(p, 1.1, 1.4);
+      open = 1 - S(p, 0, 0.15);
+      shut = left < 0.25 ? 1 - left / 0.25 : 0;
+      shake = Math.sin(A.t * 45) * 0.25 * shut * (1 - shut) * 4;
     }
-    // digging in sinks it into the floor (the dig takes as long as the word says), bursting out brings it back at once
-    const dig = e.digK || 0;
-    sink = dig > sink ? dig : sink + (dig - sink) * (1 - Math.exp(-14 * dt));
-    daze += ((e.state === 'dazed' ? 1 : 0) - daze) * (1 - Math.exp(-10 * dt));
-    const buzz = Math.sin(performance.now() * 0.12) * 0.08 * daze;
-    for (const W of wings) { W.hinge.rotation.z = W.s * (-0.35 + buzz); W.hinge.rotation.x = 0; }
+    for (const L of legs) {
+      // digging: the forelegs scoop in turn
+      const scoop = L.front && dig > 0 ? Math.max(0, Math.sin(dig * P + (L.s > 0 ? Math.PI : 0))) * 0.7 : 0;
+      L.hip.rotation.set(0, L.base + Math.sin(t + L.phase) * 0.3 * k - L.s * scoop, -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.2 * k + scoop * 0.5));
+    }
+    const buzz = Math.sin((A ? A.t : mt) * 120) * 0.08 * daze * (1 - shut);
+    for (const W of wings) W.hinge.rotation.set(0, 0, W.s * (-0.35 - 0.2 * daze * (1 - shut) + buzz + open * 1.2));
     body.visible = sink < 0.97;
-    body.rotation.x = 0.18 * daze;
-    body.scale.set(1, 1, 1);
-    body.position.y = -sink * 1.5 + Math.abs(Math.sin(t)) * 0.015 * k;
-    body.rotation.z = Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze;
+    body.position.y = -sink * 1.5 + up * 0.2 - squash * 0.15 + Math.abs(Math.sin(t)) * 0.015 * k;
+    body.rotation.set(0.18 * daze, shake, Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) + (dig > 0 ? Math.sin(dig * P) * 0.08 : 0));
+    { const y = squash ? 1 - squash : len, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); }   // stretched up, squashed down
     // the mound: swells as it digs, heaves as it travels, shakes harder as it locks over its spot
-    const up = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
-    mound.visible = up > 0.02;
-    mound.scale.set(1.3 * up * (1 + 0.1 * lock * Math.sin(mt * 40)), up * (0.55 + 0.12 * move * Math.sin(mt * 9) + 0.25 * lock), 1.3 * up * (1 + 0.1 * lock * Math.sin(mt * 40)));
+    const rise = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
+    mound.visible = rise > 0.02;
+    mound.scale.set(1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)), rise * (0.55 + 0.12 * move * Math.sin(mt * 9) + 0.25 * lock), 1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)));
     mound.position.x = Math.sin(mt * 55) * 0.05 * lock;
   };
-  anim.reset = () => { t = 0; k = 0; sink = 0; daze = 0; mt = 0; body.visible = true; mound.visible = false; };
+  anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); };
   return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
 }
 
@@ -2164,7 +2194,8 @@ export function buildMoth() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.matte));
-  body.add(angryEyes({ y: 0.1, z: 0.8, size: 0.08, gap: 0.12 }));
+  const face = angryEyes({ y: 0.1, z: 0.8, size: 0.08, gap: 0.12 });
+  body.add(face);
   const wings = [];
   for (const [geo, z, hind] of [[G.fore, 0.3, false], [G.hind, -0.05, true]]) for (const s of [-1, 1]) {
     const hinge = new THREE.Group(), flap = new THREE.Group();
@@ -2177,22 +2208,51 @@ export function buildMoth() {
     body.add(hinge);
     wings.push({ s, hind, hinge, flap });
   }
-  let t = 0, wind = 0, sweep = 0;
+  let t = 0;
+  // its plunge (attack-motion "pounce", src/attack-motion.js): climbing over you it rears back, wings flared wide
+  // and quivering, until its spot locks: then they clap together above its back and stay. It tips nose-down
+  // over 0.08 s and drops stretched, wings swept back; it hits the floor squashed with its wings slapped flat,
+  // lifts them late and fans them twice, and crouches just before it takes off again. Missed, it lands rocking.
   const anim = (dt, e) => {
     t += dt;
-    const ph = e?.phase || 0;
-    wind += (((e?.state === 'climb') ? 1 : 0) - wind) * (1 - Math.exp(-9 * dt));   // climbing over you: wings flared
-    sweep += (((e?.state === 'drop') ? 1 : 0) - sweep) * (1 - Math.exp(-14 * dt));   // plunging: swept back
-    for (const W of wings) {
-      const beat = Math.sin(t * (22 + wind * 14) + ph + (W.hind ? 0.6 : 0));
-      // fluttering: wings up and down; rearing: held wide and high, quivering; swooping: swept back
-      W.flap.rotation.z = W.s * (0.2 + beat * (0.55 - 0.45 * wind) + wind * 0.75 + sweep * 0.9);
-      W.hinge.rotation.y = W.s * (-0.15 - sweep * 0.7 + wind * 0.3);
+    const ph0 = e?.phase || 0, A = e?.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    const DOWN = Math.PI / 2 + 0.2, REAR = 0.1 - 0.55;
+    let wind = 0, clap = 0, sweep = 0, nose = 0.1, len = 1, squash = 0, slap = 0, fan = 0, crouch = 0, bob = 1, roll = 0;
+    if (ph === 'build') {
+      wind = coil(A.k, A.style.hold, A.style.over) * A.vary;
+      if (A.lockT >= 0) clap = Math.min(1, A.lockT / knobs().beat);
+      nose = 0.1 - wind * 0.55 + quiver(A.k, A.t, ph0) * 0.05 * A.quiet * (1 - clap);
+      bob = 0;
+    } else if (ph === 'swing') {
+      const tip = S(A.pt, 0, 0.08);              // tips over, not jumps, to nose-down
+      nose = REAR + (DOWN - REAR) * tip; sweep = tip; clap = 1 - tip; bob = 0;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * tip;
+    } else if (ph === 'recoil') {
+      const p = A.pt;
+      nose = DOWN + (0.1 - DOWN) * S(p, 0, 0.08);                            // down flat on the floor
+      squash = (A.hit ? 0.25 : 0.15) * settle(Math.min(1, p / 0.4), A.style.bounces, A.style.damp);
+      slap = 1 - S(p, 0.6, 0.8);                                             // wings flat, then back to the flutter
+      fan = p > 0.2 && p < 0.6 ? Math.abs(Math.sin((p - 0.2) * Math.PI * 5)) : 0;   // lifted 0.2 s late, fanned twice
+      if (!A.hit) roll = A.side * 0.3 * settle(Math.min(1, p / 0.5), 2, 1);
+      bob = S(p, 0.4, 0.8);
+      if (e.state === 'rest' && e.stateT < 0.15) crouch = 1 - Math.max(0, e.stateT) / 0.15;   // gathers itself to lift off
     }
-    body.position.y = Math.sin(t * 4 + ph) * 0.1 * (1 - wind);
-    body.rotation.x = e?.state === 'drop' ? Math.PI / 2 + 0.2 : 0.1 - wind * 0.55;   // nose straight down
+    for (const W of wings) {
+      const beat = Math.sin(t * (22 + wind * 14) + ph0 + (W.hind ? 0.6 : 0));
+      // fluttering: wings up and down; rearing: held wide and high, quivering; clapped: still over its back;
+      // swooping: swept back; landed: flat on the floor
+      let z = 0.2 + beat * (0.55 - 0.45 * Math.min(1, wind)) + wind * 0.75 + sweep * 0.9;
+      z += (1.5 - z) * clap;
+      z += (-0.1 + fan * 0.7 - z) * slap;
+      W.flap.rotation.z = W.s * z;
+      W.hinge.rotation.y = W.s * (-0.15 - sweep * 0.7 + wind * 0.3 * (1 - clap));
+    }
+    body.position.y = Math.sin(t * 4 + ph0) * 0.1 * bob - squash * 0.1 - crouch * 0.08;
+    body.rotation.set(nose + crouch * 0.15, 0, roll);
+    if (squash) { const y = 1 - squash, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); } else stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; wind = 0; sweep = 0; };
+  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 

@@ -3,6 +3,7 @@
 // fixed seed and compares, with bug-attack-hits.json (recorded from main before any animation work,
 // `node tools/record-bug-hits.mjs`), the frames from the attack's start to its hit test and where the
 // bug stood and aimed at that moment.
+import * as THREE from 'three';
 import { bus } from '../events.js';
 import { isMuted, setMuted } from '../sfx.js';
 import { seededRandom, seedFor } from '../story-random.mjs';
@@ -105,7 +106,7 @@ story('attacks/animation-never-moves-a-hit', {
 
 // ------------------------------------------------------------------ how an attack moves (src/attack-motion.js)
 // Bugs whose attack still moves the old way: wave 1 of the plan converts them, then this list is empty.
-const KNOWN_UNCONVERTED = ['roach', 'ants', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const KNOWN_UNCONVERTED = ['roach', 'ants', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'firefly'];
 // Words that set a state but aren't an attack with a build-up: the worm bursting out of the mantis once
 const NOT_ATTACK_STATES = ['burst'];
 
@@ -182,15 +183,39 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
   },
 });
 
+// the bugs converted to an attack-motion, each filmed through one attack
+const CONVERTED = ['mosquito', 'lanternfly', 'moth', 'cicada'];
 story('motion/attack-has-three-phases', {
-  about: 'A Mosquito\'s bite runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Mosquito\'s bite, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
-    const F = film(), idle = F.find((f) => f.phase === 'idle');
-    const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
-    const far = (phase) => Math.max(...of(F, phase).map((f) => apart(f, idle)));
-    const differ = { build: far('build'), swing: far('swing'), recoil: far('recoil') };
-    return ok(order === 'build swing recoil' && Object.values(differ).every((d) => d > 0.05), { order, differ });
+    const out = {};
+    for (const id of CONVERTED) {
+      const F = film(id), idle = F.find((f) => f.phase === 'idle');
+      const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
+      const far = (phase) => +Math.max(...of(F, phase).map((f) => Math.max(apart(f, idle), Math.abs(f.y - idle.y)))).toFixed(3);   // (its height too: a Cicada sinks)
+      out[id] = { order, build: far('build'), swing: far('swing'), recoil: far('recoil') };
+    }
+    return ok(Object.values(out).every((o) => o.order === 'build swing recoil' && o.build > 0.05 && o.swing > 0.05 && o.recoil > 0.05), out);
+  },
+});
+
+story('motion/landing-pose-is-on-the-hit', {
+  about: 'On the frame a Spotted lanternfly, Moth or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
+  setup() {},
+  play() {
+    const out = {}, v = new THREE.Vector3();
+    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['moth', (e) => e.plungeAt], ['cicada', (e) => e.burrowAt]]) {
+      const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true });
+      try {
+        while (S.frame < MAX_FRAMES && !S.found) S.advance();
+        const e = S.e, body = e.mesh.children[0], at = spot(e);
+        e.mesh.updateWorldMatrix(true, true);
+        body.getWorldPosition(v);
+        out[id] = { found: !!S.found, phase: e.atk.phase, across: mm(Math.hypot(v.x - at.x, v.z - at.z)), drawnOff: mm(v.distanceTo(e.mesh.getWorldPosition(new THREE.Vector3()))) };
+      } finally { S.done(); }
+    }
+    return ok(Object.values(out).every((o) => o.found && o.phase === 'swing' && o.across <= 10 && o.drawnOff <= 10), out);
   },
 });
 
