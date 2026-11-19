@@ -1878,7 +1878,7 @@ export function buildCicada() {
       const p = A.pt, left = e.state === 'dazed' ? Math.max(0, e.stateT) : 0;
       up = 1 - S(p, 0, 0.1);                                    // down it comes
       squash = 0.3 * heavy(Math.min(1, p / 0.6)) * S(p, 0, 0.1);
-      daze = 1 - S(p, 1.1, 1.4);
+      daze = S(left, 0, 0.1);                                   // dazed until the very end (its wings shut first)
       open = 1 - S(p, 0, 0.15);
       shut = left < 0.25 ? 1 - left / 0.25 : 0;
       shake = Math.sin(A.t * 45) * 0.25 * shut * (1 - shut) * 4;
@@ -2222,7 +2222,7 @@ export function buildMoth() {
       wind = coil(A.k, A.style.hold, A.style.over) * A.vary;
       if (A.lockT >= 0) clap = Math.min(1, A.lockT / knobs().beat);
       nose = 0.1 - wind * 0.55 + quiver(A.k, A.t, ph0) * 0.05 * A.quiet * (1 - clap);
-      bob = 0;
+      bob = 1 - S(A.t, 0, 0.15);
     } else if (ph === 'swing') {
       const tip = S(A.pt, 0, 0.08);              // tips over, not jumps, to nose-down
       nose = REAR + (DOWN - REAR) * tip; sweep = tip; clap = 1 - tip; bob = 0;
