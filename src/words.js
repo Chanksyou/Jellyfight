@@ -16,6 +16,7 @@
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
+import { STYLES, TIERS } from './attack-motion.js';
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -27,6 +28,16 @@ export const ENEMY_WORDS = {
     make: ([style]) => {
       if (!['crumple', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, flutter or shell');
       return { init(e) { e.deathMotion = style; } };
+    },
+  },
+  'attack-motion': {
+    doc: 'Its attack moves in `style` (lunge, throw, pounce, swipe, roll or nip), with juice as big as its `tier` (fodder, light, mid or heavy): src/attack-motion.js, numbers in content/look.css (--bug-attack-*). Only how it looks: never when or where it hits.',
+    args: ['style'],
+    props: { tier: 'light' },
+    make: ([style], p) => {
+      if (!STYLES.includes(style)) throw new Error(`attack-motion style must be ${STYLES.join(', ')}`);
+      if (!TIERS.includes(p.tier)) throw new Error(`attack-motion tier must be ${TIERS.join(', ')}`);
+      return { attackMotion: { style, tier: p.tier } };
     },
   },
   chase: {
@@ -56,6 +67,7 @@ export const ENEMY_WORDS = {
 
   leap: {
     doc: 'Up close (within `range` m) every `every` s or so, crouches for `windup` s while a ring on the floor marks where it will land (the spot locks halfway through), then leaps `height` m high and comes down there `time` s later: you take `dmg` if you are within `radius` m of the landing. Then it rests `rest` s. List it after the walking word.',
+    phases: { crouch: 'build', leap: 'swing', rest: 'recoil' }, lock: { crouch: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.3, windup: 0.55, height: 0.2, time: 0.75, radius: 0.075, dmg: 3, rest: 0.9, every: 1.5 },
     make: (_, p) => {
       const target = (e, c) => {
@@ -119,6 +131,7 @@ export const ENEMY_WORDS = {
 
   sortie: {
     doc: 'A flier that lands to shoot: it flies round you `circle` m out and `height` m up at up to `speed` m/s for about `fly` s, then lands on the floor `land` m from you, raises its carapace and locks on for `aim` s (a reticle closes in round you, beeping faster), and fires a homing missile: `rocket` m/s, turning `turn` radians a second, hunting you for `fuel` s (then it sputters out and falls), `dmg` if it hits. It closes up, rests `rest` s and takes off again.',
+    phases: { land: 'build', raise: 'build', aim: 'build', close: 'fire', rest: 'recoil' },   // how its attack moves (src/attack-motion.js)
     props: { circle: 0.3, height: 0.12, speed: 0.4, fly: 3, land: 0.35, aim: 0.9, rest: 0.7, rocket: 0.36, turn: 2.4, fuel: 4, dmg: 3 },
     make: (_, p) => ({
       fly: true,
@@ -186,6 +199,7 @@ export const ENEMY_WORDS = {
 
   'ball-charge': {
     doc: 'Up close (within `range` m) every `every` s or so, curls into an armoured ball over `curl` s (hits on it do 75% less while it is curled up), spins up in place for `spin` s while a line on the floor shows where it will go (the aim locks halfway through), then rolls along it at `speed` m/s for `time` s, hitting for `dmg`. It uncurls over `uncurl` s and rests `rest` s. List it after the walking word.',
+    phases: { curl: 'build', spin: 'build', dash: 'swing', uncurl: 'recoil', rest: 'recoil' }, lock: { spin: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.4, curl: 0.45, spin: 0.9, speed: 0.95, time: 0.7, dmg: 4, uncurl: 0.5, rest: 0.8, every: 2.5 },
     make: (_, p) => ({
       rollDmg: p.dmg,                     // touching you mid-roll hits this hard (Run.contactDamage)
@@ -238,6 +252,7 @@ export const ENEMY_WORDS = {
 
   poke: {
     doc: 'Up close (within `range` m) every `every` s or so, hangs beside you rubbing its front legs for `windup` s while a short line on the floor shows where it will strike (the aim locks halfway through), then shoots its straw of a mouth out up to `reach` m in `time` s: you take `dmg` if you are at the end of it. It holds it out `hold` s, pulls it back and rests `rest` s. List it after the flying word.',
+    phases: { windup: 'build', poke: 'swing', retract: 'recoil', rest: 'recoil' }, lock: { windup: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.14, windup: 0.5, reach: 0.15, dmg: 3, time: 0.08, hold: 0.15, rest: 0.7, every: 1.4 },
     make: (_, p) => {
       // aim at your middle (no farther than it reaches); how long the straw must get, and its tilt
@@ -277,6 +292,7 @@ export const ENEMY_WORDS = {
 
   spit: {
     doc: 'Every `every` s, if you are within `reach` m, shoots at you: `count` shots fanned across `spread` degrees (`speed` m/s, last `life` s, `dmg` damage each), from `height` radii above its middle. `shot` is "web" (a ball of silk) or "pin" (a pushpin spinning on its long axis, once its aim locks, a dotted line of glow shows where it will fly; it sticks where it hits the scenery). `still` stands still while it aims and throws. `arc` (m/s²) lobs it so it falls onto where you were; `slow` s of slowed swimming when it hits you. For `aim` s first it winds up; the aim locks halfway through, so moving off the line dodges.',
+    phases: 'shot', lock: { aim: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { every: 2.4, reach: 0.45, speed: 0.48, life: 1.47, dmg: 1, aim: 0.35, count: 1, spread: 0, shot: 'web', height: 0, arc: 0, slow: 0, still: false },
     make: (_, p, where) => {
       if (!['web', 'pin'].includes(p.shot)) throw new Error(`${where}: shot= must be "web" or "pin", not "${p.shot}"`);
@@ -379,6 +395,7 @@ export const ENEMY_WORDS = {
 
   'charge-beam': {
     doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (the only warning: nothing shows), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
+    phases: { charge: 'build', rest: 'fire' },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.45, charge: 2, dmg: 3, reach: 0.8, width: 0.008, every: 3.5, rest: 0.4 },
     make: (_, p) => ({
       init(e) { e.beamCd = 1.5 + Math.random() * 1.5; e.beamDir = new THREE.Vector3(); },
@@ -408,6 +425,7 @@ export const ENEMY_WORDS = {
 
   whirlwind: {
     doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a little whirlwind in front of it for `windup` s (spinning blades that grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. In flight it sucks you toward it, at up to `suck` m/s from within `pull` m. Touching it: `dmg`. It rests `rest` s. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
+    phases: { whirl: 'build', 'whirl-rest': 'fire' }, lock: { whirl: (p) => p.lock }, timer: { whirl: 'whirlT', 'whirl-rest': 'whirlT' },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.03, life: 2.2, pull: 0.25, suck: 0.12, dmg: 2, rest: 0.5 },
     make: (_, p) => ({
       init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; },
@@ -442,6 +460,7 @@ export const ENEMY_WORDS = {
 
   swat: {
     doc: 'Up close (within `range` m) every `every` s or so, rears up with its forelegs raised and opened for `windup` s (nothing shows on the floor: the rearing up is the warning; the aim locks halfway through), then lunges and snaps them shut, sweeping `arc` degrees across and `reach` m out: `dmg` if you are in that wedge. It rests `rest` s. List it after the walking word.',
+    phases: { windup: 'build', swat: 'swing', rest: 'recoil' }, lock: { windup: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.16, windup: 0.55, reach: 0.19, arc: 80, dmg: 3, rest: 0.8, every: 1.6 },
     make: (_, p) => ({
       init(e) { e.swatCd = 0.8 + Math.random(); e.swatDir = new THREE.Vector3(0, 0, 1); },
@@ -469,6 +488,7 @@ export const ENEMY_WORDS = {
 
   burrow: {
     doc: 'Within `range` m every `every` s or so, digs in for `dig` s, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up. It stands dazed for `daze` s (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
+    phases: { dig: 'build', under: 'build', dazed: 'fire' },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.55, every: 6, dig: 0.45, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, daze: 1.6 },
     make: (_, p) => ({
       burrowRadius: p.radius,
@@ -505,6 +525,7 @@ export const ENEMY_WORDS = {
 
   'charge-shot': {
     doc: 'Within `range` m every `every` s or so, stops, turns to you and charges a ball between its jaws for `charge` s (it grows, crackling; the aim locks `lock` of the way through, so stepping aside after that dodges), then fires it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. It explodes on whatever it meets (you, furniture, the floor, or the end of its flight): a Blast `blast` m round, `dmg` and a `knock` shove to anything of you inside it. It rests `rest` s. Freezing or stunning it breaks the charge off. List it after the walking word.',
+    phases: { charge: 'build', rest: 'fire' }, lock: { charge: (p) => p.lock },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.6, charge: 1, lock: 0.6, speed: 1.2, dmg: 3, size: 0.011, blast: 0.05, knock: 0.5, life: 1.2, rest: 0.7, every: 3.5 },
     make: (_, p) => ({
       init(e) { e.shotCd = 1 + Math.random() * 1.5; e.shotDir = new THREE.Vector3(0, 0, 1); e.shotAt = new THREE.Vector3(); e.ballK = 0; },
@@ -580,6 +601,7 @@ export const ENEMY_WORDS = {
 
   whip: {
     doc: 'Within `range` m every `every` s or so, rears up and back for `windup` s while a line on the floor shows where it will strike (`reach` m long; the aim locks halfway through), then cracks down along it: `dmg` if you are within `width` m of the line and not in the air above it. It lies there `down` s, then rests `rest` s.',
+    phases: { windup: 'build', lash: 'swing', down: 'swing', rest: 'recoil' }, lock: { windup: 0.5 },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.26, windup: 0.7, reach: 0.28, width: 0.012, dmg: 3, down: 0.35, rest: 1, every: 1.4 },
     make: (_, p) => ({
       init(e) { e.whipCd = 0.6 + Math.random() * 0.6; e.whipDir = new THREE.Vector3(0, 0, 1); e.whipReach = p.reach; },
@@ -638,6 +660,7 @@ export const ENEMY_WORDS = {
 
   dive: {
     doc: 'Within `range` m every `every` s or so, stops and rears for `windup` s (a rising buzz), then nosedives at where you were when it set off, at `speed` m/s for up to `reach` m: if it reaches you it stings for `dmg` and dies doing it. If it misses or hits a wall, it pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    phases: { windup: 'build', dive: 'swing', rest: 'recoil' }, span: { dive: (p) => p.reach / p.speed },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.35, every: 3, windup: 0.5, speed: 1.4, reach: 0.6, dmg: 6, rest: 0.6 },
     make: (_, p) => ({
       init(e) { e.diveCd = 1 + Math.random() * 1.5; e.diveDir = new THREE.Vector3(); },
@@ -672,6 +695,7 @@ export const ENEMY_WORDS = {
 
   plunge: {
     doc: 'Within `range` m every `every` s or so, climbs to `height` m over you while a circle and a column of radius `radius` m fill on the floor under it (they follow you, and lock where they are with `lock` of the `windup` s left), then drops straight down: you are hit for `dmg` if you are in the column when it lands (a jump does not dodge it; step off the circle). It leaves a puff of black smoke there (`smoke`), pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
+    phases: { climb: 'build', drop: 'swing', rest: 'recoil' }, lock: { climb: (p) => 1 - p.lock },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.45, every: 3, windup: 1, lock: 0.35, height: 0.3, climb: 0.5, speed: 1.6, radius: 0.08, dmg: 3, rest: 0.9 },
     make: (_, p) => ({
       plungeRadius: p.radius, plungeHeight: p.height,
@@ -714,6 +738,7 @@ export const ENEMY_WORDS = {
 
   bite: {
     doc: 'Up close (within `range` m) every `every` s or so, stops and draws back for `windup` s (its whine climbing; the aim locks halfway through), then darts at you at `speed` m/s for up to `reach` m: if it reaches you it bites for `dmg` and bounces off. Hit or miss, it backs off, rests `rest` s and goes back to flying. List it after the flying word.',
+    phases: { windup: 'build', dart: 'swing', rest: 'recoil' }, lock: { windup: 0.5 }, span: { dart: (p) => p.reach / p.speed },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.25, every: 1.6, windup: 0.35, speed: 1.6, reach: 0.4, dmg: 1, rest: 0.5 },
     make: (_, p) => ({
       init(e) { e.biteCd = 0.8 + Math.random(); e.biteDir = new THREE.Vector3(); e.biteK = 0; },
@@ -752,6 +777,7 @@ export const ENEMY_WORDS = {
 
   lob: {
     doc: 'Within `range` m every `every` s or so, stops, turns its tail to you and lifts it for `windup` s (its lamp held lit), then lobs a glowing Shot from its tail in a slow, high arc (rising `peak` m over the straight line) that lands `flight` s later where you were when it threw; while it flies, a Warning circle and dome `radius` m round fill there. It lands as a Blast (`dmg`), then lies there as a glowing pool as big for `last` s, draining `drain` Health a second while you stand in it (jump it; overlapping pools add up; at most `most` at once, the oldest fades first). It rests `rest` s. Freezing or stunning it breaks the throw off. List it after the flying word.',
+    phases: { windup: 'build', rest: 'fire' },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.6, every: 8, windup: 0.45, flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12, rest: 0.6 },
     make: (_, p) => ({
       init(e) { e.lobCd = 1 + Math.random() * 3; },

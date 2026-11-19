@@ -24,6 +24,7 @@ enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
 // bites: a small hit, and you bleed for 3 s. Bites stack. Move off as the whine climbs.
 enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
     death-motion "flutter"
+    attack-motion "lunge" tier="light"
     zip distance=0.15 above=0.05 speed=0.9 length=0.07 pause=0.08
     bite range=0.25 every=1.6 windup=0.35 speed=1.4 reach=0.35 dmg=1 rest=0.5
     bleeds 3 dps=1

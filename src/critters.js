@@ -11,6 +11,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
+import { coil, eyes, knobs, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
+import { spring } from './swim.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -286,7 +288,11 @@ export function buildMosquito() {
   // small angry brows over the compound eyes
   const face = angryEyes({ y: 0.1, z: 0.56, size: 0.12, gap: 0.12 });
   body.add(face);
-  let t = 0, fwd = 0, side = 0, wind = 0, dart = 0;
+  for (const L of legs) L.sp = { x: 0, v: 0 };
+  let t = 0, fwd = 0, side = 0;
+  // its bite (attack-motion "lunge", src/attack-motion.js): draws back and rears, holds quivering with the front
+  // legs reaching for you, goes dead still, darts nose first stretched out; landed, it bounces back squashed and
+  // bobs; missed, it overshoots and rolls, wobbling level
   const anim = (dt, e) => {
     t += dt;
     const k = 1 - Math.exp(-8 * dt);
@@ -294,35 +300,54 @@ export function buildMosquito() {
     const ry = e.root?.rotation.y || 0, v = e.vel;
     const vf = v ? v.x * Math.sin(ry) + v.z * Math.cos(ry) : 0, vs = v ? v.x * Math.cos(ry) - v.z * Math.sin(ry) : 0;
     fwd += (vf - fwd) * k; side += (vs - side) * k;
-    wind += ((e.state === 'windup' ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
-    dart += ((e.state === 'dart' ? 1 : 0) - dart) * (1 - Math.exp(-20 * dt));
-    // wings: a blur of beats, each one sweeping forward and back as it goes up and down (a figure of eight)
-    const beat = t * (60 + wind * 25);
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    let back = 0, rear = 0, reach = 0, dart = 0, len = 1, roll = 0, shake = 0, still = 0;
+    if (ph === 'build') {
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;
+      back = -0.3 * c; rear = 0.35 * c; reach = Math.min(1, c);
+      if (A.lockT >= 0 && A.lockT < 0.067) rear -= 0.12;          // the lock: its head dips at you
+      still = A.still ? 1 : 0;
+      shake = (1 - still) * quiver(A.k, A.t, e.phase) * A.quiet;
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      back = -0.3 * A.vary * (1 - s) + 0.1 * s; rear = 0.35 * A.vary * (1 - s) + 0.25 * s; reach = 1 - s; dart = 1;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      still = 1;
+    } else if (ph === 'recoil') {
+      const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.05);
+      if (A.hit) { back = -0.5 * b; len = 1 - 0.2 * Math.max(0, b); rear = -0.2 * b; }   // knocked back off you, squashed
+      else { back = 0.2 * b; roll = A.side * 0.44 * b; rear = -0.15 * b; }               // carried on past, rolling
+    }
+    // wings: a blur of beats, each one sweeping forward and back as it goes up and down (a figure of eight),
+    // faster as it draws back to bite
+    const beat = t * (60 + reach * 25);
     for (const W of wings) {
       W.pivot.rotation.z = W.s * (0.25 + Math.sin(beat) * 0.5);
       W.pivot.rotation.y = W.s * Math.cos(beat) * 0.3;
     }
-    // legs: hanging long under it, each swinging on its own like a pendulum, swept back by its speed and
-    // flung out sideways in a turn; the hind pair held up behind (as mosquitoes do). Drawing back to bite
-    // the front legs reach for you; darting, they all stream behind.
+    // legs: hanging long under it, each swinging on its own like a pendulum (a spring, so they swing through
+    // when it stops short), swept back by its speed and flung out sideways in a turn; the hind pair held up behind
+    // (as mosquitoes do). Drawing back to bite the front legs reach for you; darting, they all stream behind.
     const trail = THREE.MathUtils.clamp(fwd * 1.2, -0.4, 0.9) * (1 - dart) + dart * 1.1;
+    const free = (1 - reach * 0.6) * (1 - still);
     for (const L of legs) {
-      const free = 1 - wind * 0.6;
-      const want = trail * (L.pair === 0 ? 0.7 : 1) + (L.pair === 2 ? 0.55 : L.pair === 1 ? 0.15 : -0.1) - wind * (L.pair === 0 ? 0.9 : L.pair === 1 ? 0.3 : -0.2);
-      L.swing += (want - L.swing) * (1 - Math.exp(-(5 + L.pair) * dt));    // the legs lag behind the body
+      const want = trail * (L.pair === 0 ? 0.7 : 1) + (L.pair === 2 ? 0.55 : L.pair === 1 ? 0.15 : -0.1) - reach * (L.pair === 0 ? 0.9 : L.pair === 1 ? 0.3 : -0.2);
+      spring(L.sp, want, 0.07 + 0.02 * L.pair, 2.2, dt);              // the legs lag behind the body, hind last
       L.sway += (THREE.MathUtils.clamp(-side * 1.5, -0.5, 0.5) - L.sway) * (1 - Math.exp(-4 * dt));
-      L.hip.rotation.x = L.swing + Math.sin(t * 2.6 + L.phase) * 0.12 * free;
-      L.hip.rotation.z = L.sway * 0.6 + Math.sin(t * 2.1 + L.phase * 1.3) * 0.08 * free + L.s * wind * 0.15;
-      L.knee.rotation.x = Math.sin(t * 3.4 + L.phase) * 0.18 * free + (L.pair === 2 ? 0.25 : 0) + wind * (L.pair === 0 ? -0.35 : 0.1);
+      L.hip.rotation.x = L.sp.x + Math.sin(t * 2.6 + L.phase) * 0.12 * free;
+      L.hip.rotation.z = L.sway * 0.6 + Math.sin(t * 2.1 + L.phase * 1.3) * 0.08 * free + L.s * reach * 0.15;
+      L.knee.rotation.x = Math.sin(t * 3.4 + L.phase) * 0.18 * free + (L.pair === 2 ? 0.25 : 0) + reach * (L.pair === 0 ? -0.35 : 0.1);
     }
-    // the body: a hovering bob, nose down into its speed, banked into turns; drawing back to bite it
-    // rears, quivering, its mouth lined up on you; darting, it lunges nose first
-    body.position.y = Math.sin(t * 4 + e.phase) * 0.1 * (1 - wind);
-    body.position.z = -wind * 0.15 + dart * 0.12;
-    body.rotation.x = -0.15 + THREE.MathUtils.clamp(fwd * 0.5, -0.2, 0.35) * (1 - dart) - wind * 0.35 - dart * 0.25 + Math.sin(t * 47) * 0.04 * wind;
-    body.rotation.z = THREE.MathUtils.clamp(side * 0.9, -0.45, 0.45) + Math.sin(t * 53) * 0.03 * wind;
+    // the body: a hovering bob, nose down into its speed, banked into turns; then the bite's own pose
+    const calm = Math.max(reach, dart);
+    body.position.y = Math.sin(t * 4 + e.phase) * 0.1 * (1 - calm);
+    body.position.z = back;
+    body.rotation.x = -0.15 + THREE.MathUtils.clamp(fwd * 0.5, -0.2, 0.35) * (1 - calm) - rear + shake * 0.06;
+    body.rotation.z = THREE.MathUtils.clamp(side * 0.9, -0.45, 0.45) * (1 - calm) + roll + shake * 0.04;
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; fwd = 0; side = 0; wind = 0; dart = 0; legs.forEach(L => { L.swing = 0; L.sway = 0; }); };
+  anim.reset = () => { t = 0; fwd = 0; side = 0; legs.forEach(L => { L.sp.x = 0; L.sp.v = 0; L.sway = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1568,7 +1593,7 @@ export function buildMantis({ dead = false } = {}) {
     legs.push({ s, pair, hip, phase: (pair + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });
   }));
   const pose = (P) => { for (const F of fore) { F.shoulder.rotation.x = P[0]; F.femur.rotation.x = P[1]; F.tibia.rotation.x = P[2]; } };
-  const mix = (A, B, k, out = [0, 0, 0]) => { for (let i = 0; i < 3; i++) out[i] = A[i] + (B[i] - A[i]) * k; return out; };
+  const mix = mixPose;
   if (dead) {
     // a carcass: rolled onto its side, the legs crumpled, the forelegs limp
     pose(LIMP);
