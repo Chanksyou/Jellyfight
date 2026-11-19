@@ -8,16 +8,22 @@ Confirm redistribution rights before including this asset in a production releas
 The sample and normal gameplay load this file after audio is unlocked. Loading
 or decoding failure retains synthesized fire audio so gameplay can continue.
 
-# Lightning
+# Sound packs
 
-`lightning/` holds the owner's supplied clips from Hove Audio's **Lightning Magic** sound
+Recorded takes by role, joined into one MP3 per pack (`<pack>.mp3`) and listed in `packs.json`, both built by
+`node tools/sounds.mjs <sources folder>` from `tools/sounds.json`; `src/sfx.js` (`sample`) plays them, falling back
+to synthesized sounds until a pack loads, and `sounds.html` plays every take. Every audio file here has its source and
+licence in `credits.json` (`node tests/check.mjs` fails otherwise). Rules: `docs/agents/sound.md`. The original
+sources stay out of git (this repository is public): they are in the project's files, `sound-plan/sources/`.
+
+## lightning.mp3
+
+The owner's supplied clips from Hove Audio's **Lightning Magic** sound
 effects pack (free version, https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version),
 sold as royalty-free (not CC0). Confirm the pack's licence covers shipping them in the game.
-Each file is trimmed to start on its strike, faded out and peak-normalized to -1 dBFS, as a
-112 kbps MP3. `src/sfx.js` (`SAMPLES`) plays them by role, in turn, falling back to synthesized
-sounds until they load; `lightning-sounds.html` plays each one.
+Each clip was trimmed to start on its strike, faded out and peak-normalized to -1 dBFS.
 
-| File | From (MAGElem_…_HoveAud_LightningMagic) | Role |
+| Takes | From (MAGElem_…_HoveAud_LightningMagic) | Role |
 |---|---|---|
 | launch-1, launch-2 | LightningStrikeSolo_08, LightningStrikeWoutRum_08 (first 0.5 s) | the ball leaving the bell |
 | hit-1..3 | LightningStrikeWoutRum_13, _16, _26 | a lightning hit |

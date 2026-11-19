@@ -37,7 +37,7 @@ import { rollChance } from './chance.js';
 import { RoomTreasure, XpDrops } from './pickups.js';
 import { FirstRun, markPlayed, deathHint } from './first-run.js';
 import { juice } from './juice.js';
-import { sfx, calm } from './sfx.js';
+import { sfx, calm, wantPacks } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { EASY, easyChosen } from './easy.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
@@ -319,6 +319,7 @@ export class Run {
     this.jelly = this.carry?.jelly || startingJelly();   // the jelly type (content/jellies.kdl): Normal for a first run, else the pick (pick-screen.js)
     this.stats = jellyStats(this.jelly);
     this.attack = jellyAttack(this.jelly);   // { kind, hit }: the one attack it fires
+    wantPacks(`act ${this.stage.id}`, `jelly ${this.jelly}`);   // the sound packs this run plays (sfx.js; downloads once sound is on)
     this.typeAdorn = this.attack && CONTENT.jellies[this.jelly].adorn ? [CONTENT.jellies[this.jelly].adorn] : [];   // the type's look (adornments.js)
     this.firstRun = FirstRun.forStage(this.stage);   // a player's first run (first-run.js)
     this.level = 1;

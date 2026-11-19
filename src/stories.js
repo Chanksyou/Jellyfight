@@ -30,6 +30,7 @@ import './stories/treasure-house.js';
 import './stories/arena4.js';
 import './stories/encore.js';
 import './stories/fire.js';
+import './stories/sound.js';
 import './stories/damage-numbers.js';
 import './stories/death-remains.js';
 import './stories/hud-health.js';

@@ -1,4 +1,4 @@
-import { sfx, unlock as unlockAudio, loadSamples, loadFireFlight, audio } from '../sfx.js';
+import { sfx, unlock as unlockAudio, loadPack, loadFireFlight, audio } from '../sfx.js';
 import { G, V, dmgBy, ok, record, roachAt, setupFight, step, story, stub, withElement } from './kit.js';
 
 story('attack/fire-feedback', {
@@ -92,11 +92,11 @@ story('attack/lightning-chain', {
 });
 
 story('attack/lightning-recorded-sounds', {
-  about: 'Lightning\'s recorded sounds (assets/audio/lightning: a launch, hits, heavy strikes and chain zaps, several takes each) load once audio unlocks, and a lightning shot chaining through three bugs plays them on live audio without an error.',
+  about: 'Lightning\'s recorded sounds (the lightning sound pack: a launch, hits, heavy strikes and chain zaps, several takes each) load once audio unlocks, and a lightning shot chaining through three bugs plays them on live audio without an error.',
   setup() { setupFight({ bubbles: false, lash: false }); roachAt(0, -0.18); roachAt(0.07, -0.25); roachAt(-0.06, -0.3); step(2); },
   async play() {
     unlockAudio();
-    const loaded = await loadSamples();
+    const loaded = await loadPack('lightning');
     const { run, player } = G(), B = run.bubbles, origin = player.position.clone().add(V(0, 0.06, 0));
     withElement('lightning');
     const log = record('damage_taken');
@@ -113,7 +113,7 @@ story('attack/lightning-sounds-quieter', {
   setup() { setupFight({ bubbles: false, lash: false }); step(2); },
   async play() {
     unlockAudio();
-    const loaded = await loadSamples(), { ctx } = audio();
+    const loaded = await loadPack('lightning'), { ctx } = audio();
     await new Promise((r) => setTimeout(r, 400));   // past each sound's repeat gap and any voices still ringing
     let peak = 0;
     const make = ctx.createGain.bind(ctx);
