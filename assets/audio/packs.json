@@ -746,5 +746,248 @@
     ]
    }
   }
+ },
+ "elite-soap": {
+  "file": "elite-soap.mp3",
+  "for": [
+   "act 2"
+  ],
+  "bytes": 35181,
+  "seconds": 2.88,
+  "roles": {
+   "soap-pump": {
+    "cue": [
+     "soapPump"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.5,
+      "peak": 0.1038
+     }
+    ]
+   },
+   "soap-bubbles": {
+    "cue": [
+     "soapBubbles"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.1,
+      "length": 0.3961,
+      "peak": 0.0571
+     }
+    ]
+   },
+   "soap-bubble-pop": {
+    "cue": [
+     "bubblePop"
+    ],
+    "vol": 0.18,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.7961,
+      "length": 0.1231,
+      "peak": 0.0041
+     }
+    ]
+   },
+   "soap-down": {
+    "cue": [
+     "soapDown"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.2192,
+      "length": 0.3599,
+      "peak": 0.0786
+     }
+    ]
+   }
+  }
+ },
+ "elite-clock": {
+  "file": "elite-clock.mp3",
+  "for": [
+   "act 2"
+  ],
+  "bytes": 59661,
+  "seconds": 4.91,
+  "roles": {
+   "clock-sweep": {
+    "cue": [
+     "clockSweep"
+    ],
+    "vol": 0.18,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.4777,
+      "peak": 0.0344
+     }
+    ]
+   },
+   "clock-strike": {
+    "cue": [
+     "clockStrike",
+     true
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.0777,
+      "length": 0.45,
+      "peak": 0.017
+     }
+    ]
+   },
+   "clock-chime": {
+    "cue": [
+     "clockChime",
+     0
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.8277,
+      "length": 0.7761,
+      "peak": 0.0328
+     }
+    ]
+   },
+   "wreath-whirr": {
+    "cue": [
+     "wreathWhirr"
+    ],
+    "vol": 0.15,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.9037,
+      "length": 0.4057,
+      "peak": 0.0632
+     }
+    ]
+   },
+   "clock-down": {
+    "cue": [
+     "clockDown"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.6095,
+      "length": 0.9961,
+      "peak": 0.1336
+     }
+    ]
+   }
+  }
+ },
+ "elite-whipper": {
+  "file": "elite-whipper.mp3",
+  "for": [
+   "act 2"
+  ],
+  "bytes": 68877,
+  "seconds": 5.67,
+  "roles": {
+   "balloon-fill": {
+    "cue": [
+     "balloonFill",
+     1
+    ],
+    "vol": 0.1,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 1,
+      "peak": 0.7109
+     }
+    ]
+   },
+   "balloon-loose": {
+    "cue": [
+     "balloonLoose"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.6,
+      "length": 0.6,
+      "peak": 0.2437
+     }
+    ]
+   },
+   "balloon-pop": {
+    "cue": [
+     "balloonPop"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.5,
+      "length": 0.32,
+      "peak": 0.0036
+     }
+    ]
+   },
+   "cream-spray": {
+    "cue": [
+     "creamSpray"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.12,
+      "length": 0.5,
+      "peak": 0.097
+     }
+    ]
+   },
+   "cream-splat": {
+    "cue": [
+     "creamSplat"
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.92,
+      "length": 0.3528,
+      "peak": 0.0261
+     }
+    ]
+   },
+   "whipper-down": {
+    "cue": [
+     "whipperDown"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 4.5728,
+      "length": 0.8,
+      "peak": 0.0036
+     }
+    ]
+   }
+  }
  }
 }

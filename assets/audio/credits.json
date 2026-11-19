@@ -272,5 +272,110 @@
    }
   ],
   "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-soap.mp3": {
+  "from": [
+   {
+    "role": "soap-pump",
+    "soundza": "Spray Bottle Gore Hit (cmviajyo5imyaqhrdxdrncli4, https://soundza.com/sound/spray-bottle-gore-hit)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.5 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "soap-bubbles",
+    "soundza": "Single Bubble Cluster (cmvoxatbbyvz23fy15gxoe4dx, https://soundza.com/sound/single-bubble-cluster)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.45 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "soap-bubble-pop",
+    "soundza": "Mouth Bubble Pop 2 (cmw7pygh5pqrp3nyiqbjslmtp, https://soundza.com/sound/mouth-bubble-pop-2)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, kept whole with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "soap-down",
+    "soundza": "Bottle (cmuymqzse000j06n5yzn77kji, https://soundza.com/sound/bottle)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.4 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-clock.mp3": {
+  "from": [
+   {
+    "role": "clock-sweep",
+    "soundza": "Fast Cable Whoosh (cmujffw8b2an6jwenoz4r1gxb, https://soundza.com/sound/fast-cable-whoosh)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.5 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "clock-strike",
+    "soundza": "Ringing Metal (cmuymqzsh000u06n5kowptske, https://soundza.com/sound/ringing-metal)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.45 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "clock-chime",
+    "soundza": "Glassy Church Bell Hit (xjlwq325fnoevgh8ie2y8av9, https://soundza.com/sound/glassy-church-bell-hit)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.78 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "wreath-whirr",
+    "soundza": "Bamboo Swing Transition Effect (cmsf1865w000004ienr45hhj6, https://soundza.com/sound/bamboo-swing-transition-effect)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.43 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "clock-down",
+    "soundza": "Trap Springing Shut (cmvr2h1fyi3gp7rh5pd6wgai7, https://soundza.com/sound/trap-springing-shut)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-whipper.mp3": {
+  "from": [
+   {
+    "role": "balloon-fill",
+    "soundza": "Balloon Inflation (cmve08uj8jm1xodbnaj5rhcpu, https://soundza.com/sound/balloon-inflation)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "balloon-loose",
+    "soundza": "Balloon Rub Squeak (cmve08oh0oje2e22c7o23vzym, https://soundza.com/sound/balloon-rub-squeak)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.6 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "balloon-pop",
+    "soundza": "Balloon Popping (cmv5oaxx4000f06l5um60a0de, https://soundza.com/sound/beep-10)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.32 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "cream-spray",
+    "soundza": "Aerosol Can 14 (cmv5swogr00qf06l6iluicyhy, https://soundza.com/sound/aerosol-can-14)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.5 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "cream-splat",
+    "soundza": "Mud Splat (cmvclqeo25aoms6mbjgbc4im1, https://soundza.com/sound/mud-splat)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.36 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "whipper-down",
+    "soundza": "Torch Gas Flow (cmvl5kegqr0pwqzss1wcvgsjd, https://soundza.com/sound/torch-gas-flow)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.8 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
  }
 }

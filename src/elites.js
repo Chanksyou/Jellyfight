@@ -512,9 +512,9 @@ const KINDS = {
   controller: { name: 'The Controller', scale: 1.5, build: controllerModel, down: 'controllerDown' },
   mug: { name: 'The Mug', build: mugModel, down: 'mugDown' },
   kettle: { name: 'The Kettle', scale: 1.2, build: kettleModel, down: 'kettleDown' },
-  soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel },
-  clock: { name: 'The Wall Clock', wall: true, build: clockModel },
-  whipper: { name: 'The Cream Whipper', build: whipperModel },
+  soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel, down: 'soapDown' },
+  clock: { name: 'The Wall Clock', wall: true, build: clockModel, down: 'clockDown' },
+  whipper: { name: 'The Cream Whipper', build: whipperModel, down: 'whipperDown' },
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
   coffer: { name: 'The Latticework Coffer', build: cofferModel },
@@ -1283,7 +1283,7 @@ export class Elites {
         if (awake || e.state !== 'idle') e.downT = 1.5; else e.downT = Math.max(0, (e.downT || 0) - dt);
         const want = e.downT > 0 ? e.fightY : e.hangY, wasUp = e.holder.position.y > e.fightY + 0.05;
         e.holder.position.y += (want - e.holder.position.y) * (1 - Math.exp(-3.5 * dt));
-        if (wasUp && e.holder.position.y <= e.fightY + 0.05 && want === e.fightY) { this.fx.puff(e.base.clone().setY(e.base.y + 0.02), 0xd8c8b0, 0.06, 0.5); sfx.clockChime(1); }
+        if (wasUp && e.holder.position.y <= e.fightY + 0.05 && want === e.fightY) { this.fx.puff(e.base.clone().setY(e.base.y + 0.02), 0xd8c8b0, 0.06, 0.5); sfx.clockChime(1, false); }
         e.ready = Math.abs(e.holder.position.y - e.fightY) < 0.03;
       }
       // face you (unless an attack has locked its aim, or it hangs on a wall), and bob so it reads as alive
@@ -1939,7 +1939,7 @@ export class Elites {
             // winding up: tipping toward you, the gauges climbing, a hiss
             M.whip.rotation.x = Math.min(1, rt / wake) * 0.35;
             gauges(Math.min(1, rt / wake) * 0.7 + Math.sin(e.t * 12) * 0.05);
-            if (!e.hissed) { e.hissed = true; sfx.balloonFill(wake); }
+            if (!e.hissed) { e.hissed = true; sfx.balloonFill(wake, false); }
           } else if (!noted || tau < last * S) {
             // the stream: from the nozzle to where your path was wake= s ago, laying the bead there
             const k = Math.min(Math.floor(tau / S), last - 1), u = THREE.MathUtils.clamp((tau - k * S) / S, 0, 1);
