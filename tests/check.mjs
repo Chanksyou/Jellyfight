@@ -50,7 +50,7 @@ const elitesOwn = new Set(ELITES4.flatMap((e) => [e.hide, ...(e.clears || [])]).
 const stray = ACT4_OWN.filter((k) => !k.startsWith('vent:') && !elitesOwn.has(k));
 if (stray.length) { bad++; console.log(`✗ act 4's layout must match act 1's, but layout-baked.js act 4 sets ${stray.join(', ')}: bake that change into act 1 instead (act 4 follows it)`); }
 if (Object.keys(BAKED_LAYOUT[1]).some((k) => !(k in BAKED_LAYOUT[4])) || JSON.stringify(HIDDEN_SHELL[1]) !== JSON.stringify(HIDDEN_SHELL[4])) { bad++; console.log('✗ act 4 no longer takes act 1\'s layout: keep BAKED_LAYOUT[4] = { ...BAKED_LAYOUT[1], ...act 4\'s own } and the same HIDDEN_SHELL'); }
-// A bug's `anim` runs every frame for every bug in view (phones included): no allocation, no unseeded
+// A bug's `anim` runs every frame for every bug in view (phones included): no `new`, no unseeded
 // randomness and no wall clock inside it, so a pose is a function of the bug's own clock and a bug updated
 // every other frame (enemies.js) shows the same pose. Builders listed in KNOWN are on the way out.
 const KNOWN_ANIM = { cicada: ['performance.now'] };   // the attack-animation task for the Cicada removes it, then empties this

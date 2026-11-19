@@ -1,5 +1,5 @@
 // Bug attack animation bench (plan: enemy-attack-anim): the JS time all the bugs' `anim` calls take in a
-// frame, and what they allocate, with 20 basic bugs (every attack, mixed) fighting a jelly that is held
+// frame, and what they allocate (inBugBuilders also counts the respawns of dead bugs, so read it as a trend; bugs far or outside the last drawn view animate on alternate frames, the same on both runs you compare), with 20 basic bugs (every attack, mixed) fighting a jelly that is held
 // still and can't die, on the phone page (844x390, touch) under a 4x CPU slowdown. Run it before and after
 // an attack animation change and put both in the pull request.
 //
@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import { start, openGame } from '../tests/lib.mjs';
 
-const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
+const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] ?? d;
 const FRAMES = +arg('frames', 600), THROTTLE = +arg('throttle', 4), JSON_OUT = arg('json', '');
 const KINDS = ['roach', 'ants', 'mosquito', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
 const COUNT = 20, WARM = 120;
