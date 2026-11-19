@@ -228,7 +228,7 @@ export function buildAnts() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       brace = Math.max(0, 1 - s); coilK = A.vary * Math.max(0, 1 - s); thrust = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(A.k, 1, 1);   // (one bounce: its recoil is a quarter second)
+    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(Math.min(1, A.k / 0.8), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
     // the throw (the spit word's firedT): the pin goes the frame it is thrown, then a new one swells into its jaws
     if ((e.firedT || 0) > fired) since = 0;
     fired = e.firedT || 0;
@@ -735,7 +735,7 @@ export function buildSpider() {
       rearUp = A.vary * Math.max(0, 1 - s); flick = s; rock = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
-      const b = settle(A.k, 1, 1);                      // (one bounce: its recoil is a quarter second)
+      const b = settle(Math.min(1, A.k / 0.8), 1, 1);          // (one bounce, home by the last fifth: its recoil is a quarter second)
       flick = rock = (1 + A.tier.over) * b;
       bend = 1 - A.k;                                              // its knees bend to take the throw, then straighten
     }
@@ -1840,7 +1840,7 @@ export function buildMantis({ dead = false } = {}) {
       const c = coil(A.k, A.style.hold, A.style.over) * A.vary;      // open by 40% (0.12 s), past raised, then held
       for (let i = 0; i < 3; i++) P[i] = PRAY[i] + (RAISED[i] - PRAY[i]) * c;
       shake = (A.still ? 0 : 1) * quiver(A.k, A.t, e.phase) * A.quiet;
-      z = -0.1 * c; y = 0.06 * c; rx = -0.22 * c + (lockBeat(A) ? 0.08 : 0);   // the lock: its head dips at you
+      z = -0.1 * c; y = 0.06 * c; rx = -0.27 * c + (lockBeat(A) ? 0.08 : 0);   // the lock: its head dips at you
     } else if (ph === 'swing') {
       // its swat is tested on the first swing frame, so the strike is the one-frame jump from the still coil:
       // forelegs shut and crossed, body lunged, from that frame on (a 0.05 s strike is a frame at 30 fps anyway)
@@ -1852,7 +1852,8 @@ export function buildMantis({ dead = false } = {}) {
     } else if (ph === 'recoil') {
       // a miss leaves the forelegs out, crossed, `stuck` s longer (the punish window), its head down
       const span = Math.max(1e-3, A.len - A.style.follow), miss = !A.hit;
-      const q = miss ? Math.max(0, Math.min(1, (A.k * span - stuck) / Math.max(1e-3, span - stuck))) : A.k;
+      const E = A.tier.end;                                            // (home by k = E, the last fifth is the window closing)
+      const q = miss ? Math.max(0, Math.min(1, (A.k * span - stuck) / Math.max(1e-3, E * span - stuck))) : Math.min(1, A.k / E);
       const h = heavy(q), u = 1 - h, rock = Math.sin(Math.PI * q) * 0.14;
       mixPose(STRUCK, PRAY, u * 1.3, P, 0.15);                         // back to prayer, shoulder first, hook last
       P[0] += (RAISED[0] - PRAY[0]) * Math.sin(Math.PI * u) * 0.35;    // up and round in an arc
@@ -2026,7 +2027,7 @@ export function buildBeetle() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       plant = 1; shove = kick = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') { plant = 1 - A.k; shove = kick = heavy(A.k); }   // (it stands up as it eases home)
+    } else if (ph === 'recoil') { const u = Math.min(1, A.k / A.tier.end); plant = 1 - u; shove = kick = heavy(u); }   // (it stands up as it eases home)
     const slide = A ? -0.15 * shove : -0.12 * kick;
     for (const L of legs) {
       L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
@@ -2035,7 +2036,7 @@ export function buildBeetle() {
     }
     // the charge: its jaws part and tremble round the growing ball, its head rearing a little; the
     // shot: they snap wide and it rocks back
-    open += (charge * 0.22 - open) * (1 - Math.exp(-10 * dt));
+    open += (charge * 0.27 - open) * (1 - Math.exp(-10 * dt));
     pump += dt * (8 + charge * 24);
     const tremble = charge > 0 && !still ? Math.sin(t * 50 + e.phase) * 0.03 * charge * (A ? A.quiet : 1) : 0;
     for (const J of jaws) J.hinge.rotation.y = J.s * (open * (1 - 0.1 * dip) + tremble + kick * 0.35 + Math.sin(t * 0.8) * 0.02);
@@ -2448,7 +2449,7 @@ export function buildWasp() {
     } else if (ph === 'recoil') {
       const u = settle(A.k, A.style.bounces, A.style.damp), p = A.pt;
       pitch = 0.05 + (down - 0.05) * u; curl = S(1 - p / 0.4, 0, 1); sweep = 1 - S(p, 0.05, 0.3); tuck = 1 - S(p, 0, 0.3);
-      roll = A.side * 0.52 * Math.sin(Math.PI * Math.min(1, p / 0.6));   // banks past level
+      roll = A.side * 0.52 * Math.sin(Math.PI * Math.min(1, A.k / 0.8));   // banks past level, and is level again by the last fifth
       foreAmp = S(p, 0.1, 0.25); hindAmp = S(p, 0.2, 0.35);              // the wings restart, fore then hind
       len = 1 + (A.tier.stretch - 1) * Math.max(0, u);
       bob = S(p, 0.3, 0.6);

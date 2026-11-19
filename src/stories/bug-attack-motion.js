@@ -4,7 +4,7 @@
 // `node tools/record-bug-hits.mjs`), the frames from the attack's start to its hit test and where the
 // bug stood and aimed at that moment.
 import * as THREE from 'three';
-import { bus } from '../events.js';
+import { bus, PLAYER } from '../events.js';
 import { isMuted, setMuted } from '../sfx.js';
 import { seededRandom, seedFor } from '../story-random.mjs';
 import { CONTENT, compileEnemies } from '../content.js';
@@ -47,7 +47,7 @@ const rel = (p, e) => [mm(p.x - e.pos.x), mm(p.y - e.pos.y), mm(p.z - e.pos.z)];
 // frame came, found: what its hit test saw, { frames from begun, pos: where the bug stood (mm), yaw: which
 // way it faced (mrad), aim: the point it tested, from the bug (mm) }). `miss` walks the jelly off the
 // line two frames after the attack begins, so the same attack goes wide. `done()` puts Math.random back.
-export function stage(a, { miss = false, dt = 1 / 60, hurt = false } = {}) {
+export function stage(a, { miss = false, dt = 1 / 60, hurt = false, touch = true } = {}) {
   // a page whose audio an earlier story woke changes the bugs' rolls: sounds draw pitch jitter from Math.random,
   // and a playing song gives the beat the on-beat bugs (Firefly, Cicada) wait for. So mute, and use the run's own beat
   const real = Math.random, wasMuted = isMuted(), run = G().run, song = run.song;
@@ -56,6 +56,7 @@ export function stage(a, { miss = false, dt = 1 / 60, hurt = false } = {}) {
   fresh({ elites: false, bubbles: false, lash: false, hurt });   // hurt: its hits land (enemies.js landed), as in play
   tp(3.2, 0.05, 3.0, 0);
   holdJelly();
+  if (!touch && a.hit !== 'touch' && a.id !== 'millipede') stub(G().run, 'contactDamage', () => {});   // (only the attack's own hit hurts: a bug the jelly overlaps would hurt it by touch first, and its hit would be swallowed by the i-frames. A Cockroach's touch is its attack, a rolling Millipede hurts through it)
   const { enemies, player } = G();
   const e = spawn(a.type, near(...a.at), { hp: 99999 });
   if (a.off) e[a.off] = 999;
@@ -117,7 +118,7 @@ function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = 
   // its hits land on the jelly (hurt), as in play, so a landed bite is told from a miss
   const was = LOOK.vars['bug-anim-far'];
   if (far) LOOK.vars['bug-anim-far'] = '-1';   // every bug counts as far: it animates on alternate frames
-  const S = stage(ATTACKS.find((a) => a.id === id), { miss, dt, hurt: true });
+  const S = stage(ATTACKS.find((a) => a.id === id), { miss, dt, hurt: true, touch: false });
   const e = S.e, body = e.mesh.children[0], frames = [], other = also?.(S);
   const mats = new Map();
   e.mesh.traverse((o) => { if (o.isMesh) mats.set(o, o.material); });
@@ -293,7 +294,7 @@ story('motion/landing-pose-is-on-the-hit', {
   play() {
     const out = {}, v = new THREE.Vector3();
     for (const [id, spot] of [['lanternfly', (e) => e.pos], ['moth', (e) => e.plungeAt], ['cicada', (e) => e.burrowAt]]) {
-      const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true });
+      const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true, touch: false });
       try {
         while (S.frame < MAX_FRAMES && !S.found) S.advance();
         const e = S.e, body = e.mesh.children[0], at = spot(e);
@@ -354,16 +355,118 @@ story('motion/cicada-burst-lands-or-misses', {
   },
 });
 
+// A Cicada's recoil is its dazed sway, ended by a head shake and wings snapping shut over the last quarter second:
+// that closing tell is the window closing, so it is posed to the end by design.
+const CLOSES_WITH_A_TELL = ['cicada'];
 story('motion/recoil-ends-ready', {
-  about: 'Hit or miss, a Mosquito is back in its ready stance (no pull-back, roll or squash) over the last fifth of its rest: the punish window is honest.',
+  about: 'Hit or miss (a Wasp that stings dies doing it, so only its miss), every converted bug is back in its ready stance by the last fifth of its recoil: how far it is drawn back, rolled and squashed there is under 6% of the most it was in that recoil, so the punish window is honest on a heavy bug as well as a light one (a Cicada closes with its own head shake and wing snap).',
   setup() {},
   play() {
     const worst = {};
-    for (const miss of [false, true]) {
-      const late = of(film('mosquito', { miss }), 'recoil').filter((f) => f.k >= 0.8);
-      worst[miss ? 'miss' : 'hit'] = late.length ? +Math.max(...late.map((f) => Math.max(Math.abs(f.z), Math.abs(f.sz - 1)))).toFixed(4) : null;
+    for (const id of CONVERTED) {
+      if (CLOSES_WITH_A_TELL.includes(id)) continue;
+      for (const miss of id === 'wasp' ? [true] : [false, true]) {
+        const R = of(filmed(id, { miss }), 'recoil'), end = R.at(-1);
+        const left = [(f) => f.z, (f) => f.rz, (f) => f.sz].map((c) => {
+          const dev = (f) => Math.abs(c(f) - c(end)), peak = Math.max(...R.map(dev));
+          return peak < 0.05 ? 0 : Math.max(...R.filter((f) => f.k >= 0.8).map(dev)) / peak;   // (a channel it barely uses is not a pose)
+        });
+        worst[id + (miss ? ' miss' : ' hit')] = +Math.max(...left).toFixed(3);
+      }
     }
-    return ok(Object.values(worst).every((w) => w !== null && w < 0.03), worst);
+    return ok(Object.values(worst).every((w) => w < 0.06), worst);
+  },
+});
+
+// Rule 4 of the plan: a build-up changes the bug's outline by a quarter of its body, or turns a big part 15 degrees.
+// outline(e) reads, for its model and every part of it, the box round it and how it is turned, in the bug's own
+// frame (so where it walks and which way it faces don't count), as 10 numbers each: centre, size, rotation.
+const OUTLINE = new WeakMap();
+const BOX = new THREE.Box3(), CORNER = new THREE.Vector3(), UNIT = new THREE.Matrix4(), POS = new THREE.Vector3(), SCALE = new THREE.Vector3(), TURN = new THREE.Quaternion();
+const outline = (e) => {
+  const root = e.mesh;
+  let L = OUTLINE.get(root);
+  if (!L) { L = { list: [], boxes: [], index: new Map() }; root.traverse((o) => L.list.push(o)); L.list.forEach((o, i) => L.index.set(o, i)); L.boxes = L.list.map(() => new THREE.Box3()); OUTLINE.set(root, L); }
+  root.updateWorldMatrix(true, true);
+  const inv = UNIT.copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), out = [];
+  for (let i = L.list.length - 1; i >= 0; i--) {   // children before their parents
+    const o = L.list[i], b = L.boxes[i].makeEmpty();
+    if (o.visible) {
+      if (o.isMesh) {
+        o.geometry.boundingBox || o.geometry.computeBoundingBox();
+        const g = o.geometry.boundingBox; M.multiplyMatrices(inv, o.matrixWorld);
+        for (let c = 0; c < 8; c++) b.expandByPoint(CORNER.set(c & 1 ? g.max.x : g.min.x, c & 2 ? g.max.y : g.min.y, c & 4 ? g.max.z : g.min.z).applyMatrix4(M));
+      }
+      for (const k of o.children) { const j = L.index.get(k); if (L.boxes[j].isEmpty() === false) b.union(L.boxes[j]); }
+    }
+  }
+  for (let i = 0; i < L.list.length; i++) {
+    const b = L.boxes[i]; M.multiplyMatrices(inv, L.list[i].matrixWorld).decompose(POS, TURN, SCALE);
+    if (b.isEmpty()) out.push(0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+    else out.push((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2, b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, TURN.x, TURN.y, TURN.z, TURN.w);
+  }
+  return out;
+};
+
+story('motion/build-up-changes-the-outline', {
+  about: 'Rule 4, for every converted bug: its build-up changes its outline by a quarter of its body (a big part moved, or the whole bug grown or shrunk that much) or turns a big part (a quarter of its body or more) 15 degrees, by at least 0.3 of that more than anything its ordinary idling does (wings beating, legs walking), so a player reads it on the bug itself and not only in its Warning.',
+  setup() {},
+  play() {
+    const out = {}, deg15 = 15 * Math.PI / 180;
+    for (const id of CONVERTED) {
+      let calls = 0;
+      const F = filmed(id, { probe: (e) => { const A = e.atk; return A.phase === 'build' || (A.phase === 'idle' && A.n === 0 && calls++ % 4 === 0) ? outline(e) : []; } });
+      const idle = F.filter((f) => f.phase === 'idle' && f.p.length).map((f) => f.p), build = F.filter((f) => f.phase === 'build' && f.p.length).map((f) => f.p);
+      const ref = idle[0], parts = ref.length / 10, size = Math.max(ref[3], ref[4], ref[5]);
+      // each measure, as a multiple of its threshold: where a part has moved or the bug grown (of the body), how far a big part has turned
+      const measures = (P) => {
+        const m = [];
+        for (let i = 0; i < parts; i++) {
+          const a = i * 10, big = i === 0 || Math.max(ref[a + 3], ref[a + 4], ref[a + 5]) >= 0.25 * size;
+          m.push(big ? Math.hypot(P[a] - ref[a], P[a + 1] - ref[a + 1], P[a + 2] - ref[a + 2]) / (0.25 * size) : 0);
+          m.push(i === 0 ? Math.max(Math.abs(P[3] - ref[3]), Math.abs(P[4] - ref[4]), Math.abs(P[5] - ref[5])) / (0.25 * size) : 0);
+          m.push(big && i ? 2 * Math.acos(Math.min(1, Math.abs(P[a + 6] * ref[a + 6] + P[a + 7] * ref[a + 7] + P[a + 8] * ref[a + 8] + P[a + 9] * ref[a + 9]))) / deg15 : 0);
+        }
+        return m;
+      };
+      const most = (set) => set.map(measures).reduce((m, v) => v.map((x, i) => Math.max(m[i] || 0, x)), []);
+      const quiet = most(idle), moved = most(build), best = moved.map((v, i) => (v >= 1 && v >= quiet[i] + 0.3 ? v : 0));
+      const top = Math.max(...best);
+      out[id] = { by: +top.toFixed(2), part: best.indexOf(top), idle: idle.length, build: build.length, dbg: moved.map((v, i) => [i, +v.toFixed(2), +quiet[i].toFixed(2)]).sort((a, b) => b[1] - a[1]).slice(0, 4).join(' | ') };
+    }
+    return ok(Object.values(out).every((o) => o.by >= 1), out);
+  },
+});
+
+story('motion/touching-is-not-a-swing-landing', {
+  about: 'A Praying mantis whose swat missed but whose body the jelly then touches mid-swing is hurt by the touch, yet draws no landed hit (no contact pose, no hit recoil): only its own swing landing does. A hit that is the swat itself still counts.',
+  setup() {},
+  play() {
+    const S = stage(ATTACKS.find((a) => a.id === 'mantis'), { miss: true, hurt: true });
+    try {
+      while (S.frame < MAX_FRAMES && S.e.atk.phase !== 'swing') S.advance();
+      const e = S.e, run = G().run, hurts = [];
+      offs.push(bus.on('player_hurt', (h) => hurts.push(h)));
+      const hurt = (touch) => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: e.type, from: e.id, contact: true, touch }); };
+      const swinging = e.atk.phase === 'swing', before = e.atk.hit;
+      hurt(true);
+      const touched = e.atk.hit;
+      hurt(false);
+      return ok(swinging && !before && !touched && e.atk.hit && hurts.length === 2 && hurts[0].touch === true && hurts[1].touch === false, { swinging, before, touched, own: e.atk.hit, hurts: hurts.map((h) => h.touch) });
+    } finally { S.done(); }
+  },
+});
+
+story('motion/a-throw-does-not-droop-the-eyes', {
+  about: 'After a throw (the Ant, House spider, Firefly, Ladybug, Stag beetle and the Dragonfly\'s whirlwind) the bug\'s eyes do not droop, whether the thing thrown hits or not: it is not a miss yet. A Mosquito whose bite misses still droops its eyes.',
+  setup() {},
+  play() {
+    const droop = (F) => Math.max(...of(F, 'recoil').map((f) => f.x));
+    // (the angry eyes: the group of two eye groups, each turned 0.25 and holding ball, iris, pupil and brow)
+    const eye = (e) => { let g = null; e.mesh.traverse((o) => { if (!g && o.children.length === 2 && o.children.every((c) => c.children.length === 4 && Math.abs(Math.abs(c.rotation.y) - 0.25) < 1e-6)) g = o; }); return g ? g.children[0].rotation.x : 0; }, out = {};
+    for (const id of [...THROWS, 'dragonfly-whirlwind']) out[id] = Math.max(...[false, true].map((miss) => droop(film(id, { miss, read: eye }))));
+    const missed = droop(film('mosquito', { miss: true, read: eye }));
+    return ok(Object.values(out).every((d) => d < 0.01) && missed > 0.1, { ...out, mosquitoMiss: +missed.toFixed(3) });
   },
 });
 
@@ -405,7 +508,8 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
       }
       out[id] = { compared, worst: +worst.toFixed(4), at };
     }
-    return ok(Object.values(out).every((o) => o.compared > 5 && o.worst < 0.03), out);
+    // (a landed House fly's last-fifth nod moves 0.07 rad in the 0.02 of k that a 30 fps frame can put between the two clocks; the rest are within 0.03)
+    return ok(Object.entries(out).every(([id, o]) => o.compared > 5 && o.worst < (id === 'housefly' ? 0.05 : 0.03)), out);
   },
 });
 

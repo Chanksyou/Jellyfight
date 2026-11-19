@@ -152,19 +152,20 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, knock, at, source, unit }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, touch, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (this.easy) amount *= EASY.taken;   // Easy mode (easy.js)
       const bug = from != null && this.mods.statusTaken.length ? this.enemies.byId.get(from) : null;
       if (bug && !bug.proxy) for (const T of this.mods.statusTaken) if (this.enemies.statuses[T.status](bug)) amount *= 1 - T.less;   // status-taken
-      const beforeBy = this.hurtBy, beforeUnit = this.hurtUnit;
+      const beforeBy = this.hurtBy, beforeUnit = this.hurtUnit, beforeTouch = this.hurtTouch;
+      this.hurtTouch = !!touch;
       this.hurtBy = source || 'other';
       this.hurtUnit = unit || (from != null ? this.enemies.byId.get(from)?.type : null);
       try {
         if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
         else this.hit(amount, from, contact, knock, at);
-      } finally { this.hurtBy = beforeBy; this.hurtUnit = beforeUnit; }
+      } finally { this.hurtBy = beforeBy; this.hurtUnit = beforeUnit; this.hurtTouch = beforeTouch; }
     });
     // Lucky Cat: a second roll that hit shows a paw and rings a soft bell, at most twice a second
     bus.on('lucky_roll', () => {
@@ -882,8 +883,9 @@ export class Run {
       if (!e.T.dmg) continue;                               // harmless to touch (an Aerial root: its hold does the hurting)
       const d = this.enemies.center(e, _bug).distanceTo(pc);
       if (d < (e.hitR || e.r) + this.cfg.radius) {
-        // rolling bugs hit harder (a millipede's ball)
-        bus.emit('damage_taken', { targetId: PLAYER, amount: e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true });
+        // rolling bugs hit harder
+        const roll = e.state === 'dash' && e.T.rollDmg;   // (a millipede's ball: the roll is its attack, the rest is just its body)
+        bus.emit('damage_taken', { targetId: PLAYER, amount: roll ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true, touch: !roll });
       }
     }
   }
@@ -1039,7 +1041,7 @@ export class Run {
       if (away.lengthSq() < 1e-8) away.set(-Math.sin(this.player.facing), 0, -Math.cos(this.player.facing));
       const H = this.cfg.hitPush;
       if (!knock && this.shovedAt !== this.frame) this.hitPush = { dir: away.normalize(), force: Math.min(H.max, H.base + H.perDamage * amount) };
-      bus.emit('player_hurt', { amount, from, contact });   // the hit really landed: its attacker's feedback (enemies.js landed)
+      bus.emit('player_hurt', { amount, from, contact, touch: !!this.hurtTouch });   // the hit really landed: its attacker's feedback (enemies.js landed)
     }
     if (!silent) this.player.avatar?.land(1.5);
     // death-save: once per run, the last of your Health holds

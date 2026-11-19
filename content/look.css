@@ -386,6 +386,7 @@
   --bug-attack-light-stretch: 1.2;   --bug-attack-light-over: 0.12;  --bug-attack-light-contact: 0.05;  --bug-attack-light-puff: none;
   --bug-attack-mid-stretch: 1.25;    --bug-attack-mid-over: 0.15;    --bug-attack-mid-contact: 0.05;    --bug-attack-mid-puff: land;
   --bug-attack-heavy-stretch: 1.3;   --bug-attack-heavy-over: 0;     --bug-attack-heavy-contact: 0.08;  --bug-attack-heavy-puff: launch land;
+  --bug-attack-heavy-end: 0.8;   /* how far through its recoil a heavy bug is home (k): the last fifth of its rest is the punish window closing, not still easing */
 
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;

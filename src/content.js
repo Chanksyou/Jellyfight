@@ -57,16 +57,17 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
 // What its attack words' states are (build, swing, fire, recoil: words.js `phases`), for src/attack-motion.js:
 // one map for the bug, with each word's lock points, spans (a step with no clock) and timers worked out
 function attackPhases(children) {
-  const A = { phases: {}, lock: {}, span: {}, timer: {}, more: {}, shot: false };
+  const A = { phases: {}, lock: {}, span: {}, timer: {}, more: {}, shot: false, thrown: {} };
   let any = false;
   for (const w of children) {
     const def = ENEMY_WORDS[w.name];
     if (!def.phases) continue;
     any = true;
     const p = { ...def.props, ...w.props }, val = (v) => (typeof v === 'function' ? v(p) : v);
-    if (def.phases === 'shot') A.shot = true;
+    if (def.phases === 'shot') { A.shot = true; if (def.thrown) A.thrown.fired = true; }
     else {
       Object.assign(A.phases, def.phases);
+      if (def.thrown) for (const k of Object.keys(def.phases)) A.thrown[k] = true;   // (the throw's recoil: its eyes don't droop, the thing thrown lands later)
       const steps = Object.entries(def.phases);   // a step another of its phase follows (a fire step's recoil runs on into a recoil)
       steps.forEach(([k, v], i) => { const next = steps[i + 1]?.[1]; if (next && (next === v || (v === 'fire' && next === 'recoil'))) A.more[k] = true; });
     }

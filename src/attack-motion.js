@@ -26,7 +26,7 @@ export function knobs() {
   const n = (name, d) => LOOK.num('bug-attack-' + name, d);
   K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), beat: n('lock-beat', 0.067), style: {}, tier: {} };
   for (const s of STYLES) K.style[s] = { hold: n(s + '-hold', 0.35), over: n(s + '-over', 0.08), strike: n(s + '-strike', 0.08), bounces: n(s + '-bounces', 2), damp: n(s + '-damp', 2), follow: n(s + '-follow', 0.06) };
-  for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
+  for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), end: n(t + '-end', 1), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
   K.nip = { near: n('nip-near', 5), lean: n('nip-lean', 0.12), recoil: n('nip-recoil', 0.25) };   // a touch: how close it leans in (bug radii), how fast, how long it hops back
   K.nest = { squeeze: n('nest-squeeze', 0.06), bulge: n('nest-bulge', 0.03), lead: n('nest-lead', 0.3) };   // a Wasp nest before each wasp
   return K;
@@ -65,12 +65,12 @@ export function mixPose(A, B, k, out, lag = 0) {
 // the two frames after the aim locks (the lock beat)
 export const lockBeat = (A) => A.lockT >= 0 && A.lockT < knobs().beat;
 // the angry eyes (enemies.js angryEyes): narrow through the build-up, wide at the lock, shut on a landed hit,
-// drooping after a miss
+// drooping after a miss (not after a throw: whether a Shot hits is settled later)
 export function eyes(face, A) {
   let y = 1, droop = 0;
   if (A.phase === 'build') y = lockBeat(A) ? 1.35 : 1 - 0.45 * clamp01(A.k / 0.6);
   else if (A.phase === 'swing') y = A.hit ? 0.12 : 0.6;
-  else if (A.phase === 'recoil') { const q = 1 - A.k; y = A.hit ? 1 - 0.4 * q : 1 - 0.3 * q; droop = A.hit ? 0 : 0.25 * q; }
+  else if (A.phase === 'recoil') { const q = 1 - A.k; y = A.hit ? 1 - 0.4 * q : 1 - 0.3 * q; droop = A.hit || A.thrown ? 0 : 0.25 * q; }
   const C = face.children;
   for (let i = 0; i < C.length; i++) { C[i].scale.y = y; C[i].rotation.x = droop; }
 }
@@ -79,7 +79,7 @@ export function eyes(face, A) {
 // One per bug, made at spawn (enemies.js). `style` and `tier` are its look.css numbers.
 export function newAttack(T) {
   const k = knobs(), m = T.attackMotion;
-  return { phase: 'idle', k: 0, pt: 0, t: 0, lock: -1, lockT: -1, hit: false, still: false, smear: false, n: 0, vary: 1, side: 1, quiet: 1, style: k.style[m.style], tier: k.tier[m.tier], key: '', len: 0, st: 0, rt: 0, r0: 0, rkey: '', rec: false, k0: 0, carry: '' };
+  return { phase: 'idle', k: 0, pt: 0, t: 0, lock: -1, lockT: -1, hit: false, still: false, smear: false, n: 0, vary: 1, side: 1, quiet: 1, style: k.style[m.style], tier: k.tier[m.tier], key: '', len: 0, st: 0, rt: 0, r0: 0, rkey: '', rec: false, thrown: false, k0: 0, carry: '' };
 }
 
 // puffs this frame (at most knobs().puffs), counted by beginFrame
@@ -172,6 +172,7 @@ export function attackClock(e, dt, fx = null, calm = false, near = 99) {
   const share = P.more[key] && (kind !== 'fire' || phase === 'recoil') ? 0.5 : 1;
   if (!frozen) A.k = phase === A.carry && phase !== 'idle' ? A.k0 + (1 - A.k0) * kk * share : kk * share;
   A.phase = phase;
+  A.thrown = !!P.thrown[key];   // (a Shot's recoil: it was thrown, not missed)
   if (phase === 'swing' && !frozen) A.smear = A.pt >= C.smearAt && A.pt < C.smearAt + 1 / 30;
   if (phase !== was && ((phase === 'swing' && !frozen && A.tier.puff.includes('launch')) || (phase === 'recoil' && A.tier.puff.includes('land')))) attackPuff(fx, e);
   return A;
