@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v527 gives the Mosquito's bite a real build-up, swing and recoil: it draws back and rears, holds quivering with its front legs reaching and eyes narrowing, dips its head as its aim locks, goes dead still, then darts stretched out nose first; a landed bite holds a moment, eyes shut, and bounces back squashed, while a miss carries on past and rolls. The shared attack clock behind it (src/attack-motion.js, attack-motion in content/enemies.kdl, --bug-attack-* in look.css) is what every other basic bug moves to next. No timing, damage or Warning changes.
+
 v526 gives act 1's three Elites recorded sounds layered over their synthesized ones: the Controller's button clicks, hit thud, slam and charge-up, the Mug's slosh, splash and pour, the Kettle's whistle, steam blast, lid pop and drops, and each Elite's own breaking sound when it is beaten.
 
 v525 adds the tests and tools for the coming bug attack animation work, with no change to how the game looks or plays: a story that keeps every basic bug attack's hit on the same frame and spot (`attacks/animation-never-moves-a-hit`), a check that a bug's `anim` allocates nothing and never reads the clock or `Math.random`, and tools that film each attack (`tools/bug-reel.mjs`) and time all the bugs' animation on a phone (`tools/bug-anim-bench.mjs`).
