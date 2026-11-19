@@ -2,7 +2,7 @@ import { ACHIEVEMENTS, ACHIEVEMENTS_KEY, newChallenges, awardAchievements, earne
 import { TREASURES } from '../stats.js';
 import { applyBalance } from '../balance-editor.js';
 import { Leaderboard } from '../leaderboard.js';
-import { G, fresh, ok, story, phone, act4, stub, V } from './kit.js';
+import { G, fresh, ok, story, phone, act4, night4, stub, V } from './kit.js';
 
 const passes = (id, s) => ACHIEVEMENTS.find(a => a.id === id).test(s);
 const protectEarned = fn => {
@@ -328,5 +328,17 @@ story('achievements/taken-name-can-be-corrected', {
     } finally {
       if (before === null) localStorage.removeItem(ACHIEVEMENTS_KEY); else localStorage.setItem(ACHIEVEMENTS_KEY, before);
     }
+  },
+});
+
+night4('achievements-count-act-4-elites-and-carry-them-through-the-stage-door', {
+  about: 'An act 4 Elite beaten before time-up is noted under act 4, and the note travels with the run.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(); stub(run, 'dropTreasure', () => {}); stub(run, 'earn', () => {}); stub(run, 'found', () => {});
+    run.dev = true; run.t = 10;
+    run.eliteDefeated({ kind: 'bowl', name: 'bowl', spec: { kind: 'bowl', area: 'test' }, base: V(3.2, 0, 1), r: .04 });
+    const noted = (run.challenges.elites[4] || []).length === 1, carried = (run.carryOver().challenges.elites[4] || []).length === 1;
+    return ok(noted && carried, { noted, carried });
   },
 });

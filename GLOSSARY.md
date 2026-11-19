@@ -131,10 +131,10 @@ _Avoid_: Wind blade
 Act 4's daylight, a line that creeps across the living room from the window wall. Standing on its side of the line costs Health every second (the jelly dries out); bugs and Elites aren't hurt.
 
 **Bass wave**:
-A low wave the Soundbar sends across act 4's room on the song's bar, from the TV wall to the window wall. It hurts anything of the jelly under its top as it passes, so jump it.
+A low wave the Soundbar sends across act 4's room every 16 bars of the song, from the TV wall to the window wall. It hurts anything of the jelly under its top as it passes, so jump it.
 
 **Stage door**:
-What opens on the media console when act 4's countdown runs out, in place of a boss. Landing on it takes the run through to the Encore's concert arena.
+What opens on the media console when act 4's countdown runs out, in place of a boss arriving. Landing on it takes the run through to the Encore's concert arena.
 
 **Easy mode**:
 A choice in Settings for a whole run: the jelly deals double damage and takes half, and earns half the Pearls. An Easy run's score is never posted.
