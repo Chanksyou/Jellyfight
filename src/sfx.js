@@ -229,10 +229,19 @@ export function holdAt(param, time) {
   if (time <= ctx.currentTime) param.setValueAtTime(param.value, time);
 }
 
+// How far ahead the browser mixes sound, in seconds. At its smallest (about 10 ms, the default) a
+// busy frame on the audio thread misses the speakers and crackles; 30 ms gives it three times the
+// room, and a sound coming 20 ms later is too little to notice.
+export const AUDIO_AHEAD = 0.03;
+function newContext() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  try { return new AC({ latencyHint: AUDIO_AHEAD }); } catch { return new AC(); }   // an old Safari takes no options
+}
+
 export function unlock() {
   try {
     if (!ctx) {
-      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx = newContext();
       master = ctx.createGain();
       master.gain.value = 0.55;
       const comp = ctx.createDynamicsCompressor();     // keeps a big fight from clipping

@@ -57,6 +57,20 @@ story('sound/a-missing-pack-plays-the-synthesized-sound', {
   },
 });
 
+story('sound/mixes-30-ms-ahead-so-a-busy-moment-does-not-crackle', {
+  about: 'The audio context is made with a 30 ms latency hint instead of the smallest buffer, so a busy moment on the audio thread has room before it reaches the speakers (a missed buffer is the crackle).',
+  setup() { setupFight(); },
+  async play() {
+    const asked = [], Real = window.AudioContext;
+    stub(window, 'AudioContext', class extends Real { constructor(o) { asked.push(o); super(o); } });
+    const S = await freshSfx();
+    S.unlock();
+    const ctx = S.audio()?.ctx, hint = asked[0]?.latencyHint;
+    await ctx?.close();
+    return ok(asked.length === 1 && hint === 0.03 && S.AUDIO_AHEAD === 0.03, { asked, baseLatency: ctx?.baseLatency });
+  },
+});
+
 story('sound/wobbling-sounds-fade-out-without-a-pop', {
   about: "The sounds with a wobble in their loudness (the Vacuum's suck and brushes, the millipede's rev, the dragonfly's charge hum) end in silence: the wobble fades with the sound instead of playing on after it and being cut off with a pop.",
   setup() { setupFight(); },
