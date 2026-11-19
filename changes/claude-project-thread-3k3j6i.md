@@ -1,1 +1,0 @@
-gives the Encore's two DJs a posable rig: torso, helmet and both arms move on their own, with ten moves timed to the beat (wave calls, record throw, fader crank, hands up, fist pump, flinch, bow) ready for the coming solos and attacks. Nothing in the fight changes yet; at rest they stand exactly as before.
