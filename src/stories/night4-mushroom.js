@@ -70,7 +70,7 @@ night4('pillow-wakes-when-you-are-on-the-sofa', {
 });
 
 night4('pillow-spores-settle-then-burst-on-the-bar', {
-  about: 'Spores: the cap breathes in, then on a beat it puffs spores that drift over the seat for two beats, the first onto where the jelly stands; each has a Warning from the puff (a circle and the column over it, in the pillow\'s spore violet) filling to the burst. They settle, flash for one beat, then burst on a bar line: a jelly that stays on its spot takes 4, once.',
+  about: 'Spores: the cap breathes in, then on a beat it puffs spores that drift over the seat for two beats, the first onto where the jelly stands; each has a Warning from the puff (a circle and the column over it, in the pillow\'s spore violet) filling to the burst. They settle, flash for one beat, then burst on a bar line: a jelly that stays on its spot takes 3, once.',
   setup() { startPillow(0); },
   play() {
     const { e, player } = startPillow(0), log = record('damage_taken'), S = SK().spores, at = player.position.clone();
