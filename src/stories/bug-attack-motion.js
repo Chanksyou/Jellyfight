@@ -264,8 +264,10 @@ story('motion/a-miss-recovers-differently', {
     // the mantis: how far its forelegs are still swung in (crossed), 0.1 s after the follow-through hold
     const when = knobs().style.swipe.follow + 0.1, near = (R) => R.reduce((b, f) => (Math.abs(f.pt - when) < Math.abs(b.pt - when) ? f : b), { pt: 9, p: [0] });
     const MH = of(film('mantis', { probe: mantisProbe }), 'recoil'), MM = of(film('mantis', { miss: true, probe: mantisProbe }), 'recoil');
-    const ch = near(MH).p[0], cm = near(MM).p[0], stuck = MH[0]?.hit && MM[0] && !MM[0].hit && cm >= 0.21 && ch < cm - 0.03;
-    return ok(landed && missed && stuck, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit }, mantis: { landedCross: +ch.toFixed(3), missedCross: +cm.toFixed(3), hit: MH[0]?.hit, missHit: MM[0]?.hit } });
+    const full = 0.3 - 0.08;   // fully crossed: the shoulders swung in 0.3 past their 0.08 rest (buildMantis)
+    const ch = near(MH).p[0], cm = near(MM).p[0], back = MM.at(-1)?.p[0] ?? 9;
+    const stuck = MH[0]?.hit && MM[0] && !MM[0].hit && cm >= full - 0.01 && ch < cm - 0.03 && Math.abs(back - 0.08) < 0.02;   // and it does uncross
+    return ok(landed && missed && stuck, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit }, mantis: { landedCross: +ch.toFixed(3), missedCross: +cm.toFixed(3), missEnd: +back.toFixed(3), hit: MH[0]?.hit, missHit: MM[0]?.hit } });
   },
 });
 

@@ -1012,11 +1012,14 @@ export function buildMillipede() {
     } else if (ph === 'swing') {
       const s = snap(Math.min(1, K.pt / K.style.strike), K.tier.over);
       lean = 0.1 + 0.16 * s * K.vary; len = 1 + (K.tier.stretch - 1) * 0.5 * s * (K.smear ? 1.5 : 1);
+      squat = 0.06 * K.vary * (1 - s);                                  // (from the spin's squat, not a pop)
     } else if (ph === 'recoil' && K.key !== 'rest') {
       const q = Math.min(1, K.k * 2);                                   // (the uncurl fills the first half of the recoil)
       skid = 0.25 * Math.sin(Math.PI * q); over = Math.PI / 2 * (1 - (1 - q) * (1 - q));
       tilt = K.side * 0.6 * Math.sin(Math.PI * q); wave = 0.05 * Math.sin(Math.PI * q);
-    } else if (ph === 'recoil') sway = Math.sin(K.t * 7 + e.phase) * 0.4 * K.vary * Math.min(1, (1 - u) * K.len / 0.3);
+      const ease = 1 - smooth(q * 3);                                   // the roll's lean and stretch, let go
+      lean = 0.26 * K.vary * ease; len = 1 + (K.tier.stretch - 1) * 0.5 * ease;
+    } else if (ph === 'recoil') sway = Math.sin(K.t * 7 + e.phase) * 0.4 * K.vary * Math.min(1, (1 - u) * K.len / 0.3, K.st / 0.1);
     const spin = (e.spinA || 0) + over, unroll = ph === 'recoil';
     qSpin.setFromAxisAngle(X, spin);
     for (let i = 0; i < N; i++) {
@@ -1633,7 +1636,7 @@ export function buildMantis({ dead = false } = {}) {
   }
   pose(PRAY);
   const stuck = LOOK.num('bug-attack-mantis-stuck', 0.15);   // s a missed swat leaves its forelegs out, crossed
-  let t = 0, k = 0;
+  let t = 0, k = 0, walk = 1;
   const P = [0, 0, 0];
   // its swat (attack-motion "swipe", src/attack-motion.js): rears and throws its forelegs open past raised, holds
   // them quivering, goes dead still; the forelegs lead, snapping shut crossed (shoulder, then knee, then hook, a
@@ -1669,12 +1672,13 @@ export function buildMantis({ dead = false } = {}) {
     } else for (let i = 0; i < 3; i++) P[i] = PRAY[i];
     pose(P);
     for (const F of fore) {
-      F.shoulder.rotation.x += ph === 'idle' ? Math.sin(t * 1.6 + e.phase) * 0.04 : shake * 0.08;   // a slow sway as it watches you; tension in the hold
+      F.shoulder.rotation.x += Math.sin(t * 1.6 + e.phase) * 0.04 * walk + shake * 0.08;   // a slow sway as it watches you; tension in the hold
       F.tibia.rotation.x += shake * 0.1;
       F.shoulder.rotation.y = F.s * (0.08 - 0.3 * cross);              // snapped shut past the middle: crossed
       F.tibia.scale.z = A?.smear ? knobs().smear : 1;
     }
-    const step = t * (3 + 10 * k), walk = ph === 'idle' ? 1 : 0;
+    const step = t * (3 + 10 * k);
+    walk += ((ph === 'idle' ? 1 : 0) - walk) * (1 - Math.exp(-12 * dt));   // its walk eases out as it attacks
     for (const L of legs) {
       L.hip.rotation.y = Math.sin(step + L.phase) * 0.35 * k * walk;
       L.hip.rotation.z = Math.max(0, Math.cos(step + L.phase)) * 0.2 * k * walk;
@@ -1685,7 +1689,7 @@ export function buildMantis({ dead = false } = {}) {
     stretch(body, len);
     if (A && face) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; P.fill(0); stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const F of fore) { F.shoulder.rotation.y = F.s * 0.08; F.tibia.scale.z = 1; } face?.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
+  anim.reset = () => { t = 0; k = 0; walk = 1; P.fill(0); stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const F of fore) { F.shoulder.rotation.y = F.s * 0.08; F.tibia.scale.z = 1; } face?.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1988,7 +1992,7 @@ export function buildWorm() {
       const lashing = K.key === 'lash', d = K.key === 'down' ? Math.min(1, K.st / Math.max(1e-3, K.len)) : lashing ? 0 : 1;
       wind = K.vary; out = lashing ? Math.min(1, K.st / Math.max(1e-3, K.len)) : 1;
       thin = 0.15 * (out < 1 ? out : 1 - d);
-      rip = 0.16 * (1 - d) * (d > 0 ? 1 : 0); at = d * 1.2;            // a ripple running base to tip, dying away
+      rip = 0.16 * (1 - d) * Math.min(1, d * 8); at = d * 1.2;            // a ripple running base to tip, dying away
     } else if (ph === 'recoil') {
       rise = K.k;
       sway = settle(K.k, K.style.bounces, K.style.damp) * Math.min(1, K.pt / 0.15) * 0.35 * K.side;
