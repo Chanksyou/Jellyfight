@@ -104,6 +104,205 @@
    }
   }
  },
+ "rewards": {
+  "file": "rewards.mp3",
+  "for": [
+   "unlock"
+  ],
+  "bytes": 205965,
+  "seconds": 17.1,
+  "roles": {
+   "xp-pickup": {
+    "cue": [
+     "xp",
+     0
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.1439,
+      "peak": 0.0012
+     }
+    ]
+   },
+   "treasure-pickup": {
+    "cue": [
+     "treasure"
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 0.7439,
+      "length": 1.2,
+      "peak": 0.1219
+     }
+    ]
+   },
+   "level-up": {
+    "cue": [
+     "levelUp"
+    ],
+    "vol": 0.22,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 2.2439,
+      "length": 0.8629,
+      "peak": 0.0847
+     }
+    ]
+   },
+   "chest-creak": {
+    "cue": [
+     "chestCreak",
+     0
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 3.4067,
+      "length": 0.2421,
+      "peak": 0.1288
+     }
+    ]
+   },
+   "chest-pop": {
+    "cue": [
+     "chestPop",
+     0
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 3.9489,
+      "length": 1,
+      "peak": 0.1021
+     }
+    ]
+   },
+   "reveal-0": {
+    "cue": [
+     "reveal",
+     0
+    ],
+    "vol": 0.14,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 5.2489,
+      "length": 0.45,
+      "peak": 0.1738
+     }
+    ]
+   },
+   "reveal-1": {
+    "cue": [
+     "reveal",
+     1
+    ],
+    "vol": 0.16,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 5.9989,
+      "length": 0.8,
+      "peak": 0.1738
+     }
+    ]
+   },
+   "reveal-2": {
+    "cue": [
+     "reveal",
+     2
+    ],
+    "vol": 0.18,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 7.0989,
+      "length": 1.3,
+      "peak": 0.1738
+     }
+    ]
+   },
+   "reveal-3": {
+    "cue": [
+     "reveal",
+     3
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 8.6989,
+      "length": 2.2,
+      "peak": 0.1738
+     }
+    ]
+   },
+   "award": {
+    "cue": [
+     "award"
+    ],
+    "vol": 0.22,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 11.1989,
+      "length": 2.6,
+      "peak": 0.1738
+     }
+    ]
+   },
+   "buy": {
+    "cue": [
+     "buy"
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 14.0989,
+      "length": 1.4,
+      "peak": 0.0283
+     }
+    ]
+   },
+   "menu-tap": {
+    "cue": [
+     "tap"
+    ],
+    "vol": 0.16,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 15.7989,
+      "length": 0.227,
+      "peak": 0.0044
+     }
+    ]
+   },
+   "menu-pick": {
+    "cue": [
+     "pick"
+    ],
+    "vol": 0.16,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 16.3259,
+      "length": 0.4754,
+      "peak": 0.1528
+     }
+    ]
+   }
+  }
+ },
  "elite-controller": {
   "file": "elite-controller.mp3",
   "for": [

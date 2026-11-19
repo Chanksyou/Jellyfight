@@ -719,6 +719,7 @@ export const sfx = {
   xp(chain = 0, big = false) {
     if (!ready() || !gap('xp', 45)) return;
     const step = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24][Math.min(10, Math.max(0, Math.floor(chain)))];
+    if (sample('xp-pickup', { rate: 0.75 * Math.pow(2, step / 12), vol: big ? 1.3 : 1 })) return;   // the recording's pitch climbs with the chain
     const f = 880 * Math.pow(2, step / 12);
     tone('sine', f, f, 0.12, 0.08);
     tone('triangle', f * 2, f * 2, 0.06, 0.03, 0.01);
@@ -727,25 +728,31 @@ export const sfx = {
   // you get hurt: a low wobbly bonk
   hurt() { if (!ready() || !gap('hurt', 150)) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },
   // level up / treasure: a bright arpeggio
-  levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
-  treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
+  levelUp() { if (!ready()) return; if (sample('level-up', { urgent: true })) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
+  treasure() { if (!ready()) return; if (sample('treasure-pickup', { urgent: true })) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
   // the menus and reward screens (ui.js, creator.js, main.js): small and soft
-  tap() { if (!ready() || !gap('tap', 40)) return; tone('sine', 900 * jitter(0.04), 640, 0.05, 0.05); },
+  tap() { if (!ready() || !gap('tap', 40)) return; if (sample('menu-tap')) return; tone('sine', 900 * jitter(0.04), 640, 0.05, 0.05); },
   deal(delay = 0) { if (!ready()) return; noise(2600 * jitter(0.1), 1.2, 0.09, 0.035, 'bandpass', delay, 900); },
   // a pick card landing, grander the rarer: tier 0 Common … 3 Legendary
   reveal(tier = 0, delay = 0) {
     if (!ready()) return;
+    const peakAt = now() + delay + 0.1;
+    if (tier === 0) if (sample('reveal-0', { peakAt })) return;
+    if (tier === 1) if (sample('reveal-1', { peakAt })) return;
+    if (tier === 2) if (sample('reveal-2', { peakAt })) return;
+    if (tier === 3) if (sample('reveal-3', { peakAt })) return;
     [[0], [0, 7], [0, 4, 7, 12], [0, 4, 7, 12, 16, 19]][tier].forEach((s, i) => { const f = 784 * Math.pow(2, s / 12); tone('triangle', f, f, 0.25 + tier * 0.1, 0.04 + tier * 0.012, delay + i * 0.045); });
     if (tier === 3) noise(7000, 1, 0.6, 0.03, 'highpass', delay + 0.1);
   },
-  pick() { if (!ready()) return; tone('sine', 320, 140, 0.12, 0.16); noise(900, 1, 0.05, 0.06, 'lowpass'); },
+  pick() { if (!ready()) return; if (sample('menu-pick')) return; tone('sine', 320, 140, 0.12, 0.16); noise(900, 1, 0.05, 0.06, 'lowpass'); },
   burn() { if (!ready()) return; noise(3200, 0.7, 0.38, 0.03, 'highpass', 0.06, 1200); },
   // a number counting up (k 0..1: how far along), then where it lands
   count(k = 0) { if (!ready() || !gap('count', 45)) return; const f = 520 * (1 + k); tone('square', f, f, 0.025, 0.02); },
   counted() { if (!ready()) return; tone('sine', 523, 523, 0.3, 0.09); tone('sine', 1046, 1046, 0.22, 0.07, 0.02); },
-  buy() { if (!ready()) return; [0, 7, 12].forEach((s, i) => tone('sine', 1320 * Math.pow(2, s / 12), 1320 * Math.pow(2, s / 12), 0.16, 0.06, i * 0.06)); noise(6000, 1, 0.2, 0.03, 'highpass', 0.14); },
+  buy() { if (!ready()) return; if (sample('buy')) return; [0, 7, 12].forEach((s, i) => tone('sine', 1320 * Math.pow(2, s / 12), 1320 * Math.pow(2, s / 12), 0.16, 0.06, i * 0.06)); noise(6000, 1, 0.2, 0.03, 'highpass', 0.14); },
   award() {
     if (!ready()) return;
+    if (sample('award', { urgent: true })) return;
     [0, 4, 7, 12, 16].forEach((s, i) => { const f = 392 * Math.pow(2, s / 12); tone('triangle', f, f, 0.9, 0.06, i * 0.08); });
     noise(7000, 1, 1.1, 0.035, 'highpass', 0.3);
   },
@@ -753,8 +760,8 @@ export const sfx = {
   // a treasure chest, in two beats (pickups.js): it strains with a wooden creak while it
   // shakes, then the lid pops with a thump and a little jingle. kind 1 (an Elite's chest)
   // creaks for longer and rings higher; every jingle note is jittered so repeats differ
-  chestCreak(kind = 0) { if (!ready()) return; const d = kind ? 0.4 : 0.12; noise(320, 7, d, 0.045, 'bandpass', 0, 150); tone('sawtooth', 130, 65, d, 0.028); },
-  chestPop(kind = 0) { if (!ready()) return; tone('sine', 150, 45, 0.16, 0.3); noise(1000, 1, 0.07, 0.09); const base = kind ? 1560 : 1240; [0, 4, 7, 12].forEach((s, i) => { const f = base * Math.pow(2, s / 12) * jitter(0.03); tone('sine', f, f, 0.14, 0.055, 0.03 + i * 0.05); }); },
+  chestCreak(kind = 0) { if (!ready()) return; if (sample('chest-creak', { rate: kind ? 0.8 : 1 })) return; const d = kind ? 0.4 : 0.12; noise(320, 7, d, 0.045, 'bandpass', 0, 150); tone('sawtooth', 130, 65, d, 0.028); },
+  chestPop(kind = 0) { if (!ready()) return; if (sample('chest-pop', { rate: kind ? 1.15 : 1, urgent: true })) return; tone('sine', 150, 45, 0.16, 0.3); noise(1000, 1, 0.07, 0.09); const base = kind ? 1560 : 1240; [0, 4, 7, 12].forEach((s, i) => { const f = base * Math.pow(2, s / 12) * jitter(0.03); tone('sine', f, f, 0.14, 0.055, 0.03 + i * 0.05); }); },
   // elements
   fireLaunch(weight = 1) {
     if (!ready() || !gap('fireLaunch', 35)) return;

@@ -38,6 +38,24 @@
         "lightning-big": { "cue": ["lightningBig"], "vol": 0.2, "mode": "replace", "takes": ["lightning/big-1.mp3", "lightning/big-2.mp3", "lightning/big-3.mp3"] },
         "lightning-chain": { "cue": ["chainZap", 0], "vol": 0.12, "mode": "replace", "takes": ["lightning/chain-1.mp3", "lightning/chain-2.mp3", "lightning/chain-3.mp3"] }
       }
+    },
+    "rewards": {
+      "for": ["unlock"],
+      "roles": {
+        "xp-pickup": {"cue": ["xp", 0], "vol": 0.2, "mode": "replace", "takes": ["rewards/bright-coin-pickup.wav"]},
+        "treasure-pickup": {"cue": ["treasure"], "vol": 0.2, "mode": "replace", "cap": 1.2, "takes": ["rewards/coin-pickup-short.wav"]},
+        "level-up": {"cue": ["levelUp"], "vol": 0.22, "mode": "replace", "takes": ["rewards/level-up-chime.wav"]},
+        "chest-creak": {"cue": ["chestCreak", 0], "vol": 0.2, "mode": "replace", "takes": ["rewards/wooden-chest-open.wav"]},
+        "chest-pop": {"cue": ["chestPop", 0], "vol": 0.2, "mode": "replace", "cap": 1.0, "takes": ["rewards/treasure.wav"]},
+        "reveal-0": {"cue": ["reveal", 0], "vol": 0.14, "mode": "replace", "cap": 0.45, "takes": ["rewards/shimmer-peak.wav"]},
+        "reveal-1": {"cue": ["reveal", 1], "vol": 0.16, "mode": "replace", "cap": 0.8, "takes": ["rewards/shimmer-peak.wav"]},
+        "reveal-2": {"cue": ["reveal", 2], "vol": 0.18, "mode": "replace", "cap": 1.3, "takes": ["rewards/shimmer-peak.wav"]},
+        "reveal-3": {"cue": ["reveal", 3], "vol": 0.2, "mode": "replace", "cap": 2.2, "takes": ["rewards/shimmer-peak.wav"]},
+        "award": {"cue": ["award"], "vol": 0.22, "mode": "replace", "cap": 2.6, "takes": ["rewards/shimmer-peak.wav"]},
+        "buy": {"cue": ["buy"], "vol": 0.2, "mode": "replace", "cap": 1.4, "takes": ["rewards/cash-register-purchase.wav"]},
+        "menu-tap": {"cue": ["tap"], "vol": 0.16, "mode": "replace", "takes": ["rewards/soft-ui-tap.wav"]},
+        "menu-pick": {"cue": ["pick"], "vol": 0.16, "mode": "replace", "takes": ["rewards/confirmation-4.wav"]}
+      }
     }
   }
 }

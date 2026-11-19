@@ -1,25 +1,172 @@
 {
- "lightning.mp3": { "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28", "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game" },
- "fireball-flight.mp3": { "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner", "licence": "None supplied; confirm redistribution rights before a production release" },
- "encore-around-the-world.mp3": { "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner", "licence": "None for the recording; the owner chose to include it for their own play" },
- "elite-controller.mp3": { "from": [
-  {"role": "controller-charge", "soundza": "Low Pitch Synth Sweep by TRAGWERK, id cmtl5gx8qbthz4g39q5fvrjt7, https://soundza.com/sound/low-pitch-synth-sweep", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "controller-click", "soundza": "Plastic Button Off, id cmukc3zzx6tban09ofb0xe6ds, https://soundza.com/sound/plastic-button-off", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "controller-hit", "soundza": "Metallic Trash Lid Thud, id cmvib5fisy3o2n6apxbxq0e7h, https://soundza.com/sound/metallic-trash-lid-thud", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.6 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "controller-slam", "soundza": "Hard Door Slam, id cmviac1v6z19esm4uru5u6ffj, https://soundza.com/sound/hard-door-slam", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.76 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "controller-down", "soundza": "Electric Power Down, id cmv0i6i8f01et06l8exyy3emc, https://soundza.com/sound/electric-power-down", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 1.6 s with an 80 ms fade, 96 kbps MP3"}
- ], "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own" },
- "elite-mug.mp3": { "from": [
-  {"role": "mug-lob", "soundza": "Deep Bottle Slosh, id cmvr4ncnp4ju61kyyaw56fiat, https://soundza.com/sound/deep-bottle-slosh", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "mug-splash", "soundza": "Slime 7, id cmv5n999u01tz06l4p445tnbg, https://soundza.com/sound/slime-7-1", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.4 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "mug-pour", "soundza": "Water Pour, id cmv5mzdr700w906l4sqr4kx21, https://soundza.com/sound/water-pour", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "mug-down", "soundza": "Plate Smash 24, id cmv5swkch00k306l6ogjf4lcg, https://soundza.com/sound/plate-smash-24", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"}
- ], "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own" },
- "elite-kettle.mp3": { "from": [
-  {"role": "kettle-charge", "soundza": "Tiny Rocket Whistle, id cmvckp6o6um05i6035fm8mabm, https://soundza.com/sound/tiny-rocket-whistle", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "kettle-blast", "soundza": "Pneumatic Air Release, id cmukdhc0rs6b52otl8klnsill, https://soundza.com/sound/pneumatic-air-release", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "kettle-pop", "soundza": "Metal Falling 3, id cmv5o3mqs02mx06l4snfeezy8, https://soundza.com/sound/metal-falling-3", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "kettle-drop", "soundza": "Sizzling Metallic Impact, id cmtkjnawimummnzeoarx4iiik, https://soundza.com/sound/sizzling-metallic-impact", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"},
-  {"role": "kettle-down", "soundza": "Metal Pot 3, id ahp6cy2kez2ok8avzlvzxp1n, https://soundza.com/sound/metal-pot-3", "date": "2026-11-19", "edits": "mono 48 kHz, trimmed to its onset, cut to 0.8 s with an 80 ms fade, 96 kbps MP3"}
- ], "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own" }
+ "lightning.mp3": {
+  "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28",
+  "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game"
+ },
+ "fireball-flight.mp3": {
+  "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner",
+  "licence": "None supplied; confirm redistribution rights before a production release"
+ },
+ "encore-around-the-world.mp3": {
+  "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner",
+  "licence": "None for the recording; the owner chose to include it for their own play"
+ },
+ "rewards.mp3": {
+  "from": [
+   {
+    "role": "xp-pickup",
+    "soundza": "Bright Coin Pickup (cmukc8kdxfng4cdvohnilvz9l, https://soundza.com/sound/bright-coin-pickup)",
+    "date": "2026-11-19",
+    "edits": "mono, faded; played at a rate per chain step"
+   },
+   {
+    "role": "treasure-pickup",
+    "soundza": "Coin Pickup Short (cmvcmiy9v0bk9v0pkimd2onwc, https://soundza.com/sound/coin-pickup-short)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1.2 s, faded"
+   },
+   {
+    "role": "level-up",
+    "soundza": "Level Up Chime (cmvjp93zqj6svb9fack4vkqds, https://soundza.com/sound/level-up-chime)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   },
+   {
+    "role": "chest-creak",
+    "soundza": "Wooden Chest Open (cmvr44p430v4e2tbs44j5zl2v, https://soundza.com/sound/wooden-chest-open)",
+    "date": "2026-11-19",
+    "edits": "mono, faded; slower for an Elite's chest"
+   },
+   {
+    "role": "chest-pop",
+    "soundza": "Treasure (cmv0ijpbp007r06l58je4sf8e, https://soundza.com/sound/treasure)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1 s, faded; higher for an Elite's chest"
+   },
+   {
+    "role": "reveal-0..3, award",
+    "soundza": "Shimmer Logo Reveal 1 (v4uyzfkgoni3q8a8h4tgz5e0, https://soundza.com/sound/shimmer-logo-reveal-1, AI-generated)",
+    "date": "2026-11-19",
+    "edits": "started 1.55 s in (its peak), mono, cut to 0.45 / 0.8 / 1.3 / 2.2 s (reveal) and 2.6 s (award), faded"
+   },
+   {
+    "role": "buy",
+    "soundza": "Cash Register Purchase (cmv8zuan8383eum4fqute6fhu, https://soundza.com/sound/cash-register-purchase)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1.4 s, faded"
+   },
+   {
+    "role": "menu-tap",
+    "soundza": "Soft UI Tap (cmvcmlbircnzts2ktscbyt28v, https://soundza.com/sound/soft-ui-tap)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   },
+   {
+    "role": "menu-pick",
+    "soundza": "Confirmation 4 (cmv5n0d7l011k06l4k4q02njv, https://soundza.com/sound/confirmation-4)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): free for commercial use inside a game, edits allowed, no sharing as standalone files"
+ },
+ "elite-controller.mp3": {
+  "from": [
+   {
+    "role": "controller-charge",
+    "soundza": "Low Pitch Synth Sweep by TRAGWERK (cmtl5gx8qbthz4g39q5fvrjt7, https://soundza.com/sound/low-pitch-synth-sweep)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-click",
+    "soundza": "Plastic Button Off (cmukc3zzx6tban09ofb0xe6ds, https://soundza.com/sound/plastic-button-off)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-hit",
+    "soundza": "Metallic Trash Lid Thud (cmvib5fisy3o2n6apxbxq0e7h, https://soundza.com/sound/metallic-trash-lid-thud)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.6 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-slam",
+    "soundza": "Hard Door Slam (cmviac1v6z19esm4uru5u6ffj, https://soundza.com/sound/hard-door-slam)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.76 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-down",
+    "soundza": "Electric Power Down (cmv0i6i8f01et06l8exyy3emc, https://soundza.com/sound/electric-power-down)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.6 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-mug.mp3": {
+  "from": [
+   {
+    "role": "mug-lob",
+    "soundza": "Deep Bottle Slosh (cmvr4ncnp4ju61kyyaw56fiat, https://soundza.com/sound/deep-bottle-slosh)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-splash",
+    "soundza": "Slime 7 (cmv5n999u01tz06l4p445tnbg, https://soundza.com/sound/slime-7-1)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.4 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-pour",
+    "soundza": "Water Pour (cmv5mzdr700w906l4sqr4kx21, https://soundza.com/sound/water-pour)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-down",
+    "soundza": "Plate Smash 24 (cmv5swkch00k306l6ogjf4lcg, https://soundza.com/sound/plate-smash-24)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-kettle.mp3": {
+  "from": [
+   {
+    "role": "kettle-charge",
+    "soundza": "Tiny Rocket Whistle (cmvckp6o6um05i6035fm8mabm, https://soundza.com/sound/tiny-rocket-whistle)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-blast",
+    "soundza": "Pneumatic Air Release (cmukdhc0rs6b52otl8klnsill, https://soundza.com/sound/pneumatic-air-release)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-pop",
+    "soundza": "Metal Falling 3 (cmv5o3mqs02mx06l4snfeezy8, https://soundza.com/sound/metal-falling-3)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-drop",
+    "soundza": "Sizzling Metallic Impact (cmtkjnawimummnzeoarx4iiik, https://soundza.com/sound/sizzling-metallic-impact)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-down",
+    "soundza": "Metal Pot 3 (ahp6cy2kez2ok8avzlvzxp1n, https://soundza.com/sound/metal-pot-3)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.8 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ }
 }
