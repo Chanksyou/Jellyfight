@@ -752,6 +752,46 @@
   --encore-floor-hot-white: 0.08; /* how far a tile going off is pushed towards white (a touch: the DJ colour must read) */
   --encore-dance-raise: 1.35;    /* radians a DJ throws his outer arm up while his wave plays */
   --encore-dance-pump: 0.32;     /* and how far it pumps, down on every beat */
+  /* The DJs' moves (encore-model.js perform): timing in beats, lead strike sustain release spin, then
+     the wind-up and accent poses, ten radians each, offsets from rest: torso pitch (+ bows) and turn
+     (+ to the centre), helmet pitch and turn, outer arm x (- raises it) y (+ swings out) z (+ tips out),
+     inner arm x y z. Each DJ mirrors them; the accent lands on the beat it is asked for. */
+  --encore-dance-circle: 4 0.5 0 1.5 0.35;         /* ring and arc: the arm circles overhead, then throws down at the floor */
+  --encore-dance-circle-wind: 0 0 -0.1 0 -2 0 0.2 0 0 0;
+  --encore-dance-circle-hit: 0.1 0 0.2 0 0.4 0 0.2 0 0 0;
+  --encore-dance-sweep: 4 0.75 0 1.5 0;            /* sweep: a flat arm swings across, the way the line swings (dir -1: the other way) */
+  --encore-dance-sweep-wind: 0 -0.15 0 -0.3 -0.35 1.1 0 0 0 0;
+  --encore-dance-sweep-hit: 0 0.2 0 0.3 -0.35 -0.6 0 0 0 0;
+  --encore-dance-point: 4 0.5 0 1.5 0;             /* arrow and gate: points down the floor from his wing */
+  --encore-dance-point-wind: -0.05 0 -0.15 0 -1.7 0.2 0 0 0 0;
+  --encore-dance-point-hit: 0.12 0 0.2 0 0.3 0.35 0 0 0 0;
+  --encore-dance-clap: 4 0.4 0 1 0;                /* closing and pincer: both hands up, clapped together overhead */
+  --encore-dance-clap-wind: 0 0 -0.15 0 -1.9 0 0.5 -1.9 0 0.5;
+  --encore-dance-clap-hit: 0 0 0.05 0 -2.05 0 -0.45 -2.05 0 -0.45;
+  --encore-dance-throw: 3 0.5 0 1.5 0;             /* the record toss: wound back and out for three beats, flung on the accent */
+  --encore-dance-throw-wind: 0.05 -0.35 0 -0.2 -0.5 1.2 0.2 -0.3 0 0;
+  --encore-dance-throw-hit: 0.15 0.3 0.1 0.15 -0.6 -0.3 0.1 0 0 0;
+  --encore-dance-crank: 1 0.3 0 1 0;               /* the fader crank: both hands up, slammed down on the decks */
+  --encore-dance-crank-wind: 0.05 0 0.05 0 -0.9 0 0 -0.3 0 0;
+  --encore-dance-crank-hit: 0.22 0 0.2 0 0.3 0 0 0.25 0 0;
+  --encore-dance-hands-up: 1 0.4 1 1.5 0;          /* both arms up to the crowd */
+  --encore-dance-hands-up-wind: 0.05 0 0.1 0 -0.3 0 0 -0.3 0 0;
+  --encore-dance-hands-up-hit: -0.12 0 -0.25 0 -1.9 0 0.35 -1.9 0 0.35;
+  --encore-dance-fist-pump: 0.5 0.2 0 1 0;         /* his attack hit the jelly */
+  --encore-dance-fist-pump-wind: 0 0 0.05 0 -1 0 0.4 0 0 0;
+  --encore-dance-fist-pump-hit: -0.05 0 -0.15 0 -2.1 0 0.1 0 0 0;
+  --encore-dance-flinch: 0.15 0.15 0 1.2 0;        /* a hit on the booth: he rocks back, arms up in front */
+  --encore-dance-flinch-wind: 0 0 0 0 0 0 0 0 0 0;
+  --encore-dance-flinch-hit: -0.25 0 -0.35 0.25 -1.1 0.3 0 -1.1 0.3 0;
+  --encore-dance-bow: 1 0.6 4 1.5 0;               /* the bow (sustain: how long he stays down; perform can ask for longer) */
+  --encore-dance-bow-wind: -0.08 0 -0.1 0 -0.2 0 0 -0.2 0 0;
+  --encore-dance-bow-hit: 0.55 0 0.35 0 0.3 0 0.1 0.3 0 0.1;
+  --encore-dance-over: 0.12;     /* how far a swing runs past its accent (none with reduced effects) */
+  --encore-dance-hold: 0.35;     /* of the wind-up, how soon it is wound (attack-motion.js coil) */
+  --encore-dance-shake: 0.5;     /* beats the overshoot takes to settle, bouncing --encore-dance-bounces times */
+  --encore-dance-bounces: 2;
+  --encore-dance-damp: 2;
+  --encore-dance-blend: 0.25;    /* beats a move takes to take over from the one before it */
   /* act 4's sun (src/sunrise.js): never a light. The room's own shaders (src/baked-ao.js) light
      everything on the window side of its line, warming each surface's colour, with a hard hot rim on
      the line, and a low hex volume stands on the line over the strip it moves into next (its Warning) */

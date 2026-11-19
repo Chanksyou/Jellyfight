@@ -4,10 +4,52 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { LOOK } from './look.js';
+import { coil, snap, settle, heavy } from './attack-motion.js';
+
+// The DJs' moves (perform). A move is two poses, its wind-up and its accent, each ten angles in
+// radians, offsets from the rest pose: torso pitch (+ bows forward) and turn (+ towards the centre),
+// helmet pitch and turn, then the outer arm's and the inner arm's x (- raises it forward and up), y
+// (+ swings it outwards) and z (+ tips it outwards); each DJ mirrors them. Its timing, in beats:
+// lead (it starts this long before the accent), strike (the swing from wind-up to accent), sustain
+// (the accent held), release (the way back) and spin (radians: the outer arm circles once a beat
+// through the wind-up). All in content/look.css as --encore-dance-<move>, -<move>-wind, -<move>-hit.
+export const MOVES=['circle','sweep','point','clap','throw','crank','hands-up','fist-pump','flinch','bow'];
+const J=10,YAW=[1,3,5,8];
+let MOVE=null,K=null;
+function moves(){
+  if(MOVE)return MOVE;
+  const n=(name,d)=>LOOK.num('encore-dance-'+name,d),pose=name=>{const v=LOOK.list('encore-dance-'+name,[]).map(Number);return Float32Array.from({length:J},(_,i)=>Number.isFinite(v[i])?v[i]:0);};
+  K={over:n('over',.12),hold:n('hold',.35),shake:n('shake',.5),bounces:n('bounces',2),damp:n('damp',2),blend:n('blend',.25)};
+  MOVE={};
+  for(const m of MOVES){const t=LOOK.list('encore-dance-'+m,[]).map(Number),g=(i,d)=>Number.isFinite(t[i])?t[i]:d;MOVE[m]={lead:Math.max(g(0,1),g(1,.5)),strike:Math.max(.01,g(1,.5)),sustain:g(2,0),release:Math.max(.01,g(3,1)),spin:g(4,0),W:pose(m+'-wind'),A:pose(m+'-hit')};}
+  return MOVE;
+}
+// a move's offsets `u` beats from its accent into `out`; returns its weight, how far it has taken over
+// from the arm pump (as fast as it winds up, given back as it releases)
+function shape(M,u,quiet,dir,sustain,out){
+  const s=M.strike,L=M.lead,over=quiet?0:K.over;
+  let w=1;
+  if(u<-L||u>=sustain+M.release){out.fill(0);return 0;}
+  if(u<-s){
+    const k=(u+L)/Math.max(.01,L-s),c=coil(k,K.hold,over),e=Math.sin(Math.PI*Math.min(1,k))*M.spin,a=u*Math.PI*2;
+    for(let i=0;i<J;i++)out[i]=M.W[i]*c;
+    out[4]+=e*(Math.cos(a)-1);out[6]+=e*Math.sin(a);   // the circle: it never reaches past the swing
+    w=Math.min(1,c);
+  }else if(u<0){
+    const n=snap((u+s)/s,over);for(let i=0;i<J;i++)out[i]=M.W[i]+(M.A[i]-M.W[i])*n;
+    if(L<=s)w=Math.min(1,n);   // no wind-up (a flinch): it takes over with the swing
+  }else{
+    const d=quiet||u>=K.shake?0:settle(u/K.shake,K.bounces,K.damp),k=(u-sustain)/M.release,r=u<sustain?1:quiet?heavy(k):settle(k,K.bounces,K.damp);
+    for(let i=0;i<J;i++)out[i]=M.A[i]*r+over*(M.A[i]-M.W[i])*d;
+    if(u>=sustain)w=1-k;
+  }
+  if(dir!==1)for(const i of YAW)out[i]*=dir;
+  return w;
+}
 
 export function buildEncoreBoss(){
   const root=new THREE.Group();root.name='The Encore · pyramid and helmeted duo';root.userData.noCollide=true;
-  const geometries=new Set(),materials=new Set(),textures=new Set(),groups=new Map(),heads=[],hands=[],dancers=[];
+  const geometries=new Set(),materials=new Set(),textures=new Set(),groups=new Map(),heads=[],hands=[],rigs=[];
   const geo=g=>(geometries.add(g),g),mat=m=>(materials.add(m),m);
   const blue=LOOK.color('encore-blue','#9bbaff'),amber=LOOK.color('encore-amber','#ff8c25');
   const suit=mat(new THREE.MeshStandardMaterial({color:LOOK.color('encore-suit','#151c2a'),roughness:.64,metalness:.12}));
@@ -137,29 +179,34 @@ export function buildEncoreBoss(){
   }
   for(const x of [-.15,.15])for(const z of [-.072,.072])put(disc,steel,[x,deckY+.002,z],[.0015,.001,.0015]);
   for(let k=0;k<4;k++)path([[.05+k*.012,.188,-.075],[.05+k*.012,.17,-.11],[.11+k*.014,.07,-.17],[.16+k*.012,0,-.17]],.0009,visor);
-  // Fitted full-body performers, with separately merged heads and hand rigs for idle motion.
+  // Fitted full-body performers, each a rig of separately merged parts (perform, update): the body on
+  // its feet, the torso pivoting at the hips (the legs ride along, hidden in the pyramid), the helmet,
+  // and two arms pivoting at the shoulders with their gloves merged in (a glove is an empty anchor).
   function performer(side){
     const color=side<0?ice:warm,metal=side<0?silver:gold;
     const body=new THREE.Group();body.name=side<0?'Silver performer':'Gold performer';body.position.set(side*.083,0,-.075);body.rotation.y=-side*.18;root.add(body);
+    const torso=new THREE.Group();torso.name='Torso';torso.position.y=.16;torso.rotation.order='YXZ';body.add(torso);
+    const fig=new THREE.Group();fig.position.y=-.16;torso.add(fig);
+    const rig={side,body,torso,head:null,outer:null,inner:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null};rigs.push(rig);
     for(const x of [-.017,.017]){
-      put(box,visor,[x,.011,.009],[.025,.019,.048],[0,0,0],body);put(box,steel,[x,.004,.01],[.026,.004,.049],[0,0,0],body);
-      bar([x,.025,0],[x*.85,.09,-.005],.012,suit,body);bar([x*.85,.09,-.005],[x*.8,.156,0],.014,suit,body);
-      path([[x-.009,.032,.01],[x-.009,.088,.008],[x-.009,.145,.012]],.00055,seam,body);
+      put(box,visor,[x,.011,.009],[.025,.019,.048],[0,0,0],fig);put(box,steel,[x,.004,.01],[.026,.004,.049],[0,0,0],fig);
+      bar([x,.025,0],[x*.85,.09,-.005],.012,suit,fig);bar([x*.85,.09,-.005],[x*.8,.156,0],.014,suit,fig);
+      path([[x-.009,.032,.01],[x-.009,.088,.008],[x-.009,.145,.012]],.00055,seam,fig);
     }
-    put(ball,suit,[0,.161,0],[.033,.025,.022],[0,0,0],body);
-    put(box,visor,[0,.165,.018],[.055,.009,.005],[0,0,0],body);put(box,steel,[0,.165,.021],[.008,.007,.002],[0,0,0],body);
-    put(ball,suit,[0,.201,.004],[.038,.045,.025],[.12,0,0],body);
-    put(ball,leather,[0,.231,.005],[.042,.014,.027],[0,0,0],body);
-    put(cylinder,visor,[0,.246,.009],[.012,.019,.012],[0,0,0],body);
+    put(ball,suit,[0,.161,0],[.033,.025,.022],[0,0,0],fig);
+    put(box,visor,[0,.165,.018],[.055,.009,.005],[0,0,0],fig);put(box,steel,[0,.165,.021],[.008,.007,.002],[0,0,0],fig);
+    put(ball,suit,[0,.201,.004],[.038,.045,.025],[.12,0,0],fig);
+    put(ball,leather,[0,.231,.005],[.042,.014,.027],[0,0,0],fig);
+    put(cylinder,visor,[0,.246,.009],[.012,.019,.012],[0,0,0],fig);
     // Lapels, zipper, collar seam and restrained segmented costume piping.
     for(const x of [-1,1]){
-      bar([x*.022,.233,.027],[x*.008,.197,.029],.002,leather,body);
-      path([[x*.035,.22,.014],[x*.028,.191,.021],[x*.025,.169,.017]],.0006,seam,body);
-      led([x*.029,.231,.022],[x*.017,.228,.028],color,.00045,body);
+      bar([x*.022,.233,.027],[x*.008,.197,.029],.002,leather,fig);
+      path([[x*.035,.22,.014],[x*.028,.191,.021],[x*.025,.169,.017]],.0006,seam,fig);
+      led([x*.029,.231,.022],[x*.017,.228,.028],color,.00045,fig);
     }
-    bar([0,.175,.027],[0,.222,.031],.0005,steel,body);
-    for(let k=0;k<5;k++)put(box,steel,[.002,.181+k*.007,.028],[.001,.001,.0015],[0,0,0],body);
-    const head=new THREE.Group();head.name='Helmet';head.position.set(0,.273,.014);head.rotation.y=-side*.52;body.add(head);heads.push({head,side});
+    bar([0,.175,.027],[0,.222,.031],.0005,steel,fig);
+    for(let k=0;k<5;k++)put(box,steel,[.002,.181+k*.007,.028],[.001,.001,.0015],[0,0,0],fig);
+    const head=new THREE.Group();head.name='Helmet';head.position.set(0,.273,.014);head.rotation.y=-side*.52;fig.add(head);heads.push({head,side});rig.head=head;
     put(ball,metal,[0,.003,0],[.027,.034,.027],[0,0,0],head);
     put(ball,metal,[0,-.018,.003],[.023,.016,.022],[0,0,0],head);
     // Curved dark visor patch follows the helmet, rather than floating in front of it.
@@ -180,24 +227,24 @@ export function buildEncoreBoss(){
       const chin=[];for(let i=0;i<=20;i++){const x=-.018+i*.0018,z=.003+.022*Math.sqrt(1-(x/.023)**2-.25**2);chin.push([x,-.022,z+.0005]);}path(chin,.0006,color,head);
       path([[0,.035,-.012],[0,.037,0],[0,.03,.02]],.00065,metal,head);
     }
-    // Two bent arms finish in articulated gloves poised over the controls. The outer arm is its own
-    // part, pivoting at the shoulder, so it can be thrown up and pumped on the beat (dance).
+    // Two bent arms finish in articulated gloves poised over the controls, each its own part pivoting
+    // at the shoulder; the outer one is thrown up and pumped on the beat (dance).
     for(const arm of [-1,1]){
       const shoulder=[arm*.04,.227,.008],outer=arm===side;
-      const part=outer?new THREE.Group():body;if(outer){part.name='Dancing arm';part.position.fromArray(shoulder);body.add(part);dancers.push({arm:part,side,raise:0,beat:null});}
-      const at=p=>outer?[p[0]-shoulder[0],p[1]-shoulder[1],p[2]-shoulder[2]]:p;
-      const S=at(shoulder),elbow=at([arm*.055,.218,.035]),wrist=at([arm*.034,.214,.09]);
+      const part=new THREE.Group();part.name=outer?'Outer arm':'Inner arm';part.position.fromArray(shoulder);fig.add(part);rig[outer?'outer':'inner']=part;
+      const at=p=>[p[0]-shoulder[0],p[1]-shoulder[1],p[2]-shoulder[2]];
+      const S=at(shoulder),elbow=at([arm*.055,.218,.035]),wrist=at([arm*.034,.214,.09]),w=p=>[p[0]+wrist[0],p[1]+wrist[1],p[2]+wrist[2]];
       put(ball,leather,S,[.014,.015,.014],[0,0,0],part);bar(S,elbow,.012,suit,part);put(ball,leather,elbow,[.013,.011,.012],[0,0,0],part);bar(elbow,wrist,.0105,suit,part);
       path([[arm*.05,.219,.028],[arm*.054,.207,.042],[arm*.038,.195,.078]].map(at),.0005,seam,part);
       for(let fold=0;fold<3;fold++)path([[arm*.047,.211-fold*.003,.043+fold*.006],[arm*.056,.212-fold*.003,.047+fold*.006],[arm*.06,.208-fold*.003,.049+fold*.006]].map(at),.00045,leather,part);
       put(cylinder,steel,wrist,[.011,.004,.011],[Math.PI/2,0,0],part);
-      const hand=new THREE.Group();hand.name='Gloved hand';hand.position.fromArray(wrist);part.add(hand);hands.push({hand,phase:side+arm});
-      put(ball,leather,[0,-.001,.008],[.009,.005,.012],[0,0,0],hand);
+      const hand=new THREE.Group();hand.name='Gloved hand';hand.position.fromArray(wrist);part.add(hand);hands.push(hand);
+      put(ball,leather,w([0,-.001,.008]),[.009,.005,.012],[0,0,0],part);
       for(let finger=0;finger<4;finger++){
-        const x=(finger-1.5)*.004,z=.017+(finger===1?.003:0);bar([x,-.001,.009],[x,-.004,z],.0016,leather,hand);bar([x,-.004,z],[x,-.006,z+.005],.0014,leather,hand);
-        put(ball,steel,[x,.003,.013],[.0014,.0006,.0015],[0,0,0],hand);
+        const x=(finger-1.5)*.004,z=.017+(finger===1?.003:0);bar(w([x,-.001,.009]),w([x,-.004,z]),.0016,leather,part);bar(w([x,-.004,z]),w([x,-.006,z+.005]),.0014,leather,part);
+        put(ball,steel,w([x,.003,.013]),[.0014,.0006,.0015],[0,0,0],part);
       }
-      bar([arm*.006,-.001,.002],[arm*.012,-.004,.011],.002,leather,hand);
+      bar(w([arm*.006,-.001,.002]),w([arm*.012,-.004,.011]),.002,leather,part);
     }
   }
   performer(-1);performer(1);
@@ -236,13 +283,43 @@ export function buildEncoreBoss(){
   }
   const collisionParts=hulls.map(g=>{const n=g.index?geo(g.toNonIndexed()):g;n.deleteAttribute('uv');return n;}),collisionGeometry=geo(mergeGeometries(collisionParts));
   let time=0;
-  // The DJ move: dance('silver' | 'gold', beat) each frame throws that performer's outer arm up and
+  // The arm pump: dance('silver' | 'gold', beat) each frame throws that performer's outer arm up and
   // pumps it, down on every beat; dance(who, null) lets it ease back to the decks.
-  const dancer=who=>dancers.find(d=>d.side===(who==='silver'?-1:who==='gold'?1:0));
+  const rigOf=who=>rigs.find(r=>r.side===(who==='silver'?-1:who==='gold'?1:0));
   const raised=LOOK.num('encore-dance-raise',1.35),pump=LOOK.num('encore-dance-pump',.32);
-  return {root,collisionGeometry,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands:hands.map(h=>h.hand),arms:dancers.map(d=>d.arm),
-    dance(who,beat){const d=dancer(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
-    update(dt,quiet=false){time+=dt;for(const {head,side}of heads){head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07);head.rotation.x=quiet?0:.04+Math.sin(time*.9+side)*.025;}for(const {hand,phase}of hands)hand.rotation.x=quiet?0:Math.sin(time*1.6+phase)*.045;
-      for(const d of dancers){d.raise+=((d.beat===null?0:1)-d.raise)*Math.min(1,dt*8);const bob=d.beat===null||quiet?0:-Math.cos(d.beat*Math.PI*2);d.arm.rotation.x=-d.raise*(raised+pump*bob);d.arm.rotation.z=d.side*.25*d.raise;}},
+  moves();
+  return {root,collisionGeometry,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands,arms:rigs.map(r=>r.outer),
+    rigs:{silver:rigOf('silver'),gold:rigOf('gold')},
+    dance(who,beat){const d=rigOf(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
+    // perform(who, move, beat0, dir = 1, sustain): play a move (MOVES) so its accent lands on beat0, over
+    // the dance; dir -1 mirrors its turns (a sweep the other way); sustain (beats) overrides how long the
+    // accent holds (a bow). perform(who, null) eases back. The pose is a function of the beat (update);
+    // asking for the same move on the same beat again changes nothing, and a song rewind drops it.
+    perform(who,move,beat0,dir=1,sustain){
+      const r=rigOf(who);if(!r||(move!==null&&(!MOVES.includes(move)||!Number.isFinite(beat0))))return false;
+      if(move&&r.move===MOVE[move]&&r.at===beat0)return true;   // asked again (each frame): it plays on
+      r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;return true;
+    },
+    // each frame; beat: the song's (null: no move plays, each eases back)
+    update(dt,quiet=false,beat=null){time+=dt;
+      for(const r of rigs){
+        const {side,head,torso,outer,inner,now}=r;
+        let w=0;
+        if(r.move&&beat!==null&&r.fadeAt!==null&&beat<r.fadeAt)r.move=null;   // the song rewound: the move is gone
+        if(r.move&&beat!==null){
+          w=shape(r.move,beat-r.at,quiet,r.dir,r.sustain,now);
+          if(r.fadeAt===null)r.fadeAt=beat;
+          const f=Math.min(1,Math.max(0,(beat-r.fadeAt)/K.blend));   // from whatever it was doing
+          if(f<1){for(let i=0;i<J;i++)now[i]=r.was[i]+(now[i]-r.was[i])*f;w=r.from+(w-r.from)*f;}
+          if(beat-r.at>=r.sustain+r.move.release)r.move=null;
+        }else{const e=Math.max(0,1-dt*8);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;r.was.set(now);r.from=w;}
+        r.w=w;
+        r.raise+=((r.beat===null?0:1)-r.raise)*Math.min(1,dt*8);
+        const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2);
+        torso.rotation.x=now[0];torso.rotation.y=-side*now[1];
+        head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07)-side*now[3];head.rotation.x=(quiet?0:.04+Math.sin(time*.9+side)*.025)+now[2];
+        outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4];outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
+        inner.rotation.x=now[7];inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
+      }},
     dispose(){root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

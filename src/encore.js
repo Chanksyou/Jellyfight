@@ -222,7 +222,7 @@ export class Encore {
     }
     this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
     A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat));
-    M.update(dt, !!this.fx.reducedMotion?.matches);
+    M.update(dt, !!this.fx.reducedMotion?.matches, this.dead || this.falling ? null : beat);
     if (this.falling) this.fallDown(dt);
     // its panels: a white flash when a hit lands; broken, a red pulse on the beat between floor waves
     this.hurtT = Math.max(0, this.hurtT - dt * 6);
