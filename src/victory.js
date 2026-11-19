@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { UnderwaterBackdrop } from './main-menu.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
+import { freezeBell } from './bell-flex.js';
 import { sfx } from './sfx.js';
 import { esc } from './leaderboard.js';
 import { icon } from './icons.js';
@@ -40,7 +41,12 @@ export class Victory {
   // the jelly (and what it wears) copied into the sea, alone
   copy(source) {
     const clone = source.clone(true);
-    clone.traverse((o) => o.layers.set(30));
+    const live = [], copied = [];
+    source.traverse((o) => live.push(o)); clone.traverse((o) => copied.push(o));
+    copied.forEach((o, i) => {
+      o.layers.set(30);
+      if (o.isMesh && !Array.isArray(o.material)) o.material = freezeBell(live[i].material);   // the bell's riders are frozen: so is its bend
+    });
     return clone;
   }
 

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { UnderwaterBackdrop } from './main-menu.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
+import { freezeBell } from './bell-flex.js';
 
 // it sags and settles: fast at first, then ever slower, no overshoot (the shape of --ui-ease-settle)
 const ease = (u) => 1 - (1 - u) ** 4;
@@ -32,7 +33,8 @@ export class DriedOut {
       if (!o.isMesh || !o.material) return;
       const dry = (m) => {
         const c = m.clone();
-        c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey;   // clone() drops them: the bell's (bell-flex.js) keeps its built shaders, at rest; the oral arms keep their bend (arms.js)
+        c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey;   // clone() drops them: the bell's (bell-flex.js) keeps its built shaders, at rest (unless frozen below); the oral arms keep their bend (arms.js)
+        freezeBell(m, c);   // the bell keeps the bend it died in, like its riders
         c.userData.from = { color: m.color?.clone(), emissive: m.emissive?.clone(), opacity: m.opacity };
         this.mats.push(c);
         return c;

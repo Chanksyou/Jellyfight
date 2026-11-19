@@ -601,7 +601,7 @@ export function buildCharacter(look, heightMeters) {
     }
   }
   // the bell bends from its rim (bell-flex.js): every piece drawn on it so far gets the patch
-  const flex = { value: new THREE.Vector3(0, 0, crownH) }, flexAt = { k: 1, dy: 0 };
+  const flex = { value: new THREE.Vector3(0, 0, crownH) }, flexAt = { k: 1, dy: 0 }, rimAt = { k: 1, dy: 0 };
   // (the small pieces round the rim, off the bell's axis, ride on it instead: baking their placement
   // would round their vertices differently, and look/rest-pose-unchanged would see it)
   for (const o of bell.children) if (o.isMesh) { if (o.position.x || o.position.z) riders.push([o, o.position.clone()]); else patchBell(o, flex); }
@@ -1663,6 +1663,8 @@ export function buildCharacter(look, heightMeters) {
       flex.value.x = contract;
       flex.value.y = s.rest ? 0 : contractAt(strokeAt((swim + 1 - RIM_LAG) % 1, hold), move);
       bell.position.y = BELL_Y + 0.05 * Math.max(0, contract);
+      bellFlex(0, flex.value, flexAt);   // the rim: where the tentacles hang from
+      rimAt.k = flexAt.k; rimAt.dy = flexAt.dy + bell.position.y - BELL_Y;
       for (const [o, p] of riders) { bellFlex(p.y, flex.value, flexAt); o.position.set(p.x * flexAt.k, p.y + flexAt.dy, p.z * flexAt.k); }
       if (gum) { bellFlex(gumAt.y, flex.value, flexAt); gum.position.set(0, gumAt.y + flexAt.dy, gumAt.z * flexAt.k); }
       // the thrust lifts the body and tips it into the swim; it sinks back as it glides
@@ -1701,7 +1703,7 @@ export function buildCharacter(look, heightMeters) {
     const sxz = 1 / Math.sqrt(Math.max(0.5, sy));
     squash.scale.set(sxz, sy, sxz);
     lean.rotation.x = bell ? pitch.x + surge * 0.3 : move * 0.14 * (s.grounded ? 1 : 0.4);
-    rig?.update(dt, { localVel, contract, vy: s.vy || 0, rest: s.rest });
+    rig?.update(dt, { localVel, contract, rim: rimAt, vy: s.vy || 0, rest: s.rest });
     arms?.update(dt, { contract, rest: s.rest });
 
 

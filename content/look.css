@@ -478,7 +478,6 @@
   --jelly-tip-size: 0.8;       /* a tentacle tip's radius, in tentacle thicknesses */
   --tentacle-curl: 0.07;       /* how wide Curly tentacles wind (model units) */
   /* the tentacles' physics (tentacles.js): each stroke squeezes the roots in and the chain carries it down as a wave */
-  --jelly-motion-root-squeeze: 0.3;     /* how far the roots pull in on a full power stroke (share of the anchor ring) */
   --jelly-motion-tip-spring: 20;        /* how firmly a tip is pulled back to its pose (1/s²; the root stays 700, firm for the Lash) */
   --jelly-motion-drag: 7;               /* water drag across a tentacle (1/s); at least this much everywhere along it */
   --jelly-motion-drag-along: 0.5;       /* drag along a tentacle, as a share of across (slender things slip lengthwise) */
@@ -523,6 +522,8 @@
   --jelly-motion-crown-give: 0.12;/* how much of the squeeze the bell above the bend still takes */
   --jelly-motion-curl: 0.08;      /* the margin curling in further at the height of the stroke */
   --jelly-motion-rim-lag: 0.06;   /* the rim's stroke behind the crown's, in strokes */
+  --jelly-motion-fringe-hang: 0.3;   /* the fringe flutter stops growing this far below the rim */
+  --jelly-motion-fringe-flutter: 0.8;   /* the fringe ends trail the rim: how far out they stream while the rim lags the crown (of how far they hang) */
 
   /* --- enemies: a faint glow in their own colours and a warm rim, so they read in the dark */
   --bug-glow: 0.35;
