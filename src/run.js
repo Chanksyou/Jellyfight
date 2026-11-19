@@ -1421,6 +1421,7 @@ export class Run {
     const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
     if (!left.length) { then(); return; }
     sfx.treasure();
+    if (document.pointerLockElement) document.exitPointerLock();   // the mouse comes back to click a card with
     this.ui.choose('An Attack upgrade', next ? `Choose how your attack grows for act ${next.id}.` : 'Choose how your attack grows to start the run.', left, (u) => {
       const before = this.S.health;
       this.upgrades.push(u.id);
