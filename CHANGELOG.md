@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v548 gives the Encore's DJs solos: every 16 bars the silver DJ steps into a spotlight and throws four vinyl records at you (a jump doesn't clear one: step off its lane), each standing where it lands as a wall for 4 bars; then he bows, and for 2 bars (4 if he never hit you) the Encore is EXPOSED and takes 1.5x damage, as it is when both DJs bow through the song's breakdown.
+
 v547 the Encore's DJs now call each wave: 4 beats ahead the DJ whose wave it is circles his arm (rings, arcs), swings it (sweeps), points down the floor (arrows, gates) or claps with his partner (closings, pincers), an arc's DJ turns to face its gap, a DJ whose wave hits you pumps his fist, and the nearer DJ flinches when you hit the booth.
 
 v546 gives the Encore's two DJs a posable rig: torso, helmet and both arms move on their own, with ten moves timed to the beat (wave calls, record throw, fader crank, hands up, fist pump, flinch, bow) ready for the coming solos and attacks. Nothing in the fight changes yet; at rest they stand exactly as before.

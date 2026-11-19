@@ -1,1 +1,0 @@
-gives the Encore's DJs solos: every 16 bars the silver DJ steps into a spotlight and throws four vinyl records at you (a jump doesn't clear one: step off its lane), each standing where it lands as a wall for 4 bars; then he bows, and for 2 bars (4 if he never hit you) the Encore is EXPOSED and takes 1.5x damage, as it is when both DJs bow through the song's breakdown.
