@@ -1,5 +1,5 @@
-// Sound effects use Web Audio synthesis plus a few recordings: the approved fire launch/flight
-// and lightning's takes (SAMPLES).
+// Sound effects use Web Audio synthesis plus recordings: the approved fire launch/flight, and
+// recorded takes by role in sound packs (sample(), docs/agents/sound.md).
 // Most sounds are a few oscillators
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
@@ -48,40 +48,112 @@ export function loadFireFlight() {
     });
 }
 
-// Recorded sounds by role (assets/audio/, sources in its README): several takes each, played in
-// turn so a repeat never sounds the same twice running. They load after audio unlocks; until a
-// role's takes are in (or if they fail), its synthesized sound plays instead.
-const SAMPLES = {
-  'lightning-launch': 2, 'lightning-hit': 3, 'lightning-big': 3, 'lightning-chain': 3,
-};
-const takes = {}, turn = {};
+// Recorded sounds by role, in packs (docs/agents/sound.md): assets/audio/packs.json lists each pack's
+// MP3 (built by tools/sounds.mjs), what it loads for (its `for` tags: 'unlock', 'act N', 'jelly <type>')
+// and each role's takes, vol and mode. Nothing downloads before sound is on, or while it's muted; a
+// pack may download early but decodes only while the audio context runs. Until a role's pack is in
+// (or if it fails) its synthesized sound plays. The run says what it wants at its start (wantPacks).
+const ROLES = {};                // role -> { vol, mode, takes: [{ buf, start, length, peak }], pack }
+const turn = {};
+const VOICES = 8, URGENT = 2;    // recorded voices at once; the last 2 only for hostile build-ups and hits on the jelly
 let voices = 0;
-let samplesLoading = null;
-export function loadSamples() {
-  if (!ctx) return Promise.resolve(false);
-  return samplesLoading ||= Promise.all(Object.entries(SAMPLES).flatMap(([role, n]) => Array.from({ length: n }, (_, i) => {
-    const [kind, ...rest] = role.split('-');
-    return fetch(`/assets/audio/${kind}/${rest.join('-')}-${i + 1}.mp3`)
-      .then((r) => { if (!r.ok) throw new Error(`${role}: ${r.status}`); return r.arrayBuffer(); })
-      .then((bytes) => ctx.decodeAudioData(bytes))
-      .then((buf) => { (takes[role] ||= [])[i] = buf; });
-  }))).then(() => true).catch((error) => { console.warn('A recorded sound is unavailable; using synthesized ones.', error); return false; });
+let manifest = null;
+const wanted = new Set(['unlock']), packLoading = {};
+const audioFetch = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(`${url}: ${r.status}`); return r; });
+const running = () => new Promise((ok) => {
+  if (ctx.state === 'running') return ok();
+  const on = () => { if (ctx.state === 'running') { ctx.removeEventListener('statechange', on); ok(); } };
+  ctx.addEventListener('statechange', on);
+});
+const packList = () => (manifest ||= audioFetch('/assets/audio/packs.json').then((r) => r.json()).catch((error) => {
+  manifest = null; console.warn('Sound packs unavailable; using synthesized sounds.', error); return {};
+}));
+const loose = new Set();         // packs asked for by name (loadPack: stories, sounds.html) until the next wantPacks
+const isWanted = (name, P) => loose.has(name) || P.for.some((t) => wanted.has(t));
+// the packs for these tags (and 'unlock') from now on (a run's start: 'act N', 'jelly <type>'); others are let go
+export function wantPacks(...tags) {
+  wanted.clear(); wanted.add('unlock'); tags.forEach((t) => wanted.add(t)); loose.clear();
+  return loadWanted();
 }
-// play the next take of `role` (rate: its speed and pitch, vol: its loudness); false when it
-// isn't loaded, so the caller plays its synthesized sound. At most 8 recorded voices at once.
-function sample(role, { rate = 1, vol = 1 } = {}) {
-  const list = takes[role]?.filter(Boolean);
-  if (!list?.length) return false;
-  if (voices >= 8) return true;
-  const buf = list[(turn[role] = ((turn[role] ?? Math.floor(Math.random() * list.length)) + 1) % list.length)];
-  const src = ctx.createBufferSource(), g = ctx.createGain(), t = now();
-  src.buffer = buf; src.playbackRate.value = rate * jitter(0.04);
-  g.gain.value = vol * loud;
+function loadWanted() {
+  if (!ctx || muted || at !== null) return Promise.resolve(false);
+  return packList().then((packs) => {
+    for (const [role, r] of Object.entries(ROLES)) if (!packs[r.pack] || !isWanted(r.pack, packs[r.pack])) delete ROLES[role];
+    for (const name in packLoading) if (!packs[name] || !isWanted(name, packs[name])) delete packLoading[name];
+    return Promise.all(Object.keys(packs).filter((n) => isWanted(n, packs[n])).map(fetchPack));
+  }).then((done) => done.every(Boolean));
+}
+// one pack by name, whatever the run wants: true once its roles play recorded, false if it can't (or sound is off)
+export function loadPack(name) { loose.add(name); return fetchPack(name); }
+function fetchPack(name) {
+  if (!ctx || muted || at !== null) return Promise.resolve(false);
+  const job = packLoading[name] ||= packList().then(async (packs) => {
+    const P = packs[name];
+    if (!P) throw new Error(`no sound pack ${name}`);
+    const bytes = await (await audioFetch(`/assets/audio/${P.file}`)).arrayBuffer();
+    await running();                                   // decoding on a suspended context can stall (PR #281)
+    const buf = await ctx.decodeAudioData(bytes);
+    if (packLoading[name] !== job) return false;       // let go while it loaded
+    for (const [role, r] of Object.entries(P.roles)) ROLES[role] = { vol: r.vol, mode: r.mode, pack: name, takes: r.takes.map((t) => ({ buf, ...t, start: onset(buf, t) })) };
+    return true;
+  }).catch((error) => {
+    if (packLoading[name] === job) delete packLoading[name];
+    console.warn(`Sound pack ${name} unavailable; using synthesized sounds.`, error);
+    return false;
+  });
+  return job;
+}
+// where a take really starts in the decoded pack: a decoder may shift it (Safari can ignore MP3's
+// gapless header), so look 50 ms either side of the listed start for its onset, as tools/sounds.mjs found it
+function onset(buf, { start, length }) {
+  const d = buf.getChannelData(0), R = buf.sampleRate, from = Math.max(0, Math.round((start - 0.05) * R));
+  const to = Math.min(d.length, Math.round((start + length) * R)), near = Math.min(d.length, Math.round((start + 0.05) * R) + Math.round(0.002 * R));
+  let top = 0;
+  for (let i = from; i < to; i++) top = Math.max(top, Math.abs(d[i]));
+  for (let i = from; i < near; i++) if (Math.abs(d[i]) >= top * 0.1) return Math.max(0, i / R - 0.002);
+  return start;
+}
+// Play the next take of `role` (rate: its speed and pitch, vol: times the role's own loudness).
+// peakAt: an audio-clock time its peak should land on (a hit lined up with what it hits), else now.
+// urgent: a hostile build-up or a hit on the jelly, which may use the last 2 voices.
+// Returns true when the caller should skip its synthesized sound: a 'replace' role that is loaded
+// (even when every voice is busy), false for a 'layer' role or one not loaded yet.
+export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false } = {}) {
+  const r = ROLES[role];
+  if (!r || !ready()) return false;
+  const skip = r.mode === 'replace';
+  if (voices >= VOICES - (urgent ? 0 : URGENT)) return skip;
+  const list = r.takes, take = list[(turn[role] = ((turn[role] ?? Math.floor(Math.random() * list.length)) + 1) % list.length)];
+  const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * jitter(0.04);
+  let t = now(), from = take.start, len = take.length;
+  if (peakAt !== null) {
+    t = peakAt - take.peak / speed;
+    if (t < now()) { const late = Math.min(len, (now() - t) * speed); from += late; len -= late; t = now(); }
+  }
+  src.buffer = take.buf; src.playbackRate.value = speed;
+  g.gain.value = vol * r.vol * loud;
   src.connect(g).connect(master);
+  src.start(t, from, len);
   voices++;
   src.onended = () => { voices--; src.disconnect(); g.disconnect(); };
-  src.start(t);
-  return true;
+  cues?.push({ cue: role, frame: cueFrame(), recorded: true });
+  return skip;
+}
+
+// The cue log: while on, every sfx call and every recorded take played is noted with the frame it
+// came on (stories: which cue played on which frame). cueLog(() => frame) starts a fresh log and
+// returns it; cueLog(null) stops.
+let cues = null, cueFrame = () => 0;
+const plain = {};               // the sfx methods as they were before the log wrapped them
+export function cueLog(frame) {
+  cues = frame ? [] : null;
+  if (frame) cueFrame = frame;
+  for (const [name, fn] of Object.entries(sfx)) {   // wrapped only while logging, so a call costs nothing extra otherwise
+    if (typeof fn !== 'function') continue;
+    if (frame && !plain[name]) { plain[name] = fn; sfx[name] = function (...args) { cues?.push({ cue: name, frame: cueFrame() }); return fn.apply(this, args); }; }
+    else if (!frame && plain[name]) { sfx[name] = plain[name]; delete plain[name]; }
+  }
+  return cues;
 }
 
 function recordedFireFlight(weight) {
@@ -155,8 +227,8 @@ export function unlock() {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
     if (ctx.state === 'suspended') ctx.resume();
-    loadFireFlight();
-    loadSamples();
+    if (!muted) loadFireFlight();
+    loadWanted();
   } catch { /* no audio: the game still works */ }
 }
 
@@ -173,7 +245,7 @@ export function unlockOnGesture() {
 // the audio context and master volume, for the music (music.js); null until unlocked
 export const audio = () => (ctx ? { ctx, master } : null);
 
-export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; }
+export function setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; if (!m && ctx) { loadFireFlight(); loadWanted(); } }
 export const isMuted = () => muted;
 
 let hush = 0;
@@ -726,7 +798,7 @@ export const sfx = {
     if (!ready() || !gap('elLaunch' + el, 80)) return;
     const j = jitter(0.12) * (el === 'poison' ? 1.25 : 1);   // poison: acid's gloop, a little higher
     if (el === 'lightning') return quieter(LIGHTNING, () => {   // a snap, a buzzing zip rising away, crackles trailing it
-      if (sample('lightning-launch', { vol: 0.12 })) return;
+      if (sample('lightning-launch')) return;
       noise(6500 * j, 1, 0.03, 0.16, 'highpass');
       tone('sawtooth', 110 * j, 180 * j, 0.12, 0.05); tone('square', 113 * j, 184 * j, 0.12, 0.025);
       tone('sine', 500 * j, 2600 * j, 0.09, 0.035, 0.01);
@@ -753,7 +825,7 @@ export const sfx = {
     if (!ready() || !gap('elHit' + el, 50)) return;
     const j = jitter(0.12) * (el === 'poison' ? 1.2 : 1);
     if (el === 'lightning') return quieter(LIGHTNING, () => {   // the crack, a falling zap, a low thump with a rumble of thunder under it, sizzling crackles
-      if (sample('lightning-hit', { vol: 0.22 })) return;
+      if (sample('lightning-hit')) return;
       noise(7000 * j, 0.7, 0.025, 0.34, 'highpass');
       noise(2600 * j, 1.2, 0.06, 0.2, 'bandpass', 0.005);
       tone('sawtooth', 2400 * j, 220, 0.12, 0.07);
@@ -793,15 +865,25 @@ export const sfx = {
   chainZap(k = 0) {
     if (!ready() || !gap('chainZap' + k, 40)) return;
     quieter(LIGHTNING, () => {
-      if (sample('lightning-chain', { rate: Math.pow(1.12, k), vol: 0.12 })) return;
+      if (sample('lightning-chain', { rate: Math.pow(1.12, k) })) return;
       const j = jitter(0.08) * Math.pow(1.19, k);
       noise(6000 * j, 1, 0.025, 0.14, 'highpass');
       tone('sawtooth', 900 * j, 2600 * j, 0.06, 0.06); tone('square', 450 * j, 1300 * j, 0.06, 0.025);
       noise(3800 * j, 3, 0.04, 0.05, 'bandpass', 0.03);
     });
   },
-  // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder in it (recorded only)
-  lightningBig() { if (!ready() || !gap('lightningBig', 350)) return; quieter(LIGHTNING, () => sample('lightning-big', { vol: 0.2 })); },
+  // a lightning chain that really jumped (2+ bugs): a heavier strike with thunder rolling under it
+  lightningBig() {
+    if (!ready() || !gap('lightningBig', 350)) return;
+    quieter(LIGHTNING, () => {
+      if (sample('lightning-big')) return;
+      const j = jitter(0.08);
+      noise(6000 * j, 0.7, 0.04, 0.26, 'highpass');
+      tone('sawtooth', 1800 * j, 160, 0.2, 0.05);
+      tone('sine', 70 * j, 28, 0.6, 0.18);
+      noise(240 * j, 0.7, 1.1, 0.12, 'lowpass', 0.03, 50);   // the thunder
+    });
+  },
   // the acid puddle eating at a bug: a quiet hiss with a pop or two
   acidSizzle() {
     if (!ready() || !gap('acidSizzle', 160)) return;
@@ -1575,3 +1657,4 @@ export const sfx = {
   luckyBell() { if (!ready()) return; tone('sine', 1320, 1320, 0.25, 0.03); tone('sine', 1980, 1980, 0.3, 0.02, 0.07); },
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };
+

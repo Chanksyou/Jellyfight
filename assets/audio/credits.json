@@ -1,0 +1,5 @@
+{
+ "lightning.mp3": { "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28", "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game" },
+ "fireball-flight.mp3": { "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner", "licence": "None supplied; confirm redistribution rights before a production release" },
+ "encore-around-the-world.mp3": { "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner", "licence": "None for the recording; the owner chose to include it for their own play" }
+}

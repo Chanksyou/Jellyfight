@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sounds — Jelly Run</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;color:#eee9df;background:#080e15}
+    body{margin:0}main{max-width:820px;margin:auto;padding:28px 16px 48px}
+    h1{font-size:28px;letter-spacing:-.03em;margin:0 0 4px}p{color:#a8b3bc;font-size:14px;margin:0 0 20px}
+    section{border:1px solid #ffffff16;border-radius:14px;padding:16px;margin:0 0 14px;background:#0e1620}
+    h2{font-size:20px;margin:0}h3{font-size:16px;margin:14px 0 0}small{display:block;color:#8d9ca8;font-size:12px;margin:2px 0 10px}
+    button{font:inherit;font-size:14px;cursor:pointer;border-radius:10px;border:1px solid #52606e;background:#101b25;color:#e3edf3;padding:9px 14px;margin:0 6px 6px 0;min-height:44px;touch-action:manipulation}
+    button:hover{border-color:#ffd21a}.big{background:#ffd21a;color:#1c1606;border:0;font-weight:700}
+    .low{color:#ff9d7a}a{color:#9fe2ff}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Sounds</h1>
+  <p>Every sound pack the game plays (assets/audio/packs.json, built by tools/sounds.mjs; rules in docs/agents/sound.md). For each role: the game's sound as it plays now (recorded), the synthesized sound it falls back to, and each take on its own at the role's volume. "Above 400 Hz" is the share of a take's energy above 400 Hz: hostile sounds should be bright, above 85%.</p>
+  <div id="packs"><p>Loading…</p></div>
+  <p><a href="./index.html">Back to Jelly Run</a></p>
+</main>
+<script type="module">
+import * as game from './src/sfx.js';
+const synth = await import('./src/sfx.js?synth');   // its own copy that never loads packs: the synthesized sounds
+const packs = await (await fetch('assets/audio/packs.json')).json();
+let ctx, synthWhen;
+const audioCtx = async () => {
+  if (!ctx) { game.unlock(); ctx = game.audio().ctx; synthWhen = synth.preview(ctx, ctx.destination).when; }
+  if (ctx.state !== 'running') await ctx.resume();
+  return ctx;
+};
+const buffers = {};
+const bufferOf = async (P) => (buffers[P.file] ||= (await audioCtx()).decodeAudioData(await (await fetch(`assets/audio/${P.file}`)).arrayBuffer()));
+// the share of a take's energy above 400 Hz
+async function bright(buf, t) {
+  const n = Math.ceil(t.length * buf.sampleRate), seg = new AudioBuffer({ length: n, sampleRate: buf.sampleRate });
+  seg.copyToChannel(buf.getChannelData(0).subarray(Math.round(t.start * buf.sampleRate), Math.round(t.start * buf.sampleRate) + n), 0);
+  const oc = new OfflineAudioContext(1, n, buf.sampleRate), s = oc.createBufferSource(), f = oc.createBiquadFilter();
+  f.type = 'highpass'; f.frequency.value = 400; s.buffer = seg; s.connect(f).connect(oc.destination); s.start();
+  const hi = (await oc.startRendering()).getChannelData(0), all = seg.getChannelData(0);
+  let a = 0, b = 0;
+  for (let i = 0; i < n; i++) { a += hi[i] ** 2; b += all[i] ** 2; }
+  return b ? a / b : 0;
+}
+const button = (label, on, cls = '') => { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onclick = on; return b; };
+const box = document.querySelector('#packs');
+box.textContent = '';
+for (const [name, P] of Object.entries(packs)) {
+  const sec = document.createElement('section');
+  sec.innerHTML = `<h2>${name}</h2><small>${P.file}: ${(P.bytes / 1024).toFixed(1)} KB, ${P.seconds} s decoded; loads for ${P.for.join(', ')}</small>`;
+  for (const [role, r] of Object.entries(P.roles)) {
+    const h = document.createElement('h3'), about = document.createElement('small'), cue = () => game.sfx[r.cue[0]](...r.cue.slice(1));
+    h.textContent = role;
+    about.textContent = `sfx.${r.cue[0]}(${r.cue.slice(1).map((a) => JSON.stringify(a)).join(', ')}) · vol ${r.vol} · ${r.mode === 'replace' ? 'plays instead of the synthesized sound' : 'plays on top of the synthesized sound'}`;
+    sec.append(h, about,
+      button('In game', async () => { await audioCtx(); await game.loadPack(name); cue(); }, 'big'),
+      button('Synthesized', async () => { await audioCtx(); synthWhen(ctx.currentTime + 0.02); synth.sfx[r.cue[0]](...r.cue.slice(1)); }));
+    const takes = document.createElement('small');
+    r.takes.forEach((t, i) => {
+      const b = button(`Take ${i + 1}`, async () => {
+        const buf = await bufferOf(P), s = ctx.createBufferSource(), g = ctx.createGain();
+        s.buffer = buf; g.gain.value = r.vol * 0.55; s.connect(g).connect(ctx.destination); s.start(ctx.currentTime, t.start, t.length);
+        if (!b.dataset.measured) {
+          b.dataset.measured = 1;
+          const k = await bright(buf, t);
+          b.title = `${t.length.toFixed(2)} s, peak at ${(t.peak * 1000).toFixed(0)} ms, ${(k * 100).toFixed(0)}% above 400 Hz`;
+          b.textContent += ` · ${(t.length).toFixed(2)} s · peak ${(t.peak * 1000).toFixed(0)} ms · ${(k * 100).toFixed(0)}% above 400 Hz`;
+          if (k < 0.85) b.classList.add('low');
+        }
+      });
+      takes.append(b);
+    });
+    sec.append(takes);
+  }
+  box.append(sec);
+}
+</script>
+</body>
+</html>

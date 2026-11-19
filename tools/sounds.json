@@ -1,0 +1,14 @@
+{
+  "about": "Sound packs (docs/agents/sound.md): node tools/sounds.mjs <sources folder> builds assets/audio/<pack>.mp3 and assets/audio/packs.json from this. A pack loads for any of its `for` tags: 'unlock' (once sound is on), 'act N', 'jelly <type>'. A role's `cue` is the sfx call that plays it, recorded or synthesized; `vol` is its loudness; `mode` replace plays it instead of the synthesized sound, layer on top of it; `cap` cuts each take to that many seconds.",
+  "packs": {
+    "lightning": {
+      "for": ["jelly lightning", "act 4"],
+      "roles": {
+        "lightning-launch": { "cue": ["elementLaunch", "lightning"], "vol": 0.12, "mode": "replace", "takes": ["lightning/launch-1.mp3", "lightning/launch-2.mp3"] },
+        "lightning-hit": { "cue": ["elementHit", "lightning"], "vol": 0.22, "mode": "replace", "takes": ["lightning/hit-1.mp3", "lightning/hit-2.mp3", "lightning/hit-3.mp3"] },
+        "lightning-big": { "cue": ["lightningBig"], "vol": 0.2, "mode": "replace", "takes": ["lightning/big-1.mp3", "lightning/big-2.mp3", "lightning/big-3.mp3"] },
+        "lightning-chain": { "cue": ["chainZap", 0], "vol": 0.12, "mode": "replace", "takes": ["lightning/chain-1.mp3", "lightning/chain-2.mp3", "lightning/chain-3.mp3"] }
+      }
+    }
+  }
+}

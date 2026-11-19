@@ -1,0 +1,107 @@
+{
+ "lightning": {
+  "file": "lightning.mp3",
+  "for": [
+   "jelly lightning",
+   "act 4"
+  ],
+  "bytes": 126765,
+  "seconds": 10.5,
+  "roles": {
+   "lightning-launch": {
+    "cue": [
+     "elementLaunch",
+     "lightning"
+    ],
+    "vol": 0.12,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.4995,
+      "peak": 0.1232
+     },
+     {
+      "start": 1.0995,
+      "length": 0.4989,
+      "peak": 0.1122
+     }
+    ]
+   },
+   "lightning-hit": {
+    "cue": [
+     "elementHit",
+     "lightning"
+    ],
+    "vol": 0.22,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 1.8984,
+      "length": 0.55,
+      "peak": 0.1781
+     },
+     {
+      "start": 2.7484,
+      "length": 0.6,
+      "peak": 0.0659
+     },
+     {
+      "start": 3.6484,
+      "length": 0.585,
+      "peak": 0.0879
+     }
+    ]
+   },
+   "lightning-big": {
+    "cue": [
+     "lightningBig"
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 4.5334,
+      "length": 1.0456,
+      "peak": 0.0762
+     },
+     {
+      "start": 5.879,
+      "length": 1.2378,
+      "peak": 0.6241
+     },
+     {
+      "start": 7.4169,
+      "length": 1.14,
+      "peak": 0.3542
+     }
+    ]
+   },
+   "lightning-chain": {
+    "cue": [
+     "chainZap",
+     0
+    ],
+    "vol": 0.12,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 8.8569,
+      "length": 0.25,
+      "peak": 0.0901
+     },
+     {
+      "start": 9.4069,
+      "length": 0.2498,
+      "peak": 0.0403
+     },
+     {
+      "start": 9.9567,
+      "length": 0.2461,
+      "peak": 0.0663
+     }
+    ]
+   }
+  }
+ }
+}

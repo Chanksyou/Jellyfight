@@ -54,6 +54,36 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apart
   const glb = path.join(ROOT, 'assets', f);
   if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs, or tools/props.mjs for props.glb`); }
 }
+// Sound packs (docs/agents/sound.md): every role has takes and a cue that sfx.js has (its synthesized
+// sound: story sound/every-role-has-a-synthesized-sound), every sample() role is in a pack, the packs keep
+// to their budgets, and every audio file has its source and licence in assets/audio/credits.json
+{
+  const AUDIO = path.join(ROOT, 'assets/audio'), SFX = fs.readFileSync(path.join(ROOT, 'src/sfx.js'), 'utf8');
+  const packs = JSON.parse(fs.readFileSync(path.join(AUDIO, 'packs.json'), 'utf8')), credits = JSON.parse(fs.readFileSync(path.join(AUDIO, 'credits.json'), 'utf8'));
+  const ACT_BYTES = 450 * 1024, ALL_BYTES = 2.2 * 1024 * 1024, ACT_SECONDS = 60;
+  const roles = Object.values(packs).flatMap((P) => Object.keys(P.roles));
+  for (const [name, P] of Object.entries(packs)) {
+    const file = path.join(AUDIO, P.file);
+    if (!fs.existsSync(file) || fs.statSync(file).size !== P.bytes) { bad++; console.log(`✗ sound pack ${name}: ${P.file} is missing or not the size packs.json says: run node tools/sounds.mjs`); }
+    for (const [role, r] of Object.entries(P.roles)) {
+      if (!r.takes?.length) { bad++; console.log(`✗ sound role ${role} has no takes`); }
+      if (!new RegExp(`\\n  ${r.cue?.[0]}\\(`).test(SFX)) { bad++; console.log(`✗ sound role ${role}'s cue sfx.${r.cue?.[0]} isn't in src/sfx.js`); }
+      if (!SFX.includes(`if (sample('${role}'`)) { bad++; console.log(`✗ sound role ${role}: src/sfx.js must play it as if (sample('${role}'…)) return; before its synthesized sound`); }
+      if (!['replace', 'layer'].includes(r.mode) || !(r.vol > 0)) { bad++; console.log(`✗ sound role ${role} needs mode replace or layer and a vol`); }
+    }
+  }
+  for (const [, role] of SFX.matchAll(/sample\('([^']+)'/g)) if (!roles.includes(role)) { bad++; console.log(`✗ src/sfx.js plays sound role ${role}, which no pack has (tools/sounds.json)`); }
+  // an act loads the 'unlock' packs, its own, and one jelly type's (count the biggest)
+  const sum = (list, k) => list.reduce((n, P) => n + P[k], 0), jelly = Object.values(packs).filter((P) => P.for.every((t) => t.startsWith('jelly ')));
+  for (let act = 1; act <= 4; act++) {
+    const mine = Object.values(packs).filter((P) => P.for.some((t) => t === 'unlock' || t === `act ${act}`));
+    const bytes = sum(mine, 'bytes') + Math.max(0, ...jelly.map((P) => P.bytes)), secs = sum(mine, 'seconds') + Math.max(0, ...jelly.map((P) => P.seconds));
+    if (bytes > ACT_BYTES || secs > ACT_SECONDS) { bad++; console.log(`✗ act ${act}'s sound packs are ${(bytes / 1024).toFixed(0)} KB and ${secs.toFixed(0)} s decoded: at most ${ACT_BYTES / 1024} KB and ${ACT_SECONDS} s`); }
+  }
+  if (sum(Object.values(packs), 'bytes') > ALL_BYTES) { bad++; console.log(`✗ the sound packs add up to more than ${(ALL_BYTES / 1048576).toFixed(1)} MB`); }
+  const files = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? files(path.join(d, e.name)).map((f) => `${e.name}/${f}`) : [e.name]);
+  for (const f of files(AUDIO).filter((f) => /\.(mp3|ogg|wav|m4a|aac|flac|opus)$/.test(f))) if (!credits[f]?.from || !credits[f]?.licence) { bad++; console.log(`✗ assets/audio/${f} has no source and licence in assets/audio/credits.json`); }
+}
 if (bad) process.exit(1);
 
 const unit = spawnSync(process.execPath, ['--test', path.join(ROOT, 'tests/random.test.mjs'), path.join(ROOT, 'tests/balance.test.mjs'), path.join(ROOT, 'tests/achievement-board.test.mjs'), path.join(ROOT, 'tests/run-log.test.mjs')], { stdio: 'inherit' });
