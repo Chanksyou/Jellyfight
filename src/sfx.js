@@ -1260,7 +1260,7 @@ export const sfx = {
       o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
       o.connect(og).connect(lp); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
     }
-    const flutter = tremolo(t, t + dur + 0.05, 5, 0.3);                     // a flutter that speeds up
+    const flutter = tremolo(t, t + dur + 0.05, 5, 0.15);                    // a flutter that speeds up (±15%, as it was at full hum)
     flutter.lfo.frequency.exponentialRampToValueAtTime(22, t + dur); oscs.push(flutter.lfo);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * 0.3, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(peak, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
