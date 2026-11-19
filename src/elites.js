@@ -2215,7 +2215,7 @@ export class Elites {
               this.minis.push(b);
               return b;
             });
-            sfx.pop();
+            sfx.pop(false, true);
           }
           if (s < N.warn) {
             for (const m of e.tele) { m.material.progress = s / N.warn; m.material.opacity = 0.7 + Math.sin(e.t * 22) * 0.15; }
