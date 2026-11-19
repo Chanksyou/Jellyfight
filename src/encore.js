@@ -75,7 +75,7 @@ export class Encore {
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
     const A = this.arenaView;
     // each hit lands with a flash and sparks at the jelly in that attack's colour
-    this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`)) });
+    this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`), c?.dj) });
     this.lasers = new EncoreLasers(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-laser')) });
     this.disco = new EncoreDisco(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-disco')), quiet: (b) => this.quiet(b) });
     this.shove = { x: 0, z: 0 };
@@ -161,13 +161,15 @@ export class Encore {
   }
   // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind)
   stopActs() {
-    this.records.reset(); this.endSolo(); this.restBow = false;
+    this.records.reset(); this.endSolo(); this.restBow = false; this.floor.held.silver = this.floor.held.gold = false;
     for (const who of DJS) this.arenaView.boss.perform(who, null);
   }
 
   quiet(b) { return !!this.song?.quiet?.(b); }
-  hurtPlayer(dmg, color = null) {
+  // `dj`: whose attack it was (a floor wave's), who pumps a fist on the next beat
+  hurtPlayer(dmg, color = null, dj = null) {
     if (this.dead) return;
+    if (dj && this.beat !== null) this.floor.react(dj, 'fist-pump', Math.ceil(this.beat));
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: 'boss' });
     if (color && this.player) this.fx.impact(_hit.copy(this.player.position).setY(this.player.position.y + 0.03), color, 0.03, 10);
   }
@@ -179,6 +181,11 @@ export class Encore {
     this.hp -= amount;
     this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, 16, feedback);
     this.hurtT = 1;                                                   // the booth flinches: its panels flash white, it jolts
+    // and the nearer DJ (silver stands on the -x side) flinches, at most once a beat
+    if (this.beat !== null && Math.floor(this.beat) !== this.flinched) {
+      this.flinched = Math.floor(this.beat);
+      this.floor.react(this.player && this.player.position.x > this.center().x ? 'gold' : 'silver', 'flinch', this.beat + 0.15);
+    }
     if (this.hp <= 0) this.beaten();
     else if (!this.broken && this.hp <= this.maxHp * (this.def.skills.meltdown?.at ?? 0.5)) this.meltdown();
   }
@@ -281,7 +288,7 @@ export class Encore {
     else if (!this.dead && beat !== null) {
       // A restarted track needs a new set, with fresh warnings rather than old scheduled beats.
       if (this.beat !== null && beat < this.beat) {
-        this.floor.reset(); this.lasers.reset(); this.pulses.reset(beat); this.disco.reset(beat); this.set = null; this.stopActs();
+        this.floor.reset(); this.lasers.reset(); this.pulses.reset(beat); this.disco.reset(beat); this.set = null; this.flinched = null; this.stopActs();
       }
       this.beat = beat;
       const S = this.def.skills.set || {};
@@ -303,6 +310,8 @@ export class Encore {
         for (const who of DJS) M.perform(who, 'bow', beat + 1, 1, Math.max(0, end - beat - 1 - this.bowLift));
       }
       this.restBow = rest;
+      // the wave gestures leave a DJ alone while the Encore moves him: his solo (from his first wind-up) and bow, the breakdown's bow
+      for (const who of DJS) this.floor.held[who] = rest || (this.solo?.who === who && beat >= this.solo.at - 4);
       if (this.guardT > 0) { this.guardT = Math.max(0, this.guardT - dt); if (!this.guardT) this.opening = false; }   // warming up or rebooting: counts down while its set plays
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }

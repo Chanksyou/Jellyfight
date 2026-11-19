@@ -187,7 +187,7 @@ export function buildEncoreBoss(){
     const body=new THREE.Group();body.name=side<0?'Silver performer':'Gold performer';body.position.set(side*.083,0,-.075);body.rotation.y=-side*.18;root.add(body);
     const torso=new THREE.Group();torso.name='Torso';torso.position.y=.16;torso.rotation.order='YXZ';body.add(torso);
     const fig=new THREE.Group();fig.position.y=-.16;torso.add(fig);
-    const rig={side,body,torso,head:null,outer:null,inner:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null};rigs.push(rig);
+    const rig={side,body,torso,head:null,outer:null,inner:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null,look:null};rigs.push(rig);
     for(const x of [-.017,.017]){
       put(box,visor,[x,.011,.009],[.025,.019,.048],[0,0,0],fig);put(box,steel,[x,.004,.01],[.026,.004,.049],[0,0,0],fig);
       bar([x,.025,0],[x*.85,.09,-.005],.012,suit,fig);bar([x*.85,.09,-.005],[x*.8,.156,0],.014,suit,fig);
@@ -293,12 +293,13 @@ export function buildEncoreBoss(){
     dance(who,beat){const d=rigOf(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
     // perform(who, move, beat0, dir = 1, sustain): play a move (MOVES) so its accent lands on beat0, over
     // the dance; dir -1 mirrors its turns (a sweep the other way); sustain (beats) overrides how long the
-    // accent holds (a bow). perform(who, null) eases back. The pose is a function of the beat (update);
+    // accent holds (a bow); look (radians, 0 = straight down the floor, + towards +x) turns his
+    // helmet to face that way as the move takes over (the arc's gap). perform(who, null) eases back. The pose is a function of the beat (update);
     // asking for the same move on the same beat again changes nothing, and a song rewind drops it.
-    perform(who,move,beat0,dir=1,sustain){
+    perform(who,move,beat0,dir=1,sustain,look=null){
       const r=rigOf(who);if(!r||(move!==null&&(!MOVES.includes(move)||!Number.isFinite(beat0))))return false;
       if(move&&r.move===MOVE[move]&&r.at===beat0)return true;   // asked again (each frame): it plays on
-      r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;return true;
+      r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;r.look=Number.isFinite(look)?look:null;return true;
     },
     // each frame; beat: the song's (null: no move plays, each eases back)
     update(dt,quiet=false,beat=null){time+=dt;
@@ -318,6 +319,7 @@ export function buildEncoreBoss(){
         const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2);
         torso.rotation.x=now[0];torso.rotation.y=-side*now[1];
         head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07)-side*now[3];head.rotation.x=(quiet?0:.04+Math.sin(time*.9+side)*.025)+now[2];
+        if(r.look!==null)head.rotation.y+=Math.max(-1.5,Math.min(1.5,r.look+side*.7))*w;   // faces it (the body already turns -side*.18, the helmet -side*.52)
         outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4];outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
         inner.rotation.x=now[7];inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
       }},
