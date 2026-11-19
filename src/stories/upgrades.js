@@ -550,13 +550,19 @@ story('upgrades/tentacle-pool', {
 });
 
 story('types/run-starts-with-an-upgrade-pick', {
-  about: 'A run after the first opens with 1 of 3 Attack upgrades from its jelly type\'s pool, without using the level-up reroll; taking one starts the run with it. A first run and a later act open nothing.',
+  about: 'A run after the first opens with 1 of 3 Attack upgrades from its jelly type\'s pool, without using the level-up reroll; the mouse is let go while it shows; taking one starts the run with it. A first run and a later act open nothing.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const { run, menus } = G();
     const modal = () => document.querySelectorAll('.jf-modal .jf-card').length;
+    // on desktop the mouse is locked to the game: the pick must let it go, or its cards can't be clicked
+    let locked = true;
+    Object.defineProperty(document, 'pointerLockElement', { get: () => (locked ? document.body : null), configurable: true });
+    stub(document, 'exitPointerLock', () => { locked = false; });
+    offs.push(() => { delete document.pointerLockElement; });
     run.start(); run.startPicked = false; menus.close();
     step(3);
+    const freed = !locked;
     const cards = modal(), open = menus.open, rerolls = run.rerolls;
     document.querySelector('.jf-modal .jf-card')?.click(); step(60);
     const took = run.upgrades.length === 1, closed = !menus.open;
@@ -566,6 +572,6 @@ story('types/run-starts-with-an-upgrade-pick', {
     const later = !G().menus.open;
     G().run.carry = null;   // (a carry would set the next story's jelly type)
     fresh();
-    return ok(open && cards === 3 && rerolls === 1 && took && closed && first && later, { cards, open, rerolls, took, closed, first, later });
+    return ok(freed && open && cards === 3 && rerolls === 1 && took && closed && first && later, { freed, cards, open, rerolls, took, closed, first, later });
   },
 });
