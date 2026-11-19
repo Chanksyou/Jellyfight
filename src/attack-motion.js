@@ -27,6 +27,8 @@ export function knobs() {
   K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), beat: n('lock-beat', 0.067), style: {}, tier: {} };
   for (const s of STYLES) K.style[s] = { hold: n(s + '-hold', 0.35), over: n(s + '-over', 0.08), strike: n(s + '-strike', 0.08), bounces: n(s + '-bounces', 2), damp: n(s + '-damp', 2), follow: n(s + '-follow', 0.06) };
   for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
+  K.nip = { near: n('nip-near', 5), lean: n('nip-lean', 0.12), recoil: n('nip-recoil', 0.25) };   // a touch: how close it leans in (bug radii), how fast, how long it hops back
+  K.nest = { squeeze: n('nest-squeeze', 0.06), bulge: n('nest-bulge', 0.03), lead: n('nest-lead', 0.3) };   // a Wasp nest before each wasp
   return K;
 }
 
@@ -99,10 +101,34 @@ export function roll(A, seed, n) {
   A.side = frac(h * 97.31) < 0.5 ? -1 : 1;
   return A;
 }
+// A bug that only touches you (the Cockroach, attack-motion "nip"; no attack word, so no states to read):
+// it leans in (build, k 0 to 1 over --bug-attack-nip-lean) while you are within --bug-attack-nip-near of its
+// radii, jabs when its touch lands (enemies.js landed sets A.hit; the swing is twice the style's strike) and
+// hops back (recoil, --bug-attack-nip-recoil), then leans again if you are still close.
+function touchClock(e, dt, near, calm) {
+  const A = e.atk, C = knobs(), N = C.nip;
+  A.t += dt; A.quiet = calm ? 0.5 : 1; A.lock = -1; A.lockT = -1; A.still = false; A.smear = false;
+  if (A.hit && !A.rec) { A.rec = true; A.phase = 'swing'; A.pt = 0; A.k = 0; A.n++; roll(A, e.phase, A.n); }
+  if (A.rec) {
+    A.pt += dt;
+    const jab = A.style.strike * 2;
+    if (A.pt < jab) { A.phase = 'swing'; A.k = A.pt / jab; }
+    else if (A.pt < jab + N.recoil) { A.phase = 'recoil'; A.k = (A.pt - jab) / N.recoil; }
+    else { A.rec = false; A.hit = false; A.phase = 'idle'; A.k = 0; A.pt = 0; }
+    return A;
+  }
+  const to = near < N.near ? 1 : 0, step = dt / N.lean;
+  A.k = A.k < to ? Math.min(to, A.k + step) : Math.max(to, A.k - step);
+  A.phase = A.k > 0 ? 'build' : 'idle';
+  A.pt = A.phase === 'build' ? A.pt + dt : 0;
+  return A;
+}
 // Steps e.atk from the attack word's clock. dt: the frame's time (0 while frozen or stunned); fx: null for a
-// far or off-screen bug (no puffs); calm: Reduce effects (quivers half size).
-export function attackClock(e, dt, fx = null, calm = false) {
+// far or off-screen bug (no puffs); calm: Reduce effects (quivers half size); near: how many of its radii it
+// is from you (a touch's lean-in).
+export function attackClock(e, dt, fx = null, calm = false, near = 99) {
   const A = e.atk, P = e.T.attack, C = knobs();
+  if (!P) return touchClock(e, dt, near, calm);
   let key = e.state, kind = P.phases[key], left = P.timer[key] ? e[P.timer[key]] : e.stateT;
   if (!kind && P.shot) {                     // a Shot without states (spit): aimT is its build-up, firedT its throw
     if (e.aimT > 0) { key = 'aim'; kind = 'build'; left = e.aimT; }

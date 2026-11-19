@@ -625,7 +625,8 @@ export class Enemies {
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
-    if (e.atk && (e.atk.phase === 'swing' || e.T.attack.phases[e.state] === 'swing')) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't)
+    const words = e.T.attack;
+    if (e.atk && (!words || e.atk.phase === 'swing' || words.phases[e.state] === 'swing' || (words.phases[e.state] === 'build' && e.stateT <= 0))) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it; a beam fires from the frame its charge runs out): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't); a bug with no attack word (the Cockroach) jabs when its touch lands
     if (contact) {
       const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
       this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);
@@ -1614,7 +1615,7 @@ export class Enemies {
         e.animDt = (e.animDt || 0) + dt;
         const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
         const w0 = WORK.n;
-        if (e.atk) attackClock(e, slow > 0 ? dt : 0, unseen ? null : this.fx, calm);   // every frame: its pose is a function of this clock
+        if (e.atk) attackClock(e, slow > 0 ? dt : 0, unseen ? null : this.fx, calm, dist / e.r);   // every frame: its pose is a function of this clock
         if (!unseen || (this.frame + e.id) % 2 === 0) { e.anim(e.animDt, e); e.animDt = 0; }
         if (WORK.n - w0 > WORK.most) WORK.most = WORK.n - w0;
       }

@@ -94,6 +94,8 @@ export function buildRoach() {
   body.add(face);
   // antennae sweep on their own
   let t = 0, k = 0;
+  // its nip (attack-motion "nip", src/attack-motion.js): close to you it leans in, head low; its touch landing jabs
+  // the head forward, then it hops back and rocks (it has no wind-up, so none is added)
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 6) - k) * (1 - Math.exp(-8 * dt));   // smoothed, so it never flickers
@@ -102,10 +104,24 @@ export function buildRoach() {
       L.pivot.rotation.y = L.base + Math.sin(t + L.phase) * 0.4 * k;
       L.pivot.rotation.z = Math.max(0, Math.cos(t + L.phase)) * 0.25 * k * Math.sign(L.pivot.position.x);
     }
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    let head = 0, jab = 0, len = 1;
+    if (ph === 'build') head = 0.3 * coil(A.k, A.style.hold, A.style.over) * A.vary;
+    else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      head = 0.3 * A.vary * (1 - s) + 0.1 * s; jab = 0.25 * A.vary * s; len = 1 + (A.tier.stretch - 1) * Math.min(1, s);
+    } else if (ph === 'recoil') {
+      const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.04);
+      jab = -0.15 * b; head = -0.12 * b * A.side;
+    }
     body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
+    body.position.z = jab;
+    body.rotation.x = head;
     body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; };
+  anim.reset = () => { t = 0; k = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
 }
 
@@ -1440,11 +1456,13 @@ export function buildDragonfly() {
   add(body, G.body, M.dfLeg);
   add(body, G.thoraxGeo, M.dfThorax);
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.dfEye, V(s * 0.13, 0.1, 0.86)); e.rotation.set(0, s * 0.4, -s * 0.25); }
-  body.add(angryEyes({ y: 0.14, z: 1.02, size: 0.09, gap: 0.14 }));
+  const face = angryEyes({ y: 0.14, z: 1.02, size: 0.09, gap: 0.14 });
+  body.add(face);
   const legs = add(body, G.legs, M.dfLeg);
   // the abdomen hangs from the back of the thorax and sways a little
   const tail = new THREE.Group();
   tail.position.set(0, -0.02, 0.12);
+  tail.name = 'tail';
   body.add(tail);
   add(tail, G.abdomenGeo, M.dfAbdomen, V(0, 0, -0.12));
   add(tail, G.claspers, M.dfLeg, V(0, 0, -0.12));
@@ -1454,6 +1472,7 @@ export function buildDragonfly() {
     const hinge = new THREE.Group();
     hinge.position.set(s * 0.08, 0.27, z);
     hinge.rotation.y = s * (fore ? -0.1 : 0.14);                       // the forewings sweep forward a touch, the hind ones back
+    hinge.name = 'wing';
     const m = add(hinge, geo, M.dfWing);
     m.scale.x = s;
     body.add(hinge);
@@ -1461,30 +1480,59 @@ export function buildDragonfly() {
   }
 
   let t = 0, dart = 0, glide = 0;
+  // its beam and whirlwind (attack-motion "throw", src/attack-motion.js). Charging the beam it draws back, its wings
+  // stop dead and its tail curls up and forward over its back, holding quivering; the beam snaps the tail straight,
+  // stretched along it, then it rocks back (knocked back if it hit, nose dipping if it missed) and the wings restart,
+  // fore pair first. Winding up the whirlwind its wings beat faster and sweep forward as it leans back, freezing
+  // there when the aim locks; flinging it they clap back and it lunges, then it is thrown back and up and bobs.
   const anim = (dt, e) => {
     t += dt;
+    const A = e.atk, ph = A ? A.phase : 'idle', whirl = A && (A.key === 'whirl' || A.key === 'whirl-rest');
+    let back = 0, lean = 0, curl = 0, sweep = 0, up = 0, len = 1, held = 0, shake = 0, fast = 0, restart = 1, hindRestart = 1;
+    if (ph === 'build') {
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;
+      held = Math.min(1, c);
+      shake = A.still ? 0 : quiver(A.k, A.t, e.phase) * A.quiet;
+      if (whirl) { lean = -0.26 * c; sweep = 0.6 * c; fast = held; restart = A.lockT >= 0 ? 0 : 1; hindRestart = restart; }
+      else { back = -0.15 * c; curl = 1.1 * c; restart = hindRestart = 1 - Math.min(1, A.pt / 0.08); }
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      held = 1; restart = hindRestart = 0;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      if (whirl) { sweep = 0.6 * (1 - s) - 0.8 * s; back = 0.2 * s * A.vary; lean = -0.26 * (1 - s) * A.vary; }
+      else { back = -0.15 * (1 - s) * A.vary; curl = 1.1 * (1 - s) * A.vary; }
+    } else if (ph === 'recoil') {
+      const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.05);
+      restart = Math.min(1, A.k * 2.5); hindRestart = Math.min(1, Math.max(0, A.k * 2.5 - 0.4)); held = 1 - restart;
+      if (whirl) { back = -0.25 * b; up = 0.25 * b; lean = -0.3 * b; curl = 0.3 * b; sweep = -0.5 * b; }
+      else if (A.hit) { back = -0.2 * b; lean = -0.35 * b; curl = 0.3 * b; }
+      else { lean = 0.2 * b; curl = 0.3 * b; back = 0.1 * b; }
+    }
+    const g = ph === 'idle' && Math.sin(t * 0.9 + e.phase) > 0.8 ? 1 : 0;   // every few seconds it holds its wings out flat and glides for a moment
+    glide += (g - glide) * (1 - Math.exp(-10 * dt));
     const speed = Math.hypot(e.vel.x, e.vel.z);
     dart += (Math.min(1, speed * 4) - dart) * (1 - Math.exp(-6 * dt));
-    // every few seconds it holds its wings out flat and glides for a moment
-    const g = Math.sin(t * 0.9 + e.phase) > 0.8 ? 1 : 0;
-    glide += (g - glide) * (1 - Math.exp(-10 * dt));
-    const beat = 1 - glide;
+    const idle = 1 - held;
     for (const W of wings) {
       // fore and hind beat out of step, a quarter turn apart; a dragonfly's wings are a blur
-      const a = Math.sin(t * 70 + (W.fore ? 0 : Math.PI * 0.6));
-      W.hinge.rotation.z = W.s * (0.05 + a * 0.55 * beat);
-      W.hinge.rotation.x = a * 0.25 * beat * (W.fore ? 1 : -1);        // the wings twist through the stroke
+      const a = Math.sin(t * (70 + 40 * fast) + (W.fore ? 0 : Math.PI * 0.6)), amp = (W.fore ? restart : hindRestart) * (1 - glide);
+      W.hinge.rotation.z = W.s * (0.05 + a * 0.55 * amp);
+      W.hinge.rotation.x = a * 0.25 * amp * (W.fore ? 1 : -1);        // the wings twist through the stroke
+      W.hinge.rotation.y = W.s * ((W.fore ? -0.1 : 0.14) - sweep);
     }
     legs.rotation.x = -0.1 + Math.sin(t * 2.1 + e.phase) * 0.05;
-    tail.rotation.x = Math.sin(t * 1.7 + e.phase) * 0.05 + dart * 0.08;
-    tail.rotation.y = Math.sin(t * 1.3 + e.phase) * 0.04;
-    body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5);
-    const kick = Math.max(0, e.firedT || 0, e.whirlKick || 0) * 1.6;   // its beam or whirlwind fired: it rocks back, tail flicking
-    body.rotation.x = 0.1 * dart + Math.sin(t * 2.3 + e.phase) * 0.03 - kick;   // nose down to dart
+    tail.rotation.x = (Math.sin(t * 1.7 + e.phase) * 0.05 + dart * 0.08) * idle + curl + shake * 0.1;
+    tail.rotation.y = Math.sin(t * 1.3 + e.phase) * 0.04 * idle;
+    body.position.y = Math.sin(t * 3 + e.phase) * 0.06 * (1 - dart * 0.5) * idle + up;
+    body.position.z = back;
+    const kick = A ? 0 : Math.max(0, e.firedT || 0, e.whirlKick || 0) * 1.6;   // (a model with no attack clock, a preview: its beam or whirlwind fired, it rocks back, tail flicking)
+    body.rotation.x = 0.1 * dart * idle + Math.sin(t * 2.3 + e.phase) * 0.03 * idle + lean - kick + shake * 0.04;   // nose down to dart
     tail.rotation.x += kick * 0.8;
-    body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04;
+    body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04 * idle + shake * 0.03;
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; dart = 0; glide = 0; };
+  anim.reset = () => { t = 0; dart = 0; glide = 0; stretch(body, 1); body.position.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -2469,14 +2517,19 @@ export function buildNest() {
   body.add(mesh);
   const UPV = V(0, 1, 0), door = V(0, -NEST.height / 2, 0);
   let t = 0, shake = 0;
+  // 0.3 s before each wasp crawls out (the brood word's timer, only if one will) it squeezes across and bulges down
+  // at its entrance, hung from its top, then relaxes as the wasp comes out
   const anim = (dt, e) => {
     t += dt;
     if (e.hatchedT > 0) { shake = 1; e.hatchedT = 0; }                   // a wasp just crawled out: it trembles
     shake *= Math.exp(-6 * dt);
+    const N = knobs().nest, q = e.broodT > 0 && e.broodT < N.lead && !e.broodFull ? 1 - e.broodT / N.lead : 0, w = 1 - N.squeeze * q;
+    body.scale.set(w, 1 + N.bulge * q, w);
+    body.position.y = -N.bulge * q * NEST.height / 2;
     body.rotation.z = Math.sin(t * 30) * 0.03 * shake;
     // where wasps come out, in the world: the brood word reads it
     (e.emergeAt ||= new THREE.Vector3()).copy(door).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
-  anim.reset = () => { t = 0; shake = 0; };
+  anim.reset = () => { t = 0; shake = 0; body.scale.set(1, 1, 1); body.position.y = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
