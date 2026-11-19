@@ -627,3 +627,27 @@ act2('spawns-check-body-clearance', {
     return ok(point === null && checks > 0, { point, checks });
   },
 });
+
+// A vent ride sweeps the jelly up through the whole vanity in a second. The camera's see-through
+// fades held still for it: the ride started 30+ see-through copies at once, which dropped frames on a phone.
+act2('vent-ride-starts-no-see-through', {
+  about: 'Riding the vanity vent turns nothing new see-through; the jelly still lands on the vanity.',
+  setup() {
+    fresh({ elites: false, bubbles: false, lash: false });
+    const v = G().traversal.vents.find((x) => x.to === 'the vanity'), yaw = Math.PI / 2;   // from the side: the angle that faded the most
+    tp(v.x + Math.sin(yaw) * 0.12, v.y + 0.01, v.z + Math.cos(yaw) * 0.12, yaw);
+    step(60);
+    G().player.position.set(v.x, v.y + 0.005, v.z);
+  },
+  play() {
+    const { player, tpc } = G(), v = G().traversal.vents.find((x) => x.to === 'the vanity');
+    const before = new Set(tpc._fades.keys());
+    let flew = 0, started = 0;
+    step(240, () => {
+      if (player.flight) { flew++; for (const m of tpc._fades.keys()) if (!before.has(m)) { started++; before.add(m); } }
+      return flew && !player.flight;
+    });
+    const [lx, ly, lz] = v.land, p = player.position;
+    return ok(flew > 20 && started === 0 && Math.hypot(p.x - lx, p.z - lz) < 0.08 && Math.abs(p.y - ly) < 0.06, { flew, started, end: [p.x, p.y, p.z], land: v.land });
+  },
+});
