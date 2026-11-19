@@ -516,7 +516,7 @@ story('encore/the-set-list-plays-the-same-waves-as-the-old-set', {
 });
 
 story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
-  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no speaker pulses, no doubling at a drop); from set 1 a laser on every wave and the speakers start on that first bar; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet.',
+  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no speaker pulses, no doubling at a drop); from set 1 a laser on every wave and the speakers start on that first bar; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, each stage starting from silver.',
   setup() {},
   play() {
     // the stage by beat (a stand-in for the Encore's Health)
@@ -531,8 +531,8 @@ story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
     const noLasers = shots.every((at) => at >= o) && shots.length > 100 && f.casts.filter((c) => c.at >= o).every((c) => shots.includes(c.at));
     const speakers = starts.join() === `${o}`;
     const disco = visits.length > 3 && visits.every((at) => stageAt(at) === 'set2' && (at - o) % 32 === 16);
-    const want = []; let k = 0;
-    for (let at = o + 64; at <= 900; at += 64) { const st = stageAt(at), kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[st]; want.push(`${kinds[k++ % kinds.length]}@${at}`); }
+    const want = []; let k = 0, was = null;
+    for (let at = o + 64; at <= 900; at += 64) { const st = stageAt(at); if (st !== was) { was = st; k = 0; } const kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[st]; want.push(`${kinds[k++ % kinds.length]}@${at}`); }
     const solos = slots.join() === want.join() && slots.some((x) => x.startsWith('duet'));
     return ok(o === 40 && single && noLasers && speakers && disco && solos, { origin: o, single, noLasers, speakers, starts, disco, visits: visits.slice(0, 6), solos, slots: slots.slice(0, 8) });
   },
@@ -562,7 +562,8 @@ fight('fight-stages-follow-its-health-not-the-clock', {
     step(60 * 16, () => B.disco.visitAt != null);
     const booked = B.disco.visitAt != null && B.disco.visitAt > B.beat - 8;
     const gates = [[0.76, 'set1'], [0.5, 'set3'], [0.26, 'set3'], [0.25, 'last'], [0.1, 'last']].map(([f, want]) => { B.hp = B.maxHp * f; return B.stage === want; });
-    return ok(warm && set1 && noDisco && set2 && booked && gates.every(Boolean), { warm, set1, noDisco, set2, booked, visit: B.disco.visitAt, beat: B.beat, gates, n });
+    const kdl = B.def.skills.stages?.set2 === 0.75 && B.def.skills.stages?.set3 === 0.5 && B.def.skills.stages?.last === 0.25 && B.def.skills.set?.solo === 16 && B.def.skills.set?.disco === 8;
+    return ok(kdl && warm && set1 && noDisco && set2 && booked && gates.every(Boolean), { kdl, warm, set1, noDisco, set2, booked, visit: B.disco.visitAt, beat: B.beat, gates, n });
   },
 });
 

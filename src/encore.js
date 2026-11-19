@@ -108,7 +108,7 @@ export class Encore {
   // Half Health: the booth shorts out. Its set stops for the cut scene, then plays on, broken
   meltdown() {
     this.broken = true;
-    this.floor.reset(); this.lasers.reset(); this.pulses.reset(); this.contact.reset(); this.set = null;
+    this.floor.reset(); this.lasers.reset(); this.pulses.reset(); this.contact.reset(); this.disco.visit(null); this.set = null;
     const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
     this.cut = { t: 0, length: LOOK.num(short ? 'encore-meltdown-calm-time' : 'encore-meltdown-time', short ? 1.2 : 3.4), next: 0, blown: false,
       // the shot: in front of the booth and off to one side, easing in
@@ -379,7 +379,7 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 //   the speaker pulses start on the first bar after the warm-up (`pulses`, encore-pulse.js)
 //   in set 2, a disco ball visit every `discoEvery` bars, halfway between solo slots (`disco`)
 // From the first bar after the warm-up (`origin`), every `solo` bars is a solo slot: `slot(kind, at)`,
-// silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet.
+// silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet (each stage from its first).
 const SOLOS = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'], last: ['silver', 'gold', 'duet'] };
 export class SetList {
   constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null, disco = null, pulses = null,
@@ -401,6 +401,7 @@ export class SetList {
     if (!warm) {
       this.origin ??= at;
       if (this.pulses && this.pulses.first == null) this.pulses.start(at);
+      if (stage !== this.soloStage) { this.soloStage = stage; this.solos = 0; }   // each stage's solos start with its first kind (silver)
       const n = (at - this.origin) / WAVE_GAP, kinds = SOLOS[stage];
       if (n > 0 && n % this.solo === 0) this.slot(kinds[this.solos++ % kinds.length], at);
       if (stage === 'set2' && n % this.discoEvery === this.discoEvery / 2) this.disco?.visit(at);
