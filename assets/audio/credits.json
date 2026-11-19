@@ -173,5 +173,104 @@
    }
   ],
   "licence": "Soundza Standard License (https://soundza.com/license): commercial use and editing allowed, no attribution required, not to be shared on their own or used to train AI"
+ },
+ "elite-controller.mp3": {
+  "from": [
+   {
+    "role": "controller-charge",
+    "soundza": "Low Pitch Synth Sweep by TRAGWERK (cmtl5gx8qbthz4g39q5fvrjt7, https://soundza.com/sound/low-pitch-synth-sweep)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-click",
+    "soundza": "Plastic Button Off (cmukc3zzx6tban09ofb0xe6ds, https://soundza.com/sound/plastic-button-off)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-hit",
+    "soundza": "Metallic Trash Lid Thud (cmvib5fisy3o2n6apxbxq0e7h, https://soundza.com/sound/metallic-trash-lid-thud)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.6 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-slam",
+    "soundza": "Hard Door Slam (cmviac1v6z19esm4uru5u6ffj, https://soundza.com/sound/hard-door-slam)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.76 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "controller-down",
+    "soundza": "Electric Power Down (cmv0i6i8f01et06l8exyy3emc, https://soundza.com/sound/electric-power-down)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.6 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-mug.mp3": {
+  "from": [
+   {
+    "role": "mug-lob",
+    "soundza": "Deep Bottle Slosh (cmvr4ncnp4ju61kyyaw56fiat, https://soundza.com/sound/deep-bottle-slosh)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-splash",
+    "soundza": "Slime 7 (cmv5n999u01tz06l4p445tnbg, https://soundza.com/sound/slime-7-1)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.4 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-pour",
+    "soundza": "Water Pour (cmv5mzdr700w906l4sqr4kx21, https://soundza.com/sound/water-pour)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 1.0 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "mug-down",
+    "soundza": "Plate Smash 24 (cmv5swkch00k306l6ogjf4lcg, https://soundza.com/sound/plate-smash-24)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
+ },
+ "elite-kettle.mp3": {
+  "from": [
+   {
+    "role": "kettle-charge",
+    "soundza": "Tiny Rocket Whistle (cmvckp6o6um05i6035fm8mabm, https://soundza.com/sound/tiny-rocket-whistle)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-blast",
+    "soundza": "Pneumatic Air Release (cmukdhc0rs6b52otl8klnsill, https://soundza.com/sound/pneumatic-air-release)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.9 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-pop",
+    "soundza": "Metal Falling 3 (cmv5o3mqs02mx06l4snfeezy8, https://soundza.com/sound/metal-falling-3)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.3 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-drop",
+    "soundza": "Sizzling Metallic Impact (cmtkjnawimummnzeoarx4iiik, https://soundza.com/sound/sizzling-metallic-impact)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.7 s with an 80 ms fade, 96 kbps MP3"
+   },
+   {
+    "role": "kettle-down",
+    "soundza": "Metal Pot 3 (ahp6cy2kez2ok8avzlvzxp1n, https://soundza.com/sound/metal-pot-3)",
+    "date": "2026-11-19",
+    "edits": "mono 48 kHz, trimmed to its onset, cut to 0.8 s with an 80 ms fade, 96 kbps MP3"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): shipping inside the game and editing allowed, not for sharing on their own"
  }
 }

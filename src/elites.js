@@ -509,9 +509,9 @@ export const BALLOON_MID = 0.6;   // the middle of a balloon's body above its kn
 // recover times as fast, and each attack (telegraph, strike, follow-through) plays tempo
 // times as fast. Telegraphs stay readable: their `progress` still fills to the hit, just sooner.
 const KINDS = {
-  controller: { name: 'The Controller', scale: 1.5, build: controllerModel },
-  mug: { name: 'The Mug', build: mugModel },
-  kettle: { name: 'The Kettle', scale: 1.2, build: kettleModel },
+  controller: { name: 'The Controller', scale: 1.5, build: controllerModel, down: 'controllerDown' },
+  mug: { name: 'The Mug', build: mugModel, down: 'mugDown' },
+  kettle: { name: 'The Kettle', scale: 1.2, build: kettleModel, down: 'kettleDown' },
   soap: { name: 'The Soap Dispenser', scale: 1.3, build: soapModel },
   clock: { name: 'The Wall Clock', wall: true, build: clockModel },
   whipper: { name: 'The Cream Whipper', build: whipperModel },
@@ -539,6 +539,8 @@ const SOAP_COLUMN = { mid: 0.12, half: 0.09, r: 0.016, at: [SHOT_HEIGHT.floor, 0
 const CROC_TAIL_REST = [0.08, 0.04, 0.02], CROC_SLAM_WARN = 0.05;   // where a wreath that already hit you this way (out or back) looks for the jelly
 
 export const ELITE_NAMES = Object.fromEntries(Object.entries(KINDS).map(([k, K]) => [k, K.name]));
+// the sfx that plays when a kind is beaten: its own breaking sound (`down`), else run.js plays the plain boom
+export const ELITE_DOWN = Object.fromEntries(Object.entries(KINDS).filter(([, K]) => K.down).map(([k, K]) => [k, K.down]));
 
 // ------------------------------------------------------------------ one elite
 class Elite {
@@ -1486,7 +1488,7 @@ export class Elites {
             pulse.material.progress = 1;
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             for (const m of parts) { this.scene.remove(m); e.tele.splice(e.tele.indexOf(m), 1); }
-            sfx.controllerFire(); sfx.controllerContact(struck); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
+            sfx.controllerFire(); sfx.controllerContact(); if (struck) sfx.controllerHit(); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
             e.controllerKick = 1;
           }
           if (e.fired >= FLOOR_SHAPES.length) {

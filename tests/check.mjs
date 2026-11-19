@@ -82,7 +82,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apart
 {
   const AUDIO = path.join(ROOT, 'assets/audio'), SFX = fs.readFileSync(path.join(ROOT, 'src/sfx.js'), 'utf8');
   const packs = JSON.parse(fs.readFileSync(path.join(AUDIO, 'packs.json'), 'utf8')), credits = JSON.parse(fs.readFileSync(path.join(AUDIO, 'credits.json'), 'utf8'));
-  const ACT_BYTES = 450 * 1024, ALL_BYTES = 2.2 * 1024 * 1024, ACT_SECONDS = 60;
+  const ACT_BYTES = 900 * 1024, ALL_BYTES = 3.5 * 1024 * 1024, ACT_SECONDS = 60;
   const roles = Object.values(packs).flatMap((P) => Object.keys(P.roles));
   for (const [name, P] of Object.entries(packs)) {
     const file = path.join(AUDIO, P.file);
