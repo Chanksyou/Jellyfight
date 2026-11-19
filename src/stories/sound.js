@@ -57,6 +57,28 @@ story('sound/a-missing-pack-plays-the-synthesized-sound', {
   },
 });
 
+story('sound/wobbling-sounds-fade-out-without-a-pop', {
+  about: "The sounds with a wobble in their loudness (the Vacuum's suck and brushes, the millipede's rev, the dragonfly's charge hum) end in silence: the wobble fades with the sound instead of playing on after it and being cut off with a pop.",
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx(), R = 16000, tails = {};
+    for (const [name, play] of Object.entries({
+      vacSuction: (s) => s.vacSuction(1.5), vacBrushes: (s) => s.vacBrushes(1.2),
+      milliRev: (s) => s.milliRev(1), beamCharge: (s) => { s.beamCharge(1); },
+    })) {
+      const oc = new OfflineAudioContext(1, R * 2.5, R), { when } = S.preview(oc, oc.destination);
+      when(0.05); play(S.sfx);
+      const d = (await oc.startRendering()).getChannelData(0);
+      let peak = 0, end = 0;
+      for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); peak = Math.max(peak, a); if (a > 1e-5) end = i; }
+      let tail = 0;
+      for (let i = end - R * 0.003; i <= end; i++) tail = Math.max(tail, Math.abs(d[i]));
+      tails[name] = +(tail / peak).toFixed(4);   // the loudest of its last 3 ms, against its peak: a pop is a sound cut off loud
+    }
+    return ok(Object.values(tails).every((k) => k < 0.05), { tails });
+  },
+});
+
 story('sound/every-role-has-a-synthesized-sound', {
   about: 'Every recorded role in assets/audio/packs.json has a synthesized sound behind it: with no pack loaded, its cue (the sfx call that plays it) still makes sound.',
   setup() { setupFight(); },

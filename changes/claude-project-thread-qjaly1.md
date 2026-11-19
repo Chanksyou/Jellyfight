@@ -1,0 +1,1 @@
+stops the pop at the end of the Vacuum's suck: its breathing wobble (and the wobble in the Vacuum's brushes, the millipede's rev and the dragonfly's charge hum) now fades with the sound instead of playing on after it and being cut off, and a recorded hit that has to start part-way through fades in instead of clicking.
