@@ -1,1 +1,0 @@
-gives pickups and menus recorded sounds: the coin chime for XP (climbing with the chain) and Treasure, the chest creak and pop, the level-up chime, a shimmer for card reveals and awards, a till for buying, and soft taps for menus; they load as soon as sound is on, and the old synthesized sounds stay behind them.
