@@ -106,14 +106,14 @@ story('attacks/animation-never-moves-a-hit', {
 
 // ------------------------------------------------------------------ how an attack moves (src/attack-motion.js)
 // Bugs whose attack still moves the old way: wave 1 of the plan converts them, then this list is empty.
-const KNOWN_UNCONVERTED = ['ants', 'housefly', 'spider', 'ladybug', 'beetle', 'wasp', 'firefly'];
+const KNOWN_UNCONVERTED = ['housefly', 'wasp'];
 // Words that set a state but aren't an attack with a build-up: the worm bursting out of the mantis once
 const NOT_ATTACK_STATES = ['burst'];
 
 // One attack filmed frame by frame on the fixed seed of `attacks/animation-never-moves-a-hit` (stage above):
 // the clock and the body group's pose each frame, from before it begins until it is idle again (and `probe(e)`,
-// numbers read off the model each frame: a part the body group doesn't carry, like the worm's tip).
-function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = null, probe = null } = {}) {
+// numbers read off the model each frame: a part the body group doesn't carry, like the worm's tip; `read(e, body)`, one number).
+function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = null, probe = null, read = null } = {}) {
   // its hits land on the jelly (hurt), as in play, so a landed bite is told from a miss
   const was = LOOK.vars['bug-anim-far'];
   if (far) LOOK.vars['bug-anim-far'] = '-1';   // every bug counts as far: it animates on alternate frames
@@ -127,7 +127,7 @@ function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = 
       S.advance();
       const A = e.atk;
       frames.push({ frame: S.frame, phase: A.phase, k: A.k, pt: A.pt, hit: A.hit, seed: e.phase, still: A.still, n: A.n, vary: A.vary, side: A.side,
-        z: body.position.z, y: body.position.y, rx: body.rotation.x, rz: body.rotation.z, sz: body.scale.z,
+        z: body.position.z, y: body.position.y, rx: body.rotation.x, rz: body.rotation.z, sz: body.scale.z, sy: body.scale.y, left: A.len - A.st, x: read ? read(e, body) : 0,
         recolour: [...mats].some(([o, m]) => o.material !== m), other: other ? { n: other.atk.n, vary: other.atk.vary, side: other.atk.side, seed: other.phase } : null,
         p: probe ? probe(e) : [], at: [e.pos.x, e.pos.y, e.pos.z], key: A.key, from: e.emergeAt ? [e.emergeAt.x, e.emergeAt.y, e.emergeAt.z] : null,
         dir: (e.whipDir || e.swatDir) ? [(e.whipDir || e.swatDir).x, (e.whipDir || e.swatDir).z] : null, floor: e.whipFloor ?? e.pos.y });
@@ -200,9 +200,10 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 });
 
 // the bugs converted to an attack-motion, each filmed through one attack
-const CONVERTED = ['roach', 'mosquito', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind'];
+const THROWS = ['ants', 'spider', 'firefly', 'ladybug', 'beetle'];   // (the throw style: aimed Shots)
+const CONVERTED = ['roach', 'mosquito', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
     const out = {};
@@ -307,18 +308,22 @@ story('motion/recoil-ends-ready', {
 });
 
 story('motion/half-rate-shows-the-same-pose', {
-  about: 'A far Mosquito (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock.',
+  about: 'A far bug (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock. Proven on the Mosquito and the five throws.',
   setup() {},
   play() {
-    const N = film(), F = film('mosquito', { far: true });
-    let worst = 0, compared = 0;
-    for (let i = 0; i < Math.min(N.length, F.length); i++) {
-      const a = N[i], b = F[i];
-      if (a.phase === 'idle' || a.phase !== b.phase || !i || apart(b, F[i - 1]) === 0) continue;   // only frames the far one was drawn on
-      worst = Math.max(worst, Math.abs(a.z - b.z), Math.abs(a.sz - b.sz));
-      compared++;
+    const bugs = {};
+    for (const id of ['mosquito', ...THROWS]) {   // (each bug's own wave adds its case when its pose is only the clock's)
+      const N = film(id), F = film(id, { far: true });
+      let worst = 0, compared = 0;
+      for (let i = 0; i < Math.min(N.length, F.length); i++) {
+        const a = N[i], b = F[i];
+        if (a.phase === 'idle' || a.phase !== b.phase || !i || apart(b, F[i - 1]) === 0) continue;   // only frames the far one was drawn on
+        worst = Math.max(worst, Math.abs(a.z - b.z), Math.abs(a.sz - b.sz));
+        compared++;
+      }
+      bugs[id] = { compared, worst: +worst.toFixed(4) };
     }
-    return ok(compared > 10 && worst < 0.01, { compared, worst: +worst.toFixed(4) });
+    return ok(Object.values(bugs).every((b) => b.compared > 5 && b.worst < 0.01), bugs);
   },
 });
 
@@ -341,7 +346,7 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
 });
 
 story('motion/attacks-never-recolour-the-bug', {
-  about: 'No material on an attacking bug (each converted one: Cockroach, Mosquito, Spotted lanternfly, Moth, Cicada, Dragonfly) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
+  about: 'No material on an attacking bug (each converted one) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
   setup() {},
   play() {
     const out = {};
@@ -407,13 +412,12 @@ story('engine/attack-puffs-are-capped', {
 });
 
 story('engine/bug-attack-work-is-bounded', {
-  about: 'One bug\'s attack motion makes no more curve calls in a frame than the budget (WORK_BUDGET in src/attack-motion.js), counted through a whole bite.',
+  about: 'One bug\'s attack motion makes no more curve calls in a frame than the budget (WORK_BUDGET in src/attack-motion.js), counted through a whole attack of each converted bug.',
   setup() {},
   play() {
-    WORK.most = 0;
-    film();
-    const most = WORK.most;
-    return ok(most > 0 && most <= WORK_BUDGET, { most, budget: WORK_BUDGET });
+    const most = {};
+    for (const id of CONVERTED) { WORK.most = 0; film(id); most[id] = WORK.most; }
+    return ok(Object.values(most).every((m) => m > 0 && m <= WORK_BUDGET), { most, budget: WORK_BUDGET });
   },
 });
 
@@ -445,6 +449,96 @@ story('motion/multi-step-phases-run-on', {
   },
 });
 
+
+// ------------------------------------------------------------------ the throws (attack-motion "throw")
+// the channel each throw's body rocks along (the Firefly pitches, the others slide)
+const ROCK = { ants: 'z', spider: 'z', firefly: 'rx', ladybug: 'z', beetle: 'z' };
+
+story('motion/throws-recoil-by-weight', {
+  about: 'The Ant, House spider, Firefly and Ladybug rock back past neutral and settle after a throw; the Stag beetle, the heavy tier, is shoved back and eases home without ever springing forward.',
+  setup() {},
+  play() {
+    const bugs = {};
+    for (const id of THROWS) {
+      const F = film(id), idle = F.find((f) => f.phase === 'idle'), R = of(F, 'recoil'), ch = ROCK[id];
+      const d = R.map((f) => f[ch] - idle[ch]), first = d.find((v) => Math.abs(v) > 0.01) ?? 0;
+      const crossed = d.some((v) => v * Math.sign(first) < -0.01);
+      let eases = true;                                                // the heavy one: never farther from rest than a moment ago
+      for (let i = 1; i < d.length; i++) if (Math.abs(d[i]) > Math.abs(d[i - 1]) + 1e-4) eases = false;
+      bugs[id] = { crossed, eases, first: +first.toFixed(3) };
+    }
+    const light = THROWS.filter((id) => id !== 'beetle').every((id) => bugs[id].crossed && bugs[id].first !== 0);
+    return ok(light && !bugs.beetle.crossed && bugs.beetle.eases && Math.abs(bugs.beetle.first) > 0.05, bugs);
+  },
+});
+
+story('motion/ant-pin-leaves-on-the-throw-frame', {
+  about: 'The Ant\'s pin is full in its jaws through the build-up and gone on the very frame its throw begins (the spit word\'s firedT), as it always was.',
+  setup() {},
+  play() {
+    const F = film('ants', { read: (e, body) => body.getObjectByName('ant-pin').scale.x });
+    const at = F.findIndex((f) => f.phase === 'swing');
+    const before = F[at - 1], first = F[at];
+    return ok(at > 0 && before.phase === 'build' && before.x > 0.95 && first.x < 0.01, { before: before?.x, first: first?.x });
+  },
+});
+
+story('motion/throws-go-still-before-the-throw', {
+  about: 'For the last 0.1 s of a throw\'s build-up the Ant, House spider, Firefly, Ladybug and Stag beetle stop their bobbing, tremble and sway: no change in height or lean from frame to frame until it throws.',
+  setup() {},
+  play() {
+    const bugs = {};
+    for (const id of THROWS) {
+      const still = of(film(id), 'build').filter((f) => f.still);
+      let moved = 0;
+      for (let i = 1; i < still.length; i++) moved = Math.max(moved, Math.abs(still[i].rz - still[i - 1].rz), Math.abs(still[i].y - still[i - 1].y));
+      bugs[id] = { stillFrames: still.length, moved: +moved.toFixed(4) };
+    }
+    return ok(Object.values(bugs).every((b) => b.stillFrames >= 5 && b.stillFrames <= 7 && b.moved < 0.005), bugs);
+  },
+});
+
+story('motion/throws-hold-the-coil', {
+  about: 'Once the Ant and House spider have drawn back (a body slide), and the Ladybug and Stag beetle have braced or planted (a body drop), they stay there over the last fifth of the build-up; the Firefly winds its tail back a further 10 degrees in the last 0.1 s.',
+  setup() {},
+  play() {
+    const held = { ants: ['z', 0.1], spider: ['z', 0.08], ladybug: ['y', 0.06], beetle: ['y', 0.06] }, bugs = {};
+    for (const [id, [ch, reach]] of Object.entries(held)) {
+      const B = of(film(id), 'build'), end = B.at(-1), late = B.filter((f) => f.k >= 0.8);
+      const drift = Math.max(...late.map((f) => Math.abs(f[ch] - end[ch])));
+      bugs[id] = { reached: +Math.abs(end[ch]).toFixed(3), drift: +drift.toFixed(4), late: late.length };
+    }
+    const lit = of(film('firefly'), 'build'), early = lit.find((f) => f.k >= 0.7), last = lit.at(-1);
+    const windBack = last.rx - early.rx;
+    const good = Object.entries(held).every(([id, [, reach]]) => bugs[id].reached > reach && bugs[id].drift < 0.01 && bugs[id].late >= 3) && windBack > 0.08;
+    return ok(good, { ...bugs, firefly: { windBack: +windBack.toFixed(3) } });
+  },
+});
+
+story('motion/ladybug-lands-crouches-and-flares', {
+  about: 'A Ladybug touching down squashes (0.15) and springs back; its wing cases flare wider on the fire frame; and in the last 0.15 s of its rest it crouches before it takes off.',
+  setup() {},
+  play() {
+    const F = film('ladybug', { read: (e, body) => body.getObjectByName('elytron').rotation.z }), raise = F.filter((f) => f.key === 'raise'), rest = F.filter((f) => f.key === 'rest');
+    const squash = 1 - Math.min(...raise.map((f) => f.sy));
+    const springs = raise.at(-1).sy > 0.98;
+    const y0 = rest[0].y, crouch = y0 - Math.min(...rest.filter((f) => f.left < 0.15).map((f) => f.y));
+    const early = Math.max(...rest.filter((f) => f.left > 0.3).map((f) => Math.abs(f.y - y0)));
+    const swing = of(F, 'swing'), aim = F.filter((f) => f.key === 'aim').at(-1);
+    const flare = Math.abs(Math.max(...swing.map((f) => Math.abs(f.x)))) - Math.abs(aim.x);   // the cases swing wider once the missile goes
+    return ok(squash > 0.1 && springs && crouch > 0.06 && early < 0.02 && flare > 0.05, { squash: +squash.toFixed(3), springs, crouch: +crouch.toFixed(3), early: +early.toFixed(3), flare: +flare.toFixed(3) });
+  },
+});
+
+story('motion/beetle-plants-before-it-charges', {
+  about: 'A Stag beetle drops its body 0.08 r and splays its legs in the first fifth of a second of its charge, and stays planted through the shot, then stands back up smoothly as its recoil ends (no pop when the pose lets go).',
+  setup() {},
+  play() {
+    const F = film('beetle'), B = of(F, 'build'), R = of(F, 'recoil');
+    const at = B.find((f) => f.pt >= 0.2), drop = -at.y;
+    const planted = [...of(F, 'swing'), ...R.filter((f) => f.k < 0.2)].every((f) => f.y < -0.06);
+    const stands = Math.abs(R.at(-1).y) < 0.01 && R.every((f, i) => !i || f.y >= R[i - 1].y - 1e-6);   // and rises smoothly as it eases home
+    return ok(drop > 0.07 && planted && stands, { dropped: +drop.toFixed(3), planted, stands, lastY: +R.at(-1).y.toFixed(4) });
 // ------------------------------------------------------------------ B5: the Dragonfly, the Cockroach, the Wasp nest
 // The Dragonfly's tail and its right-hand wings, read off the model: the tail's angle up over its back, then for
 // each of the fore and hind wing on the right: its flap (its angle up off flat, 0.05) and sweep (forward, from

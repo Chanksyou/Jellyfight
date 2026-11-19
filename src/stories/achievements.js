@@ -2,7 +2,7 @@ import { ACHIEVEMENTS, ACHIEVEMENTS_KEY, newChallenges, awardAchievements, earne
 import { TREASURES } from '../stats.js';
 import { applyBalance } from '../balance-editor.js';
 import { Leaderboard } from '../leaderboard.js';
-import { G, fresh, ok, story, phone, act4, stub, V } from './kit.js';
+import { G, fresh, ok, story, phone, act4, night4, stub, V } from './kit.js';
 
 const passes = (id, s) => ACHIEVEMENTS.find(a => a.id === id).test(s);
 const protectEarned = fn => {
@@ -16,7 +16,7 @@ story('achievements/exact-requirements', {
   play() {
     const s = newChallenges(1), results = [];
     results.push(ACHIEVEMENTS.length === 13, passes('floor-dweller', s)); s.eliteKills++; results.push(!passes('floor-dweller', s));
-    for (const a of [1, 2, 3]) s.elites[a] = ['a', 'b', 'c']; results.push(passes('full-clearance', s)); s.elites[3].pop(); results.push(!passes('full-clearance', s));
+    for (const a of [1, 2, 3, 4]) s.elites[a] = ['a', 'b', 'c']; results.push(passes('full-clearance', s)); s.elites[4].pop(); results.push(!passes('full-clearance', s));
     results.push(passes('perfect-run', s)); s.hurt = true; results.push(!passes('perfect-run', s));
     s.perfect = [1]; results.push(passes('perfect-boss', s), !passes('perfect-pair', s)); s.perfect.push(2); results.push(passes('perfect-pair', s));
     results.push(passes('one-of-everything', s)); s.duplicate = true; results.push(!passes('one-of-everything', s));
@@ -328,5 +328,17 @@ story('achievements/taken-name-can-be-corrected', {
     } finally {
       if (before === null) localStorage.removeItem(ACHIEVEMENTS_KEY); else localStorage.setItem(ACHIEVEMENTS_KEY, before);
     }
+  },
+});
+
+night4('achievements-count-act-4-elites-and-carry-them-through-the-stage-door', {
+  about: 'An act 4 Elite beaten before time-up is noted under act 4, and the note travels with the run.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(); stub(run, 'dropTreasure', () => {}); stub(run, 'earn', () => {}); stub(run, 'found', () => {});
+    run.dev = true; run.t = 10;
+    run.eliteDefeated({ kind: 'bowl', name: 'bowl', spec: { kind: 'bowl', area: 'test' }, base: V(3.2, 0, 1), r: .04 });
+    const noted = (run.challenges.elites[4] || []).length === 1, carried = (run.carryOver().challenges.elites[4] || []).length === 1;
+    return ok(noted && carried, { noted, carried });
   },
 });

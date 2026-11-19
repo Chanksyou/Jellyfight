@@ -3,11 +3,11 @@
 export const ACHIEVEMENTS_KEY = 'jellyrun.achievements';
 const defense = s => (s.cards.health || 0) + (s.cards.regen || 0) + (s.cards.dodge || 0);
 const offense = s => (s.cards.bubbleDamage || 0) + (s.cards.fireRate || 0);
-const allRooms = (s, key, count) => [1, 2, 3].every(act => (s[key][act] || []).length === count);
+const allRooms = (s, key, count, acts = [1, 2, 3]) => acts.every(act => (s[key][act] || []).length === count);
 
 export const ACHIEVEMENTS = [
   { id: 'floor-dweller', name: 'Floor Dweller', text: 'Defeat no household Elites.', test: s => s.eliteKills === 0 },
-  { id: 'full-clearance', name: 'Full Clearance', text: 'Defeat all nine household Elites before their respective bosses arrive.', test: s => allRooms(s, 'elites', 3) },
+  { id: 'full-clearance', name: 'Full Clearance', text: 'Defeat all twelve household Elites before their act\'s boss arrives or its stage door opens.', test: s => allRooms(s, 'elites', 3, [1, 2, 3, 4]) },
   { id: 'perfect-run', name: 'The Perfect Run', text: 'Complete the entire game without losing Health at any point. Shields and Dodge are allowed.', test: s => !s.hurt },
   { id: 'perfect-boss', name: 'Perfect Boss', text: 'Defeat one boss without losing Health during its fight.', test: s => s.perfect.length >= 1 },
   { id: 'perfect-pair', name: 'Perfect Pair', text: 'Defeat two bosses without losing Health during their fights.', test: s => s.perfect.length >= 2 },
