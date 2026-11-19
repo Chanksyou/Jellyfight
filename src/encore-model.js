@@ -293,9 +293,11 @@ export function buildEncoreBoss(){
     dance(who,beat){const d=rigOf(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
     // perform(who, move, beat0, dir = 1, sustain): play a move (MOVES) so its accent lands on beat0, over
     // the dance; dir -1 mirrors its turns (a sweep the other way); sustain (beats) overrides how long the
-    // accent holds (a bow). perform(who, null) eases back. The pose is a function of the beat (update).
+    // accent holds (a bow). perform(who, null) eases back. The pose is a function of the beat (update);
+    // asking for the same move on the same beat again changes nothing, and a song rewind drops it.
     perform(who,move,beat0,dir=1,sustain){
-      const r=rigOf(who);if(!r||(move!==null&&(!MOVE[move]||!Number.isFinite(beat0))))return false;
+      const r=rigOf(who);if(!r||(move!==null&&(!MOVES.includes(move)||!Number.isFinite(beat0))))return false;
+      if(move&&r.move===MOVE[move]&&r.at===beat0)return true;   // asked again (each frame): it plays on
       r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;return true;
     },
     // each frame; beat: the song's (null: no move plays, each eases back)
@@ -303,13 +305,14 @@ export function buildEncoreBoss(){
       for(const r of rigs){
         const {side,head,torso,outer,inner,now}=r;
         let w=0;
+        if(r.move&&beat!==null&&r.fadeAt!==null&&beat<r.fadeAt)r.move=null;   // the song rewound: the move is gone
         if(r.move&&beat!==null){
           w=shape(r.move,beat-r.at,quiet,r.dir,r.sustain,now);
           if(r.fadeAt===null)r.fadeAt=beat;
           const f=Math.min(1,Math.max(0,(beat-r.fadeAt)/K.blend));   // from whatever it was doing
           if(f<1){for(let i=0;i<J;i++)now[i]=r.was[i]+(now[i]-r.was[i])*f;w=r.from+(w-r.from)*f;}
           if(beat-r.at>=r.sustain+r.move.release)r.move=null;
-        }else{const e=Math.max(0,1-dt*8);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;}
+        }else{const e=Math.max(0,1-dt*8);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;r.was.set(now);r.from=w;}
         r.w=w;
         r.raise+=((r.beat===null?0:1)-r.raise)*Math.min(1,dt*8);
         const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2);

@@ -634,17 +634,18 @@ story('encore/dj-rig-rest-pose-and-draws-unchanged', {
 });
 
 story('encore/dj-rig-every-move-lands-its-accent-on-its-beat', {
-  about: 'Each DJ move (four wave gestures, record throw, fader crank, hands up, fist pump, flinch, bow) asked for on beat 8 swings furthest at beat 8, within a frame, at 30 and at 60 fps, for either DJ; it moves his torso, helmet or arms on the way, and he is back at rest when it ends.',
+  about: 'Each DJ move (four wave gestures, record throw, fader crank, hands up, fist pump, flinch, bow) asked for on beat 8 (asked again every frame, too) swings furthest at beat 8, within a frame, at 30 and at 60 fps, for each DJ; it moves his torso, helmet or arms on the way, and he is back at rest when it ends.',
   setup() {},
   play() {
     const defs = moveDefs(), out = {};
-    for (const fps of [30, 60]) for (const [n, move] of MOVES.entries()) {
-      const boss = buildEncoreBoss(), who = n % 2 ? 'gold' : 'silver', r = boss.rigs[who], m = defs[move], db = rigBeat(fps);
+    for (const fps of [30, 60]) for (const who of ['silver', 'gold']) for (const move of MOVES) {
+      const boss = buildEncoreBoss(), r = boss.rigs[who], m = defs[move], db = rigBeat(fps);
       try {
         boss.perform(who, move, 8);
         let best = -Infinity, bestAt = null, moved = 0;
         const end = 8 + m.sustain + m.release;
         for (let b = 8 - m.lead - 1; b <= end + 1; b += db) {
+          boss.perform(who, move, 8);   // asked every frame: it plays on
           boss.update(1 / fps, false, b);
           const p = along(m, r.now);
           if (p > best) { best = p; bestAt = b; }
@@ -652,11 +653,11 @@ story('encore/dj-rig-every-move-lands-its-accent-on-its-beat', {
         }
         boss.update(1 / fps, true, end + 2);
         const back = Array.from(r.now).every((v) => Math.abs(v) < 1e-6) && r.torso.rotation.x === 0 && r.outer.rotation.x === 0 && r.inner.rotation.x === 0;
-        out[`${move}@${fps}`] = { ok: Math.abs(bestAt - 8) <= db + 1e-9 && moved > 0.1 && back, at: +bestAt.toFixed(3), moved: +moved.toFixed(2), back };
+        out[`${who}-${move}@${fps}`] = { ok: Math.abs(bestAt - 8) <= db + 1e-9 && moved > 0.1 && back, at: +bestAt.toFixed(3), moved: +moved.toFixed(2), back };
       } finally { boss.dispose(); }
     }
     const bad = Object.fromEntries(Object.entries(out).filter(([, v]) => !v.ok));
-    return ok(Object.keys(out).length === MOVES.length * 2 && !Object.keys(bad).length, { bad, n: Object.keys(out).length });
+    return ok(Object.keys(out).length === MOVES.length * 4 && !Object.keys(bad).length, { bad, n: Object.keys(out).length });
   },
 });
 
@@ -709,6 +710,24 @@ story('encore/dj-rig-a-move-takes-over-from-the-arm-pump-and-gives-it-back', {
       }
       const pumping = after.w === 0 && after.x < -1.2;
       return ok(jump < 0.25 && during < -2 && pumping, { jump: +jump.toFixed(3), during, after });
+    } finally { boss.dispose(); }
+  },
+});
+
+story('encore/dj-rig-a-song-rewind-drops-a-move', {
+  about: 'If the song rewinds while a DJ is mid-move, the move is dropped: he eases back to rest instead of freezing, and does not play the old gesture when the beat comes round again.',
+  setup() {},
+  play() {
+    const boss = buildEncoreBoss(), r = boss.rigs.silver, db = rigBeat(60);
+    try {
+      boss.perform('silver', 'hands-up', 20);
+      for (let b = 18; b < 19.8; b += db) boss.update(1 / 60, true, b);
+      const mid = r.outer.rotation.x;
+      for (let b = 0; b < 2; b += db) boss.update(1 / 60, true, b);
+      const eased = Math.abs(r.outer.rotation.x) < 1e-3;
+      let replayed = 0;
+      for (let b = 2; b < 23; b += db) { boss.update(1 / 60, true, b); replayed = Math.max(replayed, Math.abs(r.outer.rotation.x)); }
+      return ok(mid < -0.3 && eased && replayed < 1e-3 && !r.move, { mid, eased, replayed });
     } finally { boss.dispose(); }
   },
 });
