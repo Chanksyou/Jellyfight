@@ -134,13 +134,15 @@ export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false,
   if (voices >= VOICES - (urgent ? 0 : URGENT) - (soft ? 2 : 0) || (max && (live[role] ?? 0) >= max)) return skip;
   const list = r.takes, take = list[(turn[role] = ((turn[role] ?? Math.floor(rng() * list.length)) + 1) % list.length)];
   const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * (steady ? 1 : 1 + (rng() - 0.5) * 0.08);
-  let t = now(), from = take.start, len = take.length;
+  let t = now(), from = take.start, len = take.length, cut = false;
   if (peakAt !== null) {
     t = peakAt - take.peak / speed;
-    if (t < now()) { const late = Math.min(len, (now() - t) * speed); from += late; len -= late; t = now(); }
+    if (t < now()) { const late = Math.min(len, (now() - t) * speed); from += late; len -= late; t = now(); cut = true; }
   }
   src.buffer = take.buf; src.playbackRate.value = speed;
-  g.gain.value = vol * r.vol * loud;
+  const level = vol * r.vol * loud;
+  if (cut) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.004); }   // joined part-way through: fade in, so it doesn't start with a click
+  else g.gain.value = level;
   src.connect(g).connect(sfxBus);
   src.start(t, from, len);
   voices++; live[role] = (live[role] ?? 0) + 1;
@@ -353,6 +355,16 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 // debris: `n` tiny ticks scattered from `from` s to `from + spread` s (bits and drops pattering down)
 function patter(n, from, spread, vol = 0.04) {
   for (let k = 0; k < n; k++) noise(3000 + Math.random() * 3500, 3, 0.015, vol * (1 - k * 0.15), 'bandpass', from + Math.random() * spread);
+}
+
+// a wobble in a sound's loudness: a gain of 1 ± depth at `rate` Hz, from t to end, placed after the
+// sound's own envelope so it multiplies it. Added to the envelope's gain instead, the wobble swung the
+// sound through silence as it swelled in and kept it sounding after its fade, cut off with a pop.
+function tremolo(t, end, rate, depth) {
+  const lfo = ctx.createOscillator(), amt = ctx.createGain(), out = ctx.createGain();
+  lfo.frequency.setValueAtTime(rate, t); amt.gain.value = depth;
+  lfo.connect(amt).connect(out.gain); lfo.start(t); lfo.stop(end);
+  return { out, lfo };
 }
 
 export const sfx = {
@@ -1062,12 +1074,11 @@ export const sfx = {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.2);
     src.connect(f).connect(g).connect(sfxBus);
     src.start(t); src.stop(t + dur + 0.25); lfo.start(t); lfo.stop(t + dur + 0.25);
-    const sub = ctx.createOscillator(), sg = ctx.createGain(), sl = ctx.createOscillator(), slg = ctx.createGain();
+    const sub = ctx.createOscillator(), sg = ctx.createGain(), breath = tremolo(t, t + dur + 0.25, 3.5, 0.55);
     sub.frequency.setValueAtTime(55, t); sub.frequency.exponentialRampToValueAtTime(38, t + dur);
-    sl.frequency.value = 3.5; slg.gain.value = 0.12; sl.connect(slg).connect(sg.gain);
     sg.gain.setValueAtTime(0.0001, t); sg.gain.linearRampToValueAtTime(0.22, t + 0.6); sg.gain.setValueAtTime(0.22, t + dur - 0.3); sg.gain.linearRampToValueAtTime(0, t + dur + 0.2);
-    sub.connect(sg).connect(sfxBus);
-    sub.start(t); sub.stop(t + dur + 0.25); sl.start(t); sl.stop(t + dur + 0.25);
+    sub.connect(sg).connect(breath.out).connect(sfxBus);
+    sub.start(t); sub.stop(t + dur + 0.25);
     tone('sawtooth', 180 * j, 720 * j, dur, 0.035);
   },
   // something caught in its mouth: a grinding crunch and grit rattling round the intake
@@ -1080,12 +1091,11 @@ export const sfx = {
   // the side brushes whirring up (a rising, fluttering whine), and each sweep (a swish and a thump)
   vacBrushes(dur) {
     if (!ready()) return;
-    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), trem = ctx.createOscillator(), tg = ctx.createGain();
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), flutter = tremolo(t, t + dur + 0.05, 32, 0.83);
     o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(1400, t + dur * 0.6);
-    trem.frequency.value = 32; tg.gain.value = 0.05; trem.connect(tg).connect(g.gain);
     g.gain.setValueAtTime(0.06, t); g.gain.setValueAtTime(0.06, t + dur - 0.1); g.gain.linearRampToValueAtTime(0, t + dur);
-    o.connect(g).connect(sfxBus);
-    o.start(t); o.stop(t + dur + 0.05); trem.start(t); trem.stop(t + dur + 0.05);
+    o.connect(g).connect(flutter.out).connect(sfxBus);
+    o.start(t); o.stop(t + dur + 0.05);
   },
   vacSweep() {
     if (!ready() || !gap('vacSweep', 120)) return;
@@ -1216,12 +1226,12 @@ export const sfx = {
   },
   milliRev(dur) {
     if (!ready()) return;
-    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), trem = ctx.createOscillator(), tg = ctx.createGain();
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), rev = tremolo(t, t + dur + 0.1, 8, 0.6);
     o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(420, t + dur);
-    trem.frequency.setValueAtTime(8, t); trem.frequency.exponentialRampToValueAtTime(40, t + dur); tg.gain.value = 0.03; trem.connect(tg).connect(g.gain);
+    rev.lfo.frequency.exponentialRampToValueAtTime(40, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
-    o.connect(g).connect(sfxBus);
-    o.start(t); o.stop(t + dur + 0.1); trem.start(t); trem.stop(t + dur + 0.1);
+    o.connect(g).connect(rev.out).connect(sfxBus);
+    o.start(t); o.stop(t + dur + 0.1);
   },
   milliRoll(dur) {
     if (!ready()) return;
@@ -1250,12 +1260,11 @@ export const sfx = {
       o.frequency.setValueAtTime(f0 * k, t); o.frequency.exponentialRampToValueAtTime(f1 * k, t + dur);
       o.connect(og).connect(lp); o.start(t); o.stop(t + dur + 0.05); oscs.push(o);
     }
-    const trem = ctx.createOscillator(), tg = ctx.createGain();            // a flutter that speeds up
-    trem.frequency.setValueAtTime(5, t); trem.frequency.exponentialRampToValueAtTime(22, t + dur);
-    tg.gain.value = peak * 0.15; trem.connect(tg).connect(g.gain); trem.start(t); trem.stop(t + dur + 0.05); oscs.push(trem);
+    const flutter = tremolo(t, t + dur + 0.05, 5, 0.3);                     // a flutter that speeds up
+    flutter.lfo.frequency.exponentialRampToValueAtTime(22, t + dur); oscs.push(flutter.lfo);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * 0.3, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(peak, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
-    lp.connect(g).connect(sfxBus);
+    lp.connect(g).connect(flutter.out).connect(sfxBus);
     const voice = { until: t + dur + 0.05 };
     beamVoices.add(voice);
     return () => { beamVoices.delete(voice); const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
