@@ -7,6 +7,7 @@ import { UnderwaterBackdrop } from './main-menu.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { freezeBell } from './bell-flex.js';
+import { freezeArm } from './arms.js';
 import { sfx } from './sfx.js';
 import { esc } from './leaderboard.js';
 import { icon } from './icons.js';
@@ -45,7 +46,7 @@ export class Victory {
     source.traverse((o) => live.push(o)); clone.traverse((o) => copied.push(o));
     copied.forEach((o, i) => {
       o.layers.set(30);
-      if (o.isMesh && !Array.isArray(o.material)) o.material = freezeBell(live[i].material);   // the bell's riders are frozen: so is its bend
+      if (o.isMesh && !Array.isArray(o.material)) o.material = freezeArm(freezeBell(live[i].material));   // the bell's riders are frozen: so are its bend and the arms'
     });
     return clone;
   }
