@@ -279,10 +279,16 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   See [the model and fight notes](docs/shark-boss.md).
 - **Act 4: the Encore.**
   Beat the shark and the run comes back to the living room at dawn, 6 am to 8 am, entering from the hallway door (3:00 this time).
-  Act 3's bugs stand in for now, and three chests turn up in the night.
+  **Fireflies** (from the start), **moths** (from 0:45) and **cicadas** (from 1:30) are its bugs, and three chests turn up in the night.
+  A firefly flies a little off the floor, blinks its lamp on every beat, and on a bar lobs a slow blob of glow at where you are: it lands as a glowing pool that drains your Health for 10 s, and pools from several fireflies add up.
+  A moth flutters round you, climbs over you while a circle fills and drops straight down it, leaving a puff of black smoke that hides what's behind it for about a second.
+  A cicada trudges after you, then on a bar digs under the floor: a mound trails you, locks, and bursts up under the circle that fills there, tossing you; it stands dazed afterwards, which is when to hit it.
+  Three Elites guard the furniture: **The Singing Bowl** on the lounge chair (rolling ring walls to jump, and a hum that fills the whole cushion but a safe circle by the bowl), **The Mushroom Pillow** on the sofa (drifting spores that burst as columns, and a ring of caps to stand still inside) and **The Headphones** on the kitchen counter (sound waves that shove you, and bursts that light one half of the counter at a time).
+  All three keep the song's time, so each hit lands on the beat.
   The sun comes up through the night: its line creeps from the window wall to 3.3 m in over the 3 minutes, and standing on its side of it, on the floor or any furniture, costs 3 Health a second while the jelly dries out (bugs don't mind it; chests never turn up where it will reach before they fade; `sun` in `src/stage4.js`, `src/sunrise.js`).
   When time runs out no boss comes: the stage door opens on the media console, and landing there takes the run through to the concert arena for **The Encore**, carrying its Health, level, Treasures and kills.
   The act is two scenes of one act (`src/stage4.js`: the room's `stageDoor` leads to `ENCORE`, the arena), loaded by the same reload as an act change.
+  Every 16 bars of the song the Soundbar sends a **bass wave** from the TV wall to the window wall: a low wave that hurts anything of the jelly under its top, so jump it (`bass` in `src/stage4.js`, `src/bass-wave.js`).
 
 **Music:** an adaptive soundtrack synthesized in the browser (`src/music.js`), in the spirit of Risk of Rain 2.
 Exploring plays "Puddle Drift", inspired by Daft Punk's Tron: Legacy score: dark string pads, then a pulsing sequenced analog bass that carries the song, a slow arpeggio, deep half-time drums and toms, and a low brass lead as more bugs close in and the night gets later, with no bright highs to distract; the Vacuum fight plays "Domestic Machinery", after deadmau5's "HR 8938 Cephei" but dubbier: pumping supersaw chords, a wobbling reese bass that speeds up as the Vacuum weakens, risers into every phrase, and a supersaw lead once it's below about 60% health; its suction drags the whole mix through a dub filter.
