@@ -46,9 +46,35 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
       rooted: words.some((w) => w.rooted),   // never moved by anything (rooted, hangs)
       rollDmg: words.find((w) => w.rollDmg != null)?.rollDmg ?? null,
       vocabulary: n.children.map((w) => w.name),
+      attack: attackPhases(n.children),
+      attackMotion: words.find((w) => w.attackMotion)?.attackMotion || null,   // src/attack-motion.js
     };
+    if (out[id].attackMotion && !out[id].attack) throw new Error(`${where}: "${id}" has attack-motion but no attack word that names its phases`);
   }
   return out;
+}
+
+// What its attack words' states are (build, swing, fire, recoil: words.js `phases`), for src/attack-motion.js:
+// one map for the bug, with each word's lock points, spans (a step with no clock) and timers worked out
+function attackPhases(children) {
+  const A = { phases: {}, lock: {}, span: {}, timer: {}, more: {}, shot: false };
+  let any = false;
+  for (const w of children) {
+    const def = ENEMY_WORDS[w.name];
+    if (!def.phases) continue;
+    any = true;
+    const p = { ...def.props, ...w.props }, val = (v) => (typeof v === 'function' ? v(p) : v);
+    if (def.phases === 'shot') A.shot = true;
+    else {
+      Object.assign(A.phases, def.phases);
+      const steps = Object.entries(def.phases);   // a step another of its phase follows (a fire step's recoil runs on into a recoil)
+      steps.forEach(([k, v], i) => { const next = steps[i + 1]?.[1]; if (next && (next === v || (v === 'fire' && next === 'recoil'))) A.more[k] = true; });
+    }
+    for (const [k, v] of Object.entries(def.lock || {})) A.lock[k] = val(v);
+    for (const [k, v] of Object.entries(def.span || {})) A.span[k] = val(v);
+    Object.assign(A.timer, def.timer || {});
+  }
+  return any ? A : null;
 }
 
 // spawning { rate … cap … toughen … }  and  bug "id" weight= from= act=

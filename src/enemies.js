@@ -14,6 +14,7 @@ import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
 import { GlowPools } from './glow-pools.js';
+import { attackClock, beginFrame, newAttack, WORK } from './attack-motion.js';
 
 // what each type bursts into when it dies
 const GUTS_BUILTIN = {
@@ -375,6 +376,7 @@ export class Enemies {
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
       slowT: 0, pop: 0, spawnT: 0, phase: Math.random() * 10, baseScale: mesh.scale.x,
       ballR: ballRadius ? ballRadius * T.r : 0,   // a millipede's rolling ball (meters)
+      atk: T.attackMotion && anim ? newAttack(T) : null,   // its attack's build-up, swing and recoil (attack-motion.js)
     };
     mesh.scale.setScalar(0.001); // grows in
     face.scale.setScalar(0.001);
@@ -623,6 +625,7 @@ export class Enemies {
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
+    if (e.atk?.phase === 'swing') e.atk.hit = true;   // its swing landed: the contact pose holds (a Shot landing later, or a touch while it rests, doesn't)
     if (contact) {
       const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
       this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);
@@ -1527,6 +1530,8 @@ export class Enemies {
     const locks = this.mods?.groundLock || [];
     const cam = this.fx?.camera, view = S.view, animFar = LOOK.num('bug-anim-far', 1.5);
     if (cam) view.setFromProjectionMatrix(S.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    beginFrame();
+    const calm = juice.calm || !!this.fx?.reducedMotion?.matches;
     for (const e of list) {
       if (e.dead || e.proxy) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
@@ -1590,7 +1595,7 @@ export class Enemies {
         }
       }
       let sc = e.baseScale * e.spawnT * (1 + e.pop * 0.35);
-      if (e.state === 'windup') sc *= 1 + Math.sin(t * 60) * 0.08;
+      if (e.state === 'windup' && !e.atk) sc *= 1 + Math.sin(t * 60) * 0.08;   // (a bug with an attack-motion shows its build-up in its pose)
       if (e.beatPulse > 0) sc *= 1 + LOOK.num('bug-beat-pulse', 0.12) * e.beatPulse * e.beatPulse;   // on-beat: a pump on every beat
       e.mesh.scale.setScalar(sc);
       e.face.scale.setScalar(sc);
@@ -1608,7 +1613,10 @@ export class Enemies {
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
         e.animDt = (e.animDt || 0) + dt;
         const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
+        const w0 = WORK.n;
+        if (e.atk) attackClock(e, slow > 0 ? dt : 0, unseen ? null : this.fx, calm);   // every frame: its pose is a function of this clock
         if (!unseen || (this.frame + e.id) % 2 === 0) { e.anim(e.animDt, e); e.animDt = 0; }
+        if (WORK.n - w0 > WORK.most) WORK.most = WORK.n - w0;
       }
       else if (e.T.fly) e.mesh.rotation.x += dt * 2;
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;

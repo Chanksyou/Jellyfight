@@ -41,7 +41,7 @@ try {
       const name = `${id}-${miss ? 'miss' : 'hit'}`;
       // pass 1 finds the frames (the attack's start and its hit test); pass 2 replays it exactly and films
       const span = await page.evaluate(async ({ id, miss, dt }) => {
-        const M = await import('/src/stories/bug-attack-motion.js'), S = M.stage(M.ATTACKS.find((a) => a.id === id), { miss, dt });
+        const M = await import('/src/stories/bug-attack-motion.js'), S = M.stage(M.ATTACKS.find((a) => a.id === id), { miss, dt, hurt: true });
         try { while (S.frame < M.MAX_FRAMES * 2 && !S.found) S.advance(); return { begun: S.begun, hit: S.begun + (S.found?.frames ?? 0), ok: !!S.found }; } finally { S.done(); }
       }, { id, miss, dt });
       if (!span.ok) { console.log(`${size.name} ${name}: no hit test seen, skipped`); continue; }
@@ -50,7 +50,7 @@ try {
       for (const d of Object.values(dirs)) { fs.rmSync(d, { recursive: true, force: true }); fs.mkdirSync(d, { recursive: true }); }
       await page.evaluate(async ({ id, miss, dt }) => {
         const M = await import('/src/stories/bug-attack-motion.js');
-        window.__bug = M.stage(M.ATTACKS.find((a) => a.id === id), { miss, dt });
+        window.__bug = M.stage(M.ATTACKS.find((a) => a.id === id), { miss, dt, hurt: true });
       }, { id, miss, dt });
       const times = [], { w, h } = size.crop, vp = size.opts.viewport;
       for (let f = 0; f <= last; f++) {
