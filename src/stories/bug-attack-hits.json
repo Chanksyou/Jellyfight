@@ -1,0 +1,196 @@
+{
+ "roach": {
+  "frames": 24,
+  "pos": [
+   3261,
+   0,
+   3000
+  ],
+  "yaw": -1570,
+  "aim": null
+ },
+ "ants": {
+  "frames": 42,
+  "pos": [
+   3500,
+   0,
+   3000
+  ],
+  "yaw": -1571,
+  "aim": [
+   -300,
+   45,
+   0
+  ]
+ },
+ "mosquito": {
+  "frames": 25,
+  "pos": [
+   3208,
+   74,
+   2970
+  ],
+  "yaw": -265,
+  "aim": null
+ },
+ "lanternfly": {
+  "frames": 94,
+  "pos": [
+   3200,
+   0,
+   3000
+  ],
+  "yaw": -1571,
+  "aim": null
+ },
+ "housefly": {
+  "frames": 24,
+  "pos": [
+   3254,
+   52,
+   2999
+  ],
+  "yaw": -1557,
+  "aim": [
+   -74,
+   -10,
+   1
+  ]
+ },
+ "spider": {
+  "frames": 42,
+  "pos": [
+   3700,
+   0,
+   3000
+  ],
+  "yaw": -1571,
+  "aim": [
+   -500,
+   45,
+   0
+  ]
+ },
+ "millipede": {
+  "frames": 119,
+  "pos": [
+   3013,
+   0,
+   2896
+  ],
+  "yaw": 1065,
+  "aim": null
+ },
+ "ladybug": {
+  "frames": 36,
+  "pos": [
+   3495,
+   45,
+   3189
+  ],
+  "yaw": 4143,
+  "aim": null
+ },
+ "dragonfly-beam": {
+  "frames": 31,
+  "pos": [
+   3363,
+   62,
+   3078
+  ],
+  "yaw": -2014,
+  "aim": null
+ },
+ "dragonfly-whirlwind": {
+  "frames": 42,
+  "pos": [
+   3113,
+   123,
+   3180
+  ],
+  "yaw": 2694,
+  "aim": [
+   87,
+   -78,
+   -180
+  ]
+ },
+ "mantis": {
+  "frames": 19,
+  "pos": [
+   3197,
+   0,
+   3000
+  ],
+  "yaw": 1571,
+  "aim": null
+ },
+ "worm": {
+  "frames": 50,
+  "pos": [
+   3450,
+   0,
+   3000
+  ],
+  "yaw": 0,
+  "aim": null
+ },
+ "beetle": {
+  "frames": 121,
+  "pos": [
+   3453,
+   0,
+   3000
+  ],
+  "yaw": -1571,
+  "aim": [
+   -253,
+   45,
+   0
+  ]
+ },
+ "wasp": {
+  "frames": 36,
+  "pos": [
+   3247,
+   62,
+   2992
+  ],
+  "yaw": -1394,
+  "aim": null
+ },
+ "moth": {
+  "frames": 70,
+  "pos": [
+   3199,
+   45,
+   3000
+  ],
+  "yaw": 1652,
+  "aim": null
+ },
+ "firefly": {
+  "frames": 28,
+  "pos": [
+   3488,
+   120,
+   2999
+  ],
+  "yaw": -4696,
+  "aim": [
+   -288,
+   -120,
+   1
+  ]
+ },
+ "cicada": {
+  "frames": 244,
+  "pos": [
+   3200,
+   0,
+   3000
+  ],
+  "yaw": -1571,
+  "aim": null
+ }
+}
