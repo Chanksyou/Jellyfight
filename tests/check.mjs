@@ -50,6 +50,28 @@ const elitesOwn = new Set(ELITES4.flatMap((e) => [e.hide, ...(e.clears || [])]).
 const stray = ACT4_OWN.filter((k) => !k.startsWith('vent:') && !elitesOwn.has(k));
 if (stray.length) { bad++; console.log(`✗ act 4's layout must match act 1's, but layout-baked.js act 4 sets ${stray.join(', ')}: bake that change into act 1 instead (act 4 follows it)`); }
 if (Object.keys(BAKED_LAYOUT[1]).some((k) => !(k in BAKED_LAYOUT[4])) || JSON.stringify(HIDDEN_SHELL[1]) !== JSON.stringify(HIDDEN_SHELL[4])) { bad++; console.log('✗ act 4 no longer takes act 1\'s layout: keep BAKED_LAYOUT[4] = { ...BAKED_LAYOUT[1], ...act 4\'s own } and the same HIDDEN_SHELL'); }
+// A bug's `anim` runs every frame for every bug in view (phones included): no allocation, no unseeded
+// randomness and no wall clock inside it, so a pose is a function of the bug's own clock and a bug updated
+// every other frame (enemies.js) shows the same pose. Builders listed in KNOWN are on the way out.
+const KNOWN_ANIM = { cicada: ['performance.now'] };   // the attack-animation task for the Cicada removes it, then empties this
+for (const file of ['src/critters.js', 'src/attack-motion.js']) {
+  const full = path.join(ROOT, file);
+  if (!fs.existsSync(full)) continue;
+  const src = fs.readFileSync(full, 'utf8').split('\n'), seen = new Set();
+  let builder = '', from = -1;
+  src.forEach((line, i) => {
+    const fn = /^(?:export )?function (\w+)/.exec(line);
+    if (fn) builder = fn[1].replace(/^build/, '').toLowerCase();
+    if (/^  (?:const anim = \(|anim\.reset)/.test(line)) from = /const anim/.test(line) ? i : -1;
+    else if (from >= 0) {
+      const code = line.replace(/\/\/.*$/, '').replace(/\|\|= new /g, '');   // `x ||= new` allocates once, the first frame (the Worm's and Nest's emergeAt)
+      for (const [what, re] of [['new', /\bnew\s/], ['Math.random', /Math\.random/], ['performance.now', /performance\.now/]]) {
+        const key = `${builder}:${what}`;
+        if (re.test(code) && !(KNOWN_ANIM[builder] || []).includes(what) && !seen.has(key)) { seen.add(key); bad++; console.log(`✗ ${file}:${i + 1} the ${builder} anim uses ${what}: poses must be a function of the bug's clock, with no allocation or unseeded randomness (tests/check.mjs KNOWN_ANIM lists the bugs not converted yet)`); }
+      }
+    }
+  });
+}
 for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apartment-act\d+|props)\.glb$/.test(f))) {
   const glb = path.join(ROOT, 'assets', f);
   if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs, or tools/props.mjs for props.glb`); }

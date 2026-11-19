@@ -20,6 +20,7 @@ import './stories/achievements.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/bug-collision.js';
+import './stories/bug-attack-motion.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
 import './stories/type-words.js';
