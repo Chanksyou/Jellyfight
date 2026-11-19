@@ -34,6 +34,7 @@ enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
 // ring marks where it will land), springs high with its red wings flashing and slams down.
 enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.045 dmg=2 xp=4 model="lanternfly" {
     death-motion "flutter"
+    attack-motion "pounce" tier="mid"
     chase 0.2
     leap range=0.6 windup=0.55 height=0.3 time=1 radius=0.2 dmg=5 rest=1 every=2.5
 }
@@ -96,6 +97,7 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 // a puff of black smoke that hides what's behind it for about a second.
 enemy "moth" name="Moth" hp=110 r=0.045 dmg=1 xp=9 model="moth" {
     death-motion "flutter"
+    attack-motion "pounce" tier="mid"
     hover 0.25 above=0.14 speed=0.5 circle=1.8
     plunge range=0.45 every=2.5 windup=1 lock=0.35 height=0.3 speed=1.6 radius=0.08 dmg=3 rest=0.9
 }
@@ -153,6 +155,7 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 // or jump clear of the dome. Then it stands dazed for a moment: that's when to hit it.
 enemy "cicada" name="Cicada" hp=190 r=0.058 dmg=1 xp=12 model="cicada" {
     death-motion "flutter"
+    attack-motion "pounce" tier="heavy"
     chase 0.13
     on-beat every=4
     burrow range=0.55 every=6 dig=0.45 follow=4 warn=2 speed=0.22 radius=0.1 dmg=4 knock=0.5 launch=0.5 daze=1.6
