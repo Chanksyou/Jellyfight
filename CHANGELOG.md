@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v520 the jelly's tentacle roots now hang from the bell's flexing rim (also while lashing) and ride it in and down on each stroke, so they pull in a little further and open a little wider than before; its fringe streams out behind the rim's lag, and the victory and death copies keep the bell's bend they were made with.
+
 v519 makes act 4's sunlight smooth: the room's own shaders light it, so it follows the sofa's curves without stair-steps, warms each surface's own colour, and lights the sides facing the window (one draw fewer).
 
 v518 gives Act 4's living room exactly Act 1's furniture layout, plants and things on the shelves and tables included; only the three Elites' own furniture and Act 4's vents differ, and from now on any layout change made in Act 1 shows up in Act 4 too.

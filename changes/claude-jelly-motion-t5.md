@@ -1,1 +1,0 @@
-the jelly's tentacle roots now hang from the bell's flexing rim (also while lashing) and ride it in and down on each stroke, so they pull in a little further and open a little wider than before; its fringe streams out behind the rim's lag, and the victory and death copies keep the bell's bend they were made with.
