@@ -15,6 +15,7 @@ import { EncorePulses, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
 import { buildEncoreBoss, MOVES } from '../encore-model.js';
 import { EncoreRecords, landing } from '../encore-records.js';
+import { EncorePyro } from '../encore-pyro.js';
 import { bus, PLAYER } from '../events.js';
 import { story, ok, V, encoreFight, step, stub, G } from './kit.js';
 
@@ -1021,5 +1022,113 @@ fight('a-dj-in-his-solo-or-bow-keeps-his-pose-over-wave-gestures', {
     go(58.5); const bowed = rigs.silver.at === 56 && !!rigs.silver.move;
     go(72); cast('ring', 78, 'silver'); go(76); const after = rigs.silver.at === 78;
     return ok(throwing && goldWave && bowed && after, { throwing, goldWave, bowed, after, silver: rigs.silver.at, gold: rigs.gold.at });
+  },
+});
+
+// ---- the gold DJ's Pyro (encore-pyro.js)
+const LIP = BOSS.center[2] + BOSS.depth / 2;
+function pyroRig() {
+  const T = make(), hits = [], pyro = new EncorePyro(T.arena, fakeFx(), { onHit: (dmg, c) => hits.push({ dmg, beat: pyro.beat, fire: c.fire }) });
+  return { ...T, pyro, hits, done() { pyro.dispose(); T.done(); } };
+}
+// play the pyro from beat `from` to `to` with a jelly (stand-in or real), each frame `each(b)` first
+function playPyro(T, J, from, to, each) {
+  for (let b = from; b <= to; b += DT * BPM / 60) { each?.(b); T.pyro.update(b, J.p ?? J, DT); J.step?.(); }
+}
+const SETS = { odd: [0, 2, 4], even: [1, 3, 5] };
+
+story('encore/pyro-sets-alternate-never-all-six-and-warn-two-beats', {
+  about: 'The gold DJ\'s flame lanes (six, 24 cm wide across the floor) fire a set a beat, odd lanes then even lanes, each on its beat; each lane\'s floor strip and its 35 cm volume fill together over the 2 beats before it fires and are gone as it does. A set of all six, or a lane again within a beat of its last, is refused.',
+  setup() {},
+  play() {
+    const T = pyroRig();
+    try {
+      const P = T.pyro;
+      for (let k = 0; k < 4; k++) P.cast(10 + k, { lanes: SETS[k % 2 ? 'even' : 'odd'] });
+      const refused = P.cast(20, { lanes: [0, 1, 2, 3, 4, 5] }) === null && P.cast(10.5, { lanes: [2] }) === null && P.cast(11.5, { lanes: [1, 2] }) === null && P.cast(10, { lanes: [1, 3, 5] }) === null && P.casts.length === 4;
+      const fired = {}, warned = [];
+      for (let b = 7; b <= 14.5; b += DT * BPM / 60) {
+        P.update(b, null, DT);
+        for (let l = 0; l < 6; l++) if (P.burnAt[l] !== null && !(l in fired)) fired[l] = [];
+        for (let l = 0; l < 6; l++) if (P.burnAt[l] !== null && fired[l].at(-1) !== P.burnAt[l]) fired[l].push(P.burnAt[l]);
+        const w = P.warnings[0];
+        if (b >= 8.05 && b < 9.95) warned.push({ b, on: w.band.visible && w.lane.visible, same: Math.abs(w.band.material.progress - w.lane.material.progress) < 1e-9, p: w.band.material.progress, h: w.lane.scale.y, w: w.lane.scale.x, z: w.lane.scale.z });
+      }
+      const odd = [0, 2, 4].every((l) => fired[l].join() === '10,12'), even = [1, 3, 5].every((l) => fired[l].join() === '11,13');
+      const shown = warned.every((x) => x.on && x.same && Math.abs(x.h - 0.35) < 1e-9 && Math.abs(x.w - 0.24) < 1e-9 && Math.abs(x.z - 0.48) < 1e-9) && warned.every((x, k) => !k || x.p >= warned[k - 1].p) && warned.at(-1).p > 0.9;
+      const gone = !P.warnings.some((w) => w.band.visible || w.lane.visible);
+      const wide = Math.abs(P.laneX(0) + 0.6) < 1e-9 && Math.abs(P.laneX(5) - 0.6) < 1e-9;
+      return ok(refused && odd && even && shown && gone && wide && P.lanes === 6, { refused, fired, shown, gone, wide });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/pyro-hits-its-lane-on-the-beat-and-a-lane-that-just-fired-is-safe', {
+  about: 'A jelly standing in a lane (inside its 48 cm reach, below 35 cm) is hit once, for 4 Health, on the beat that lane fires; the next beat, as the other set fires, the lane it stood in is safe, and it is hit again two beats on. A jelly in the other set\'s lane is hit a beat later. Past 48 cm out, or standing above 35 cm, is safe.',
+  setup() {},
+  play() {
+    const T = pyroRig();
+    try {
+      const run = (x, z, y = 0) => {
+        T.hits.length = 0; T.pyro.reset();
+        for (let k = 0; k < 4; k++) T.pyro.cast(10 + k, { lanes: SETS[k % 2 ? 'even' : 'odd'] });
+        playPyro(T, standing(x, z, y), 7, 14.5);
+        return T.hits.map((h) => `${h.fire}@${+h.beat.toFixed(2)}`);
+      };
+      const lane0 = run(T.pyro.laneX(0), LIP + 0.2), lane1 = run(T.pyro.laneX(1), LIP + 0.2);
+      const onBeat = (r) => r.every((h) => { const [f, b] = h.split('@'); return +b >= +f && +b < +f + 0.05; });
+      const far = run(T.pyro.laneX(0), LIP + 0.48 + 0.05), high = run(T.pyro.laneX(0), LIP + 0.2, 0.4);
+      const edge = run(T.pyro.laneX(0) + 0.12 + 0.02, LIP + 0.2);        // just inside lane 1's side of the line, its body over lane 0's
+      return ok(lane0.map((h) => h.split('@')[0]).join() === '10,12' && lane1.map((h) => h.split('@')[0]).join() === '11,13' && onBeat(lane0) && onBeat(lane1)
+        && far.length === 0 && high.length === 0 && edge.map((h) => h.split('@')[0]).join() === '10,11,12,13', { lane0, lane1, far, high, edge });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/a-jump-does-not-clear-the-flames-a-step-does', {
+  about: 'A real jump timed to be at its top as a lane fires still gets hit (the flames are 35 cm tall, a jump about 20); stepping from a lane that fires into the neighbour that does not clears it.',
+  setup() {},
+  play() {
+    const trial = (act) => {
+      const T = pyroRig();
+      try {
+        const J = realJelly(T, T.pyro.laneX(0), LIP + 0.2);
+        T.pyro.cast(8, { lanes: [0, 2, 4] });
+        let maxY = 0;
+        playPyro(T, J, 3, 9.5, (b) => { act?.(J, b); maxY = Math.max(maxY, J.p.position.y); });
+        return { hits: T.hits.length, maxY: +maxY.toFixed(3) };
+      } finally { T.done(); }
+    };
+    const stand = trial(), jump = trial((J, b) => { if (b >= 6.6 && b < 6.64) J.ctl.jump = true; });
+    const step = trial((J, b) => { J.ctl.move = b >= 7 && b < 7.9 ? { x: 1, y: 0 } : { x: 0, y: 0 }; });
+    return ok(stand.hits === 1 && jump.hits === 1 && jump.maxY > 0.12 && step.hits === 0, { stand, jump, step });
+  },
+});
+
+fight('a-gold-solo-cranks-then-burns-lane-sets-on-the-beat', {
+  about: 'A gold solo: the spotlight on the gold DJ, his fader crank in the first bar as the first Warning shows (two beats before the first set), then a set of lanes every beat for 3 bars (12 sets, odd then even), each a hit on the beat for 4 Health; no hit shows before it; then the bow and EXPOSED as for any solo. A short-out mid-solo clears the Warnings, flames and scorch.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), P = B.pyro, hits = [], rigs = B.arenaView.boss.rigs;
+    go(34); slot('gold', 40);
+    const sets = P.casts.map((c) => `${c.fire}:${c.lanes.join('')}`);
+    const plan = sets.length === 12 && sets[0] === '44:024' && sets[1] === '45:135' && sets[11] === '55:135';
+    stub(B, 'hurtPlayer', (dmg) => hits.push({ dmg, beat: B.beat }));
+    const p = window.player.position; p.set(P.laneX(0), 0, LIP + 0.2);
+    go(40.9); const quiet = !P.warnings.some((w) => w.band.visible);
+    go(42.6); const warn = [0, 2, 4].every((l) => P.warnings[l].band.visible && P.warnings[l].lane.visible) && ![1, 3, 5].some((l) => P.warnings[l].band.visible) && rigs.gold.at === 42 && B.spots.gold.visible && !B.spots.silver.visible;
+    go(44.4); const burst = [0, 2, 4].every((l) => P.burnAt[l] === 44);
+    go(47.5);
+    const beats = hits.map((h) => h.beat);
+    const onBeat = hits.length === 2 && beats.every((b, i) => b >= [44, 46][i] && b < [44, 46][i] + 0.05) && hits.every((h) => h.dmg === 4);
+    go(56.5); const bowing = !!rigs.gold.move && B.solo && B.solo.bowing;
+    go(60); stub(B, 'hurtPlayer', () => {}); go(73);
+    const done = !B.solo && !P.casts.length;
+    // a second solo, cut short by the short-out
+    go(77); slot('gold', 80); go(86.2);
+    const busy = P.warnings.some((w) => w.band.visible) && P.burnAt.some((t) => t !== null);
+    B.damage(B.hp - B.maxHp * 0.45);
+    const cleared = !P.casts.length && !P.warnings.some((w) => w.band.visible || w.lane.visible) && P.burnAt.every((t) => t === null) && !B.solo && !rigs.gold.move;
+    return ok(plan && quiet && warn && burst && onBeat && bowing && done && busy && cleared, { sets, plan, quiet, warn, burst, beats, onBeat, bowing, done, busy, cleared });
   },
 });

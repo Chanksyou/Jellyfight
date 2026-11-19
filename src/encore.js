@@ -38,11 +38,12 @@ import { EncoreDisco } from './encore-disco.js';
 import { EncorePulses } from './encore-pulse.js';
 import { EncoreContact } from './encore-contact.js';
 import { EncoreRecords } from './encore-records.js';
+import { EncorePyro } from './encore-pyro.js';
 
 // what it does, for the attack audit (src/stories/kit.js EVERY_ATTACK)
-export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact', 'records'], angry: [] };
+export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact', 'records', 'pyro'], angry: [] };
 const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing' };
-// each DJ's solo attack: books what he plays from bar line `at` (gold's Pyro and the duet are still to come)
+// each DJ's solo attack: books what he plays from bar line `at` (the duet is still to come)
 const SOLO_ATTACKS = {
   silver(at, S) {
     const R = this.def.skills.records || {}, bars = this.def.skills.solo?.bars ?? 4;
@@ -51,6 +52,15 @@ const SOLO_ATTACKS = {
       if (this.quiet(land)) continue;                      // (the breakdown rests it, as it rests the floor)
       this.records.cast(land, { from: () => this.hand('silver'), target: () => this.jellyAt(),
         dmg: R.dmg ?? 4, height: R.height ?? 0.25, stand: (R.stand ?? 4) * 4, flight: R.flight ?? 1, windup: R.windup ?? 3, lock: R.lock ?? 1 });
+    }
+  },
+  // the gold DJ: a bar to crank his fader and show the first Warning, then a set of lanes a beat (odd lanes, even lanes)
+  gold(at) {
+    const R = this.def.skills.pyro || {}, bars = this.def.skills.solo?.bars ?? 4;
+    for (let k = 0; k < (bars - 1) * 4; k++) {
+      const fire = at + 4 + k;
+      if (this.quiet(fire)) continue;
+      this.pyro.cast(fire, { lanes: [0, 1, 2].map((i) => i * 2 + (k % 2)), dmg: R.dmg ?? 4, height: R.height ?? 0.35, reach: R.reach ?? 0.48, warn: R.warn ?? 2, burn: R.burn ?? 0.5, scorch: R.scorch ?? 8 });
     }
   },
 };
@@ -86,6 +96,7 @@ export class Encore {
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
     this.records = new EncoreRecords(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-silver')), color: hostile('encore-silver'), scene });
+    this.pyro = new EncorePyro(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-gold')), color: hostile('encore-gold'), scene });
     this.solo = null; this.restBow = false;
     this.spots = Object.fromEntries(DJS.map((who) => [who, spotlight(A, who)]));
     this.bowLift = Number(LOOK.list('encore-dance-bow', [])[3]) || 1.5;    // beats a bow takes to come back up
@@ -141,6 +152,8 @@ export class Encore {
     const S = this.solo, M = this.arenaView.boss, K = this.def.skills.solo || {};
     if (!S) return;
     for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4) M.perform(S.who, 'throw', c.release); break; }   // his next throw (asked again each frame: it plays on)
+    // his fader crank, as the first Warning shows (held to his bow: his lanes burn under it)
+    if (S.who === 'gold' && !S.bowing) M.perform('gold', 'crank', S.at + 2, 1, Math.max(0, S.end - 1 - (S.at + 2)));
     // his bow, a beat before his solo ends: the long one if no hit reached the jelly till then
     if (!S.bowing && beat >= S.end - 1) {
       const bow = (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
@@ -166,7 +179,7 @@ export class Encore {
   }
   // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind)
   stopActs() {
-    this.records.reset(); this.endSolo(); this.restBow = false; this.floor.held.silver = this.floor.held.gold = false;
+    this.records.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.floor.held.silver = this.floor.held.gold = false;
     for (const who of DJS) this.arenaView.boss.perform(who, null);
   }
 
@@ -306,6 +319,7 @@ export class Encore {
       this.disco.update(beat, player);
       this.pulses.update(beat, player, dt);
       this.records.update(beat, player, dt);
+      this.pyro.update(beat, player, dt);
       this.shove.x += this.records.pushX; this.shove.z += this.records.pushZ;
       this.soloStep(beat);
       // the song's breakdown: both DJs bow, from a beat in to a beat and a half before it ends
@@ -379,9 +393,9 @@ export class Encore {
   }
 
   // show what only appears mid-fight, for the shader build at load (main.js warmUp)
-  warm(on) { this.records.warm(on); for (const who of DJS) this.spots[who].visible = on; }
+  warm(on) { this.records.warm(on); this.pyro.warm(on); for (const who of DJS) this.spots[who].visible = on; }
   dispose() {
-    this.offHurt(); this.records.dispose();
+    this.offHurt(); this.records.dispose(); this.pyro.dispose();
     for (const m of Object.values(this.spots)) { m.removeFromParent(); m.material.dispose(); }
     this.sparks.dispose();
     this.floor.dispose(); this.lasers.dispose(); this.disco.dispose(); this.pulses.dispose(); this.contact.dispose();

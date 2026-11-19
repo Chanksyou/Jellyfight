@@ -98,4 +98,8 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // doesn't clear it), landing on the bar line `flight` beats after he lets go, `windup` beats wound
     // back first, aimed at the jelly until `lock` beats before he throws; it stands `stand` bars
     records dmg=4 height=0.25 flight=1 windup=3 lock=1 stand=4
+    // the gold DJ's Pyro, from the second bar of his solo: a set of flame lanes (odd lanes, then even) every beat,
+    // `lane` m wide, `reach` m out from the stage lip and `height` m tall, its Warning `warn` beats, `dmg` Health;
+    // the flames burn `burn` beats and a scorch mark lasts `scorch` beats
+    pyro dmg=4 lane=0.24 reach=0.48 height=0.35 warn=2 burn=0.5 scorch=8
 }
