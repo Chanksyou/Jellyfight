@@ -1842,10 +1842,11 @@ export function buildMantis({ dead = false } = {}) {
       shake = (A.still ? 0 : 1) * quiver(A.k, A.t, e.phase) * A.quiet;
       z = -0.1 * c; y = 0.06 * c; rx = -0.22 * c + (lockBeat(A) ? 0.08 : 0);   // the lock: its head dips at you
     } else if (ph === 'swing') {
-      const u = A.pt / A.style.strike;
-      for (let i = 0; i < 3; i++) P[i] = RAISED[i] + (STRUCK[i] - RAISED[i]) * snap(u - i * 0.35, A.tier.over);
-      const b = snap(u - 0.7, A.tier.over);                            // the body two frames behind the forelegs
-      cross = snap(u - 0.35, A.tier.over);
+      // its swat is tested on the first swing frame, so the strike is the one-frame jump from the still coil:
+      // forelegs shut and crossed, body lunged, from that frame on (a 0.05 s strike is a frame at 30 fps anyway)
+      const b = snap(1, A.tier.over);
+      for (let i = 0; i < 3; i++) P[i] = RAISED[i] + (STRUCK[i] - RAISED[i]) * b;
+      cross = b;
       z = -0.1 * A.vary + (0.45 * A.vary) * b; y = 0.06 * A.vary * (1 - b); rx = -0.22 * A.vary + 0.42 * b;
       len = 1 + (A.tier.stretch - 1) * 0.5 * b;
     } else if (ph === 'recoil') {
@@ -1863,7 +1864,7 @@ export function buildMantis({ dead = false } = {}) {
       F.shoulder.rotation.x += Math.sin(t * 1.6 + e.phase) * 0.04 * walk + shake * 0.08;   // a slow sway as it watches you; tension in the hold
       F.tibia.rotation.x += shake * 0.1;
       F.shoulder.rotation.y = F.s * (0.08 - 0.3 * cross);              // snapped shut past the middle: crossed
-      F.tibia.scale.z = A?.smear ? knobs().smear : 1;
+      F.tibia.scale.z = ph === 'swing' && A.pt < 1 / 30 ? knobs().smear : 1;   // the smear on the strike frame itself (a held pose never smears)
     }
     const step = t * (3 + 10 * k);
     walk += ((ph === 'idle' ? 1 : 0) - walk) * (1 - Math.exp(-12 * dt));   // its walk eases out as it attacks

@@ -220,16 +220,19 @@ story('motion/attack-has-three-phases', {
 });
 
 story('motion/contact-pose-is-on-the-hit', {
-  about: 'On its contact pose the striking part is drawn where the hit is tested: a Praying mantis\'s foreleg hooks lie inside the wedge its swat tests, a Horsehair worm\'s tip lies on the floor at the end of the line its whip tests (within 1 cm), low enough that a jump still clears it, a House fly\'s straw tip is on the spot its poke tests (within 1 cm), and a Wasp\'s sting tip is on the jelly (within 1 cm of its surface) with its body where the bug really is, on the frame its sting is tested.',
+  about: 'On the frame its hit is tested and through its contact pose, the striking part is drawn where the hit is tested: a Praying mantis\'s foreleg hooks are already shut (within 1 cm of its contact pose) and lie inside the wedge its swat tests, a Horsehair worm\'s tip lies on the floor at the end of the line its whip tests (within 1 cm), low enough that a jump still clears it, a House fly\'s straw tip is on the spot its poke tests (within 1 cm), and a Wasp\'s sting tip is on the jelly (within 1 cm of its surface) with its body where the bug really is, on the frame its sting is tested.',
   setup() {},
   async play() {
     const kdl = parse(await (await fetch('content/enemies.kdl')).text());
     const props = (bug, word) => kdl.find((n) => n.args[0] === bug).children.find((w) => w.name === word).props;
     const swat = props('mantis', 'swat'), whip = props('worm', 'whip');
-    // the mantis: every frame of its contact hold (a landed swing whose pose is frozen)
-    const M = film('mantis', { probe: mantisProbe }), held = M.filter((f, i) => f.phase === 'swing' && f.hit && i && M[i - 1].phase === 'swing' && M[i - 1].pt === f.pt);
-    let mantis = held.length ? 0 : 9;
-    for (const f of held) {
+    // the mantis: on the frame its swat is tested (the first swat frame) and every frame of its contact hold (a
+    // landed swing whose pose is frozen); on the hit frame its hooks are already where the hold draws them (1 cm)
+    const M = film('mantis', { probe: mantisProbe }), hitAt = M.findIndex((f) => f.key === 'swat');
+    const held = M.filter((f, i) => f.phase === 'swing' && f.hit && i && M[i - 1].phase === 'swing' && M[i - 1].pt === f.pt);
+    const onHit = M[hitAt], closed = onHit && held.length ? mm(Math.max(...onHit.p.slice(1).map((v, j) => Math.abs(v - held[0].p[j + 1])))) : 999;
+    let mantis = held.length && onHit?.hit ? 0 : 9;
+    for (const f of onHit ? [onHit, ...held] : held) {
       for (let j = 1; j < f.p.length; j += 3) {
         const dx = f.p[j] - f.at[0], dz = f.p[j + 2] - f.at[2], d = Math.hypot(dx, dz);
         const off = Math.acos(Math.max(-1, Math.min(1, (dx * f.dir[0] + dz * f.dir[1]) / (d || 1))));
@@ -280,7 +283,7 @@ story('motion/contact-pose-is-on-the-hit', {
       } finally { S.done(); }
     }
     const bugs = out.housefly.found && out.housefly.phase === 'swing' && out.housefly.tipOff <= 10 && out.strafed.found && out.strafed.tipOff <= 10 && out.wasp.found && out.wasp.phase === 'swing' && out.wasp.drawnOff <= 10 && Math.abs(out.wasp.tipFromSurface) <= 10;
-    return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0 && bugs, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4), ...out });
+    return ok(held.length >= 2 && mantis <= 0 && closed <= 10 && tips.length >= 2 && worm <= 0 && bugs, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), mantisHitFrameFromContactMm: closed, wormFrames: tips.length, wormOff: +worm.toFixed(4), ...out });
   },
 });
 
