@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v536 evens out how the basic bugs' attacks move: the Praying mantis and Horsehair worm reach their wind-up pose sooner and hold it longer, mid-sized bugs stretch a little further at full reach than light ones, and a Cicada whose burst misses you lands tipped onto one side (one that hits stands dazed upright).
+
 v535 makes the Giant millipede's body chain about seven times cheaper on a phone (no behind-the-scenes number allocation), so a crowd of bugs attacking no longer stutters.
 
 v534 makes the Dragonfly show its attacks on its body (its beam: it draws back, its wings stop dead and its tail curls up over its back; its whirlwind: its wings beat faster and sweep forward as it leans back, then freeze when the aim locks), gives the Cockroach a head-low lean-in and a jab as its touch lands, and squeezes a Wasp nest just before each wasp crawls out. Only how they look: no hit moves.
