@@ -1,6 +1,35 @@
 {
   "about": "Sound packs (docs/agents/sound.md): node tools/sounds.mjs <sources folder> builds assets/audio/<pack>.mp3 and assets/audio/packs.json from this. A pack loads for any of its `for` tags: 'unlock' (once sound is on), 'act N', 'jelly <type>'. A role's `cue` is the sfx call that plays it, recorded or synthesized; `vol` is its loudness; `mode` replace plays it instead of the synthesized sound, layer on top of it; `cap` cuts each take to that many seconds.",
   "packs": {
+    "elite-controller": {
+      "for": ["act 1"],
+      "roles": {
+        "controller-charge": { "cue": ["controllerCharge", false, 1.0], "vol": 0.12, "mode": "layer", "cap": 1.0, "takes": ["elite-controller/low-pitch-synth-sweep.wav"] },
+        "controller-click": { "cue": ["controllerFire"], "vol": 0.25, "mode": "layer", "cap": 0.3, "takes": ["elite-controller/plastic-button-off.wav"] },
+        "controller-hit": { "cue": ["controllerHit"], "vol": 0.3, "mode": "layer", "cap": 0.6, "takes": ["elite-controller/trash-lid-thud.wav"] },
+        "controller-slam": { "cue": ["controllerRumble"], "vol": 0.3, "mode": "layer", "cap": 0.76, "takes": ["elite-controller/hard-door-slam.wav"] },
+        "controller-down": { "cue": ["controllerDown"], "vol": 0.2, "mode": "layer", "cap": 1.6, "takes": ["elite-controller/electric-power-down.wav"] }
+      }
+    },
+    "elite-mug": {
+      "for": ["act 1"],
+      "roles": {
+        "mug-lob": { "cue": ["mugLob"], "vol": 0.25, "mode": "layer", "cap": 0.9, "takes": ["elite-mug/deep-bottle-slosh.wav"] },
+        "mug-splash": { "cue": ["mugSplash", true], "vol": 0.25, "mode": "layer", "cap": 0.4, "takes": ["elite-mug/slime-7.wav"] },
+        "mug-pour": { "cue": ["mugPour"], "vol": 0.2, "mode": "layer", "cap": 1.0, "takes": ["elite-mug/water-pour.wav"] },
+        "mug-down": { "cue": ["mugDown"], "vol": 0.3, "mode": "layer", "cap": 0.7, "takes": ["elite-mug/plate-smash-24.wav"] }
+      }
+    },
+    "elite-kettle": {
+      "for": ["act 1"],
+      "roles": {
+        "kettle-charge": { "cue": ["kettleCharge"], "vol": 0.12, "mode": "layer", "cap": 0.9, "takes": ["elite-kettle/tiny-rocket-whistle.wav"] },
+        "kettle-blast": { "cue": ["kettleBlast"], "vol": 0.2, "mode": "layer", "cap": 0.9, "takes": ["elite-kettle/pneumatic-air-release.wav"] },
+        "kettle-pop": { "cue": ["kettlePop"], "vol": 0.3, "mode": "layer", "cap": 0.3, "takes": ["elite-kettle/metal-falling-3.wav"] },
+        "kettle-drop": { "cue": ["kettleDrop", true], "vol": 0.25, "mode": "layer", "cap": 0.7, "takes": ["elite-kettle/sizzling-metallic-impact.wav"] },
+        "kettle-down": { "cue": ["kettleDown"], "vol": 0.3, "mode": "layer", "cap": 0.8, "takes": ["elite-kettle/metal-pot-3.wav"] }
+      }
+    },
     "lightning": {
       "for": ["jelly lightning", "act 4"],
       "roles": {

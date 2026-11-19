@@ -103,5 +103,235 @@
     ]
    }
   }
+ },
+ "elite-controller": {
+  "file": "elite-controller.mp3",
+  "for": [
+   "act 1"
+  ],
+  "bytes": 73197,
+  "seconds": 6.04,
+  "roles": {
+   "controller-charge": {
+    "cue": [
+     "controllerCharge",
+     false,
+     1
+    ],
+    "vol": 0.12,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 1,
+      "peak": 0.2601
+     }
+    ]
+   },
+   "controller-click": {
+    "cue": [
+     "controllerFire"
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.6,
+      "length": 0.3,
+      "peak": 0.0052
+     }
+    ]
+   },
+   "controller-hit": {
+    "cue": [
+     "controllerHit"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.2,
+      "length": 0.5867,
+      "peak": 0.0226
+     }
+    ]
+   },
+   "controller-slam": {
+    "cue": [
+     "controllerRumble"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.0867,
+      "length": 0.7552,
+      "peak": 0.0295
+     }
+    ]
+   },
+   "controller-down": {
+    "cue": [
+     "controllerDown"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 4.142,
+      "length": 1.6,
+      "peak": 0.1909
+     }
+    ]
+   }
+  }
+ },
+ "elite-mug": {
+  "file": "elite-mug.mp3",
+  "for": [
+   "act 1"
+  ],
+  "bytes": 53901,
+  "seconds": 4.42,
+  "roles": {
+   "mug-lob": {
+    "cue": [
+     "mugLob"
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.9,
+      "peak": 0.0876
+     }
+    ]
+   },
+   "mug-splash": {
+    "cue": [
+     "mugSplash",
+     true
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.5,
+      "length": 0.334,
+      "peak": 0.0199
+     }
+    ]
+   },
+   "mug-pour": {
+    "cue": [
+     "mugPour"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.134,
+      "length": 1,
+      "peak": 0.0043
+     }
+    ]
+   },
+   "mug-down": {
+    "cue": [
+     "mugDown"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.434,
+      "length": 0.6835,
+      "peak": 0.1737
+     }
+    ]
+   }
+  }
+ },
+ "elite-kettle": {
+  "file": "elite-kettle.mp3",
+  "for": [
+   "act 1"
+  ],
+  "bytes": 63693,
+  "seconds": 5.25,
+  "roles": {
+   "kettle-charge": {
+    "cue": [
+     "kettleCharge"
+    ],
+    "vol": 0.12,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.9,
+      "peak": 0.1611
+     }
+    ]
+   },
+   "kettle-blast": {
+    "cue": [
+     "kettleBlast"
+    ],
+    "vol": 0.2,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 1.5,
+      "length": 0.9,
+      "peak": 0.1074
+     }
+    ]
+   },
+   "kettle-pop": {
+    "cue": [
+     "kettlePop"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 2.7,
+      "length": 0.2415,
+      "peak": 0.0186
+     }
+    ]
+   },
+   "kettle-drop": {
+    "cue": [
+     "kettleDrop",
+     true
+    ],
+    "vol": 0.25,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 3.2415,
+      "length": 0.6462,
+      "peak": 0.0038
+     }
+    ]
+   },
+   "kettle-down": {
+    "cue": [
+     "kettleDown"
+    ],
+    "vol": 0.3,
+    "mode": "layer",
+    "takes": [
+     {
+      "start": 4.1877,
+      "length": 0.7609,
+      "peak": 0.0035
+     }
+    ]
+   }
+  }
  }
 }

@@ -606,6 +606,7 @@ export const sfx = {
   },
   controllerCharge(rumble = false, duration = 0.6) {
     if (!ready() || !gap('controllerCharge', 100)) return;
+    if (sample('controller-charge', { urgent: true, rate: rumble ? 0.85 : 1 })) return;   // the recorded sweep rides over the synthesized build-up
     const j = jitter(0.08);
     tone(rumble ? 'sawtooth' : 'triangle', (rumble ? 55 : 220)*j, (rumble ? 150 : 750)*j, duration, rumble ? 0.035 : 0.045);
     noise(rumble ? 180 : 1600, 2, duration, 0.025, 'bandpass', 0, rumble ? 600 : 3200);
@@ -613,17 +614,24 @@ export const sfx = {
   controllerLock() { if (!ready()) return; const j = jitter(); tone('square', 900*j, 900*j, 0.025, 0.035); tone('sine', 1350*j, 1350*j, 0.04, 0.025, 0.035); },
   controllerFire() {
     if (!ready()) return; const j = jitter(0.1);
+    if (sample('controller-click', { urgent: true })) return;
     noise(4200*j, 2, 0.025, 0.12, 'highpass'); tone('triangle', 340*j, 100*j, 0.08, 0.08);
     noise(1400*j, 2, 0.14, 0.05, 'bandpass', 0.02, 4200);
   },
   controllerContact(hit) {
     if (!ready() || !gap('controllerContact', 45)) return; const j = jitter(0.12);
     noise(2700*j, 3, 0.035, 0.07, 'bandpass');
-    if (hit) tone('sine', 180*j, 70*j, 0.08, 0.09);
     [0, 1].forEach(i => tone('triangle', (1200+i*430)*j, (700+i*260)*j, 0.045, 0.022, 0.025+i*0.025));
+  },
+  // a symbol landing on the jelly (controllerContact is its click on the floor, hit or miss)
+  controllerHit() {
+    if (!ready()) return; const j = jitter(0.12);
+    if (sample('controller-hit', { urgent: true })) return;
+    tone('sine', 180*j, 70*j, 0.08, 0.09);
   },
   controllerRumble() {
     if (!ready()) return; const j = jitter(0.1);
+    if (sample('controller-slam', { urgent: true })) return;
     noise(1700*j, 1, 0.035, 0.18, 'highpass'); tone('sine', 135*j, 35*j, 0.24, 0.18);
     noise(170*j, 1.4, 0.24, 0.09, 'lowpass', 0.015, 60);
     for (let i = 0; i < 4; i++) noise((700+i*350)*j, 3, 0.035, 0.025, 'bandpass', 0.06+i*0.035);
@@ -631,12 +639,14 @@ export const sfx = {
   // the Mug flinging coffee: a slosh off the rim, then the whoosh of it flying
   mugLob() {
     if (!ready() || !gap('mugLob', 90)) return; const j = jitter(0.12);
+    if (sample('mug-lob')) return;
     noise(2400*j, 2, 0.03, 0.08, 'bandpass'); tone('sine', 360*j, 210*j, 0.07, 0.05);
     noise(900*j, 1.2, 0.3, 0.035, 'bandpass', 0.03, 2600*j);
   },
   // coffee landing: a wet slap, a thud, drops pattering round it (louder on the jelly)
   mugSplash(hit = false) {
     if (!ready() || !gap('mugSplash', 70)) return; const j = jitter(0.14), k = hit ? 1 : 0.6;
+    if (sample('mug-splash', { vol: k, urgent: hit })) return;
     noise(3800*j, 1, 0.04, 0.16*k, 'highpass'); tone('sine', 170*j, 60, 0.12, 0.12*k);
     noise(800*j, 0.9, 0.14, 0.08*k, 'lowpass', 0.01, 220);
     for (let i = 0; i < 3; i++) noise((2200 + Math.random()*1800)*j, 4, 0.015, 0.04*k, 'bandpass', 0.05 + i*0.04 + Math.random()*0.02);
@@ -644,6 +654,7 @@ export const sfx = {
   // the Mug tipping out its wave: a heavy glug, then the pour running out
   mugPour() {
     if (!ready() || !gap('mugPour', 200)) return; const j = jitter(0.1);
+    if (sample('mug-pour', { urgent: true })) return;
     tone('sine', 240*j, 120*j, 0.12, 0.1); noise(1200*j, 1, 0.05, 0.1, 'bandpass');
     noise(1800*j, 0.8, 0.8, 0.07, 'bandpass', 0.04, 700*j);
     for (let i = 0; i < 4; i++) tone('sine', (300 + i*40)*j, 180*j, 0.06, 0.04, 0.12 + i*0.13);
@@ -668,6 +679,7 @@ export const sfx = {
   // the Kettle charging its steam ball: a whistle climbing over the second, a hiss swelling under it, a boiling rattle
   kettleCharge() {
     if (!ready() || !gap('kettleCharge', 400)) return; const j = jitter(0.08);
+    if (sample('kettle-charge', { urgent: true })) return;
     tone('sine', 900*j, 2600*j, 1.0, 0.035); tone('sine', 1800*j, 5200*j, 1.0, 0.012);
     noise(3000*j, 0.8, 1.0, 0.05, 'bandpass', 0, 7000*j);
     for (let i = 0; i < 8; i++) noise((1500 + Math.random()*1500)*j, 3, 0.03, 0.02 + i*0.006, 'bandpass', i*0.12);
@@ -682,6 +694,7 @@ export const sfx = {
   // the Kettle firing its steam ball: a crack as it vents, a roaring hiss that falls away, spits of water
   kettleBlast() {
     if (!ready() || !gap('kettleBlast', 300)) return; const j = jitter(0.1);
+    if (sample('kettle-blast', { urgent: true })) return;
     noise(5200*j, 0.8, 0.04, 0.2, 'highpass'); tone('sine', 140*j, 55, 0.18, 0.14);
     noise(3600*j, 0.7, 0.95, 0.12, 'bandpass', 0.02, 1400*j);
     for (let i = 0; i < 5; i++) noise((3000 + Math.random()*3000)*j, 4, 0.012, 0.05, 'bandpass', 0.1 + i*0.16 + Math.random()*0.05);
@@ -689,6 +702,7 @@ export const sfx = {
   // the Kettle's lid popping: a clank, a boiling burble, the drops whooshing up
   kettlePop() {
     if (!ready() || !gap('kettlePop', 200)) return; const j = jitter(0.1);
+    if (sample('kettle-pop', { urgent: true })) return;
     tone('triangle', 1500*j, 1100*j, 0.09, 0.06); noise(4200*j, 2, 0.03, 0.12, 'bandpass');
     for (let i = 0; i < 4; i++) tone('sine', (220 + Math.random()*160)*j, 400*j, 0.05, 0.05, 0.03 + i*0.05);
     noise(800*j, 1, 0.35, 0.06, 'bandpass', 0.05, 2800*j);
@@ -696,6 +710,7 @@ export const sfx = {
   // a boiling drop landing: a plop, a thud, a sizzle and spatter
   kettleDrop(hit = false) {
     if (!ready() || !gap('kettleDrop', 60)) return; const j = jitter(0.15), k = hit ? 1 : 0.6;
+    if (sample('kettle-drop', { vol: k, urgent: hit })) return;
     noise(2600*j, 3, 0.03, 0.12*k, 'bandpass'); tone('sine', 200*j, 80, 0.1, 0.1*k);
     noise(6500*j, 1, 0.25, 0.05*k, 'highpass', 0.02);
     for (let i = 0; i < 2; i++) noise((3000 + Math.random()*2000)*j, 4, 0.012, 0.04*k, 'bandpass', 0.06 + i*0.05);
@@ -957,6 +972,10 @@ export const sfx = {
   shieldCharge() { if (!ready() || !gap('shieldCharge', 300)) return; const j = jitter(0.04); tone('sine', 420 * j, 840 * j, 0.5, 0.025); noise(2600 * j, 3, 0.4, 0.015, 'bandpass', 0, 5200 * j); },   // the Shield starting to refill: a soft rising hum
   shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
+  // an Elite is beaten (run.js eliteDefeated plays `<kind>Down`, else boom): the boom, with the thing itself breaking over it
+  controllerDown() { if (!ready()) return; if (sample('controller-down')) return; this.boom(); },
+  mugDown() { if (!ready()) return; if (sample('mug-down')) return; this.boom(); },
+  kettleDown() { if (!ready()) return; if (sample('kettle-down')) return; this.boom(); },
   // ---------------------------------------------------------- the Vacuum (vacuum.js)
   // booting up: a rising motor and a three-note startup chime
   vacPowerOn() {

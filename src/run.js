@@ -1247,7 +1247,7 @@ export class Run {
     if (this.eliteLog.length < 32) this.eliteLog.push([e.kind, Math.round(this.t * 10) / 10]);
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
-    juice.feel('elite-kill'); sfx.boom();
+    juice.feel('elite-kill'); const down = sfx[`${e.kind}Down`]; if (down) down.call(sfx); else sfx.boom();   // an Elite's own breaking sound, else the plain boom
     this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
     this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.eliteTreasure(e.base, `${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);

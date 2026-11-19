@@ -1486,7 +1486,7 @@ export class Elites {
             pulse.material.progress = 1;
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             for (const m of parts) { this.scene.remove(m); e.tele.splice(e.tele.indexOf(m), 1); }
-            sfx.controllerFire(); sfx.controllerContact(struck); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
+            sfx.controllerFire(); sfx.controllerContact(struck); if (struck) sfx.controllerHit(); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
             e.controllerKick = 1;
           }
           if (e.fired >= FLOOR_SHAPES.length) {
