@@ -133,9 +133,9 @@ export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false 
   src.buffer = take.buf; src.playbackRate.value = speed;
   g.gain.value = vol * r.vol * loud;
   src.connect(g).connect(master);
+  src.start(t, from, len);
   voices++;
   src.onended = () => { voices--; src.disconnect(); g.disconnect(); };
-  src.start(t, from, len);
   cues?.push({ cue: role, frame: cueFrame(), recorded: true });
   return skip;
 }
@@ -144,7 +144,17 @@ export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false 
 // came on (stories: which cue played on which frame). cueLog(() => frame) starts a fresh log and
 // returns it; cueLog(null) stops.
 let cues = null, cueFrame = () => 0;
-export function cueLog(frame) { cues = frame ? [] : null; if (frame) cueFrame = frame; return cues; }
+const plain = {};               // the sfx methods as they were before the log wrapped them
+export function cueLog(frame) {
+  cues = frame ? [] : null;
+  if (frame) cueFrame = frame;
+  for (const [name, fn] of Object.entries(sfx)) {   // wrapped only while logging, so a call costs nothing extra otherwise
+    if (typeof fn !== 'function') continue;
+    if (frame && !plain[name]) { plain[name] = fn; sfx[name] = function (...args) { cues?.push({ cue: name, frame: cueFrame() }); return fn.apply(this, args); }; }
+    else if (!frame && plain[name]) { sfx[name] = plain[name]; delete plain[name]; }
+  }
+  return cues;
+}
 
 function recordedFireFlight(weight) {
   const t = now(), source = ctx.createBufferSource(), gain = ctx.createGain();
@@ -1648,7 +1658,3 @@ export const sfx = {
   combo(n) { if (!ready()) return; const f = 440 * Math.pow(2, Math.min(24, n / 5) / 12); tone('square', f, f * 1.5, 0.12, 0.05); },
 };
 
-// every sfx call goes in the cue log while it's on (cueLog)
-for (const [name, fn] of Object.entries(sfx)) {
-  if (typeof fn === 'function') sfx[name] = function (...args) { cues?.push({ cue: name, frame: cueFrame() }); return fn.apply(this, args); };
-}

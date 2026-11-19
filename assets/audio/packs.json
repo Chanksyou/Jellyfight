@@ -2,9 +2,10 @@
  "lightning": {
   "file": "lightning.mp3",
   "for": [
-   "jelly lightning"
+   "jelly lightning",
+   "act 4"
   ],
-  "bytes": 126477,
+  "bytes": 126765,
   "seconds": 10.5,
   "roles": {
    "lightning-launch": {

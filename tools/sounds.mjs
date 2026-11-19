@@ -62,7 +62,8 @@ for (const [name, pack] of Object.entries(manifest.packs)) {
   const all = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
   parts.reduce((o, p) => (all.set(p, o), o + p.length), 0);
   const file = `${name}.mp3`;
-  fs.writeFileSync(path.join(OUT, file), ffmpeg(['-f', 'f32le', '-ar', String(RATE), '-ac', '1', '-i', '-', '-c:a', 'libmp3lame', '-b:a', `${KBPS}k`, '-f', 'mp3', '-'], Buffer.from(all.buffer)));
+  // written to the file itself, not a pipe: ffmpeg then adds the LAME header that tells decoders to skip the encoder delay
+  ffmpeg(['-y', '-f', 'f32le', '-ar', String(RATE), '-ac', '1', '-i', '-', '-c:a', 'libmp3lame', '-b:a', `${KBPS}k`, path.join(OUT, file)], Buffer.from(all.buffer));
   const bytes = fs.statSync(path.join(OUT, file)).size;
   packs[name] = { file, for: pack.for, bytes, seconds: +(all.length / RATE).toFixed(2), roles };
   console.log(`${file}: ${Object.keys(roles).length} roles, ${Object.values(roles).reduce((n, r) => n + r.takes.length, 0)} takes, ${(all.length / RATE).toFixed(1)} s, ${(bytes / 1024).toFixed(1)} KB`);

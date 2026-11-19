@@ -74,9 +74,9 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apart
   }
   for (const [, role] of SFX.matchAll(/sample\('([^']+)'/g)) if (!roles.includes(role)) { bad++; console.log(`✗ src/sfx.js plays sound role ${role}, which no pack has (tools/sounds.json)`); }
   // an act loads the 'unlock' packs, its own, and one jelly type's (count the biggest)
-  const sum = (list, k) => list.reduce((n, P) => n + P[k], 0), jelly = Object.values(packs).filter((P) => P.for.some((t) => t.startsWith('jelly ')));
+  const sum = (list, k) => list.reduce((n, P) => n + P[k], 0), jelly = Object.values(packs).filter((P) => P.for.every((t) => t.startsWith('jelly ')));
   for (let act = 1; act <= 4; act++) {
-    const mine = Object.values(packs).filter((P) => P.for.some((t) => t === 'unlock' || t === `act ${act}`) && !jelly.includes(P));
+    const mine = Object.values(packs).filter((P) => P.for.some((t) => t === 'unlock' || t === `act ${act}`));
     const bytes = sum(mine, 'bytes') + Math.max(0, ...jelly.map((P) => P.bytes)), secs = sum(mine, 'seconds') + Math.max(0, ...jelly.map((P) => P.seconds));
     if (bytes > ACT_BYTES || secs > ACT_SECONDS) { bad++; console.log(`✗ act ${act}'s sound packs are ${(bytes / 1024).toFixed(0)} KB and ${secs.toFixed(0)} s decoded: at most ${ACT_BYTES / 1024} KB and ${ACT_SECONDS} s`); }
   }

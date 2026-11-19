@@ -109,7 +109,7 @@ story('sound/takes-line-up-by-their-peak-and-danger-keeps-two-voices', {
     const started = [], make = ctx.createBufferSource.bind(ctx);
     stub(ctx, 'createBufferSource', () => {
       const s = make(), start = s.start.bind(s);
-      s.start = (when, from, len) => { started.push({ when, from, rate: s.playbackRate.value }); return start(when, from, len); };
+      s.start = (when, from, len) => { if (s.buffer?.duration > 5) started.push({ when, from, rate: s.playbackRate.value }); return start(when, from, len); };   // the pack's takes, not synthesized noise
       return s;
     });
     const peakAt = ctx.currentTime + 0.5;
