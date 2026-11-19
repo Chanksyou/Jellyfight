@@ -27,6 +27,16 @@ function bendShader(bend) {
   };
 }
 
+// a copy of an arm's material for a frozen copy of the jelly (clone() drops the patch): it keeps the
+// bend the arm has right now instead of following the live one. Others come back as given.
+const bends = new WeakMap();
+export function freezeArm(m, copy = m.clone()) {
+  const bend = bends.get(m);
+  if (!bend) return m;
+  copy.onBeforeCompile = bendShader(bend.map((b) => b.clone()));
+  return copy;
+}
+
 // Mark how far down the arm each vertex of `geo` is (the shader's armDepth): by its height below
 // the pivot, or `at` for every vertex (a pom-pom: 1). Returns geo.
 export function depth(geo, len, at = null) {
@@ -66,6 +76,7 @@ export class ArmRig {
     const v3 = () => Array.from({ length: PTS }, () => new THREE.Vector3());
     const A = { pivot, bend: v3(), sim: v3(), vel: v3(), goal: v3(), mat: material.clone() };
     A.mat.onBeforeCompile = bendShader(A.bend);
+    bends.set(A.mat, A.bend);
     this.list.push(A);
     return A.mat;
   }

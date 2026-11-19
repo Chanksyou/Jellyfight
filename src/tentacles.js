@@ -28,6 +28,9 @@ const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _n = new THREE.Vector3
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _o = new THREE.Vector3(), _d = new THREE.Vector3();
 const NO_RIM = { k: 1, dy: 0 }, _r = new THREE.Vector3();
 const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
+// the ring's corners round the unit circle, worked out once (build turns them by each ring's twist)
+const COS = Float64Array.from({ length: RAD }, (_, k) => Math.cos((k / RAD) * Math.PI * 2));
+const SIN = Float64Array.from({ length: RAD }, (_, k) => Math.sin((k / RAD) * Math.PI * 2));
 
 // The tentacles' styles (look.tentacles): every ring's shape. bead: every third ring this much
 // thicker (beads on a string); wide/thin: the ring stretched one way and pressed the other (a
@@ -246,7 +249,8 @@ export class TentacleRig {
     const thick = this.thick * (this.barbed ? this.barbThick : 1) * (T.aim && T.k > 0 ? 1 + (this.strikeThick - 1) * T.k : 1);
     const M = this.parent.matrixWorld.elements;
     const pos = T.mesh.geometry.attributes.position, nor = T.mesh.geometry.attributes.normal;
-    const P = T.pts;
+    const PA = pos.array, NA = nor.array, P = T.pts, st = STYLES[this.style];
+    const m1 = M[1] / M[5], m9 = M[9] / M[5], m0 = (floorY - M[13]) / M[5];   // the floor's height under (x, z), in the parent's frame
     for (let j = 0; j <= SEG; j++) {
       _t.copy(P[Math.min(SEG, j + 1)]).sub(P[Math.max(0, j - 1)]);
       if (_t.lengthSq() < 1e-10) _t.set(0, -1, 0);
@@ -255,17 +259,17 @@ export class TentacleRig {
       if (j === 0) _n.crossVectors(_t, Math.abs(_t.z) < 0.9 ? Z : X).normalize();
       else _n.addScaledVector(_t, -_n.dot(_t)).normalize();
       _b.crossVectors(_t, _n);
-      const s = j / SEG, st = STYLES[this.style], r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3) * (j % 3 === 1 ? st.bead : 1);
+      const s = j / SEG, r = thick * (1 - 0.72 * s) * (1 + 0.12 * (1 - s) ** 3) * (j % 3 === 1 ? st.bead : 1);
+      const tw = s * st.twist, tc = Math.cos(tw), ts = Math.sin(tw), Q = P[j];
+      const nX = _n.x, nY = _n.y, nZ = _n.z, bX = _b.x, bY = _b.y, bZ = _b.z, rw = r * st.wide, rt = r * st.thin;
       for (let k = 0; k < RAD; k++) {
-        const th = (k / RAD) * Math.PI * 2 + (j / SEG) * st.twist, c = Math.cos(th), s = Math.sin(th);
-        const nx = _n.x * c + _b.x * s, ny = _n.y * c + _b.y * s, nz = _n.z * c + _b.z * s;
+        const c = COS[k] * tc - SIN[k] * ts, sn = SIN[k] * tc + COS[k] * ts;   // the corner turned by the ring's twist
         // a ribbon is a flattened ring (wide one way, thin the other), twisting down its length
-        const wx = (_n.x * c * st.wide + _b.x * s * st.thin) * r, wz = (_n.z * c * st.wide + _b.z * s * st.thin) * r, wy = (_n.y * c * st.wide + _b.y * s * st.thin) * r;
-        const i = j * RAD + k;
-        const x = P[j].x + wx, z = P[j].z + wz;
-        const floor = (floorY - M[1] * x - M[9] * z - M[13]) / M[5];
-        pos.setXYZ(i, x, Math.max(floor, P[j].y + wy), z);
-        nor.setXYZ(i, nx, ny, nz);
+        const i = (j * RAD + k) * 3;
+        const x = Q.x + (nX * c * rw + bX * sn * rt), z = Q.z + (nZ * c * rw + bZ * sn * rt), y = Q.y + (nY * c * rw + bY * sn * rt);
+        const floor = m0 - m1 * x - m9 * z;
+        PA[i] = x; PA[i + 1] = y > floor ? y : floor; PA[i + 2] = z;
+        NA[i] = nX * c + bX * sn; NA[i + 1] = nY * c + bY * sn; NA[i + 2] = nZ * c + bZ * sn;
       }
     }
     pos.needsUpdate = true;

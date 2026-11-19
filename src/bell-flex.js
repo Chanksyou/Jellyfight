@@ -65,6 +65,8 @@ const cacheKey = () => 'bell-flex';
 export function patchBell(mesh, uniform) {
   mesh.updateMatrix();
   mesh.geometry.applyMatrix4(mesh.matrix);
+  mesh.geometry.computeBoundingSphere();
+  mesh.geometry.boundingSphere.radius *= 1.25;   // the shader flares and drops the rim past where it was built: don't cull it at a screen edge
   mesh.position.set(0, 0, 0); mesh.rotation.set(0, 0, 0); mesh.scale.set(1, 1, 1);
   const m = mesh.material;
   if (m.onBeforeCompile !== onBeforeCompile) { m.onBeforeCompile = onBeforeCompile; m.customProgramCacheKey = cacheKey; owner.set(m, uniform); }

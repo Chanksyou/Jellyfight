@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { SPECIES, buildCharacter } from '../character.js';
 import { bellFlex, freezeBell } from '../bell-flex.js';
+import { freezeArm } from '../arms.js';
 import { ok, story } from './kit.js';
 
 story('motion/rim-leads-crown', {
@@ -58,7 +59,7 @@ story('motion/roots-hang-from-the-rim', {
 });
 
 story('motion/frozen-copy-keeps-its-bend', {
-  about: 'A copy of the jelly made mid-stroke (the victory scene, the death splay) keeps its bell\'s bend while the live jelly moves on.',
+  about: 'A copy of the jelly made mid-stroke (the victory scene, the death splay) keeps its bell\'s bend and its oral arms\' bend while the live jelly moves on.',
   setup() {},
   play() {
     const c = buildCharacter({ body: 'nettle' }, 1);
@@ -67,12 +68,17 @@ story('motion/frozen-copy-keeps-its-bend', {
     c.root.traverse((o) => { if (o.isMesh && o.material.customProgramCacheKey?.() === 'bell-flex') live.push(o.material); });
     if (!live.length) return ok(false, { why: 'no patched bell material' });
     const copy = freezeBell(live[0], live[0].clone()), before = bellFlex(0, c.bend, { k: 1, dy: 0 }).k;
+    const A = c.arms.list[0], armCopy = freezeArm(A.mat), armThen = A.bend[4].clone();
     for (let i = 20; i < 60; i++) c.update(1 / 60, { speed: 0.35, walkSpeed: 0.35, grounded: true, vy: 0, swim: i / 150 });
     const moved = bellFlex(0, c.bend, { k: 1, dy: 0 }).k;
     const dummy = { uniforms: {}, vertexShader: '#include <common>\n#include <begin_vertex>' };
     copy.onBeforeCompile(dummy);
     const kept = dummy.uniforms.bellFlex.value;
+    const armDummy = { uniforms: {}, vertexShader: dummy.vertexShader };
+    armCopy.onBeforeCompile(armDummy);
+    const armKept = armDummy.uniforms.armBend.value[4], armMoved = A.bend[4].distanceTo(armThen);
     c.dispose();
-    return ok(Math.abs(moved - before) > 0.02 && Math.abs(kept.x - c.bend.x) > 0.01, { before, moved, kept: kept.toArray() });
+    const armOk = armCopy !== A.mat && armMoved > 1e-4 && armKept.distanceTo(armThen) < 1e-9;
+    return ok(Math.abs(moved - before) > 0.02 && Math.abs(kept.x - c.bend.x) > 0.01 && armOk, { before, moved, kept: kept.toArray(), armMoved, armKept: armKept.toArray() });
   },
 });

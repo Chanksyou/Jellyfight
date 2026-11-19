@@ -1,0 +1,1 @@
+tunes the jelly's new motion: its tentacles are drawn about twice as fast (every jelly's animation now costs less than before the motion work), a victory or death copy keeps its oral arms' bend, and the bell is never culled at a screen edge while it flares.
