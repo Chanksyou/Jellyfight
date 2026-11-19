@@ -1,5 +1,73 @@
 {
- "lightning.mp3": { "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28", "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game" },
- "fireball-flight.mp3": { "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner", "licence": "None supplied; confirm redistribution rights before a production release" },
- "encore-around-the-world.mp3": { "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner", "licence": "None for the recording; the owner chose to include it for their own play" }
+ "lightning.mp3": {
+  "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28",
+  "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game"
+ },
+ "fireball-flight.mp3": {
+  "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner",
+  "licence": "None supplied; confirm redistribution rights before a production release"
+ },
+ "encore-around-the-world.mp3": {
+  "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner",
+  "licence": "None for the recording; the owner chose to include it for their own play"
+ },
+ "rewards.mp3": {
+  "from": [
+   {
+    "role": "xp-pickup",
+    "soundza": "Bright Coin Pickup (cmukc8kdxfng4cdvohnilvz9l, https://soundza.com/sound/bright-coin-pickup)",
+    "date": "2026-11-19",
+    "edits": "mono, faded; played at a rate per chain step"
+   },
+   {
+    "role": "treasure-pickup",
+    "soundza": "Coin Pickup Short (cmvcmiy9v0bk9v0pkimd2onwc, https://soundza.com/sound/coin-pickup-short)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1.2 s, faded"
+   },
+   {
+    "role": "level-up",
+    "soundza": "Level Up Chime (cmvjp93zqj6svb9fack4vkqds, https://soundza.com/sound/level-up-chime)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   },
+   {
+    "role": "chest-creak",
+    "soundza": "Wooden Chest Open (cmvr44p430v4e2tbs44j5zl2v, https://soundza.com/sound/wooden-chest-open)",
+    "date": "2026-11-19",
+    "edits": "mono, faded; slower for an Elite's chest"
+   },
+   {
+    "role": "chest-pop",
+    "soundza": "Treasure (cmv0ijpbp007r06l58je4sf8e, https://soundza.com/sound/treasure)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1 s, faded; higher for an Elite's chest"
+   },
+   {
+    "role": "reveal-0..3, award",
+    "soundza": "Shimmer Logo Reveal 1 (v4uyzfkgoni3q8a8h4tgz5e0, https://soundza.com/sound/shimmer-logo-reveal-1, AI-generated)",
+    "date": "2026-11-19",
+    "edits": "started 1.55 s in (its peak), mono, cut to 0.45 / 0.8 / 1.3 / 2.2 s (reveal) and 2.6 s (award), faded"
+   },
+   {
+    "role": "buy",
+    "soundza": "Cash Register Purchase (cmv8zuan8383eum4fqute6fhu, https://soundza.com/sound/cash-register-purchase)",
+    "date": "2026-11-19",
+    "edits": "mono, cut to 1.4 s, faded"
+   },
+   {
+    "role": "menu-tap",
+    "soundza": "Soft UI Tap (cmvcmlbircnzts2ktscbyt28v, https://soundza.com/sound/soft-ui-tap)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   },
+   {
+    "role": "menu-pick",
+    "soundza": "Confirmation 4 (cmv5n0d7l011k06l4k4q02njv, https://soundza.com/sound/confirmation-4)",
+    "date": "2026-11-19",
+    "edits": "mono, faded"
+   }
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): free for commercial use inside a game, edits allowed, no sharing as standalone files"
+ }
 }
