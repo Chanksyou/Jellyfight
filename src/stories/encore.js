@@ -13,6 +13,7 @@ import { EncoreLasers, CORNERS, LASER_DMG } from '../encore-laser.js';
 import { EncoreDisco, DISCO, DISCO_DMG } from '../encore-disco.js';
 import { EncorePulses, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
+import { buildEncoreBoss, MOVES } from '../encore-model.js';
 import { story, ok, V, encoreFight, step, stub } from './kit.js';
 
 const N = ENCORE.tiles, S = ENCORE.tileSize, BOSS = ENCORE.bossSpace;
@@ -602,3 +603,112 @@ fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
   },
 });
 
+
+// ---- the DJ rig (encore-model.js): parts, moves on the beat
+const rigBeat = (fps) => TRACKS.encore.bpm / 60 / fps;
+// each move's pose space: how far along its swing (wind-up to accent) the pose is now
+const along = (m, now) => { let p = 0; for (let i = 0; i < 10; i++) p += now[i] * (m.A[i] - m.W[i]); return p; };
+function moveDefs() {
+  const n = (k) => LOOK.list('encore-dance-' + k, []).map(Number);
+  return Object.fromEntries(MOVES.map((m) => { const t = n(m); return [m, { lead: t[0], strike: t[1], sustain: t[2], release: t[3], W: n(m + '-wind'), A: n(m + '-hit') }]; }));
+}
+
+story('encore/dj-rig-rest-pose-and-draws-unchanged', {
+  about: 'Split into torso, two arms and helmet, the DJs at rest stand exactly as before (main v545, encore-rig-rest.json): each performer, helmet, glove and outer arm within 1 mm, drawn with the same number of meshes and materials.',
+  setup() {},
+  async play() {
+    const was = await (await fetch('src/stories/encore-rig-rest.json')).json(), boss = buildEncoreBoss();
+    try {
+      boss.root.updateMatrixWorld(true);
+      const w = (o) => o.getWorldPosition(V(0, 0, 0)).toArray();
+      const djs = ['Silver performer', 'Gold performer'].map((n) => { const b = new THREE.Box3().setFromObject(boss.root.getObjectByName(n), true); return [...b.min.toArray(), ...b.max.toArray()]; });
+      const now = { djs, heads: boss.heads.map(w), hands: boss.hands.map(w), arms: boss.arms.map(w) };
+      let worst = 0;
+      for (const k of Object.keys(now)) now[k].forEach((v, i) => v.forEach((x, j) => { worst = Math.max(worst, Math.abs(x - was[k][i][j])); }));
+      let meshes = 0; const mats = new Set();
+      boss.root.traverse((o) => { if (o.isMesh) { meshes++; mats.add(o.material); } });
+      const parts = ['silver', 'gold'].every((who) => { const r = boss.rigs[who]; return r.torso && r.head && r.outer && r.inner && r.outer !== r.inner; });
+      return ok(worst < 0.001 && meshes === was.meshes && mats.size === was.materials && parts, { worst, meshes, materials: mats.size, was: [was.meshes, was.materials], parts });
+    } finally { boss.dispose(); }
+  },
+});
+
+story('encore/dj-rig-every-move-lands-its-accent-on-its-beat', {
+  about: 'Each DJ move (four wave gestures, record throw, fader crank, hands up, fist pump, flinch, bow) asked for on beat 8 swings furthest at beat 8, within a frame, at 30 and at 60 fps, for either DJ; it moves his torso, helmet or arms on the way, and he is back at rest when it ends.',
+  setup() {},
+  play() {
+    const defs = moveDefs(), out = {};
+    for (const fps of [30, 60]) for (const [n, move] of MOVES.entries()) {
+      const boss = buildEncoreBoss(), who = n % 2 ? 'gold' : 'silver', r = boss.rigs[who], m = defs[move], db = rigBeat(fps);
+      try {
+        boss.perform(who, move, 8);
+        let best = -Infinity, bestAt = null, moved = 0;
+        const end = 8 + m.sustain + m.release;
+        for (let b = 8 - m.lead - 1; b <= end + 1; b += db) {
+          boss.update(1 / fps, false, b);
+          const p = along(m, r.now);
+          if (p > best) { best = p; bestAt = b; }
+          moved = Math.max(moved, Math.abs(r.torso.rotation.x), Math.abs(r.outer.rotation.x), Math.abs(r.inner.rotation.x), Math.abs(r.outer.rotation.y), Math.abs(r.head.rotation.x));
+        }
+        boss.update(1 / fps, true, end + 2);
+        const back = Array.from(r.now).every((v) => Math.abs(v) < 1e-6) && r.torso.rotation.x === 0 && r.outer.rotation.x === 0 && r.inner.rotation.x === 0;
+        out[`${move}@${fps}`] = { ok: Math.abs(bestAt - 8) <= db + 1e-9 && moved > 0.1 && back, at: +bestAt.toFixed(3), moved: +moved.toFixed(2), back };
+      } finally { boss.dispose(); }
+    }
+    const bad = Object.fromEntries(Object.entries(out).filter(([, v]) => !v.ok));
+    return ok(Object.keys(out).length === MOVES.length * 2 && !Object.keys(bad).length, { bad, n: Object.keys(out).length });
+  },
+});
+
+story('encore/dj-rig-reduce-effects-keeps-poses-drops-bounce', {
+  about: 'With reduced effects each move still reaches its full accent pose on its beat, but nothing overshoots or bounces: after the accent it only eases back towards rest, never past it. With effects on, a swing does run past its accent and bounce back.',
+  setup() {},
+  play() {
+    const defs = moveDefs(), db = rigBeat(60), out = {};
+    let bounces = false;
+    for (const move of MOVES) {
+      const m = defs[move], full = along(m, m.A);
+      for (const quiet of [true, false]) {
+        const boss = buildEncoreBoss(), r = boss.rigs.silver;
+        try {
+          boss.perform('silver', move, 8);
+          let peak = 0, last = Infinity, eased = true, past = false;
+          for (let b = 6.9 - m.lead; b <= 8 + m.sustain + m.release + 1; b += db) {
+            boss.update(1 / 60, quiet, b);
+            const p = along(m, r.now);
+            if (b >= 8 - db / 2 && b < 8 + db / 2) peak = p;
+            if (b > 8 + db) { eased &&= p <= last + 1e-6; past ||= p < -1e-4; last = p; }
+          }
+          if (quiet) out[move] = { ok: Math.abs(peak - full) < 1e-3 * Math.max(1, full) && eased && !past, peak: +peak.toFixed(3), full: +full.toFixed(3), eased, past };
+          else bounces ||= peak > full + 1e-3 && !eased;
+        } finally { boss.dispose(); }
+      }
+    }
+    const bad = Object.fromEntries(Object.entries(out).filter(([, v]) => !v.ok));
+    return ok(!Object.keys(bad).length && bounces, { bad, bounces });
+  },
+});
+
+story('encore/dj-rig-a-move-takes-over-from-the-arm-pump-and-gives-it-back', {
+  about: 'A DJ pumping his arm to his wave who is asked for a fist pump blends into it within a quarter beat, with no jump in his arm while it takes over, and goes back to pumping after it; a move asked for mid-move blends from where he was.',
+  setup() {},
+  play() {
+    const boss = buildEncoreBoss(), r = boss.rigs.gold, db = rigBeat(60);
+    try {
+      let jump = 0, prev = null, during = null, after = null;
+      for (let b = 0; b <= 12; b += db) {
+        boss.dance('gold', b);
+        if (Math.abs(b - 4) < db / 2) boss.perform('gold', 'fist-pump', 5);
+        if (Math.abs(b - 5.4) < db / 2) boss.perform('gold', 'flinch', 5.7);
+        boss.update(1 / 60, true, b);
+        const x = r.outer.rotation.x;
+        if (prev !== null && ((b > 4.4 && b < 4.75) || (b > 5.4 && b < 5.55))) jump = Math.max(jump, Math.abs(x - prev));
+        prev = x;
+        if (Math.abs(b - 5) < db / 2) during = x;
+        if (Math.abs(b - 11) < db / 2) after = { x, w: r.w };
+      }
+      const pumping = after.w === 0 && after.x < -1.2;
+      return ok(jump < 0.25 && during < -2 && pumping, { jump: +jump.toFixed(3), during, after });
+    } finally { boss.dispose(); }
+  },
+});
