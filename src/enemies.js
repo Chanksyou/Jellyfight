@@ -313,9 +313,9 @@ export class Enemies {
       }
     });
     // a bug's hit really landed on the jelly (run.js): the bug answers it (landed)
-    bus.on('player_hurt', ({ from, contact }) => {
+    bus.on('player_hurt', ({ from, contact, touch }) => {
       const e = this.byId.get(from);
-      if (e && !e.dead && !e.proxy) this.landed(e, contact);
+      if (e && !e.dead && !e.proxy) this.landed(e, contact, touch);
     });
     bus.on('knockback', ({ targetId, dir, force, collisionDamage = 0, pushHits = 0, lift = 0 }) => {
       const e = this.byId.get(targetId);
@@ -619,14 +619,14 @@ export class Enemies {
   // A bug's hit landed on the jelly (the player_hurt event): the bug squashes with the blow (e.recoil,
   // drawn in update), a few drops of jelly fly off and splat on the floor under it (harmless, fading),
   // and a wet slap. A touch (contact: a bite, a rolling ball) also flashes where the two met.
-  landed(e, contact) {
+  landed(e, contact, touch) {
     if (e.bleeds) bus.emit('status_applied', { targetId: PLAYER, status: 'bleed', duration: e.bleeds.seconds, strength: e.bleeds.dps, unit: e.type });   // the bleeds word
     const P = this.player;
     if (!P) return;
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
     const words = e.T.attack;
-    if (e.atk && (!words || e.atk.phase === 'swing' || words.phases[e.state] === 'swing' || (words.phases[e.state] === 'fire' && e.atk.phase === 'build') || (words.phases[e.state] === 'build' && (words.timer[e.state] ? e[words.timer[e.state]] : e.stateT) <= 0))) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it; a burst that hits as it steps from its build-up into its fire step, the Cicada's; a beam fires from the frame its charge runs out): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't); a bug with no attack word (the Cockroach) jabs when its touch lands
+    if (e.atk && (!words ? true : !touch) && (!words || e.atk.phase === 'swing' || words.phases[e.state] === 'swing' || (words.phases[e.state] === 'fire' && e.atk.phase === 'build') || (words.phases[e.state] === 'build' && (words.timer[e.state] ? e[words.timer[e.state]] : e.stateT) <= 0))) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it; a burst that hits as it steps from its build-up into its fire step, the Cicada's; a beam fires from the frame its charge runs out): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't); a bug with no attack word (the Cockroach) jabs when its touch lands
     if (contact) {
       const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
       this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);

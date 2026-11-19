@@ -382,10 +382,11 @@
   --bug-attack-mantis-stuck: 0.15; /* s a Praying mantis that missed its swat leaves its forelegs out, crossed (its punish window) */
   /* each tier (how much the attack matters): stretch (the body's at full reach), over (the swing's overshoot),
      contact (s the contact pose holds when the hit lands), puff (when a weight puff kicks up: launch, land) */
-  --bug-attack-fodder-stretch: 1.1;  --bug-attack-fodder-over: 0.05; --bug-attack-fodder-contact: 0;    --bug-attack-fodder-puff: none;
-  --bug-attack-light-stretch: 1.2;   --bug-attack-light-over: 0.12;  --bug-attack-light-contact: 0.05;  --bug-attack-light-puff: none;
-  --bug-attack-mid-stretch: 1.25;    --bug-attack-mid-over: 0.15;    --bug-attack-mid-contact: 0.05;    --bug-attack-mid-puff: land;
+  --bug-attack-fodder-stretch: 1.1;  --bug-attack-fodder-over: 0.05; --bug-attack-fodder-contact: 0;    --bug-attack-fodder-puff: none;   --bug-attack-fodder-end: 0.8;
+  --bug-attack-light-stretch: 1.2;   --bug-attack-light-over: 0.12;  --bug-attack-light-contact: 0.05;  --bug-attack-light-puff: none;   --bug-attack-light-end: 0.8;
+  --bug-attack-mid-stretch: 1.25;    --bug-attack-mid-over: 0.15;    --bug-attack-mid-contact: 0.05;    --bug-attack-mid-puff: land;   --bug-attack-mid-end: 0.8;
   --bug-attack-heavy-stretch: 1.3;   --bug-attack-heavy-over: 0;     --bug-attack-heavy-contact: 0.08;  --bug-attack-heavy-puff: launch land;
+  --bug-attack-heavy-end: 0.8;   /* per tier (the four -end values above): how far through its recoil a bug is home (k); the last fifth of its rest is the punish window closing, not still easing */
 
   /* Confirmed enemy damage text: independent from hit rules and world effects. */
   --number-cap: 40;
