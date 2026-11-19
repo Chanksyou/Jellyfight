@@ -349,6 +349,7 @@ export const sfx = {
   // a jump: a soft bloop sliding up out of the bell, and a little bubbly fizz under it
   jump() {
     if (!ready() || !gap('jump', 90)) return;
+    if (sample('jump')) return;
     const j = jitter(0.08);
     tone('sine', 260 * j, 620 * j, 0.11, 0.05);
     noise(1800 * j, 2, 0.06, 0.025, 'bandpass', 0.01, 3200 * j);
@@ -356,6 +357,7 @@ export const sfx = {
   // a landing (k 0..1: how far it fell): a wet pat, a low plop under a harder one, droplets pattering
   land(k = 0.5) {
     if (!ready() || !gap('land', 120)) return;
+    if (sample('land', { rate: 1.1 - 0.3 * k, vol: 0.6 + 0.4 * k })) return;   // a longer fall lands lower and louder
     const j = jitter(0.1);
     noise(900 * j, 1, 0.07 + 0.05 * k, 0.04 + 0.06 * k, 'lowpass', 0, 300);
     tone('sine', 170 * j, 80, 0.09 + 0.05 * k, 0.03 + 0.05 * k);
@@ -528,13 +530,15 @@ export const sfx = {
     tone('sine', 630 * j, 1275 * j, 0.25, 0.04, 0.04);
     noise(3000 * j, 1.5, 0.2, 0.035, 'bandpass');
   },
-  blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
+  blow() { if (!ready() || !gap('blow', 60)) return; if (sample('bubble-blow')) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
   // a bubble flying off: a soft airy whoosh that falls away behind it (at most ~6 a second)
   whiz() { if (!ready() || !gap('whiz', 160)) return; const j = jitter(0.15); noise(2600 * j, 1.4, 0.24, 0.03, 'bandpass', 0.03, 900 * j); },
   // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
   // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
   pop(big = false) {
     if (!ready() || !gap('pop', 25)) return;
+    const R = { rate: 0.92 + Math.random() * 0.16 };
+    if (big) { if (sample('bubble-pop-big', R)) return; } else if (sample('bubble-pop', R)) return;
     const j = jitter(0.12);
     tone('sine', (big ? 380 : 900) * j, (big ? 1300 : 2600) * j, big ? 0.07 : 0.035, big ? 0.2 : 0.13);
     if (big) tone('sine', 120 * j, 260 * j, 0.12, 0.18);            // a deep glorp under the big ones
@@ -587,10 +591,11 @@ export const sfx = {
   // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it
   encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
   // an enemy hit: a short thud
-  hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
+  hit() { if (!ready() || !gap('hit', 30)) return; if (sample('bubble-hit', { rate: 0.92 + Math.random() * 0.16 })) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // a critical hit: a bright metallic shing over the thud, a falling glint after it
   crit() {
     if (!ready() || !gap('crit', 60)) return;
+    if (sample('crit')) return;
     const j = jitter(0.06);
     tone('triangle', 2400 * j, 1900 * j, 0.16, 0.05); tone('sine', 3600 * j, 3300 * j, 0.22, 0.03, 0.01);
     noise(7000 * j, 1.5, 0.07, 0.07, 'highpass');
@@ -599,6 +604,8 @@ export const sfx = {
   // an enemy dies: a crunchy squish; bigger for bigger things
   kill(size = 1) {
     if (!ready() || !gap('kill', 35)) return;
+    const R = { rate: 0.94 + Math.random() * 0.12 };
+    if (size > 1.3) { if (sample('kill-big', R)) return; } else if (sample('kill', R)) return;
     const j = jitter(0.1);
     noise(900 * j, 1.2, 0.12 + size * 0.05, 0.28, 'lowpass', 0, 200);
     tone('square', 180 * j / size, 50, 0.1 + size * 0.04, 0.08);
@@ -710,7 +717,7 @@ export const sfx = {
     if (big) tone('sine', f / 2, f / 2, 0.16, 0.045);
   },
   // you get hurt: a low wobbly bonk
-  hurt() { if (!ready() || !gap('hurt', 150)) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },
+  hurt() { if (!ready() || !gap('hurt', 150)) return; if (sample('hurt', { urgent: true })) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },
   // level up / treasure: a bright arpeggio
   levelUp() { if (!ready()) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
@@ -955,7 +962,7 @@ export const sfx = {
   shieldHit() { if (!ready() || !gap('shieldHit', 80)) return; const j = jitter(0.08); tone('sine', 1200 * j, 600 * j, 0.12, 0.08); noise(3200 * j, 2, 0.05, 0.04); },
   shieldBreak() { if (!ready() || !gap('shieldBreak', 80)) return; const j = jitter(0.08); tone('sine', 170 * j, 45 * j, 0.3, 0.18); noise(2400 * j, 0.8, 0.25, 0.14, 'lowpass', 0, 300); [1400, 2100, 3200].forEach((f, i) => tone('triangle', f * j, f * j * 0.3, 0.2, 0.04, i * 0.025)); },
   shieldCharge() { if (!ready() || !gap('shieldCharge', 300)) return; const j = jitter(0.04); tone('sine', 420 * j, 840 * j, 0.5, 0.025); noise(2600 * j, 3, 0.4, 0.015, 'bandpass', 0, 5200 * j); },   // the Shield starting to refill: a soft rising hum
-  shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
+  shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; if (sample('shield-up')) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
   // ---------------------------------------------------------- the Vacuum (vacuum.js)
   // booting up: a rising motor and a three-note startup chime
@@ -1096,13 +1103,15 @@ export const sfx = {
     [880, 1108.7, 1318.5, 1760].forEach((f, i) => tone('sine', f * 0.98, f, 0.9, 0.06, i * 0.05));
     noise(3000, 0.7, 0.6, 0.12, 'bandpass', 0, 9000);
   },
-  shieldHit() {
+  shieldHit(own = false) {   // own: the jelly's Shield (the Vacuum's has no recording yet)
     if (!ready() || !gap('shieldHit', 90)) return;
+    if (own) { if (sample('shield-hit', { urgent: true })) return; }
     const j = jitter(0.05);
     tone('sine', 2640 * j, 2600 * j, 0.22, 0.07); tone('sine', 3960 * j, 3900 * j, 0.14, 0.04);
   },
-  shieldBreak() {
+  shieldBreak(own = false) {
     if (!ready()) return;
+    if (own) { if (sample('shield-break', { urgent: true })) return; }
     noise(6000, 0.8, 0.6, 0.35, 'highpass');
     [2400, 1800, 1300, 900].forEach((f, i) => tone('triangle', f, f * 0.7, 0.3, 0.07, i * 0.05));
     tone('sine', 140, 40, 0.5, 0.3);

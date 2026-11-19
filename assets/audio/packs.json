@@ -103,5 +103,234 @@
     ]
    }
   }
+ },
+ "core": {
+  "file": "core.mp3",
+  "for": [
+   "unlock"
+  ],
+  "bytes": 155565,
+  "seconds": 12.89,
+  "roles": {
+   "bubble-blow": {
+    "cue": [
+     "blow"
+    ],
+    "vol": 0.1,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 0.3,
+      "length": 0.45,
+      "peak": 0.0519
+     }
+    ]
+   },
+   "bubble-hit": {
+    "cue": [
+     "hit"
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 1.05,
+      "length": 0.1408,
+      "peak": 0.0251
+     },
+     {
+      "start": 1.4908,
+      "length": 0.1409,
+      "peak": 0.0144
+     },
+     {
+      "start": 1.9317,
+      "length": 0.1408,
+      "peak": 0.0078
+     }
+    ]
+   },
+   "bubble-pop": {
+    "cue": [
+     "pop",
+     false
+    ],
+    "vol": 0.16,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 2.3725,
+      "length": 0.3134,
+      "peak": 0.0116
+     },
+     {
+      "start": 2.9859,
+      "length": 0.3151,
+      "peak": 0.0116
+     },
+     {
+      "start": 3.601,
+      "length": 0.3122,
+      "peak": 0.0287
+     }
+    ]
+   },
+   "bubble-pop-big": {
+    "cue": [
+     "pop",
+     true
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 4.2131,
+      "length": 0.3103,
+      "peak": 0.0618
+     }
+    ]
+   },
+   "crit": {
+    "cue": [
+     "crit"
+    ],
+    "vol": 0.2,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 4.8234,
+      "length": 0.3275,
+      "peak": 0.0028
+     }
+    ]
+   },
+   "kill": {
+    "cue": [
+     "kill",
+     1
+    ],
+    "vol": 0.22,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 5.4509,
+      "length": 0.45,
+      "peak": 0.1003
+     },
+     {
+      "start": 6.2009,
+      "length": 0.45,
+      "peak": 0.1277
+     },
+     {
+      "start": 6.9509,
+      "length": 0.45,
+      "peak": 0.2068
+     }
+    ]
+   },
+   "kill-big": {
+    "cue": [
+     "kill",
+     1.6
+    ],
+    "vol": 0.26,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 7.7009,
+      "length": 0.6,
+      "peak": 0.1756
+     }
+    ]
+   },
+   "jump": {
+    "cue": [
+     "jump"
+    ],
+    "vol": 0.07,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 8.6009,
+      "length": 0.2997,
+      "peak": 0.034
+     }
+    ]
+   },
+   "land": {
+    "cue": [
+     "land",
+     0.5
+    ],
+    "vol": 0.18,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 9.2006,
+      "length": 0.5,
+      "peak": 0.0044
+     }
+    ]
+   },
+   "hurt": {
+    "cue": [
+     "hurt"
+    ],
+    "vol": 0.28,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 10.0006,
+      "length": 0.3576,
+      "peak": 0.1853
+     }
+    ]
+   },
+   "shield-up": {
+    "cue": [
+     "shieldReady"
+    ],
+    "vol": 0.14,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 10.6582,
+      "length": 0.757,
+      "peak": 0.1234
+     }
+    ]
+   },
+   "shield-hit": {
+    "cue": [
+     "shieldHit",
+     true
+    ],
+    "vol": 0.16,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 11.7152,
+      "length": 0.2616,
+      "peak": 0.1531
+     }
+    ]
+   },
+   "shield-break": {
+    "cue": [
+     "shieldBreak",
+     true
+    ],
+    "vol": 0.24,
+    "mode": "replace",
+    "takes": [
+     {
+      "start": 12.2767,
+      "length": 0.315,
+      "peak": 0.0486
+     }
+    ]
+   }
+  }
  }
 }

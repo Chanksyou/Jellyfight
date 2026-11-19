@@ -1,0 +1,1 @@
+gives the jelly's everyday sounds recordings: the bubble's blow, pop and hit, a crit, a bug dying (small and large), jump, land, hurt, and the jelly's Shield coming up, taking a hit and breaking; the Vacuum's Shield and sounds with no recording yet keep their synthesized sounds.

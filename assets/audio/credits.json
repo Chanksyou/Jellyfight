@@ -1,5 +1,29 @@
 {
  "lightning.mp3": { "from": "Hove Audio, Lightning Magic sound effects pack (free version), https://hoveaudio.itch.io/lightning-magic-sound-effects-pack-free-version: LightningStrikeSolo_08, _13, _16, _26; LightningStrikeWoutRum_08, _13, _16, _21, _26, _28; LightningStrikeFull_28", "licence": "Royalty-free (not CC0), supplied by the owner; confirm the pack's licence covers shipping them in the game" },
  "fireball-flight.mp3": { "from": "koiroylers-fireball-impact-351961.mp3, supplied by the owner", "licence": "None supplied; confirm redistribution rights before a production release" },
- "encore-around-the-world.mp3": { "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner", "licence": "None for the recording; the owner chose to include it for their own play" }
+ "encore-around-the-world.mp3": { "from": "Westend's edit of Daft Punk's \"Around the World\", a free download on SoundCloud, supplied by the owner", "licence": "None for the recording; the owner chose to include it for their own play" },
+ "core.mp3": {
+  "from": [
+  {"role": "bubble-blow", "soundza": "Puff Of Smoke (cmvjpdj9kji3alfhzya3mkp48)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "bubble-hit", "soundza": "Crisp Splat Hit (cmvclppoz6igsiojqsibxqk9g)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "bubble-hit", "soundza": "Crisp Splat Hit variation (AI-made with vary_sound from cmvclppoz6igsiojqsibxqk9g)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "bubble-hit", "soundza": "Crisp Splat Hit (2nd) variation (AI-made with vary_sound from cmvclppoz6igsiojqsibxqk9g)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "bubble-pop", "soundza": "Bubble Bursting (cmw7qd4f62tzulohc9s57ilcy)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "bubble-pop", "soundza": "Bubble Bursting variation (AI-made with vary_sound from cmw7qd4f62tzulohc9s57ilcy)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "bubble-pop", "soundza": "Bubble Bursting (2nd) variation (AI-made with vary_sound from cmw7qd4f62tzulohc9s57ilcy)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "bubble-pop-big", "soundza": "Bubble 2 (cmuymqzse000l06n5sou4at7o)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "crit", "soundza": "Sparkle Shimmer Hit (cmvjojy6jx0szm70csa1llfej)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "kill", "soundza": "Step on Slug Splat Short (cmvfhzem2vem8zysvx3f9r2dx)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "kill", "soundza": "Step on Slug Splat Short variation (AI-made with vary_sound from cmvfhzem2vem8zysvx3f9r2dx)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "kill", "soundza": "Step on Slug Splat Short (2nd) variation (AI-made with vary_sound from cmvfhzem2vem8zysvx3f9r2dx)", "date": "2026-11-19", "edits": "AI-made variation of the library sound, trimmed, mono, 48 kHz, faded out", "ai_content": "ai"},
+  {"role": "kill-big", "soundza": "Step on Slug Splat Long (cmvfhz0ojrrqna6z4cdjnupq4)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "jump", "soundza": "Game Jump Boing (cmukcaxgu4cgw9wztqwz2pxb5)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "land", "soundza": "Water Splash Close-Up (cmukdx6avceim8959f8sxxrf1)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "hurt", "soundza": "Slime 8 (cmv0i98uw01m006l8g1iog0i0)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "shield-up", "soundza": "Force Field 3 (cmv5n0uyt017906l4c3eavl8j)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "shield-hit", "soundza": "Short Ceramic Bell Hit 30 (v75slhb8l6hahm3zbuvcisid)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"},
+  {"role": "shield-break", "soundza": "Glass 3 (cmv0gjx4y000i06l8fvzgdtj2)", "date": "2026-11-19", "edits": "trimmed to its first hit, mono, 48 kHz, faded out"}
+  ],
+  "licence": "Soundza Standard License (https://soundza.com/license): commercial use and editing allowed, no attribution required, not to be shared on their own or used to train AI"
+ }
 }

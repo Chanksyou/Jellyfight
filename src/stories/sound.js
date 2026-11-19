@@ -123,3 +123,30 @@ story('sound/takes-line-up-by-their-peak-and-danger-keeps-two-voices', {
     return ok(loaded && lands !== null && Math.abs(lands) < 0.002 && ordinary === 6 && all === 8, { loaded, lands, ordinary, all });
   },
 });
+
+story('sound/jelly-core-sounds-play-recorded-and-the-vacuum-shield-does-not', {
+  about: 'With the core pack in, the bubble\'s blow, pop (small and big), hit, a crit, a small and a large bug dying, a jump, a land, hurt and the jelly\'s Shield (up, hit, break) each play a recorded take; the Vacuum\'s Shield (no argument) stays synthesized.',
+  setup() { setupFight(); },
+  async play() {
+    unlockAudio();
+    const loaded = await loadPack('core'), packs = await packList();
+    await wait(400);   // past the repeat gaps of earlier stories' sounds
+    const calls = [['blow'], ['hit'], ['pop', false], ['pop', true], ['crit'], ['kill', 1], ['kill', 1.6], ['jump'], ['land', 0.5], ['hurt'], ['shieldReady'], ['shieldHit', true], ['shieldBreak', true]];
+    const played = [];
+    for (const [cue, ...args] of calls) {
+      const log = cueLog(() => 0);
+      sfx[cue](...args);
+      cueLog(null);
+      played.push(log.filter((c) => c.recorded).map((c) => c.cue).join());
+      await wait(130);   // past the 90 to 150 ms repeat gaps, and the voices
+    }
+    const log = cueLog(() => 0);
+    sfx.shieldHit();   // the Vacuum's Shield
+    sfx.shieldBreak();
+    cueLog(null);
+    const vacuum = log.filter((c) => c.recorded).length;
+    const want = ['bubble-blow', 'bubble-hit', 'bubble-pop', 'bubble-pop-big', 'crit', 'kill', 'kill-big', 'jump', 'land', 'hurt', 'shield-up', 'shield-hit', 'shield-break'];
+    const jump = packs.core.roles.jump.vol;
+    return ok(loaded && played.join('|') === want.join('|') && vacuum === 0 && jump <= 0.1, { loaded, played, vacuum, jump });
+  },
+});
