@@ -1,1 +1,0 @@
-the Ant, House spider, Firefly, Ladybug and Stag beetle throw with their whole bodies: each braces and coils, holds still for a beat before it lets go, then rocks back after the throw (the Stag beetle is shoved back and eases home without a bounce). Nothing about when or where their shots go has changed.
