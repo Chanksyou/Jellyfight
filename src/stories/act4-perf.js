@@ -76,10 +76,13 @@ act4('the-encore-builds-no-shader-mid-fight', {
   play() {
     const before = built(), lit = lights(), seen = [];
     const B = encoreFight({ beat: 92 }); immortal();
+    B.hp = B.maxHp * 0.7;   // set 2, so its disco ball visits
     let disco = false;
     const look = () => { disco ||= B.disco.hanger.visible; for (const p of fresher(before)) if (!seen.includes(p)) seen.push(p); };
     for (let i = 0; i < 8; i++) { step(60); look(); }
-    stub(B, 'song', { beat: () => null, quiet: () => false, drop: () => false }); B.clock = 126;   // straight on to its disco ball, on its own clock
+    // straight on to just before its next disco ball visit (set list: every 32 beats, 16 after a solo slot), on its own clock
+    stub(B, 'song', { beat: () => null, quiet: () => false, drop: () => false });
+    const o = B.set.origin; B.clock = o + 16 + Math.ceil((B.beat + 8 - o - 16) / 32) * 32 - 7;
     for (let i = 0; i < 12; i++) { step(30); look(); }
     return ok(!seen.length && lights() === lit && disco, { newShaders: seen, lights: [lit, lights()], disco, beat: B.beat });
   },
