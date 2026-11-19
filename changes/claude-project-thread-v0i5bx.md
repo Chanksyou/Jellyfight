@@ -1,1 +1,0 @@
-moves lightning's recorded sounds into the first sound pack: they now download only for a Lightning Jelly run and never while muted, follow the Cream Whipper's deep sound, and a heavy chain strike has a synthesized sound when the recording can't load. `sounds.html` plays every recorded take next to its synthesized sound.
