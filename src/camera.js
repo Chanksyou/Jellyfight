@@ -84,6 +84,10 @@ export class ThirdPersonCamera {
     this._jelly = new THREE.Vector3();   // where the jelly is now (the focus follows a little behind it)
     this.keep = new Map();     // mesh -> how solid: kept faint whether in the way or not (a boss fight's seeThrough: the Clog's curtain and door)
     this._fades = new Map();   // mesh -> { mats: its own material(s), see: the fading copies, k: opacity }
+    // true while the jelly rides a vent (systems.js): nothing new starts fading, what's faded stays
+    // faded while it's in the way. The ride sweeps the jelly up through a whole cabinet in a second,
+    // and on a phone the 20 to 30 see-through copies that started at once dropped frames
+    this.holdFades = false;
     this.pull = 0;             // m the clearance has dollied the camera in by (0: the view as asked for)
     this._hold = 0;            // s left before the camera starts easing back out
     this._rayEnd = new THREE.Vector3();
@@ -162,7 +166,7 @@ export class ThirdPersonCamera {
 
   // Fade what's in the way out, and back in (on its own material again) once it's clear
   fade(dt) {
-    for (const m of this.over) if (!this.solid.has(m)) this.startFade(m);
+    if (!this.holdFades) for (const m of this.over) if (!this.solid.has(m)) this.startFade(m);
     for (const m of this.keep.keys()) this.startFade(m);
     for (const [m, f] of this._fades) {
       if ((this.over.has(m) && !this.solid.has(m)) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;

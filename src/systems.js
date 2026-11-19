@@ -105,6 +105,7 @@ export class CameraSystem {
     if (mode === 'layout') this.gfx.focus = this.state.layout.dist;
     else if (mode === 'creator') this.orbit(dt);
     else {
+      this.tpc.holdFades = !!this.player.flight;   // a vent ride (camera.js)
       this.tpc.update(dt, this.input.consumeMouse(), this.player.position);
       this.gfx.focus = this.camera.position.distanceTo(this.player.position) + 0.005;
     }
