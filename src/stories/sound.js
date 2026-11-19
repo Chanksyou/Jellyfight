@@ -124,6 +124,58 @@ story('sound/takes-line-up-by-their-peak-and-danger-keeps-two-voices', {
   },
 });
 
+story('sound/jelly-core-sounds-play-recorded-and-the-vacuum-shield-does-not', {
+  about: 'With the core pack in, the bubble\'s blow, pop (small and big), hit, a crit, a small and a large bug dying, a jump, a land, hurt and the jelly\'s Shield (up, hit, break) each play a recorded take; the Vacuum\'s Shield and a bug\'s own pop stay synthesized.',
+  setup() { setupFight(); },
+  async play() {
+    unlockAudio();
+    const loaded = await loadPack('core'), packs = await packList();
+    await wait(400);   // past the repeat gaps of earlier stories' sounds
+    const calls = [['blow'], ['hit'], ['pop', false], ['pop', true], ['crit'], ['kill', 1], ['kill', 1.6], ['jump'], ['land', 0.5], ['hurt'], ['shieldReady'], ['shieldHit', true], ['shieldBreak', true]];
+    const played = [];
+    for (const [cue, ...args] of calls) {
+      const log = cueLog(() => 0);
+      sfx[cue](...args);
+      cueLog(null);
+      played.push(log.filter((c) => c.recorded).map((c) => c.cue).join());
+      await wait(130);   // past the 90 to 150 ms repeat gaps, and the voices
+    }
+    const log = cueLog(() => 0);
+    sfx.shieldHit();   // the Vacuum's Shield
+    sfx.shieldBreak();
+    cueLog(null);
+    await wait(40);
+    const own = cueLog(() => 0);
+    sfx.pop(false, true);   // the Bull's little bulls: a bug's own pop
+    cueLog(null);
+    const vacuum = log.filter((c) => c.recorded).length + own.filter((c) => c.recorded).length;
+    const want = ['bubble-blow', 'bubble-hit', 'bubble-pop', 'bubble-pop-big', 'crit', 'kill', 'kill-big', 'jump', 'land', 'hurt', 'shield-up', 'shield-hit', 'shield-break'];
+    const jump = packs.core.roles.jump.vol;
+    return ok(loaded && played.join('|') === want.join('|') && vacuum === 0 && jump <= 0.1, { loaded, played, vacuum, jump });
+  },
+});
+
+story('sound/everyday-sounds-leave-voices-for-the-rarer-ones', {
+  about: 'The sounds that come in swarms (bubble pop, hit, kill, blow) play at most 2 takes each and never take the last 2 ordinary voices: with a swarm sounding, a lightning chain still gets its voice.',
+  setup() { setupFight(); },
+  async play() {
+    unlockAudio();
+    const loaded = (await loadPack('core')) && (await loadPack('lightning')), { ctx } = audio();
+    await wait(2000);   // every recorded voice from earlier stories has rung out
+    const started = [], make = ctx.createBufferSource.bind(ctx);
+    stub(ctx, 'createBufferSource', () => {
+      const s = make(), start = s.start.bind(s);
+      s.start = (...a) => { if (s.buffer?.duration > 5) started.push(1); return start(...a); };   // the packs' takes, not synthesized noise
+      return s;
+    });
+    const every = { soft: true, max: 2 };
+    for (let i = 0; i < 3; i++) for (const role of ['bubble-pop', 'bubble-hit', 'kill']) sample(role, every);
+    const swarm = started.length;
+    sample('lightning-chain');
+    return ok(loaded && swarm === 4 && started.length === 5, { loaded, swarm, after: started.length });
+  },
+});
+
 story('sound/rewards-play-recorded-before-a-run-starts', {
   about: 'The rewards pack loads with sound itself (no run needed): the menu tap and pick, a pickup, the chest, level-up, reveal by tier, award and buying each play a recorded take instead of the synthesized sound, and the XP take plays faster the longer the chain.',
   setup() { setupFight(); },

@@ -57,6 +57,12 @@ const ROLES = {};                // role -> { vol, mode, takes: [{ buf, start, l
 const turn = {};
 const VOICES = 8, URGENT = 2;    // recorded voices at once; the last 2 only for hostile build-ups and hits on the jelly
 let voices = 0;
+// A recording's own dice (which take, how much it varies) never use Math.random: a pack arrives at an unpredictable moment,
+// and a story's seeded rolls must not depend on it.
+let seed = 0x2f6e2b1;
+const rng = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const live = {};                 // recorded takes sounding now, by role (sample's `max`)
+const EVERYDAY = { soft: true, max: 2 };   // the sounds that come in swarms (blow, pop, hit, kill): at most 2 at once each, and never the last 2 ordinary voices
 let manifest = null;
 const wanted = new Set(['unlock']), packLoading = {};
 const audioFetch = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error(`${url}: ${r.status}`); return r; });
@@ -116,15 +122,16 @@ function onset(buf, { start, length }) {
 // Play the next take of `role` (rate: its speed and pitch, vol: times the role's own loudness).
 // peakAt: an audio-clock time its peak should land on (a hit lined up with what it hits), else now.
 // urgent: a hostile build-up or a hit on the jelly, which may use the last 2 voices.
+// soft: an everyday sound that leaves the last 2 ordinary voices to the rarer ones; max: at most this many takes of the role at once.
 // Returns true when the caller should skip its synthesized sound: a 'replace' role that is loaded
 // (even when every voice is busy), false for a 'layer' role or one not loaded yet.
-export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false } = {}) {
+export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false, soft = false, max = 0 } = {}) {
   const r = ROLES[role];
   if (!r || !ready()) return false;
   const skip = r.mode === 'replace';
-  if (voices >= VOICES - (urgent ? 0 : URGENT)) return skip;
-  const list = r.takes, take = list[(turn[role] = ((turn[role] ?? Math.floor(Math.random() * list.length)) + 1) % list.length)];
-  const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * jitter(0.04);
+  if (voices >= VOICES - (urgent ? 0 : URGENT) - (soft ? 2 : 0) || (max && (live[role] ?? 0) >= max)) return skip;
+  const list = r.takes, take = list[(turn[role] = ((turn[role] ?? Math.floor(rng() * list.length)) + 1) % list.length)];
+  const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * (1 + (rng() - 0.5) * 0.08);
   let t = now(), from = take.start, len = take.length;
   if (peakAt !== null) {
     t = peakAt - take.peak / speed;
@@ -134,8 +141,8 @@ export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false 
   g.gain.value = vol * r.vol * loud;
   src.connect(g).connect(master);
   src.start(t, from, len);
-  voices++;
-  src.onended = () => { voices--; src.disconnect(); g.disconnect(); };
+  voices++; live[role] = (live[role] ?? 0) + 1;
+  src.onended = () => { voices--; live[role]--; src.disconnect(); g.disconnect(); };
   cues?.push({ cue: role, frame: cueFrame(), recorded: true });
   return skip;
 }
@@ -349,6 +356,7 @@ export const sfx = {
   // a jump: a soft bloop sliding up out of the bell, and a little bubbly fizz under it
   jump() {
     if (!ready() || !gap('jump', 90)) return;
+    if (sample('jump')) return;
     const j = jitter(0.08);
     tone('sine', 260 * j, 620 * j, 0.11, 0.05);
     noise(1800 * j, 2, 0.06, 0.025, 'bandpass', 0.01, 3200 * j);
@@ -356,6 +364,7 @@ export const sfx = {
   // a landing (k 0..1: how far it fell): a wet pat, a low plop under a harder one, droplets pattering
   land(k = 0.5) {
     if (!ready() || !gap('land', 120)) return;
+    if (sample('land', { rate: 1.1 - 0.3 * k, vol: 0.6 + 0.4 * k })) return;   // a longer fall lands lower and louder
     const j = jitter(0.1);
     noise(900 * j, 1, 0.07 + 0.05 * k, 0.04 + 0.06 * k, 'lowpass', 0, 300);
     tone('sine', 170 * j, 80, 0.09 + 0.05 * k, 0.03 + 0.05 * k);
@@ -528,13 +537,15 @@ export const sfx = {
     tone('sine', 630 * j, 1275 * j, 0.25, 0.04, 0.04);
     noise(3000 * j, 1.5, 0.2, 0.035, 'bandpass');
   },
-  blow() { if (!ready() || !gap('blow', 60)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
+  blow() { if (!ready() || !gap('blow', 60)) return; if (sample('bubble-blow', EVERYDAY)) return; const j = jitter(0.12); tone('sine', 260 * j, 520 * j, 0.09, 0.07); },
   // a bubble flying off: a soft airy whoosh that falls away behind it (at most ~6 a second)
   whiz() { if (!ready() || !gap('whiz', 160)) return; const j = jitter(0.15); noise(2600 * j, 1.4, 0.24, 0.03, 'bandpass', 0.03, 900 * j); },
   // a bubble bursting on an enemy: a water-drop plink that rises (the music's drums and plucks all
   // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
-  pop(big = false) {
+  pop(big = false, hostile = false) {   // hostile: a bug's own pop (the Bull's little bulls), which keeps its synthesized sound
     if (!ready() || !gap('pop', 25)) return;
+    const R = { ...EVERYDAY, rate: 0.92 + rng() * 0.16 };
+    if (big && !hostile) { if (sample('bubble-pop-big', R)) return; } else if (!hostile) { if (sample('bubble-pop', R)) return; }
     const j = jitter(0.12);
     tone('sine', (big ? 380 : 900) * j, (big ? 1300 : 2600) * j, big ? 0.07 : 0.035, big ? 0.2 : 0.13);
     if (big) tone('sine', 120 * j, 260 * j, 0.12, 0.18);            // a deep glorp under the big ones
@@ -587,10 +598,11 @@ export const sfx = {
   // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it
   encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
   // an enemy hit: a short thud
-  hit() { if (!ready() || !gap('hit', 30)) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
+  hit() { if (!ready() || !gap('hit', 30)) return; if (sample('bubble-hit', { ...EVERYDAY, rate: 0.92 + rng() * 0.16 })) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // a critical hit: a bright metallic shing over the thud, a falling glint after it
   crit() {
     if (!ready() || !gap('crit', 60)) return;
+    if (sample('crit')) return;
     const j = jitter(0.06);
     tone('triangle', 2400 * j, 1900 * j, 0.16, 0.05); tone('sine', 3600 * j, 3300 * j, 0.22, 0.03, 0.01);
     noise(7000 * j, 1.5, 0.07, 0.07, 'highpass');
@@ -599,6 +611,8 @@ export const sfx = {
   // an enemy dies: a crunchy squish; bigger for bigger things
   kill(size = 1) {
     if (!ready() || !gap('kill', 35)) return;
+    const R = { ...EVERYDAY, rate: 0.94 + rng() * 0.12 };
+    if (size > 1.3) { if (sample('kill-big', R)) return; } else if (sample('kill', R)) return;
     const j = jitter(0.1);
     noise(900 * j, 1.2, 0.12 + size * 0.05, 0.28, 'lowpass', 0, 200);
     tone('square', 180 * j / size, 50, 0.1 + size * 0.04, 0.08);
@@ -726,7 +740,7 @@ export const sfx = {
     if (big) tone('sine', f / 2, f / 2, 0.16, 0.045);
   },
   // you get hurt: a low wobbly bonk
-  hurt() { if (!ready() || !gap('hurt', 150)) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },
+  hurt() { if (!ready() || !gap('hurt', 150)) return; if (sample('hurt', { urgent: true })) return; tone('sawtooth', 220, 70, 0.22, 0.14); noise(400, 1, 0.15, 0.15, 'lowpass'); },
   // level up / treasure: a bright arpeggio
   levelUp() { if (!ready()) return; if (sample('level-up', { urgent: true })) return; [0, 4, 7, 12].forEach((s, i) => tone('triangle', 523 * Math.pow(2, s / 12), 523 * Math.pow(2, s / 12), 0.18, 0.12, i * 0.07)); },
   treasure() { if (!ready()) return; if (sample('treasure-pickup', { urgent: true })) return; [0, 7, 12, 16, 19].forEach((s, i) => tone('sine', 660 * Math.pow(2, s / 12), 660 * Math.pow(2, s / 12), 0.25, 0.1, i * 0.06)); },
@@ -974,10 +988,8 @@ export const sfx = {
     noise(700 * j, 1, 0.12, 0.08, 'lowpass', 0.55, 300);
   },
   // a big moment: boss or elite down
-  shieldHit() { if (!ready() || !gap('shieldHit', 80)) return; const j = jitter(0.08); tone('sine', 1200 * j, 600 * j, 0.12, 0.08); noise(3200 * j, 2, 0.05, 0.04); },
-  shieldBreak() { if (!ready() || !gap('shieldBreak', 80)) return; const j = jitter(0.08); tone('sine', 170 * j, 45 * j, 0.3, 0.18); noise(2400 * j, 0.8, 0.25, 0.14, 'lowpass', 0, 300); [1400, 2100, 3200].forEach((f, i) => tone('triangle', f * j, f * j * 0.3, 0.2, 0.04, i * 0.025)); },
   shieldCharge() { if (!ready() || !gap('shieldCharge', 300)) return; const j = jitter(0.04); tone('sine', 420 * j, 840 * j, 0.5, 0.025); noise(2600 * j, 3, 0.4, 0.015, 'bandpass', 0, 5200 * j); },   // the Shield starting to refill: a soft rising hum
-  shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
+  shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; if (sample('shield-up')) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
   // an Elite is beaten (run.js eliteDefeated plays the kind's `down` from elites.js, else boom): the boom, with the thing itself breaking over it
   controllerDown() { if (!ready()) return; if (sample('controller-down')) return; this.boom(); },
@@ -1122,13 +1134,15 @@ export const sfx = {
     [880, 1108.7, 1318.5, 1760].forEach((f, i) => tone('sine', f * 0.98, f, 0.9, 0.06, i * 0.05));
     noise(3000, 0.7, 0.6, 0.12, 'bandpass', 0, 9000);
   },
-  shieldHit() {
+  shieldHit(own = false) {   // own: the jelly's Shield (the Vacuum's has no recording yet)
     if (!ready() || !gap('shieldHit', 90)) return;
+    if (own) { if (sample('shield-hit', { urgent: true })) return; }
     const j = jitter(0.05);
     tone('sine', 2640 * j, 2600 * j, 0.22, 0.07); tone('sine', 3960 * j, 3900 * j, 0.14, 0.04);
   },
-  shieldBreak() {
+  shieldBreak(own = false) {
     if (!ready()) return;
+    if (own) { if (sample('shield-break', { urgent: true })) return; }
     noise(6000, 0.8, 0.6, 0.35, 'highpass');
     [2400, 1800, 1300, 900].forEach((f, i) => tone('triangle', f, f * 0.7, 0.3, 0.07, i * 0.05));
     tone('sine', 140, 40, 0.5, 0.3);

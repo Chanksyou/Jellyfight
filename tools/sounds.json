@@ -39,6 +39,24 @@
         "lightning-chain": { "cue": ["chainZap", 0], "vol": 0.12, "mode": "replace", "takes": ["lightning/chain-1.mp3", "lightning/chain-2.mp3", "lightning/chain-3.mp3"] }
       }
     },
+    "core": {
+      "for": ["unlock"],
+      "roles": {
+        "bubble-blow": { "cue": ["blow"], "vol": 0.1, "mode": "replace", "cap": 0.45, "takes": ["core/puff-of-smoke.wav"]},
+        "bubble-hit": { "cue": ["hit"], "vol": 0.2, "mode": "replace", "cap": 0.22, "takes": ["core/crisp-splat-hit.wav", "core/crisp-splat-hit-var-01.wav"]},
+        "bubble-pop": { "cue": ["pop", false], "vol": 0.16, "mode": "replace", "cap": 0.28, "takes": ["core/bubble-bursting.wav", "core/bubble-bursting-var-01.wav"]},
+        "bubble-pop-big": { "cue": ["pop", true], "vol": 0.2, "mode": "replace", "cap": 0.32, "takes": ["core/bubble-2.wav"]},
+        "crit": { "cue": ["crit"], "vol": 0.2, "mode": "replace", "cap": 0.3, "takes": ["core/sparkle-shimmer-hit.wav"]},
+        "kill": { "cue": ["kill", 1], "vol": 0.22, "mode": "replace", "cap": 0.35, "takes": ["core/step-on-slug-splat-short.wav", "core/step-on-slug-splat-short-var-01.wav"]},
+        "kill-big": { "cue": ["kill", 1.6], "vol": 0.26, "mode": "replace", "cap": 0.45, "takes": ["core/step-on-slug-splat-long.wav"]},
+        "jump": { "cue": ["jump"], "vol": 0.07, "mode": "replace", "cap": 0.3, "takes": ["core/game-jump-boing.wav"]},
+        "land": { "cue": ["land", 0.5], "vol": 0.18, "mode": "replace", "cap": 0.4, "takes": ["core/water-splash-close-up.wav"]},
+        "hurt": { "cue": ["hurt"], "vol": 0.28, "mode": "replace", "cap": 0.4, "takes": ["core/slime-8.wav"]},
+        "shield-up": { "cue": ["shieldReady"], "vol": 0.14, "mode": "replace", "cap": 0.6, "takes": ["core/force-field-3.wav"]},
+        "shield-hit": { "cue": ["shieldHit", true], "vol": 0.16, "mode": "replace", "cap": 0.4, "takes": ["core/short-ceramic-bell-hit-30.wav"]},
+        "shield-break": { "cue": ["shieldBreak", true], "vol": 0.24, "mode": "replace", "cap": 0.4, "takes": ["core/glass-3.wav"]}
+      }
+    },
     "rewards": {
       "for": ["unlock"],
       "roles": {
