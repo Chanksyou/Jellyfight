@@ -16,7 +16,7 @@ story('achievements/exact-requirements', {
   play() {
     const s = newChallenges(1), results = [];
     results.push(ACHIEVEMENTS.length === 13, passes('floor-dweller', s)); s.eliteKills++; results.push(!passes('floor-dweller', s));
-    for (const a of [1, 2, 3]) s.elites[a] = ['a', 'b', 'c']; results.push(passes('full-clearance', s)); s.elites[3].pop(); results.push(!passes('full-clearance', s));
+    for (const a of [1, 2, 3, 4]) s.elites[a] = ['a', 'b', 'c']; results.push(passes('full-clearance', s)); s.elites[4].pop(); results.push(!passes('full-clearance', s));
     results.push(passes('perfect-run', s)); s.hurt = true; results.push(!passes('perfect-run', s));
     s.perfect = [1]; results.push(passes('perfect-boss', s), !passes('perfect-pair', s)); s.perfect.push(2); results.push(passes('perfect-pair', s));
     results.push(passes('one-of-everything', s)); s.duplicate = true; results.push(!passes('one-of-everything', s));
