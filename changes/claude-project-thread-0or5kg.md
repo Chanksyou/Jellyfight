@@ -1,1 +1,0 @@
-plays the Encore's fight from one set list whose stages follow its Health, not the clock: it warms up on floor waves alone behind its opening force field, adds lasers and speaker waves in set 1, brings its disco ball in only once it's down to 75%, and books a (still empty) solo slot every 16 bars for the DJs' coming solos.

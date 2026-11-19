@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v545 plays the Encore's fight from one set list whose stages follow its Health, not the clock: it warms up on floor waves alone behind its opening force field, adds lasers and speaker waves in set 1, brings its disco ball in only once it's down to 75%, and books a (still empty) solo slot every 16 bars for the DJs' coming solos.
+
 v544 mixes sound 30 ms ahead instead of at the smallest buffer, so a busy moment on the audio thread no longer crackles and pops.
 
 v543 stops the pop at the end of the Vacuum's suck: its breathing wobble (and the wobble in the Vacuum's brushes, the millipede's rev and the dragonfly's charge hum) now fades with the sound instead of playing on after it and being cut off, and a recorded hit that has to start part-way through fades in instead of clicking.
