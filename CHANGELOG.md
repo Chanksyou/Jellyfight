@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v519 makes act 4's sunlight smooth: the room's own shaders light it, so it follows the sofa's curves without stair-steps, warms each surface's own colour, and lights the sides facing the window (one draw fewer).
+
 v518 gives Act 4's living room exactly Act 1's furniture layout, plants and things on the shelves and tables included; only the three Elites' own furniture and Act 4's vents differ, and from now on any layout change made in Act 1 shows up in Act 4 too.
 
 v517 dresses act 4's living room as a show about to start: a low barrier of Festival wristbands strung behind where the sun stops and cables running from the media console, with the LED cove strip, the Corner LED, the Spotlight floor lamp and the TV flashing on the song's beat; when time is up the TV flares and the media console lights up for eight beats (two with Reduce effects, or skip it with a jump) before the stage door opens.
