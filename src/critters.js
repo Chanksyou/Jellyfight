@@ -106,10 +106,10 @@ export function buildRoach() {
     }
     const A = e.atk, ph = A ? A.phase : 'idle';
     let head = 0, jab = 0, len = 1;
-    if (ph === 'build') head = 0.3 * coil(A.k, A.style.hold, A.style.over) * A.vary;
+    if (ph === 'build') head = 0.2 * coil(A.k, A.style.hold, A.style.over) * A.vary;
     else if (ph === 'swing') {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
-      head = 0.3 * A.vary * (1 - s) + 0.1 * s; jab = 0.25 * A.vary * s; len = 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      head = 0.2 * A.vary * (1 - s) + 0.07 * s; jab = 0.18 * A.vary * s; len = 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
       const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.04);
       jab = -0.15 * b; head = -0.12 * b * A.side;

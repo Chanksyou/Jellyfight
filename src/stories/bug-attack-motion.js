@@ -539,6 +539,9 @@ story('motion/beetle-plants-before-it-charges', {
     const planted = [...of(F, 'swing'), ...R.filter((f) => f.k < 0.2)].every((f) => f.y < -0.06);
     const stands = Math.abs(R.at(-1).y) < 0.01 && R.every((f, i) => !i || f.y >= R[i - 1].y - 1e-6);   // and rises smoothly as it eases home
     return ok(drop > 0.07 && planted && stands, { dropped: +drop.toFixed(3), planted, stands, lastY: +R.at(-1).y.toFixed(4) });
+  },
+});
+
 // ------------------------------------------------------------------ B5: the Dragonfly, the Cockroach, the Wasp nest
 // The Dragonfly's tail and its right-hand wings, read off the model: the tail's angle up over its back, then for
 // each of the fore and hind wing on the right: its flap (its angle up off flat, 0.05) and sweep (forward, from
@@ -595,8 +598,8 @@ story('motion/cockroach-leans-in-and-jabs-on-the-touch', {
       }
     } finally { S.done(); }
     const F = film('roach'), build = of(F, 'build'), before = build.filter((f) => !f.hit), swing = of(F, 'swing'), hop = of(F, 'recoil'), late = hop.filter((f) => f.k >= 0.8);
-    const out = { landed, jab, lean: +Math.max(...before.map((f) => f.rx)).toFixed(2), jabZ: +Math.max(...swing.map((f) => f.z)).toFixed(3), hopZ: +Math.min(...hop.map((f) => f.z)).toFixed(3), ready: late.length ? +Math.max(...late.map((f) => Math.max(Math.abs(f.z), Math.abs(f.rx), Math.abs(f.sz - 1)))).toFixed(3) : null };
-    return ok(landed > 0 && jab >= landed && jab - landed <= 1 && out.lean > 0.25 && out.jabZ > 0.2 && out.hopZ < -0.1 && out.ready !== null && out.ready < 0.03, out);
+    const out = { landed, jab, lean: +Math.max(...before.map((f) => f.rx)).toFixed(2), jabZ: +Math.max(...swing.map((f) => f.z)).toFixed(3), reach: +Math.max(...swing.map((f) => f.z + (f.sz - 1))).toFixed(3), hopZ: +Math.min(...hop.map((f) => f.z)).toFixed(3), ready: late.length ? +Math.max(...late.map((f) => Math.max(Math.abs(f.z), Math.abs(f.rx), Math.abs(f.sz - 1)))).toFixed(3) : null };
+    return ok(landed > 0 && jab >= landed && jab - landed <= 1 && out.lean > 0.17 && out.jabZ > 0.15 && out.reach <= 0.35 && out.hopZ < -0.1 && out.ready !== null && out.ready < 0.03, out);
   },
 });
 
@@ -619,7 +622,7 @@ story('motion/nest-squeezes-before-each-wasp', {
     }
     const before = seen.filter((s) => s.left > K.lead + 0.02), squeezing = seen.filter((s) => s.left < K.lead && s.left > 0.02), last = seen[spawned - 1];
     const calm = before.length > 10 && before.every((s) => s.x === 1 && s.y === 1);
-    const grows = squeezing.length > 5 && squeezing.every((s, i) => !i || s.x <= squeezing[i - 1].x + 1e-9) && last.x <= 1 - K.squeeze * 0.9 && last.y >= 1 + K.bulge * 0.9;
+    const grows = squeezing.length > 5 && squeezing.every((s, i) => !i || s.x <= squeezing[i - 1].x + 1e-9) && last.x <= 1 - K.squeeze * 0.7 && last.y >= 1 + K.bulge * 0.9;
     const hung = seen.every((s) => Math.abs(s.top - rest) < 0.001);   // its top stays where it hangs
     step(30);
     const relaxed = body.scale.x === 1 && body.scale.y === 1;

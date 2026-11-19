@@ -626,7 +626,7 @@ export class Enemies {
     const mid = S.hurt.copy(P.position).setY(P.position.y + (P.height || 0.09) * 0.5);
     e.recoil = 1;
     const words = e.T.attack;
-    if (e.atk && (!words || e.atk.phase === 'swing' || words.phases[e.state] === 'swing' || (words.phases[e.state] === 'build' && e.stateT <= 0))) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it; a beam fires from the frame its charge runs out): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't); a bug with no attack word (the Cockroach) jabs when its touch lands
+    if (e.atk && (!words || e.atk.phase === 'swing' || words.phases[e.state] === 'swing' || (words.phases[e.state] === 'build' && (words.timer[e.state] ? e[words.timer[e.state]] : e.stateT) <= 0))) e.atk.hit = true;   // its swing landed (on the swing's first frame too, before the clock has stepped into it; a beam fires from the frame its charge runs out): the contact pose holds (a Shot landing later, or a touch while it rests, doesn't); a bug with no attack word (the Cockroach) jabs when its touch lands
     if (contact) {
       const roll = e.state === 'dash' && e.T.words.some((w) => w.chargeLen);
       this.fx.impact(this.center(e, S.o).lerp(mid, 0.6), hostile(roll ? 'millipede' : LOOK.has('hostile-' + e.type) ? e.type : 'bite'), roll ? 0.02 : 0.013, roll ? 10 : 6);

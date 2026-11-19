@@ -16,7 +16,7 @@
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
-import { STYLES, TIERS } from './attack-motion.js';
+import { STYLES, TIERS, knobs } from './attack-motion.js';
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -647,7 +647,7 @@ export const ENEMY_WORDS = {
       tick(e, c, en) {
         if (c.slow === 0) return;           // frozen or stunned: nothing comes out
         if ((e.broodT -= c.dt) > 0) {
-          if (e.broodT < 0.5) e.broodFull = broodCount(en, e) >= p.max;   // (its model squeezes only before a wasp that will come: --bug-attack-nest-lead)
+          if (e.broodT < knobs().nest.lead + 0.2) e.broodFull = broodCount(en, e) >= p.max;   // (its model squeezes only before a wasp that will come: --bug-attack-nest-lead)
           return;
         }
         e.broodT = p.every;
