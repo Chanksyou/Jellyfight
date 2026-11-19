@@ -19,7 +19,7 @@ let MOVE=null,K=null;
 function moves(){
   if(MOVE)return MOVE;
   const n=(name,d)=>LOOK.num('encore-dance-'+name,d),pose=name=>{const v=LOOK.list('encore-dance-'+name,[]).map(Number);return Float32Array.from({length:J},(_,i)=>Number.isFinite(v[i])?v[i]:0);};
-  K={over:n('over',.12),hold:n('hold',.35),shake:n('shake',.5),bounces:n('bounces',2),damp:n('damp',2),blend:n('blend',.25),sway:n('sway',.02)};
+  K={over:n('over',.12),hold:n('hold',.35),shake:n('shake',.5),bounces:n('bounces',2),damp:n('damp',2),blend:n('blend',.25)};
   MOVE={};
   for(const m of MOVES){const t=LOOK.list('encore-dance-'+m,[]).map(Number),g=(i,d)=>Number.isFinite(t[i])?t[i]:d;MOVE[m]={lead:Math.max(g(0,1),g(1,.5)),strike:Math.max(.01,g(1,.5)),sustain:g(2,0),release:Math.max(.01,g(3,1)),spin:g(4,0),W:pose(m+'-wind'),A:pose(m+'-hit')};}
   return MOVE;
@@ -312,11 +312,11 @@ export function buildEncoreBoss(){
         }else{const e=Math.max(0,1-dt*8);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;}
         r.w=w;
         r.raise+=((r.beat===null?0:1)-r.raise)*Math.min(1,dt*8);
-        const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2),sway=quiet?0:Math.sin(time*1.6+side)*K.sway;
+        const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2);
         torso.rotation.x=now[0];torso.rotation.y=-side*now[1];
         head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07)-side*now[3];head.rotation.x=(quiet?0:.04+Math.sin(time*.9+side)*.025)+now[2];
-        outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4]+sway;outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
-        inner.rotation.x=now[7]-sway;inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
+        outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4];outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
+        inner.rotation.x=now[7];inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
       }},
     dispose(){root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

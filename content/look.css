@@ -792,7 +792,6 @@
   --encore-dance-bounces: 2;
   --encore-dance-damp: 2;
   --encore-dance-blend: 0.25;    /* beats a move takes to take over from the one before it */
-  --encore-dance-sway: 0.02;     /* radians the arms sway over the decks at rest (none with reduced effects) */
   /* act 4's sun (src/sunrise.js): never a light. The room's own shaders (src/baked-ao.js) light
      everything on the window side of its line, warming each surface's colour, with a hard hot rim on
      the line, and a low hex volume stands on the line over the strip it moves into next (its Warning) */
