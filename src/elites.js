@@ -732,7 +732,7 @@ export class Elites {
       coffer: new TeleMaterial(hostile('coffer')),
       bowl: new TeleMaterial(hostile('bowl')), bowlSeat: new TeleMaterial(hostile('bowl'), 'square'),
       pillow: new TeleMaterial(hostile('pillow')),
-      shove: new TeleMaterial(LOOK.color('encore-pulse', '#f4f8ff'), 'strip'),   // a sound wave that shoves (the Headphones'): white, like the Encore's speakers'
+      shove: new TeleMaterial(LOOK.color('headphones-shove', '#f4f8ff'), 'strip'),   // a sound wave that shoves (the Headphones'): white, it doesn't hurt
       stereo: [new TeleMaterial(hostile('headphones'), 'square'), new TeleMaterial(hostile('headphones-right'), 'square')],   // the two halves' floor squares, one hostile colour each (Stereo)
       safe: new TeleMaterial(LOOK.color('safe-spot', '#ffffff')),   // the one spot an attack spares (the Kettle's lid)
       hour: new TeleMaterial(hostile('clock'), 'wedge', 0.45),
@@ -767,7 +767,7 @@ export class Elites {
     // white arcs lying flat at the height they shove up to, like the Encore's speakers'. Every arc in
     // flight is one instanced draw, always in the scene (so its shader is built with the rest)
     this.waves = []; this._dropC = new THREE.Color();
-    this.waveColor = new THREE.Color(LOOK.color('encore-pulse', '#f4f8ff'));
+    this.waveColor = new THREE.Color(LOOK.color('headphones-shove', '#f4f8ff'));
     const spread = WAVE.spread;
     this.waveArcs = new THREE.InstancedMesh(new THREE.TorusGeometry(1, 0.03, 5, 28, spread).rotateZ(-spread / 2).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), WAVE.pool * WAVE.arcs);

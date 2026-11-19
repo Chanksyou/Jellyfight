@@ -77,7 +77,7 @@ boss "shark" name="The Great White One" icon="🦈" hp=6000 contact=0 {
 }
 
 // act 4's, the DJ booth on the concert stage: src/encore.js. Its attacks all land on its song's beat
-// (src/encore-floor.js, encore-laser.js, encore-pulse.js, encore-disco.js, encore-contact.js, their
+// (src/encore-floor.js, encore-laser.js, encore-disco.js, encore-contact.js, encore-records.js, encore-wall.js, their
 // numbers in content/look.css --encore-*)
 boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // the fight opens with its force field up: it can't be hurt for `guard` s while its set warms up
@@ -98,4 +98,10 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // doesn't clear it), landing on the bar line `flight` beats after he lets go, `windup` beats wound
     // back first, aimed at the jelly until `lock` beats before he throws; it stands `stand` bars
     records dmg=4 height=0.25 flight=1 windup=3 lock=1 stand=4
+    // the duet, the Wall of sound (set 3 and the last song): the silver DJ throws `records` records a bar
+    // apart (as his Record toss), each landing at least `apart` m from the others; as the last lands
+    // the floor fills as a Warning `height` m tall but for a strip `safe` m wide and `behind` m long
+    // behind each; as the solo's bars end the wall rolls stage to back in `roll` beats, `dmg` Health
+    // and a `knock` shove to a jelly outside a strip (at any height); then both DJs bow `bow` bars
+    wall dmg=6 height=0.4 records=3 apart=0.2 safe=0.1 behind=0.3 roll=2 knock=0.6 bow=2
 }

@@ -79,13 +79,14 @@ export class EncoreRecords {
   }
 
   // a record landing on beat `land`, thrown from `from()` (where his hand is, a Vector3) at `target()`
-  // ([x, z]: where the jelly is) until it locks; null if the pool is full
-  cast(land, { from, target, dmg = 4, height = 0.25, flight = 1, windup = 3, lock = 1, stand = 16 } = {}) {
+  // ([x, z]: where the jelly is) until it locks; null if the pool is full. `face` (a yaw, 0 = straight
+  // back at the stage): which way it stands, instead of along its lane (the Wall of sound's cover)
+  cast(land, { from, target, dmg = 4, height = 0.25, flight = 1, windup = 3, lock = 1, stand = 16, face = null } = {}) {
     const slot = this.slots.find((s) => !s.cast);
     if (!slot) return null;
     const release = land - flight;
-    const c = { land, release, warnAt: release - windup, lockAt: release - lock, from, target, dmg, height, stand, slot, warn: null,
-      start: new THREE.Vector3(), to: [0, 0], ux: 0, uz: 1, len: 0, s: 0, state: 'wind', hit: false, orb: null, spin: Math.random() * 6 };
+    const c = { land, release, warnAt: release - windup, lockAt: release - lock, from, target, dmg, height, stand, face, slot, warn: null,
+      start: new THREE.Vector3(), to: [0, 0], ux: 0, uz: 1, nx: 0, nz: 1, len: 0, s: 0, state: 'wind', hit: false, orb: null, spin: Math.random() * 6 };
     slot.cast = c; this.casts.push(c);
     return c;
   }
@@ -97,6 +98,7 @@ export class EncoreRecords {
     c.start.copy(h);
     const dx = c.to[0] - h.x, dz = c.to[1] - h.z, len = Math.hypot(dx, dz) || 1;
     c.ux = dx / len; c.uz = dz / len; c.len = len;
+    c.nx = c.face === null ? c.ux : Math.sin(c.face); c.nz = c.face === null ? c.uz : Math.cos(c.face);   // the way its face looks, standing
   }
   // the floor strip starts where the lane comes out over the floor, past the boss's riser
   stripStart(c) {
@@ -181,7 +183,7 @@ export class EncoreRecords {
     if (s >= 1) {
       // on edge, its face back towards the stage, with a small wobble as it sticks
       const wob = Math.exp(-(beat - c.land) * 3) * Math.sin((beat - c.land) * 18) * 0.25;
-      _q.setFromEuler(_e.set(Math.PI / 2 + wob, Math.atan2(c.ux, c.uz), 0, 'YXZ'));
+      _q.setFromEuler(_e.set(Math.PI / 2 + wob, Math.atan2(c.nx, c.nz), 0, 'YXZ'));
     } else {
       // spinning flat, tipped a little into its flight
       _q.setFromEuler(_e.set(0.25, Math.atan2(c.ux, c.uz), 0, 'YXZ')).multiply(_q2.setFromAxisAngle(UP, c.spin + beat * 9));
@@ -193,7 +195,7 @@ export class EncoreRecords {
   block(c, player, pr) {
     const p = player.position, t = this.r * 0.04 + 0.004, w = this.r;
     const rx = p.x - c.to[0], rz = p.z - c.to[1];
-    const a = rx * c.ux + rz * c.uz, b = rx * c.uz - rz * c.ux;               // along the lane (through it), across it
+    const a = rx * c.nx + rz * c.nz, b = rx * c.nz - rz * c.nx;               // through it, across it
     const ca = Math.max(-t, Math.min(t, a)), cb = Math.max(-w, Math.min(w, b)), da = a - ca, db = b - cb, d = Math.hypot(da, db);
     // (the push comes a frame late, so it starts a frame's walk early: within that skin it takes away
     // the jelly's walk into the record, and any overlap that got in anyway)
@@ -203,7 +205,7 @@ export class EncoreRecords {
     if (d > 1e-6) { na = da / d; nb = db / d; depth = pr - d; }
     else if (t - Math.abs(a) < w - Math.abs(b)) { na = Math.sign(a) || -1; nb = 0; depth = t - Math.abs(a) + pr; }
     else { na = 0; nb = Math.sign(b) || 1; depth = w - Math.abs(b) + pr; }
-    const nx = na * c.ux + nb * c.uz, nz = na * c.uz - nb * c.ux;
+    const nx = na * c.nx + nb * c.nz, nz = na * c.nz - nb * c.nx;
     const into = Math.min(0, wx * nx + wz * nz), out = Math.max(0, depth) - into;
     this.pushX += nx * out; this.pushZ += nz * out;
   }

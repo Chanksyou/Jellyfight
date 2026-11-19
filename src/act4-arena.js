@@ -162,15 +162,16 @@ export function buildAct4(scene){
   const fill=new THREE.HemisphereLight(0x8aa9ec,0x191017,LOOK.num('arena-fill',.75));
   const key=new THREE.DirectionalLight(0xffc589,LOOK.num('arena-key',1.15));key.position.set(-.4,1,.5);root.add(fill,key);
   const fillBase=fill.intensity,keyBase=key.intensity,spillBase=poolMat.opacity,beamBase=beamMat.opacity;
-  const pulseFill=LOOK.num('arena-beat-fill',.22),pulseKey=LOOK.num('arena-beat-key',.12),pulseSpill=LOOK.num('arena-beat-spill',.2),pulseBeam=LOOK.num('arena-beat-beam',1.3),pulseTrim=LOOK.num('arena-beat-trim',.35),decay=LOOK.num('arena-beat-decay',5);
+  const pulseFill=LOOK.num('arena-beat-fill',.22),pulseKey=LOOK.num('arena-beat-key',.12),pulseSpill=LOOK.num('arena-beat-spill',.2),pulseBeam=LOOK.num('arena-beat-beam',1.3),pulseTrim=LOOK.num('arena-beat-trim',.35),decay=LOOK.num('arena-beat-decay',5),swellTrim=LOOK.num('arena-wall-swell',3);
   const blueTint=new THREE.Color(blue),amberTint=new THREE.Color(amber);
   // Absolute music beat: no local metronome drift, missed-beat replay, new lights or allocations.
-  function updateAmbience(beat=null,quiet=false,breakdown=false){
-    const pulse=Number.isFinite(beat)&&beat>=0&&!quiet&&!breakdown?Math.exp(-(beat%1)*decay)*(Math.floor(beat)%4===0?1:.75):0;
+  // swell (0..1): the speakers' trims build up as the Encore's Wall of sound gathers (encore-wall.js)
+  function updateAmbience(beat=null,quiet=false,breakdown=false,swell=0){
+    const pulse=Number.isFinite(beat)&&beat>=0&&!quiet&&!breakdown?Math.exp(-(beat%1)*decay)*(Math.floor(beat)%4===0?1:.75):0,trim=1+pulse*pulseTrim+swell*swellTrim;
     fill.intensity=fillBase*(1+pulse*pulseFill);key.intensity=keyBase*(1+pulse*pulseKey);
     poolMat.opacity=Math.min(1,spillBase*(1+pulse*pulseSpill));
     beamMat.opacity=warmBeamMat.opacity=beamBase*(1+pulse*pulseBeam);
-    speakerBlue.color.copy(blueTint).multiplyScalar(1+pulse*pulseTrim);speakerWarm.color.copy(amberTint).multiplyScalar(1+pulse*pulseTrim);
+    speakerBlue.color.copy(blueTint).multiplyScalar(trim);speakerWarm.color.copy(amberTint).multiplyScalar(trim);
     return pulse;
   }
   function setTile(row,col,color=null,strength=1){
