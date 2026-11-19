@@ -3,12 +3,12 @@
 // fixed seed and compares, with bug-attack-hits.json (recorded from main before any animation work,
 // `node tools/record-bug-hits.mjs`), the frames from the attack's start to its hit test and where the
 // bug stood and aimed at that moment.
+import * as THREE from 'three';
 import { bus } from '../events.js';
 import { isMuted, setMuted } from '../sfx.js';
 import { seededRandom, seedFor } from '../story-random.mjs';
 import { CONTENT, compileEnemies } from '../content.js';
 import { parse } from '../kdl.js';
-import * as THREE from 'three';
 import { LOOK } from '../look.js';
 import { ENEMY_WORDS } from '../words.js';
 import { TIERS, WORK, WORK_BUDGET, attackClock, attackPuff, beginFrame, knobs, newAttack, roll } from '../attack-motion.js';
@@ -106,7 +106,7 @@ story('attacks/animation-never-moves-a-hit', {
 
 // ------------------------------------------------------------------ how an attack moves (src/attack-motion.js)
 // Bugs whose attack still moves the old way: wave 1 of the plan converts them, then this list is empty.
-const KNOWN_UNCONVERTED = ['roach', 'ants', 'lanternfly', 'housefly', 'spider', 'ladybug', 'dragonfly', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const KNOWN_UNCONVERTED = ['roach', 'ants', 'housefly', 'spider', 'ladybug', 'dragonfly', 'beetle', 'wasp', 'firefly'];
 // Words that set a state but aren't an attack with a build-up: the worm bursting out of the mantis once
 const NOT_ATTACK_STATES = ['burst'];
 
@@ -148,8 +148,8 @@ const mantisProbe = (e) => { const L = hooks(e), out = [Math.abs(L[0].parent.par
 // takes when its hit lands, e.recoil, which scales the whole model for 0.2 s)
 const UP = new THREE.Vector3(0, 1, 0);
 const wormProbe = (e) => { const C = e.mesh.children, p = W.copy(C[C.length - 1].position).applyAxisAngle(UP, e.root.rotation.y).multiplyScalar(e.r).add(e.pos); return [p.x, p.y, p.z]; };
-// each converted bug's case for the stories below (probe: parts its body group doesn't carry)
-const CASES = [{ id: 'mosquito' }, { id: 'mantis', probe: mantisProbe }, { id: 'worm', probe: wormProbe }, { id: 'millipede' }];
+// parts a converted bug's body group doesn't carry, read by the stories below
+const PROBES = { mantis: mantisProbe, worm: wormProbe };
 const pose = (f) => [f.z, f.rx, f.rz, f.sz, ...f.p];
 const apart = (a, b) => Math.max(...pose(a).map((v, i) => Math.abs(v - pose(b)[i])));
 
@@ -198,18 +198,20 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
   },
 });
 
+// the bugs converted to an attack-motion, each filmed through one attack
+const CONVERTED = ['mosquito', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede'];
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug (Mosquito, Praying mantis, Horsehair worm, Giant millipede) runs its attack as build-up, swing, recoil in that order on its attack clock, and its pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Mosquito\'s bite, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
-    const got = {};
-    for (const c of CASES) {
-      const F = film(c.id, { probe: c.probe }), idle = F.find((f) => f.phase === 'idle');
+    const out = {};
+    for (const id of CONVERTED) {
+      const F = film(id, { probe: PROBES[id] }), idle = F.find((f) => f.phase === 'idle');
       const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
-      const far = (phase) => +Math.max(...of(F, phase).map((f) => apart(f, idle))).toFixed(3);
-      got[c.id] = { order, build: far('build'), swing: far('swing'), recoil: far('recoil') };
+      const far = (phase) => +Math.max(...of(F, phase).map((f) => Math.max(apart(f, idle), Math.abs(f.y - idle.y)))).toFixed(3);   // (its height too: a Cicada sinks)
+      out[id] = { order, build: far('build'), swing: far('swing'), recoil: far('recoil') };
     }
-    return ok(Object.values(got).every((g) => g.order === 'build swing recoil' && g.build > 0.05 && g.swing > 0.05 && g.recoil > 0.05), got);
+    return ok(Object.values(out).every((o) => o.order === 'build swing recoil' && o.build > 0.05 && o.swing > 0.05 && o.recoil > 0.05), out);
   },
 });
 
@@ -240,6 +242,25 @@ story('motion/contact-pose-is-on-the-hit', {
       worm = Math.max(worm, Math.abs(along - whip.reach) - 0.01, side - 0.01, f.p[1] - f.floor - 0.03);
     }
     return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4) });
+  },
+});
+
+story('motion/landing-pose-is-on-the-hit', {
+  about: 'On the frame a Spotted lanternfly, Moth or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
+  setup() {},
+  play() {
+    const out = {}, v = new THREE.Vector3();
+    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['moth', (e) => e.plungeAt], ['cicada', (e) => e.burrowAt]]) {
+      const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true });
+      try {
+        while (S.frame < MAX_FRAMES && !S.found) S.advance();
+        const e = S.e, body = e.mesh.children[0], at = spot(e);
+        e.mesh.updateWorldMatrix(true, true);
+        body.getWorldPosition(v);
+        out[id] = { found: !!S.found, phase: e.atk.phase, across: mm(Math.hypot(v.x - at.x, v.z - at.z)), drawnOff: mm(v.distanceTo(e.mesh.getWorldPosition(new THREE.Vector3()))) };
+      } finally { S.done(); }
+    }
+    return ok(Object.values(out).every((o) => o.found && o.phase === 'swing' && o.across <= 10 && o.drawnOff <= 10), out);
   },
 });
 
@@ -319,12 +340,15 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
 });
 
 story('motion/attacks-never-recolour-the-bug', {
-  about: 'No material on an attacking Mosquito changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white).',
+  about: 'No material on an attacking bug (each converted one: Mosquito, Spotted lanternfly, Moth, Cicada) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
   setup() {},
   play() {
-    const F = film().filter((f) => f.phase === 'build' || f.phase === 'swing');
-    const recoloured = F.filter((f) => f.recolour).length;
-    return ok(F.length > 10 && !recoloured, { frames: F.length, recoloured });
+    const out = {};
+    for (const id of CONVERTED) {
+      const F = film(id).filter((f) => f.phase === 'build' || f.phase === 'swing');
+      out[id] = { frames: F.length, recoloured: F.filter((f) => f.recolour).length };
+    }
+    return ok(Object.values(out).every((o) => o.frames > 3 && !o.recoloured), out);
   },
 });
 

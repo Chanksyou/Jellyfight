@@ -695,7 +695,7 @@ export const ENEMY_WORDS = {
 
   plunge: {
     doc: 'Within `range` m every `every` s or so, climbs to `height` m over you while a circle and a column of radius `radius` m fill on the floor under it (they follow you, and lock where they are with `lock` of the `windup` s left), then drops straight down: you are hit for `dmg` if you are in the column when it lands (a jump does not dodge it; step off the circle). It leaves a puff of black smoke there (`smoke`), pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
-    phases: { climb: 'build', drop: 'swing', rest: 'recoil' }, lock: { climb: (p) => 1 - p.lock },   // how its attack moves (src/attack-motion.js)
+    phases: { climb: 'build', drop: 'swing', rest: 'recoil' }, lock: { climb: (p) => 1 - p.lock }, span: { drop: (p) => p.height / p.speed },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.45, every: 3, windup: 1, lock: 0.35, height: 0.3, climb: 0.5, speed: 1.6, radius: 0.08, dmg: 3, rest: 0.9 },
     make: (_, p) => ({
       plungeRadius: p.radius, plungeHeight: p.height,

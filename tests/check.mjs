@@ -53,7 +53,7 @@ if (Object.keys(BAKED_LAYOUT[1]).some((k) => !(k in BAKED_LAYOUT[4])) || JSON.st
 // A bug's `anim` runs every frame for every bug in view (phones included): no `new`, no unseeded
 // randomness and no wall clock inside it, so a pose is a function of the bug's own clock and a bug updated
 // every other frame (enemies.js) shows the same pose. Builders listed in KNOWN are on the way out.
-const KNOWN_ANIM = { cicada: ['performance.now'] };   // the attack-animation task for the Cicada removes it, then empties this
+const KNOWN_ANIM = {};
 for (const file of ['src/critters.js', 'src/attack-motion.js']) {
   const full = path.join(ROOT, file);
   if (!fs.existsSync(full)) continue;
