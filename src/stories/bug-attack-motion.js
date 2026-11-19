@@ -253,6 +253,14 @@ story('motion/contact-pose-is-on-the-hit', {
         out.housefly = { found: !!S.found, phase: e.atk.phase, tipOff: mm(tipAt(e).distanceTo(e.pokeAt)) };
       } finally { S.done(); }
     }
+    {   // (and when the jelly strafes after the aim locks, so the fly's facing lags the spot it tests)
+      const S = stage(ATTACKS.find((a) => a.id === 'housefly'), { hurt: true });
+      try {
+        while (S.frame < MAX_FRAMES && !S.found) { S.advance(); if (S.begun >= 0 && S.frame === S.begun + 9) G().player.position.z += 0.05; }
+        const e = S.e;
+        out.strafed = { found: !!S.found, tipOff: mm(tipAt(e).distanceTo(e.pokeAt)) };
+      } finally { S.done(); }
+    }
     {
       let seen = null;
       // (its hit test is the sting call, and the sting kills it: look at it as it is called)
@@ -269,7 +277,7 @@ story('motion/contact-pose-is-on-the-hit', {
         out.wasp = { found: !!S.found, ...seen };
       } finally { S.done(); }
     }
-    const bugs = out.housefly.found && out.housefly.phase === 'swing' && out.housefly.tipOff <= 10 && out.wasp.found && out.wasp.phase === 'swing' && out.wasp.drawnOff <= 10 && Math.abs(out.wasp.tipFromSurface) <= 10;
+    const bugs = out.housefly.found && out.housefly.phase === 'swing' && out.housefly.tipOff <= 10 && out.strafed.found && out.strafed.tipOff <= 10 && out.wasp.found && out.wasp.phase === 'swing' && out.wasp.drawnOff <= 10 && Math.abs(out.wasp.tipFromSurface) <= 10;
     return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0 && bugs, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4), ...out });
   },
 });
@@ -342,36 +350,44 @@ story('motion/recoil-ends-ready', {
 });
 
 story('motion/half-rate-shows-the-same-pose', {
-  about: 'A far Mosquito (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock.',
+  about: 'A far Mosquito, House fly or Wasp (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock.',
   setup() {},
   play() {
-    const N = film(), F = film('mosquito', { far: true });
-    let worst = 0, compared = 0;
-    for (let i = 0; i < Math.min(N.length, F.length); i++) {
-      const a = N[i], b = F[i];
-      if (a.phase === 'idle' || a.phase !== b.phase || !i || apart(b, F[i - 1]) === 0) continue;   // only frames the far one was drawn on
-      worst = Math.max(worst, Math.abs(a.z - b.z), Math.abs(a.sz - b.sz));
-      compared++;
+    const out = {};
+    for (const id of ['mosquito', 'housefly', 'wasp']) {
+      const N = filmed(id), F = filmed(id, { far: true });
+      let worst = 0, compared = 0;
+      for (let i = 0; i < Math.min(N.length, F.length); i++) {
+        const a = N[i], b = F[i];
+        if (a.phase === 'idle' || a.phase !== b.phase || !i || apart(b, F[i - 1]) === 0) continue;   // only frames the far one was drawn on
+        worst = Math.max(worst, Math.abs(a.z - b.z), Math.abs(a.sz - b.sz), id === 'mosquito' ? 0 : Math.abs(a.rx - b.rx));
+        compared++;
+      }
+      out[id] = { compared, worst: +worst.toFixed(4) };
     }
-    return ok(compared > 10 && worst < 0.01, { compared, worst: +worst.toFixed(4) });
+    return ok(Object.values(out).every((o) => o.compared > 10 && o.worst < 0.01), out);
   },
 });
 
 story('motion/attack-pose-is-the-same-at-30-and-60', {
-  about: 'A Mosquito\'s bite poses the same at 30 and 60 frames a second: at matching points of its attack clock its body is drawn back, stretched and squashed alike.',
+  about: 'A Mosquito\'s bite, a House fly\'s poke and a Wasp\'s dive pose the same at 30 and 60 frames a second: at matching points of its attack clock its body is drawn back, stretched and squashed alike.',
   setup() {},
   play() {
-    const S = film('mosquito', { dt: 1 / 30 }), Q = film();
-    let worst = 0, compared = 0, at = null;
-    for (const f of S) {
-      if (f.phase === 'idle' || f.phase === 'swing') continue;   // (a swing is two or three frames at 30: its contact is proven by the hit fixture)
-      const g = of(Q, f.phase).reduce((b, q) => (Math.abs(q.pt - f.pt) < Math.abs(b.pt - f.pt) ? q : b), { pt: 9 });
-      if (Math.abs(g.pt - f.pt) > 0.009) continue;
-      const d = Math.max(Math.abs(f.z - g.z), Math.abs(f.sz - g.sz));
-      if (d > worst) { worst = d; at = { phase: f.phase, k30: +f.k.toFixed(3), k60: +g.k.toFixed(3), pt30: +f.pt.toFixed(3), pt60: +g.pt.toFixed(3), z30: +f.z.toFixed(3), z60: +g.z.toFixed(3), hit: [f.hit, g.hit] }; }
-      compared++;
+    const out = {};
+    for (const id of ['mosquito', 'housefly', 'wasp']) {
+      const S = filmed(id, { dt: 1 / 30 }), Q = filmed(id);
+      let worst = 0, compared = 0, at = null;
+      for (const f of S) {
+        if (f.phase === 'idle' || f.phase === 'swing') continue;   // (a swing is two or three frames at 30: its contact is proven by the hit fixture)
+        const g = of(Q, f.phase).reduce((b, q) => (Math.abs(q.pt - f.pt) < Math.abs(b.pt - f.pt) ? q : b), { pt: 9 });
+        if (Math.abs(g.pt - f.pt) > 0.009) continue;
+        const d = Math.max(Math.abs(f.z - g.z), Math.abs(f.sz - g.sz), id === 'mosquito' ? 0 : Math.abs(f.rx - g.rx) * 0.6);   // (the House fly's last-fifth nod moves fast: a frame's k is 0.03 of it)
+        if (d > worst) { worst = d; at = { phase: f.phase, k30: +f.k.toFixed(3), k60: +g.k.toFixed(3), pt30: +f.pt.toFixed(3), pt60: +g.pt.toFixed(3), hit: [f.hit, g.hit] }; }
+        compared++;
+      }
+      out[id] = { compared, worst: +worst.toFixed(4), at };
     }
-    return ok(compared > 5 && worst < 0.03, { compared, worst: +worst.toFixed(4), at });
+    return ok(Object.values(out).every((o) => o.compared > 5 && o.worst < 0.03), out);
   },
 });
 

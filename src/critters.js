@@ -850,6 +850,7 @@ export function buildHouseFly() {
   });
 
   pad.name = 'tip';                              // (the stories look for where the straw ends)
+  straw.rotation.order = 'YXZ';                  // aimed sideways first, then up or down
   let t = 0;
   const BASE_Y = -0.14, BASE_Z = 0.74, AIM = 1.15, LEN = 0.22;   // where the straw hangs from (under its head), how it hangs at rest
   // its poke (attack-motion "lunge", src/attack-motion.js): rubs its front legs, head drawing back and straw curling
@@ -868,7 +869,7 @@ export function buildHouseFly() {
       aim = AIM + 0.3 * k; slen = LEN - 0.08 * k;
       rub = A.still ? 0 : S(A.pt, 0, 0.06); spread = A.still ? 1 : 0;   // the rubbing stops dead, the legs spread: that is the tell
       shake = (A.still ? 0 : quiver(A.k, A.t, e.phase)) * A.quiet;
-      bob = 1 - rub;
+      bob = 0;                                   // it hangs in the air, still
     } else if (ph === 'swing') {
       ext = e.state === 'poke' ? e.pokeK : 1;    // the straw, on the word's own clock (held out through the hold)
       const k = ext * ext * ext, bk = k * ext;   // the body follows a frame late: a steeper curve
@@ -890,17 +891,17 @@ export function buildHouseFly() {
     const w = 1 / Math.sqrt(len), by = bob ? Math.sin(t * 5 + e.phase) * 0.08 * bob : 0, rx = 0.08 - rear + nod + shake * 0.04;
     // the straw: from curled up to the spot it tests, as far as the strike has gone; the tip is solved in the body's
     // own frame (its offset, tilt and stretch) so that at full reach it is on e.pokeAt
-    let sy = BASE_Y + slen * -Math.sin(aim), sz = BASE_Z + slen * Math.cos(aim);   // where the tip is without a strike
+    let sx = 0, sy = BASE_Y + slen * -Math.sin(aim), sz = BASE_Z + slen * Math.cos(aim);   // where the tip is without a strike
     if (hit > 0 && e.pokeAt) {
-      const ry = e.root.rotation.y, dx = e.pokeAt.x - e.pos.x, dz = e.pokeAt.z - e.pos.z, sc = e.mesh.scale;
-      let ty = (e.pokeAt.y - e.pos.y) / sc.y - by, tz = (dx * Math.sin(ry) + dz * Math.cos(ry)) / sc.z - back;   // its frame, minus the body's offset
-      const cs = Math.cos(rx), sn = Math.sin(rx), y2 = ty * cs + tz * sn;
+      const ry = e.root.rotation.y, dx = e.pokeAt.x - e.pos.x, dz = e.pokeAt.z - e.pos.z, sc = e.mesh.scale, cy = Math.cos(ry), sy0 = Math.sin(ry);
+      let ty = (e.pokeAt.y - e.pos.y) / sc.y - by, tz = (dx * sy0 + dz * cy) / sc.z - back;   // its frame, minus the body's offset
+      const tx = (dx * cy - dz * sy0) / sc.x / w, cs = Math.cos(rx), sn = Math.sin(rx), y2 = ty * cs + tz * sn;
       tz = (-ty * sn + tz * cs) / len; ty = y2 / w;                                       // un-tilt, un-stretch
-      sy += (ty - sy) * hit; sz += (tz - sz) * hit;
+      sx = tx * hit; sy += (ty - sy) * hit; sz += (tz - sz) * hit;
     }
-    const dy = sy - BASE_Y, dz = sz - BASE_Z, buzz = A && ph === 'swing' && ext >= 1 ? Math.sin(t * 90) * 0.04 * S(A.pt, 0.09, 0.1) * (1 - S(A.pt, 0.1, 0.25)) : 0;
-    straw.rotation.x = Math.atan2(-dy, dz) + buzz;
-    const reach = Math.hypot(dy, dz);
+    const dy = sy - BASE_Y, dz = sz - BASE_Z, h = Math.hypot(sx, dz), buzz = A && ph === 'swing' && ext >= 1 ? Math.sin(t * 90) * 0.04 * S(A.pt, 0.09, 0.1) * (1 - S(A.pt, 0.1, 0.25)) : 0;
+    straw.rotation.set(Math.atan2(-dy, h) + buzz, Math.atan2(sx, dz), 0);   // (the jelly may have strafed since it locked on)
+    const reach = Math.hypot(h, dy);
     trunk.scale.set(1, 1, reach);
     pad.position.z = reach;
     for (const W of wings) W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 85 + (W.s > 0 ? 0 : 0.4)) * 0.75);   // a blur of wings
@@ -921,7 +922,7 @@ export function buildHouseFly() {
     stretch(body, len);
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); straw.rotation.x = AIM; trunk.scale.set(1, 1, LEN); pad.position.z = LEN; face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
+  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); straw.rotation.set(AIM, 0, 0); trunk.scale.set(1, 1, LEN); pad.position.z = LEN; for (const W of wings) W.flap.rotation.z = 0; for (const L of legs) { L.hip.rotation.x = 0; L.hip.rotation.z = 0; } face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -2286,10 +2287,10 @@ export function buildWasp() {
       if (lockBeat(A)) rear -= 0.1;              // the lock: its nose dips at you
       still = A.still ? 1 : 0; sweep = still * 0.5;   // the last 0.1 s: the pumping stops, the wings sweep half back
       roll = (1 - still) * quiver(A.k, A.t, ph0) * 0.05 * A.quiet;
-      bob = 0;
+      bob = 1 - S(A.pt, 0, 0.1);
     } else if (ph === 'swing') {
       dive = S(A.pt, 0, 0.06);                   // tips over, not jumps, to nose-down
-      rear = 0.52 * Math.min(1, A.vary) * (1 - dive); curl = 1; pitch = 0.05 + (down - 0.05) * dive; sweep = 1; still = 1; tuck = 1;
+      rear = 0.52 * Math.min(1.1, A.vary) * (1 - dive); curl = Math.min(1.1, A.vary); pitch = 0.05 + (down - 0.05) * dive; sweep = 1; still = 1; tuck = 1;
       foreAmp = hindAmp = 0;                     // no flapping: a dart silhouette
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * dive;
       bob = 0;
@@ -2313,7 +2314,12 @@ export function buildWasp() {
     stretch(body, len);
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
+  anim.reset = () => {
+    t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); tail.rotation.x = -0.35;
+    for (const W of wings) { W.flap.rotation.z = 0; W.hinge.rotation.y = W.sweep; }
+    for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15;
+    face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
+  };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
