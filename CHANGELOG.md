@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v532 the Ant, House spider, Firefly, Ladybug and Stag beetle throw with their whole bodies: each braces and coils, holds still for a beat before it lets go, then rocks back after the throw (the Stag beetle is shoved back and eases home without a bounce). Nothing about when or where their shots go has changed.
+
 v531 finishes act 4 for release: Full Clearance now counts act 4's three Elites too (twelve in all), and the Glossary names the sun, bass wave, stage door and Easy mode.
 
 v530 gives the Praying mantis, Horsehair worm and Giant millipede real attack animations: the mantis rears, holds its forelegs open quivering and snaps them shut crossed, and a missed swat leaves them stuck out a moment longer (your window to hit back); the worm rears into an S with its tip trembling, cracks down tip last with a ripple along the floor and lifts off base first; the millipede leans back and rocks as it revs, leans into its roll, then skids, topples and unrolls head last before swaying dizzily. Hit timing is unchanged.
