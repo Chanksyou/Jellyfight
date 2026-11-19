@@ -56,7 +56,7 @@ export class Encore {
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
     const A = this.arenaView;
     // each hit lands with a flash and sparks at the jelly in that attack's colour
-    this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`)) });
+    this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`), c?.dj) });
     this.lasers = new EncoreLasers(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-laser')) });
     this.disco = new EncoreDisco(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-disco')), quiet: (b) => this.quiet(b) });
     this.shove = { x: 0, z: 0 };
@@ -90,8 +90,10 @@ export class Encore {
   slot(kind, at) {}
 
   quiet(b) { return !!this.song?.quiet?.(b); }
-  hurtPlayer(dmg, color = null) {
+  // `dj`: whose attack it was (a floor wave's), who pumps a fist on the next beat
+  hurtPlayer(dmg, color = null, dj = null) {
     if (this.dead) return;
+    if (dj && this.beat !== null) this.floor.react(dj, 'fist-pump', Math.ceil(this.beat));
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: 'boss' });
     if (color && this.player) this.fx.impact(_hit.copy(this.player.position).setY(this.player.position.y + 0.03), color, 0.03, 10);
   }
@@ -102,6 +104,11 @@ export class Encore {
     this.hp -= amount;
     this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, 16, feedback);
     this.hurtT = 1;                                                   // the booth flinches: its panels flash white, it jolts
+    // and the nearer DJ (silver stands on the -x side) flinches, at most once a beat
+    if (this.beat !== null && Math.floor(this.beat) !== this.flinched) {
+      this.flinched = Math.floor(this.beat);
+      this.floor.react(this.player && this.player.position.x > this.center().x ? 'gold' : 'silver', 'flinch', this.beat + 0.15);
+    }
     if (this.hp <= 0) this.beaten();
     else if (!this.broken && this.hp <= this.maxHp * (this.def.skills.meltdown?.at ?? 0.5)) this.meltdown();
   }

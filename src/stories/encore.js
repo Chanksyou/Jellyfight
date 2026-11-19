@@ -731,3 +731,91 @@ story('encore/dj-rig-a-song-rewind-drops-a-move', {
     } finally { boss.dispose(); }
   },
 });
+
+// ---- the DJs call the waves (encore-floor.js gesture, react)
+const GESTURES = { ring: 'circle', arc: 'circle', sweep: 'sweep', arrow: 'point', gate: 'point', closing: 'clap', pincer: 'clap' };
+// cast `name` for `dj` on beat 20 and play from beat 12 to 24 with the boss model on; `each(b, T)` runs every frame
+function conduct(name, dj, opts, each) {
+  const T = make(), B = T.arena.boss, calls = [], real = B.perform.bind(B);
+  B.perform = (...a) => { calls.push({ a, beat: T.floor.beat }); return real(...a); };
+  try {
+    T.floor.cast(name, 20, { dj, ...opts });
+    play(T.floor, standing(0, 0.6), 12, 24, (b) => { each?.(b, T); B.update(DT, true, b); });
+    return { calls: calls.filter((c) => c.a[1]), all: calls, rig: B.rigs[dj] };
+  } finally { T.done(); }
+}
+story('encore/waves-are-called-by-their-dj-four-beats-ahead', {
+  about: 'Each of the 7 wave shapes, for either DJ, starts its gesture (rings and arcs circle, sweeps swing, arrows and gates point, closings and pincers clap) 4 beats before the wave\'s first step, and nothing before; a sweep swings the way the line does for either DJ; two waves at once give each DJ his own.',
+  setup() {},
+  play() {
+    const out = {}, frame = DT * BPM / 60;
+    for (const dj of ['silver', 'gold']) for (const name of Object.keys(PATTERNS)) {
+      const r = conduct(name, dj, name === 'sweep' ? { spin: -1 } : {}), first = r.calls[0];
+      out[`${dj}-${name}`] = first && first.a[0] === dj && first.a[1] === GESTURES[name] && first.a[2] === 20 && first.beat >= 16 - 1e-9 && first.beat < 16 + frame + 1e-9;
+    }
+    // a sweep's mirror: spin 1 and -1 come out opposite, and the two DJs' swings run opposite for the same spin
+    const dirOf = (dj, spin) => conduct('sweep', dj, { spin }).calls[0].a[3];
+    const sweeps = dirOf('silver', 1) === 1 && dirOf('silver', -1) === -1 && dirOf('gold', 1) === -1 && dirOf('gold', -1) === 1;
+    // two at once: each DJ has his own
+    const T = make(), B = T.arena.boss, who = [], real = B.perform.bind(B);
+    B.perform = (w, m, ...a) => { if (m) who.push(w + ':' + m); return real(w, m, ...a); };
+    try {
+      T.floor.cast('ring', 20, { dj: 'silver' }); T.floor.cast('closing', 20, { dj: 'gold' });
+      play(T.floor, standing(0, 0.6), 14, 20, (b) => B.update(DT, true, b));
+    } finally { T.done(); }
+    const both = who.includes('silver:circle') && who.includes('gold:clap') && !who.includes('silver:clap') && !who.includes('gold:circle');
+    return ok(Object.values(out).every(Boolean) && sweeps && both, { out, sweeps, both });
+  },
+});
+
+story('encore/an-arcs-dj-faces-its-gap', {
+  about: 'While he calls an arc, the DJ turns his helmet to face the gap (within 0.15 radians, either DJ, a gap left, ahead or right), and it comes back to rest after; a ring leaves his helmet where it was.',
+  setup() {},
+  play() {
+    const out = {}, yaw = (dj, r) => r.head.rotation.y + r.body.rotation.y;
+    for (const dj of ['silver', 'gold']) for (const heading of [-0.7, 0, 0.7]) {
+      let atAccent = null, rest = null;
+      const r = conduct('arc', dj, { heading }, (b, T) => {
+        const rig = T.arena.boss.rigs[dj];
+        if (Math.abs(b - 20) < 0.02) atAccent = yaw(dj, rig);
+        if (Math.abs(b - 12) < 0.02) rest = yaw(dj, rig);
+      });
+      const end = yaw(dj, r.rig);
+      out[`${dj}@${heading}`] = { ok: Math.abs(atAccent - heading) < 0.15 && Math.abs(end - rest) < 0.15, atAccent: +atAccent.toFixed(2), end: +end.toFixed(2), rest: +rest.toFixed(2) };
+    }
+    const ring = conduct('ring', 'gold', {}, (b, T) => { if (Math.abs(b - 20) < 0.02) out.ringYaw = T.arena.boss.rigs.gold.head.rotation.y; });
+    const unturned = Math.abs(out.ringYaw - 0.52 * -1) < 0.2;
+    delete out.ringYaw;
+    return ok(Object.values(out).every((v) => v.ok) && unturned, { out, unturned });
+  },
+});
+
+fight('fight-the-djs-react-to-hits', {
+  about: 'A wave\'s hit on the jelly sends a fist pump from the DJ whose wave it was, accent on the next beat, and not from the other; a hit on the booth makes the DJ nearer the jelly flinch, accent just after, at most once a beat; short-out and defeat clear both reactions.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false }), M = B.arenaView.boss, calls = [], real = M.perform.bind(M);
+    let beat = 300;
+    stub(B, 'song', { beat: () => beat, quiet: () => true, drop: () => false });
+    M.perform = (w, m, at, ...a) => { calls.push([w, m, at]); return real(w, m, at, ...a); };
+    const tick = () => { beat += 1 / 60 * TRACKS.encore.bpm / 60; };
+    step(10, tick);
+    B.hurtPlayer(4, null, 'gold');
+    step(2, tick);
+    const pump = calls.find((c) => c[0] === 'gold' && c[1] === 'fist-pump');
+    const rightBeat = pump && pump[2] === Math.ceil(B.beat - 2 * 1 / 60 * TRACKS.encore.bpm / 60) && !calls.some((c) => c[0] === 'silver' && c[1] === 'fist-pump');
+    step(60 * 3, tick);
+    // booth hits: the jelly stands on silver's side, then on gold's; two hits in one beat flinch once
+    calls.length = 0;
+    const p = window.player.position, cx = B.center().x;
+    p.x = cx - 0.3; B.damage(1); B.damage(1); step(1, tick);
+    const silver = calls.filter((c) => c[1] === 'flinch').map((c) => c[0]);
+    step(60 * 3, tick); calls.length = 0;
+    p.x = cx + 0.3; B.damage(1); step(1, tick);
+    const gold = calls.filter((c) => c[1] === 'flinch').map((c) => c[0]);
+    B.floor.react('silver', 'fist-pump', beat + 1);
+    B.floor.reset();
+    const cleared = !B.floor.reacting.silver && !B.floor.reacting.gold;
+    return ok(rightBeat && silver[0] === 'silver' && new Set(silver).size === 1 && gold[0] === 'gold' && cleared, { pump, rightBeat, silver, gold, cleared });
+  },
+});
