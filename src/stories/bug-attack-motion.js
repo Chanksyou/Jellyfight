@@ -289,12 +289,15 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
 });
 
 story('motion/attacks-never-recolour-the-bug', {
-  about: 'No material on an attacking Mosquito changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white).',
+  about: 'No material on an attacking bug (each converted one: Mosquito, Spotted lanternfly, Moth, Cicada) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
   setup() {},
   play() {
-    const F = film().filter((f) => f.phase === 'build' || f.phase === 'swing');
-    const recoloured = F.filter((f) => f.recolour).length;
-    return ok(F.length > 10 && !recoloured, { frames: F.length, recoloured });
+    const out = {};
+    for (const id of CONVERTED) {
+      const F = film(id).filter((f) => f.phase === 'build' || f.phase === 'swing');
+      out[id] = { frames: F.length, recoloured: F.filter((f) => f.recolour).length };
+    }
+    return ok(Object.values(out).every((o) => o.frames > 3 && !o.recoloured), out);
   },
 });
 
