@@ -1204,6 +1204,7 @@ export function buildLadybug() {
     add(shell, half(1), M.lbRed);
     add(shell, half(0.97), M.lbInside);
     for (const [d, r] of [[V(s * 0.08, 0.82, 0.58), 0.13], [V(s * 0.72, 0.5, 0.38), 0.13], [V(s * 0.46, 0.86, -0.05), 0.19], [V(s * 0.62, 0.42, -0.62), 0.14]]) onShell(shell, EC, EE, d, r, M.lbBlack);
+    pivot.name = 'elytron';
     return { s, pivot };
   });
   // the hind wings, folded under the elytra until it flies
@@ -1254,7 +1255,7 @@ export function buildLadybug() {
     if (A) {
       if (ph === 'build') {
         if (key === 'raise') squash = 0.15 * settle(Math.min(1, A.st / 0.4), 1, 2);   // touching down: squashed, then springing up
-        else if (key === 'aim') { brace = THREE.MathUtils.smoothstep(A.st / 0.1, 0, 1); shake = A.still ? 0 : quiver(A.k, A.t, e.phase) * A.quiet; }
+        else if (key === 'aim') { brace = THREE.MathUtils.smoothstep(A.st / 0.1, 0, 1); shake = A.still ? 0 : quiver(A.st / A.len, A.t, e.phase) * A.quiet; }   // (the beeps quicken through the aim itself)
       } else if (ph === 'swing') {
         const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
         brace = Math.max(0, 1 - s); flare = s; jump = s; shove = s;
@@ -1852,7 +1853,7 @@ export function buildBeetle() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       plant = 1; shove = kick = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') { plant = 1; shove = kick = heavy(A.k); }
+    } else if (ph === 'recoil') { plant = 1 - A.k; shove = kick = heavy(A.k); }   // (it stands up as it eases home)
     const slide = A ? -0.15 * shove : -0.12 * kick;
     for (const L of legs) {
       L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
@@ -2339,7 +2340,7 @@ export function buildFirefly() {
   const face = angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 });
   body.add(face);
   const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
-  let t = 0, wind = 0;
+  let t = 0, wind = 0, held = 0;
   // its lob (attack-motion "throw", src/attack-motion.js): its tail lifts (nose down) with a quiver, dips a
   // little more in the last 0.1 s as it winds back, then the tail flicks up and over, stretched along the throw;
   // it tumbles nose up and corrects. The lamp is the word's own: lit and swelling as it aims, squeezed as it throws
@@ -2365,6 +2366,8 @@ export function buildFirefly() {
         lift = (A.vary + 0.17) * Math.max(0, 1 - s); jolt = s; tumble = s;
         len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
       } else if (ph === 'recoil') jolt = tumble = (1 + A.tier.over) * settle(A.k, A.style.bounces, A.style.damp);
+      if (ph === 'idle') lift = held *= Math.exp(-14 * dt);   // broken off (frozen, stunned): the tail comes down, not pops
+      else held = lift;
     }
     body.position.set(shake * 0.03, Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - Math.max(wind, A?.still ? 1 : 0)), jolt * 0.3);   // the throw jolts it forward, off its tail
     body.rotation.x = 0.05 + lift * 0.55 - tumble * 0.65;        // lifting its tail (nose down) to throw; the throw flicks it up and over
@@ -2373,7 +2376,7 @@ export function buildFirefly() {
     lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; wind = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
+  anim.reset = () => { t = 0; wind = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
   return { body: outer, face: new THREE.Group(), anim };
 }
 

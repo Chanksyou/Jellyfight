@@ -275,12 +275,15 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
 });
 
 story('motion/attacks-never-recolour-the-bug', {
-  about: 'No material on an attacking Mosquito changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white).',
+  about: 'No material on an attacking bug changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). Proven on each converted bug.',
   setup() {},
   play() {
-    const F = film().filter((f) => f.phase === 'build' || f.phase === 'swing');
-    const recoloured = F.filter((f) => f.recolour).length;
-    return ok(F.length > 10 && !recoloured, { frames: F.length, recoloured });
+    const bugs = {};
+    for (const id of CONVERTED) {
+      const F = film(id).filter((f) => f.phase === 'build' || f.phase === 'swing');
+      bugs[id] = { frames: F.length, recoloured: F.filter((f) => f.recolour).length };
+    }
+    return ok(Object.values(bugs).every((b) => b.frames > 5 && !b.recoloured), bugs);
   },
 });
 
@@ -445,22 +448,25 @@ story('motion/ladybug-lands-crouches-and-flares', {
   about: 'A Ladybug touching down squashes (0.15) and springs back; its wing cases flare wider on the fire frame; and in the last 0.15 s of its rest it crouches before it takes off.',
   setup() {},
   play() {
-    const F = film('ladybug'), raise = F.filter((f) => f.key === 'raise'), rest = F.filter((f) => f.key === 'rest');
+    const F = film('ladybug', { read: (e, body) => body.getObjectByName('elytron').rotation.z }), raise = F.filter((f) => f.key === 'raise'), rest = F.filter((f) => f.key === 'rest');
     const squash = 1 - Math.min(...raise.map((f) => f.sy));
     const springs = raise.at(-1).sy > 0.98;
     const y0 = rest[0].y, crouch = y0 - Math.min(...rest.filter((f) => f.left < 0.15).map((f) => f.y));
     const early = Math.max(...rest.filter((f) => f.left > 0.3).map((f) => Math.abs(f.y - y0)));
-    return ok(squash > 0.1 && springs && crouch > 0.06 && early < 0.02, { squash: +squash.toFixed(3), springs, crouch: +crouch.toFixed(3), early: +early.toFixed(3) });
+    const swing = of(F, 'swing'), aim = F.filter((f) => f.key === 'aim').at(-1);
+    const flare = Math.abs(Math.max(...swing.map((f) => Math.abs(f.x)))) - Math.abs(aim.x);   // the cases swing wider once the missile goes
+    return ok(squash > 0.1 && springs && crouch > 0.06 && early < 0.02 && flare > 0.05, { squash: +squash.toFixed(3), springs, crouch: +crouch.toFixed(3), early: +early.toFixed(3), flare: +flare.toFixed(3) });
   },
 });
 
 story('motion/beetle-plants-before-it-charges', {
-  about: 'A Stag beetle drops its body 0.08 r and splays its legs in the first fifth of a second of its charge, and stays planted through the shot and its recoil.',
+  about: 'A Stag beetle drops its body 0.08 r and splays its legs in the first fifth of a second of its charge, and stays planted through the shot, then stands back up smoothly as its recoil ends (no pop when the pose lets go).',
   setup() {},
   play() {
     const F = film('beetle'), B = of(F, 'build'), R = of(F, 'recoil');
     const at = B.find((f) => f.pt >= 0.2), drop = -at.y;
-    const planted = [...of(F, 'swing'), ...R.filter((f) => f.k < 0.5)].every((f) => f.y < -0.06);
-    return ok(drop > 0.07 && planted, { dropped: +drop.toFixed(3), planted });
+    const planted = [...of(F, 'swing'), ...R.filter((f) => f.k < 0.2)].every((f) => f.y < -0.06);
+    const stands = Math.abs(R.at(-1).y) < 0.01 && R.every((f, i) => !i || f.y >= R[i - 1].y - 1e-6);   // and rises smoothly as it eases home
+    return ok(drop > 0.07 && planted && stands, { dropped: +drop.toFixed(3), planted, stands, lastY: +R.at(-1).y.toFixed(4) });
   },
 });
