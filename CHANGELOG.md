@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v534 makes the Dragonfly show its attacks on its body (its beam: it draws back, its wings stop dead and its tail curls up over its back; its whirlwind: its wings beat faster and sweep forward as it leans back, then freeze when the aim locks), gives the Cockroach a head-low lean-in and a jab as its touch lands, and squeezes a Wasp nest just before each wasp crawls out. Only how they look: no hit moves.
+
 v533 gives the House fly and the Wasp a build-up, a strike and a recovery: the House fly rubs its legs and draws its head back, then the rubbing stops dead and its straw shoots out; the Wasp rears with its sting curled under, then darts nose-down with its wings swept back. A hit and a miss now look different. When they hit, how hard and how far they reach are unchanged.
 
 v532 the Ant, House spider, Firefly, Ladybug and Stag beetle throw with their whole bodies: each braces and coils, holds still for a beat before it lets go, then rocks back after the throw (the Stag beetle is shoved back and eases home without a bounce). Nothing about when or where their shots go has changed.
