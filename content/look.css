@@ -720,11 +720,14 @@
   --encore-floor-hot-white: 0.08; /* how far a tile going off is pushed towards white (a touch: the DJ colour must read) */
   --encore-dance-raise: 1.35;    /* radians a DJ throws his outer arm up while his wave plays */
   --encore-dance-pump: 0.32;     /* and how far it pumps, down on every beat */
-  /* act 4's sun (src/sunrise.js): painted, never a light. A sheet draped over the room's floor and
-     furniture tops glows where the sun is, with a hard hot rim on its line, and a low hex volume
-     stands on the line over the strip it moves into next (its Warning) */
+  /* act 4's sun (src/sunrise.js): never a light. The room's own shaders (src/baked-ao.js) light
+     everything on the window side of its line, warming each surface's colour, with a hard hot rim on
+     the line, and a low hex volume stands on the line over the strip it moves into next (its Warning) */
   --hostile-sun: #ffcf7a;        /* the sun: hot pale gold (paler than the Kettle's and the Clock's yellows and the Encore's gold) */
-  --sun-fill: 0.35;              /* how much light it adds to what it covers (the room stays dim: the attacks must still read) */
+  --sun-fill: 1.8;               /* how strong the sunlight is on what it covers (x the surface's colour: red stays red, just lit) */
+  --sun-soft: 0.03;              /* m: its soft edge at the line */
+  --sun-warm: 0.5;               /* how much more of the room's soft light a sunlit surface gets (bounce) */
+  --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */
   --sun-pulse: 0.8;              /* how much brighter the band flares each second it bites the jelly */
@@ -733,10 +736,6 @@
   --sun-volume-ahead: 0.06;      /* m: how far ahead of the line it reaches (about 4 s of the sun's creep) */
   --sun-volume-opacity: 0.6;
   --sun-volume-beat: 1.5;        /* s for its fill to rise through it once, over and over while the sun moves */
-  --sun-cell: 0.04;              /* m: the sheet's grid (finer follows furniture edges closer; more triangles) */
-  --sun-reach: 1.2;              /* m: the tops it lies on are the first surface below this (above it: cabinets, lamps) */
-  --sun-floor-from: 0.05;        /* m: and the floor is the first surface below this (under tables and chairs too) */
-  --sun-lift: 0.002;             /* m it floats over what it lies on */
   --sun-flash: 0.02;             /* m: the flash on the jelly as it steps into the sun */
   --sun-steam-gap: 0.35;         /* s between wisps of steam off it while it's in the sun */
   --sun-sizzle-gap: 0.32;        /* s between sizzles */

@@ -16,6 +16,9 @@ const uniforms = {
   aoSize: { value: new THREE.Vector3(1, 1, 1) },
   aoStrength: { value: 0 },   // shadow = openness ^ this: 0 = off (High, or nothing baked), higher = darker
   aoOpen: { value: 0.5 },     // how open a plain floor or wall reads: that much counts as no shadow
+  // a stage's sun (sunrise.js sets these): everything with world z below sunLine is sunlit; far off = none
+  sunLine: { value: -1e4 }, sunColor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) },
+  sunFill: { value: 0 }, sunSoft: { value: 0.03 }, sunWarm: { value: 0 }, sunRim: { value: 0.035 }, sunRimGlow: { value: 0 }, sunPulse: { value: 0 },
 };
 export const BAKED_AO = { uniforms, meta: null };
 
@@ -62,6 +65,8 @@ const AO_FRAGMENT = /* glsl */`
   uniform vec3 aoMin, aoSize;
   uniform float aoStrength, aoOpen;
   varying vec3 vAoPos, vAoNormal;
+  uniform float sunLine, sunFill, sunSoft, sunWarm, sunRim, sunRimGlow, sunPulse;
+  uniform vec3 sunColor, sunDir;
   float bakedAO() {
     if (aoStrength <= 0.0) return 1.0;   // (pow(x, 0) is 1 anyway; this skips the texture read)
     vec3 uvw = (vAoPos + normalize(vAoNormal) * 0.02 - aoMin) / aoSize;
@@ -91,6 +96,18 @@ function patch(shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT)
     .replace('#include <aomap_fragment>', `{
+        // a stage's sun: light on the window side of the line, warming the surface's own colour, more
+        // on what faces the window (wrapped, so floors and tops still read lit at a low sun), a soft
+        // edge, and the hot rim on the line as glow (before the corner shadows, so they darken it too)
+        float sunD = sunLine - vAoPos.z;
+        if (sunD > 0.0) {
+          float sunK = smoothstep(0.0, sunSoft, sunD);
+          float ndl = clamp((dot(normalize(vAoNormal), sunDir) + 0.3) / 1.3, 0.0, 1.0);
+          reflectedLight.directDiffuse += sunColor * diffuseColor.rgb * (sunFill * sunK * ndl);
+          reflectedLight.indirectDiffuse *= 1.0 + sunWarm * sunK;
+          float rim = (1.0 - smoothstep(sunRim * 0.5, sunRim, sunD)) * smoothstep(0.0, sunSoft * 0.5, sunD);
+          totalEmissiveRadiance += sunColor * rim * (sunRimGlow + sunPulse);
+        }
         float baked = bakedAO();
         reflectedLight.directDiffuse *= baked;
         reflectedLight.indirectDiffuse *= baked;
@@ -99,7 +116,7 @@ function patch(shader) {
       #include <aomap_fragment>`);
 }
 
-// the apartment's lit materials read the baked shadows (one shared patch, so one program each)
+// the apartment's lit materials read the baked shadows and a stage's sun (one shared patch, so one program each)
 export function shadeWithBakedAO(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;

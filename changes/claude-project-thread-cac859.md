@@ -1,0 +1,1 @@
+makes act 4's sunlight smooth: the room's own shaders light it, so it follows the sofa's curves without stair-steps, warms each surface's own colour, and lights the sides facing the window (one draw fewer).

@@ -420,7 +420,7 @@ export class Run {
     this.tpc.snapTo(this.player.position);
 
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
-    this.sunrise.start(s, !this.spots);   // (and the sun's sheet, draped over the room as it stands)
+    this.sunrise.start(s);
     this.bpm = SONGS[s.music]?.bpm || 120; this.beat = 0;   // the act's song's tempo, and the run's own count of its beats
     this.bass.start(s);
     this.dress.start(s);
