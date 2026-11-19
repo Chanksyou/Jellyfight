@@ -375,6 +375,7 @@
   --bug-attack-swipe-hold: 0.6;   --bug-attack-swipe-over: 0.1;   --bug-attack-swipe-strike: 0.05;  --bug-attack-swipe-bounces: 2;  --bug-attack-swipe-damp: 2;  --bug-attack-swipe-follow: 0.1;
   --bug-attack-roll-hold: 0.4;    --bug-attack-roll-over: 0.05;   --bug-attack-roll-strike: 0.1;    --bug-attack-roll-bounces: 1;   --bug-attack-roll-damp: 3;   --bug-attack-roll-follow: 0.08;
   --bug-attack-nip-hold: 0.4;     --bug-attack-nip-over: 0.05;    --bug-attack-nip-strike: 0.04;    --bug-attack-nip-bounces: 2;    --bug-attack-nip-damp: 2;    --bug-attack-nip-follow: 0.04;
+  --bug-attack-mantis-stuck: 0.15; /* s a Praying mantis that missed its swat leaves its forelegs out, crossed (its punish window) */
   /* each tier (how much the attack matters): stretch (the body's at full reach), over (the swing's overshoot),
      contact (s the contact pose holds when the hit lands), puff (when a weight puff kicks up: launch, land) */
   --bug-attack-fodder-stretch: 1.1;  --bug-attack-fodder-over: 0.05; --bug-attack-fodder-contact: 0;    --bug-attack-fodder-puff: none;

@@ -61,6 +61,7 @@ enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
 // down it at you. Get out of the lane; hit it once it uncurls.
 enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipede" {
     death-motion "shell"
+    attack-motion "roll" tier="mid"
     chase 0.3 weave=1 rate=2 turn=3   // swings round in arcs, never pivots on the spot
     ball-charge range=0.4 curl=0.45 spin=1.5 speed=2 time=0.8 dmg=5 uncurl=0.5 rest=1 every=2.5
 }
@@ -119,6 +120,7 @@ enemy "firefly" name="Firefly" hp=60 r=0.036 dmg=1 xp=3 model="firefly" {
 // house fly's poke.
 // When it dies, the worm that was living inside it takes its place.
 enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=2 xp=10 model="mantis" {
+    attack-motion "swipe" tier="heavy"
     chase 0.4
     swat range=0.3 windup=0.3 reach=0.2 arc=120 dmg=4 rest=0.5 every=1
     hatch "worm"
@@ -130,6 +132,7 @@ enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=2 xp=10 model="mantis" {
 // down. It can't leave the body, so get out of its reach or jump the line. It's as big as the
 // mantis it was in.
 enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
+    attack-motion "swipe" tier="mid"
     rooted
     burst delay=1.5 radius=0.4 dmg=5
     whip range=0.5 windup=0.7 reach=0.28 width=0.03 dmg=3 down=0.35 rest=1 every=1

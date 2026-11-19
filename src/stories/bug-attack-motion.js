@@ -8,6 +8,7 @@ import { isMuted, setMuted } from '../sfx.js';
 import { seededRandom, seedFor } from '../story-random.mjs';
 import { CONTENT, compileEnemies } from '../content.js';
 import { parse } from '../kdl.js';
+import * as THREE from 'three';
 import { LOOK } from '../look.js';
 import { ENEMY_WORDS } from '../words.js';
 import { TIERS, WORK, WORK_BUDGET, attackClock, attackPuff, beginFrame, knobs, newAttack, roll } from '../attack-motion.js';
@@ -105,13 +106,14 @@ story('attacks/animation-never-moves-a-hit', {
 
 // ------------------------------------------------------------------ how an attack moves (src/attack-motion.js)
 // Bugs whose attack still moves the old way: wave 1 of the plan converts them, then this list is empty.
-const KNOWN_UNCONVERTED = ['roach', 'ants', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const KNOWN_UNCONVERTED = ['roach', 'ants', 'lanternfly', 'housefly', 'spider', 'ladybug', 'dragonfly', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
 // Words that set a state but aren't an attack with a build-up: the worm bursting out of the mantis once
 const NOT_ATTACK_STATES = ['burst'];
 
 // One attack filmed frame by frame on the fixed seed of `attacks/animation-never-moves-a-hit` (stage above):
-// the clock and the body group's pose each frame, from before it begins until it is idle again.
-function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = null } = {}) {
+// the clock and the body group's pose each frame, from before it begins until it is idle again (and `probe(e)`,
+// numbers read off the model each frame: a part the body group doesn't carry, like the worm's tip).
+function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = null, probe = null } = {}) {
   // its hits land on the jelly (hurt), as in play, so a landed bite is told from a miss
   const was = LOOK.vars['bug-anim-far'];
   if (far) LOOK.vars['bug-anim-far'] = '-1';   // every bug counts as far: it animates on alternate frames
@@ -126,7 +128,9 @@ function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = 
       const A = e.atk;
       frames.push({ frame: S.frame, phase: A.phase, k: A.k, pt: A.pt, hit: A.hit, seed: e.phase, still: A.still, n: A.n, vary: A.vary, side: A.side,
         z: body.position.z, y: body.position.y, rx: body.rotation.x, rz: body.rotation.z, sz: body.scale.z,
-        recolour: [...mats].some(([o, m]) => o.material !== m), other: other ? { n: other.atk.n, vary: other.atk.vary, side: other.atk.side, seed: other.phase } : null });
+        recolour: [...mats].some(([o, m]) => o.material !== m), other: other ? { n: other.atk.n, vary: other.atk.vary, side: other.atk.side, seed: other.phase } : null,
+        p: probe ? probe(e) : [], at: [e.pos.x, e.pos.y, e.pos.z], key: A.key, from: e.emergeAt ? [e.emergeAt.x, e.emergeAt.y, e.emergeAt.z] : null,
+        dir: (e.whipDir || e.swatDir) ? [(e.whipDir || e.swatDir).x, (e.whipDir || e.swatDir).z] : null, floor: e.whipFloor ?? e.pos.y });
       if (A.phase === 'recoil') recoiled = true;
       if (recoiled && A.phase === 'idle') break;
     }
@@ -134,7 +138,19 @@ function film(id = 'mosquito', { miss = false, dt = 1 / 60, far = false, also = 
   return frames;
 }
 const of = (F, phase) => F.filter((f) => f.phase === phase);
-const pose = (f) => [f.z, f.rx, f.rz, f.sz];
+// where a part of a bug's model is in the world (m), this frame
+const W = new THREE.Vector3();
+const world = (o, x = 0, y = 0, z = 0) => { o.updateWorldMatrix(true, false); return W.set(x, y, z).applyMatrix4(o.matrixWorld); };
+// the Praying mantis's foreleg hooks (each tibia's tip), and how far they are swung in (crossed)
+const hooks = (e) => { const L = []; e.mesh.traverse((o) => { if (o.name === 'foreleg') L.push(o); }); return L; };
+const mantisProbe = (e) => { const L = hooks(e), out = [Math.abs(L[0].parent.parent.rotation.y)]; for (const o of L) { const p = world(o, 0, -0.06, 0.44); out.push(p.x, p.y, p.z); } return out; };
+// the Horsehair worm's tip (its last piece), in the world as its pose draws it (without the squash every bug
+// takes when its hit lands, e.recoil, which scales the whole model for 0.2 s)
+const UP = new THREE.Vector3(0, 1, 0);
+const wormProbe = (e) => { const C = e.mesh.children, p = W.copy(C[C.length - 1].position).applyAxisAngle(UP, e.root.rotation.y).multiplyScalar(e.r).add(e.pos); return [p.x, p.y, p.z]; };
+// each converted bug's case for the stories below (probe: parts its body group doesn't carry)
+const CASES = [{ id: 'mosquito' }, { id: 'mantis', probe: mantisProbe }, { id: 'worm', probe: wormProbe }, { id: 'millipede' }];
+const pose = (f) => [f.z, f.rx, f.rz, f.sz, ...f.p];
 const apart = (a, b) => Math.max(...pose(a).map((v, i) => Math.abs(v - pose(b)[i])));
 
 story('words/attack-motion', {
@@ -183,14 +199,47 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 });
 
 story('motion/attack-has-three-phases', {
-  about: 'A Mosquito\'s bite runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug (Mosquito, Praying mantis, Horsehair worm, Giant millipede) runs its attack as build-up, swing, recoil in that order on its attack clock, and its pose differs from its idle pose in each.',
   setup() {},
   play() {
-    const F = film(), idle = F.find((f) => f.phase === 'idle');
-    const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
-    const far = (phase) => Math.max(...of(F, phase).map((f) => apart(f, idle)));
-    const differ = { build: far('build'), swing: far('swing'), recoil: far('recoil') };
-    return ok(order === 'build swing recoil' && Object.values(differ).every((d) => d > 0.05), { order, differ });
+    const got = {};
+    for (const c of CASES) {
+      const F = film(c.id, { probe: c.probe }), idle = F.find((f) => f.phase === 'idle');
+      const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
+      const far = (phase) => +Math.max(...of(F, phase).map((f) => apart(f, idle))).toFixed(3);
+      got[c.id] = { order, build: far('build'), swing: far('swing'), recoil: far('recoil') };
+    }
+    return ok(Object.values(got).every((g) => g.order === 'build swing recoil' && g.build > 0.05 && g.swing > 0.05 && g.recoil > 0.05), got);
+  },
+});
+
+story('motion/contact-pose-is-on-the-hit', {
+  about: 'On its contact pose the striking part is drawn where the hit is tested: a Praying mantis\'s foreleg hooks lie inside the wedge its swat tests, and a Horsehair worm\'s tip lies on the floor at the end of the line its whip tests (within 1 cm), low enough that a jump still clears it.',
+  setup() {},
+  async play() {
+    const kdl = parse(await (await fetch('content/enemies.kdl')).text());
+    const props = (bug, word) => kdl.find((n) => n.args[0] === bug).children.find((w) => w.name === word).props;
+    const swat = props('mantis', 'swat'), whip = props('worm', 'whip');
+    // the mantis: every frame of its contact hold (a landed swing whose pose is frozen)
+    const M = film('mantis', { probe: mantisProbe }), held = M.filter((f, i) => f.phase === 'swing' && f.hit && i && M[i - 1].phase === 'swing' && M[i - 1].pt === f.pt);
+    let mantis = held.length ? 0 : 9;
+    for (const f of held) {
+      for (let j = 1; j < f.p.length; j += 3) {
+        const dx = f.p[j] - f.at[0], dz = f.p[j + 2] - f.at[2], d = Math.hypot(dx, dz);
+        const off = Math.acos(Math.max(-1, Math.min(1, (dx * f.dir[0] + dz * f.dir[1]) / (d || 1))));
+        mantis = Math.max(mantis, d - (swat.reach + 0.01), off > (swat.arc / 2) * Math.PI / 180 ? 1 : 0);
+      }
+    }
+    // the worm: on the frame it cracks down (the hit test) and through its contact hold
+    const F = film('worm', { probe: wormProbe }), at = F.findIndex((f) => f.key === 'down');
+    const tips = F.filter((f, i) => i >= at && f.phase === 'swing' && (i === at || f.hit && F[i - 1].pt === f.pt));
+    let worm = tips.length ? 0 : 9;
+    for (const f of tips) {
+      const along = Math.hypot(f.p[0] - f.from[0], f.p[2] - f.from[2]);
+      const side = Math.abs((f.p[0] - f.from[0]) * f.dir[1] - (f.p[2] - f.from[2]) * f.dir[0]);
+      worm = Math.max(worm, Math.abs(along - whip.reach) - 0.01, side - 0.01, f.p[1] - f.floor - 0.03);
+    }
+    return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4) });
   },
 });
 
@@ -205,14 +254,18 @@ story('motion/build-up-holds-its-pose', {
 });
 
 story('motion/a-miss-recovers-differently', {
-  about: 'A Mosquito whose bite lands bounces back squashed; one that misses carries on past and rolls, so the moment to hit back shows on the bug.',
+  about: 'A Mosquito whose bite lands bounces back squashed; one that misses carries on past and rolls. A Praying mantis whose swat misses leaves its forelegs crossed and stuck out --bug-attack-mantis-stuck s longer than one that lands. So the moment to hit back shows on the bug.',
   setup() {},
   play() {
     const H = of(film(), 'recoil'), M = of(film('mosquito', { miss: true }), 'recoil');
     const at = (R, k) => R.find((f) => f.k >= k) || R.at(-1);
     const h = at(H, 0.05), m = at(M, 0.05);
     const landed = H[0]?.hit && h.z < -0.2 && h.sz < 0.95, missed = M[0] && !M[0].hit && m.z > 0.05 && Math.abs(m.rz) > 0.2;
-    return ok(landed && missed, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit } });
+    // the mantis: how far its forelegs are still swung in (crossed), 0.1 s after the follow-through hold
+    const when = knobs().style.swipe.follow + 0.1, near = (R) => R.reduce((b, f) => (Math.abs(f.pt - when) < Math.abs(b.pt - when) ? f : b), { pt: 9, p: [0] });
+    const MH = of(film('mantis', { probe: mantisProbe }), 'recoil'), MM = of(film('mantis', { miss: true, probe: mantisProbe }), 'recoil');
+    const ch = near(MH).p[0], cm = near(MM).p[0], stuck = MH[0]?.hit && MM[0] && !MM[0].hit && cm >= 0.21 && ch < cm - 0.03;
+    return ok(landed && missed && stuck, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit }, mantis: { landedCross: +ch.toFixed(3), missedCross: +cm.toFixed(3), hit: MH[0]?.hit, missHit: MM[0]?.hit } });
   },
 });
 
