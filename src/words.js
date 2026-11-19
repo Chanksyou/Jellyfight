@@ -16,10 +16,11 @@
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
-import { STYLES, TIERS } from './attack-motion.js';
+import { STYLES, TIERS, knobs } from './attack-motion.js';
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
 export const ENEMY_WORDS = {
   'death-motion': {
@@ -31,7 +32,7 @@ export const ENEMY_WORDS = {
     },
   },
   'attack-motion': {
-    doc: 'Its attack moves in `style` (lunge, throw, pounce, swipe, roll or nip), with juice as big as its `tier` (fodder, light, mid or heavy): src/attack-motion.js, numbers in content/look.css (--bug-attack-*). Only how it looks: never when or where it hits.',
+    doc: 'Its attack moves in `style` (lunge, throw, pounce, swipe, roll or nip: a bug that only touches you, with no attack word), with juice as big as its `tier` (fodder, light, mid or heavy): src/attack-motion.js, numbers in content/look.css (--bug-attack-*). Only how it looks: never when or where it hits.',
     args: ['style'],
     props: { tier: 'light' },
     make: ([style], p) => {
@@ -394,7 +395,7 @@ export const ENEMY_WORDS = {
   },
 
   'charge-beam': {
-    doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (the only warning: nothing shows), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
+    doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (its body shows it too: it draws back, its tail curls up over its back and its wings stop dead; nothing shows on the floor), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
     phases: { charge: 'build', rest: 'fire' },   // how its attack moves (src/attack-motion.js)
     props: { range: 0.45, charge: 2, dmg: 3, reach: 0.8, width: 0.008, every: 3.5, rest: 0.4 },
     make: (_, p) => ({
@@ -645,11 +646,12 @@ export const ENEMY_WORDS = {
       init(e) { e.broodT = p.every; },
       tick(e, c, en) {
         if (c.slow === 0) return;           // frozen or stunned: nothing comes out
-        if ((e.broodT -= c.dt) > 0) return;
+        if ((e.broodT -= c.dt) > 0) {
+          if (e.broodT < knobs().nest.lead + 0.2) e.broodFull = broodCount(en, e) >= p.max;   // (its model squeezes only before a wasp that will come: --bug-attack-nest-lead)
+          return;
+        }
         e.broodT = p.every;
-        let mine = 0;
-        for (const x of en.list) if (!x.dead && x.motherId === e.id) mine++;
-        if (mine >= p.max) return;
+        if (broodCount(en, e) >= p.max) return;
         const child = en.spawn(what, (e.emergeAt || e.pos).clone(), e.maxHp / e.T.hp);
         child.motherId = e.id;
         e.hatchedT = 1;

@@ -49,7 +49,7 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
       attack: attackPhases(n.children),
       attackMotion: words.find((w) => w.attackMotion)?.attackMotion || null,   // src/attack-motion.js
     };
-    if (out[id].attackMotion && !out[id].attack) throw new Error(`${where}: "${id}" has attack-motion but no attack word that names its phases`);
+    if (out[id].attackMotion && !out[id].attack && out[id].attackMotion.style !== 'nip') throw new Error(`${where}: "${id}" has attack-motion but no attack word that names its phases`);
   }
   return out;
 }
