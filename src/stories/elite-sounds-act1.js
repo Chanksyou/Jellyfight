@@ -1,7 +1,7 @@
 // Act 1's Elites (Controller, Mug, Kettle) play recorded sounds layered over their synthesized ones
 // (docs/agents/sound.md, packs elite-controller / elite-mug / elite-kettle).
 import { sfx, unlock as unlockAudio, loadPack, cueLog } from '../sfx.js';
-import { G, V, fresh, holdJelly, ok, record, startController, step, story, stub } from './kit.js';
+import { G, V, fresh, holdJelly, ok, record, startCoffeeLob, startController, startKettle, step, story, stub, theKettle } from './kit.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const PACKS = ['elite-controller', 'elite-mug', 'elite-kettle'];
@@ -66,5 +66,42 @@ story('sound/controller-hit-sound-plays-only-on-a-real-hit', {
     const sameFrame = hit && contact[0] && hit.frame === contact[0].frame && fires.some((f) => f.frame === hit.frame);
     const missed = log.filter((c) => c.cue === 'controller-hit').length === before;
     return ok(loaded && standing.hit === 1 && standing.hurt === 1 && together && sameFrame && missed, { loaded, standing, clicks: clicks.length, fires: fires.length, together, sameFrame, missed });
+  },
+});
+
+// one whole attack of an Elite, from it leaving idle to its being idle again
+function wholeAttack(e, frame) {
+  let began = false;
+  for (let i = 0; i < 900; i++) { step(1); frame.n++; began ||= e.state !== 'idle'; if (began && e.state === 'idle') return; }
+}
+
+story('sound/mug-and-kettle-attacks-play-their-recordings', {
+  about: "A real Mug coffee throw plays its slosh and its splash take, and a real Kettle steam ball plays its charge whistle and blast take, then its lid pop and boiling drop take; each recorded take comes with the synthesized cue on the same frame.",
+  setup() { startKettle(0); },
+  async play() {
+    unlockAudio();
+    const loaded = await Promise.all(['elite-mug', 'elite-kettle'].map(loadPack));
+    await wait(2000);
+    const frame = { n: 0 }, log = cueLog(() => frame.n), seen = (cue, recorded = true) => log.filter((c) => c.cue === cue && !!c.recorded === recorded).length;
+    holdJelly();
+    const k = theKettle();
+    wholeAttack(k, frame);                       // the steam ball
+    const ball = { charge: seen('kettle-charge'), blast: seen('kettle-blast') };
+    await wait(1500);
+    k.next = 1; k.cool = 0;
+    wholeAttack(k, frame);                       // the boil-dry: its lid pops and drops land
+    const boil = { pop: seen('kettle-pop'), drop: seen('kettle-drop') };
+    await wait(1500);
+    startCoffeeLob();
+    const mug = G().run.elites.list.find((x) => x.kind === 'mug');
+    holdJelly();
+    wholeAttack(mug, frame);
+    cueLog(null);
+    const throwing = { lob: seen('mug-lob'), splash: seen('mug-splash') };
+    const paired = ['kettle-charge', 'kettle-blast', 'kettle-pop', 'kettle-drop', 'mug-lob', 'mug-splash'].every((role) => {
+      const cue = { 'kettle-charge': 'kettleCharge', 'kettle-blast': 'kettleBlast', 'kettle-pop': 'kettlePop', 'kettle-drop': 'kettleDrop', 'mug-lob': 'mugLob', 'mug-splash': 'mugSplash' }[role];
+      return log.filter((c) => c.cue === role).every((c) => log.some((d) => d.cue === cue && d.frame === c.frame));
+    });
+    return ok(loaded.every(Boolean) && ball.charge >= 1 && ball.blast >= 1 && boil.pop >= 1 && boil.drop >= 1 && throwing.lob >= 1 && throwing.splash >= 1 && paired, { loaded, ball, boil, throwing, paired });
   },
 });

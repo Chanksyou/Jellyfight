@@ -618,7 +618,7 @@ export const sfx = {
     noise(4200*j, 2, 0.025, 0.12, 'highpass'); tone('triangle', 340*j, 100*j, 0.08, 0.08);
     noise(1400*j, 2, 0.14, 0.05, 'bandpass', 0.02, 4200);
   },
-  controllerContact(hit) {
+  controllerContact() {
     if (!ready() || !gap('controllerContact', 45)) return; const j = jitter(0.12);
     noise(2700*j, 3, 0.035, 0.07, 'bandpass');
     [0, 1].forEach(i => tone('triangle', (1200+i*430)*j, (700+i*260)*j, 0.045, 0.022, 0.025+i*0.025));
@@ -979,7 +979,7 @@ export const sfx = {
   shieldCharge() { if (!ready() || !gap('shieldCharge', 300)) return; const j = jitter(0.04); tone('sine', 420 * j, 840 * j, 0.5, 0.025); noise(2600 * j, 3, 0.4, 0.015, 'bandpass', 0, 5200 * j); },   // the Shield starting to refill: a soft rising hum
   shieldReady() { if (!ready() || !gap('shieldReady', 150)) return; const j = jitter(0.04); tone('sine', 700 * j, 1400 * j, 0.2, 0.06); tone('sine', 1400 * j, 2100 * j, 0.2, 0.04, 0.08); },
   boom() { if (!ready()) return; noise(300, 0.7, 0.6, 0.4, 'lowpass', 0, 60); tone('sine', 120, 40, 0.5, 0.3); },
-  // an Elite is beaten (run.js eliteDefeated plays `<kind>Down`, else boom): the boom, with the thing itself breaking over it
+  // an Elite is beaten (run.js eliteDefeated plays the kind's `down` from elites.js, else boom): the boom, with the thing itself breaking over it
   controllerDown() { if (!ready()) return; if (sample('controller-down')) return; this.boom(); },
   mugDown() { if (!ready()) return; if (sample('mug-down')) return; this.boom(); },
   kettleDown() { if (!ready()) return; if (sample('kettle-down')) return; this.boom(); },
