@@ -1,1 +1,0 @@
-gives act 1's three Elites recorded sounds layered over their synthesized ones: the Controller's button clicks, hit thud, slam and charge-up, the Mug's slosh, splash and pour, the Kettle's whistle, steam blast, lid pop and drops, and each Elite's own breaking sound when it is beaten.

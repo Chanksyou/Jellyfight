@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v526 gives act 1's three Elites recorded sounds layered over their synthesized ones: the Controller's button clicks, hit thud, slam and charge-up, the Mug's slosh, splash and pour, the Kettle's whistle, steam blast, lid pop and drops, and each Elite's own breaking sound when it is beaten.
+
 v525 adds the tests and tools for the coming bug attack animation work, with no change to how the game looks or plays: a story that keeps every basic bug attack's hit on the same frame and spot (`attacks/animation-never-moves-a-hit`), a check that a bug's `anim` allocates nothing and never reads the clock or `Math.random`, and tools that film each attack (`tools/bug-reel.mjs`) and time all the bugs' animation on a phone (`tools/bug-anim-bench.mjs`).
 
 v524 gives the jelly's everyday sounds recordings: the bubble's blow, pop and hit, a crit, a bug dying (small and large), jump, land, hurt, and the jelly's Shield coming up, taking a hit and breaking; the Vacuum's Shield and sounds with no recording yet keep their synthesized sounds.
