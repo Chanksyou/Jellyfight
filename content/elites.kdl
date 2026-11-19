@@ -139,7 +139,7 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //           still in the middle; run and you cross a column. Angry: after the first ring bursts a
 //           second sprouts flee= m on, the way you were moving (else away from it)
 elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
-    spores dmg=4 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
+    spores dmg=3 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
     fairy dmg=4 caps=8 ring=0.12 radius=0.04 snap=1 windup=1 grow=1 flee=0.34 rest=0.6 angryRest=0.4
 }
 

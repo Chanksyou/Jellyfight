@@ -140,7 +140,7 @@ export function items() {
 let active;
 export function dispose() { active?.stop(); active = null; }
 
-function controller(config, meter) {
+export function controller(config, meter) {
   const { run, player, enemies, input, tpc } = G();
   const state = { retreat: false, previous: player.position.clone(), moved: 0, rootedSeconds: 0 };
   return { state, tick(frame) {

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v528 tunes act 4: the Elites in the living room have less Health (800 x 1.8 instead of 800 x 2.8, so they take about as long to beat as act 3's, and the Mushroom Pillow's spores hit for 3 instead of 4), the Encore has twice the Health (36000, so a fight should take about 2 minutes for most players and 3 to 4 for the slower half, instead of about one: projected from the run log), and the room spawns bugs 43% faster with 43% more alive at once.
+
 v527 gives the Mosquito's bite a real build-up, swing and recoil: it draws back and rears, holds quivering with its front legs reaching and eyes narrowing, dips its head as its aim locks, goes dead still, then darts stretched out nose first; a landed bite holds a moment, eyes shut, and bounces back squashed, while a miss carries on past and rolls. The shared attack clock behind it (src/attack-motion.js, attack-motion in content/enemies.kdl, --bug-attack-* in look.css) is what every other basic bug moves to next. No timing, damage or Warning changes.
 
 v526 gives act 1's three Elites recorded sounds layered over their synthesized ones: the Controller's button clicks, hit thud, slam and charge-up, the Mug's slosh, splash and pour, the Kettle's whistle, steam blast, lid pop and drops, and each Elite's own breaking sound when it is beaten.
