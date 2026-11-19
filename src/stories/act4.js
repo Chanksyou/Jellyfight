@@ -23,11 +23,12 @@ act4('the-encore-fight-starts-straight-away', {
 });
 
 act4('loading-music-cannot-disable-its-attacks', {
-  about: 'A recording that never finishes loading cannot stop the Encore: its opening shield expires, floor waves and lasers fire, then speakers and disco strikes join in at their usual beats.',
+  about: 'A recording that never finishes loading cannot stop the Encore: its opening shield expires, floor waves and lasers fire, then speakers and (in set 2) disco strikes join in.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false });
     stub(B, 'song', { beat: () => null });
+    B.hp = B.maxHp * 0.7;   // set 2, so its disco ball visits
     let floor = 0, laser = 0, disco = 0, pulse = false;
     for (const [system, method, count] of [[B.floor, 'cast', () => floor++], [B.lasers, 'cast', () => laser++], [B.disco, 'strike', () => disco++]]) {
       const real = system[method];
@@ -77,6 +78,7 @@ act4('music-recovery-never-releases-an-unwarned-attack', {
   setup() {},
   play() {
     const B = encoreFight({ hurt: false });
+    B.hp = B.maxHp * 0.7;   // set 2, so its disco ball visits
     let beat = 180, strikes = 0;
     stub(B, 'song', { beat: () => beat });
     step(1);

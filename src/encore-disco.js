@@ -15,7 +15,7 @@ import { sfx } from './sfx.js';
 const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2, BOSS = ENCORE.bossSpace;
 // Health a strike takes (heavy, as the floor waves); moves to content/bosses.kdl with the campaign
 export const DISCO_DMG = 5;
-export const DISCO = { first: 128, every: 32, length: 8, cycle: 4, move: 3, spots: 32 };
+export const DISCO = { length: 8, cycle: 4, move: 3, spots: 32 };
 const CENTER = [0, 0.3];                           // over the floor, out in front of the DJs
 const UP = new THREE.Vector3(0, 1, 0);
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Color();
@@ -93,7 +93,7 @@ export class EncoreDisco {
     this.spotR = LOOK.num('encore-disco-spot', 0.028);
     this.white = new THREE.Color(LOOK.color('encore-disco-light', '#fff4e2'));
     this.hot = new THREE.Color(LOOK.color('hostile-encore-disco', '#ff2fd2'));
-    this.beat = null; this.show = null; this.struck = -1;
+    this.beat = null; this.show = null; this.struck = -1; this.visitAt = null;
     this.root = new THREE.Group(); this.root.name = 'Encore disco ball'; arena.root.add(this.root);
     // the ball: rings of small square mirror tiles, each a flat facet reflecting the club's lights,
     // over dark grout, turning; a few star glints twinkle on it
@@ -123,8 +123,8 @@ export class EncoreDisco {
   // the show playing at this beat: its first beat, or null
   showAt(beat) {
     if (this.stayFrom != null && beat >= this.stayFrom - 1) return this.stayFrom;   // down for good (stay)
-    if (beat < DISCO.first - 1) return null;
-    const at = DISCO.first + Math.floor((beat - DISCO.first + 1) / DISCO.every) * DISCO.every;
+    const at = this.visitAt;
+    if (at == null || beat < at - 1) return null;
     return beat < at + DISCO.length + 1.5 && !this.quiet(at) && !this.quiet(at + DISCO.length - 1) ? at : null;
   }
   // the spots scattered afresh for a show: anywhere on the open floor, where they both stop (the
@@ -208,9 +208,11 @@ export class EncoreDisco {
   }
 
   // from beat `at` the ball comes down and stays, wheeling, stopping and striking every 4 beats
-  // (the Encore after half Health); null: back to its every-8-bars shows
+  // (the Encore after half Health); null: back to its visits
   stay(at) { this.stayFrom = at; this.dealt = -1; }
+  // a visit: the ball drops for 8 beats from beat `at` (the Encore's set list books them)
+  visit(at) { this.visitAt = at; }
 
-  reset(beat = null) { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.resumeAt = beat === null ? null : Math.ceil(beat / DISCO.cycle) * DISCO.cycle; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
+  reset(beat = null) { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.visitAt = null; this.resumeAt = beat === null ? null : Math.ceil(beat / DISCO.cycle) * DISCO.cycle; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
   dispose() { this.root.removeFromParent(); this.spots.dispose(); this.beams.dispose(); for (const o of this.owned) o.dispose(); }
 }

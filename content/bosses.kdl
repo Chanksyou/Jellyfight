@@ -85,4 +85,10 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // at `at` of its Health its booth shorts out (a cut scene), then its disco ball stays down; as it
     // reboots, its force field holds for `guard` s (it can't be hurt) while its set plays on
     meltdown at=0.5 guard=10
+    // its stages, by Health: at or below `set2` of it set 2 starts (disco ball visits), `set3` set 3,
+    // `last` the last song; above `set2` it plays set 1 (after the warm-up behind its opening force field)
+    stages set2=0.75 set3=0.5 last=0.25
+    // its set list, in bars: a solo slot every `solo` bars from the end of the warm-up, and in set 2
+    // a disco ball visit every `disco` bars, halfway between them
+    set solo=16 disco=8
 }

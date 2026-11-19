@@ -1,4 +1,4 @@
-// The Encore's speaker pulses (act 4). From bar 16 of the fight (beat 64), one corner speaker at a
+// The Encore's speaker pulses (act 4). Once its set list starts them (start(beat)), one corner speaker at a
 // time fires a sound wave, the four taking turns round the arena: the next fires the moment the last
 // reaches its far corner. The wave is a packet of concentric arcs lying flat at jelly height, the
 // widest at the front (`--encore-pulse-radius`, about 40 cm across), bulging the way it travels, like
@@ -12,7 +12,6 @@ import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 
-export const PULSE = { first: 64 };
 // the speaker stacks (act4-arena.js), in firing order round the arena
 export const SPEAKERS = [[-0.64, -0.53], [0.64, -0.53], [0.64, 0.53], [-0.64, 0.53]];
 const MOUTH = 0.56, LOW = 0.06, POOL = 2, ARCS = 5;
@@ -27,7 +26,7 @@ export class EncorePulses {
     this.spread = LOOK.num('encore-pulse-arc', 2.2);              // radians each arc spans
     this.gap = LOOK.num('encore-pulse-gap', 0.03);               // m between the arcs
     this.color = new THREE.Color(LOOK.color('encore-pulse', '#f4f8ff'));
-    this.beat = null; this.fired = PULSE.first - 1; this.live = []; this.shoves = [];
+    this.beat = null; this.first = null; this.fired = -Infinity; this.live = []; this.shoves = [];
     // one arc of a unit circle, centred on +x and lying flat (in the floor's plane)
     const geo = new THREE.TorusGeometry(1, 0.03, 5, 28, this.spread).rotateZ(-this.spread / 2).rotateX(-Math.PI / 2);
     this.arcs = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), POOL * ARCS);
@@ -48,13 +47,14 @@ export class EncorePulses {
   dir(p, out = _d) { const [ax, az] = SPEAKERS[p.from], [bx, bz] = SPEAKERS[(p.from + 2) % 4]; return out.set(bx - ax, 0, bz - az).normalize(); }
 
   update(beat, player, dt = 1 / 60) {
-    if (this.beat !== null && beat < this.beat) { this.live.length = 0; this.fired = PULSE.first - 1; }
+    if (this.beat !== null && beat < this.beat) this.reset();
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
     // one at a time: the next speaker round fires as the last wave arrives, `travel` beats on
     const T = this.travel;
-    for (let k = Math.max(0, Math.floor((this.fired - PULSE.first) / T) + 1); PULSE.first + k * T <= beat; k++) {
-      const b = PULSE.first + k * T;
+    const F = this.first ?? Infinity;
+    for (let k = Math.max(0, Math.floor((this.fired - F) / T) + 1); F + k * T <= beat; k++) {
+      const b = F + k * T;
       this.fired = b;
       if (skip || this.quiet(b) || beat - b > T) continue;
       this.live.push({ at: b, from: k % 4, hit: false });
@@ -91,6 +91,9 @@ export class EncorePulses {
     this.shoves = this.shoves.filter((s) => s.left > 1e-6);
   }
 
-  reset(beat = null) { this.beat = beat; this.fired = beat ?? PULSE.first - 1; this.live.length = 0; this.shoves.length = 0; for (let i = 0; i < POOL * ARCS; i++) this.arcs.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.arcs.instanceMatrix.needsUpdate = true; }
+  // the first wave fires on beat `at`, then one every `travel` beats (the Encore's set list starts them)
+  start(at) { this.first = at; this.fired = at - 1; }
+  // stopped until started again
+  reset(beat = null) { this.beat = beat; this.first = null; this.fired = -Infinity; this.live.length = 0; this.shoves.length = 0; for (let i = 0; i < POOL * ARCS; i++) this.arcs.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.arcs.instanceMatrix.needsUpdate = true; }
   dispose() { this.arcs.removeFromParent(); this.arcs.geometry.dispose(); this.arcs.material.dispose(); this.arcs.dispose(); }
 }
