@@ -62,6 +62,7 @@ let voices = 0;
 let seed = 0x2f6e2b1;
 const rng = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const live = {};                 // recorded takes sounding now, by role (sample's `max`)
+const CHIME_RATE = 0.886;   // the recorded clock bell's speed that puts its strongest partial (885 Hz) on the synthesized chime's second partial (392 Hz x 2): the recording is not a clean note, so this was measured, not heard
 const EVERYDAY = { soft: true, max: 2 };   // the sounds that come in swarms (blow, pop, hit, kill): at most 2 at once each, and never the last 2 ordinary voices
 let manifest = null;
 const wanted = new Set(['unlock']), packLoading = {};
@@ -995,6 +996,9 @@ export const sfx = {
   controllerDown() { if (!ready()) return; if (sample('controller-down')) return; this.boom(); },
   mugDown() { if (!ready()) return; if (sample('mug-down')) return; this.boom(); },
   kettleDown() { if (!ready()) return; if (sample('kettle-down')) return; this.boom(); },
+  soapDown() { if (!ready()) return; if (sample('soap-down')) return; this.boom(); },
+  clockDown() { if (!ready()) return; if (sample('clock-down')) return; this.boom(); },
+  whipperDown() { if (!ready()) return; if (sample('whipper-down')) return; this.boom(); },
   // ---------------------------------------------------------- the Vacuum (vacuum.js)
   // booting up: a rising motor and a three-note startup chime
   vacPowerOn() {
@@ -1480,15 +1484,17 @@ export const sfx = {
   },
   // the Cream Whipper: the regulator hissing as a balloon fills (rubber creaking as it stretches),
   // the squeak as it lets go, the bang when it bursts, the cream spraying
-  balloonFill(dur = 1) {
+  balloonFill(dur = 1, rubber = true) {   // rubber false: the cream piping's hiss, which has no balloon in it
     if (!ready()) return;
+    if (rubber) if (sample('balloon-fill', { urgent: true })) return;
     noise(3500, 1.5, dur, 0.08, 'bandpass', 0, 5500);
     for (let k = 0; k < 4; k++) tone('triangle', 300 + k * 90, 380 + k * 120, 0.08, 0.035, k * dur / 4 + 0.05);
   },
-  balloonLoose() { if (!ready()) return; const j = jitter(0.08); tone('square', 900 * j, 1400 * j, 0.12, 0.03); tone('sine', 600 * j, 1100 * j, 0.15, 0.04); noise(3000 * j, 1.5, 0.25, 0.04, 'bandpass', 0.05, 1500); },
+  balloonLoose() { if (!ready()) return; if (sample('balloon-loose', { urgent: true })) return; const j = jitter(0.08); tone('square', 900 * j, 1400 * j, 0.12, 0.03); tone('sine', 600 * j, 1100 * j, 0.15, 0.04); noise(3000 * j, 1.5, 0.25, 0.04, 'bandpass', 0.05, 1500); },
   balloonTick() { if (!ready() || !gap('balloonTick', 80)) return; tone('sine', 1800, 1700, 0.03, 0.03); },
   balloonPop() {
     if (!ready()) return;
+    if (sample('balloon-pop', { urgent: true })) return;
     const j = jitter(0.1);
     noise(2500 * j, 0.6, 0.18, 0.5, 'highpass'); noise(400 * j, 0.8, 0.35, 0.35, 'lowpass', 0, 90);
     tone('sine', 140 * j, 40, 0.4, 0.35);
@@ -1499,11 +1505,12 @@ export const sfx = {
   // the nozzle opening (a pssht), the cream rushing out, and it sputtering as it runs dry
   creamSpray(dur = 0.8) {
     if (!ready()) return; const j = jitter(0.1);
+    if (sample('cream-spray', { urgent: true })) return;   // the opening burst; the stream itself stays synthesized
     noise(5200 * j, 1, 0.05, 0.16, 'highpass'); noise(2600 * j, 0.9, dur, 0.18, 'bandpass', 0, 1600); noise(700 * j, 1, dur * 0.6, 0.1, 'lowpass');
     for (let k = 0; k < 3; k++) noise(1100 * jitter(0.2), 2, 0.04, 0.06, 'lowpass', dur - 0.1 + k * 0.06);
   },
   // cream splatting onto the jelly: a soft wet slap and a few drops
-  creamSplat() { if (!ready() || !gap('creamSplat', 80)) return; const j = jitter(0.12); noise(1500 * j, 1, 0.1, 0.2, 'lowpass', 0, 400); tone('sine', 240 * j, 110, 0.09, 0.08); for (let k = 0; k < 3; k++) noise(3500 * jitter(0.3), 3, 0.02, 0.04, 'bandpass', 0.06 + k * 0.05); },
+  creamSplat() { if (!ready() || !gap('creamSplat', 80)) return; const j = jitter(0.12); if (sample('cream-splat', { urgent: true })) return; noise(1500 * j, 1, 0.1, 0.2, 'lowpass', 0, 400); tone('sine', 240 * j, 110, 0.09, 0.08); for (let k = 0; k < 3; k++) noise(3500 * jitter(0.3), 3, 0.02, 0.04, 'bandpass', 0.06 + k * 0.05); },
   // the Wall Clock: a tick, a whoosh as its hand sweeps, a bronze bell for each chime (k: which, a
   // little lower each time), the wreath whirring through the air
   // the Alligator (elites.js): a soft plush thump on the bed, its tail or its whole body landing
@@ -1658,11 +1665,12 @@ export const sfx = {
   jewelWhistle(dur = 0.25) { if (!ready()) return; const j = jitter(0.06); tone('sine', 2600 * j, 700 * j, dur, 0.06); tone('sine', 2750 * j, 760 * j, dur, 0.03); },
   jewelCrack() { if (!ready()) return; const j = jitter(0.08); noise(6500 * j, 0.8, 0.06, 0.3, 'highpass'); for (let k = 0; k < 5; k++) { const f = (2200 + k * 450) * j * jitter(0.05); tone('triangle', f, f * 0.9, 0.09, 0.04, k * 0.02 + Math.random() * 0.015); } noise(500 * j, 0.8, 0.2, 0.2, 'lowpass', 0, 150); },
   clockTick() { if (!ready() || !gap('clockTick', 70)) return; tone('square', 2400, 2200, 0.012, 0.03); noise(5000, 6, 0.01, 0.04, 'bandpass'); },
-  clockSweep() { if (!ready()) return; const j = jitter(0.08); tone('square', 1800 * j, 1600 * j, 0.03, 0.05); noise(900 * j, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160 * j, 420 * j, 0.45, 0.05); },
+  clockSweep() { if (!ready()) return; const j = jitter(0.08); if (sample('clock-sweep', { urgent: true })) return; tone('square', 1800 * j, 1600 * j, 0.03, 0.05); noise(900 * j, 0.8, 0.5, 0.2, 'bandpass', 0, 3000); tone('sawtooth', 160 * j, 420 * j, 0.45, 0.05); },
   // gilt striking: a bright clang (transient), a thud if it caught the jelly (body), and the
   // ringing tinkle after (debris). hit false: the hand clacking into its stop
   clockStrike(hit = true) {
     if (!ready() || !gap('clockStrike', 60)) return; const j = jitter(0.06);
+    if (sample('clock-strike', { urgent: hit, vol: hit ? 1 : 0.6 })) return;   // the hand clacking into its stop is quieter than catching you
     noise(5000 * j, 2, 0.03, 0.14, 'highpass'); tone('triangle', 1250 * j, 1150 * j, 0.18, 0.06);
     if (hit) tone('sine', 170 * j, 60, 0.18, 0.2);
     for (let k = 0; k < 3; k++) tone('sine', (2600 + k * 700) * jitter(0.05), (2500 + k * 650), 0.12, 0.02, 0.04 + k * 0.05);
@@ -1671,26 +1679,29 @@ export const sfx = {
   wreathCatch() { if (!ready()) return; const j = jitter(0.06); tone('triangle', 1700 * j, 1600 * j, 0.08, 0.05); noise(900 * j, 1.5, 0.06, 0.08, 'lowpass'); },
   clockChime(k = 0) {
     if (!ready()) return;
+    if (sample('clock-chime', { urgent: true, rate: CHIME_RATE * Math.pow(2, -k * 2 / 12) })) return;   // the recorded bell at the pitch of the synthesized one below
     const f = 392 * Math.pow(2, -k * 2 / 12) * jitter(0.006);
     for (const [m, v, d] of [[1, 0.16, 1.6], [2.01, 0.07, 1.1], [2.76, 0.05, 0.8], [5.4, 0.025, 0.4]]) tone('sine', f * m, f * m * 0.998, d, v);
     noise(3000, 2, 0.03, 0.08, 'bandpass');                              // the strike
   },
-  wreathWhirr() { if (!ready()) return; const j = jitter(0.08); noise(4200 * j, 1.5, 0.05, 0.12, 'highpass'); tone('triangle', 900 * j, 1500 * j, 0.08, 0.04); for (let k = 0; k < 6; k++) noise((1600 + k * 100) * j, 3, 0.09, 0.07, 'bandpass', k * 0.09, 800); },
+  wreathWhirr() { if (!ready()) return; const j = jitter(0.08); if (sample('wreath-whirr', { urgent: true })) return; noise(4200 * j, 1.5, 0.05, 0.12, 'highpass'); tone('triangle', 900 * j, 1500 * j, 0.08, 0.04); for (let k = 0; k < 6; k++) noise((1600 + k * 100) * j, 3, 0.09, 0.07, 'bandpass', k * 0.09, 800); },
   // the Soap Dispenser: a wet pump squelch, a squirt landing, a burst of bubbles let go, one popping
   soapPump() {
     if (!ready()) return;
     const j = jitter(0.08);
+    if (sample('soap-pump', { urgent: true })) return;
     noise(700 * j, 1.5, 0.14, 0.18, 'lowpass', 0, 180); tone('sine', 320 * j, 140 * j, 0.12, 0.12);
     noise(3200 * j, 2, 0.04, 0.07, 'highpass', 0.03); noise(1800 * j, 1.2, 0.3, 0.04, 'bandpass', 0.04, 700);   // the squirt, and the glob whooshing off
   },
   soapSplat() { if (!ready() || !gap('soapSplat', 60)) return; const j = jitter(); noise(1400 * j, 1.2, 0.1, 0.16, 'bandpass', 0, 500); tone('sine', 220 * j, 110, 0.08, 0.08); for (let k = 0; k < 3; k++) tone('sine', 1800 * jitter(0.3), 2600, 0.03, 0.025, 0.05 + k * 0.04); },
   soapBubbles() {
     if (!ready()) return;
+    if (sample('soap-bubbles', { urgent: true })) return;
     noise(900 * jitter(), 1, 0.08, 0.1, 'lowpass');                      // the foam letting go
     for (let k = 0; k < 9; k++) { const f = 500 + Math.random() * 700; tone('sine', f, f * 1.8, 0.05, 0.05, k * 0.025 + Math.random() * 0.02); }
     noise(1500 * jitter(), 1, 0.5, 0.03, 'bandpass', 0.05, 600);         // the ring drifting off
   },
-  bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); tone('sine', f * 2.6, f * 3, 0.02, 0.015, 0.03); },
+  bubblePop() { if (!ready() || !gap('bubblePop', 40)) return; if (sample('soap-bubble-pop', EVERYDAY)) return; const f = 900 * jitter(0.2); tone('sine', f, f * 2.2, 0.04, 0.05); noise(6000, 3, 0.02, 0.04, 'highpass'); tone('sine', f * 2.6, f * 3, 0.02, 0.015, 0.03); },
   // a hit glancing off armour: a short metallic tink
   clink() { if (!ready() || !gap('clink', 80)) return; const j = jitter(0.06); tone('triangle', 2600 * j, 2400 * j, 0.08, 0.05); tone('sine', 3900 * j, 3700 * j, 0.05, 0.03); },
   // Lucky Cat's second roll hit: two soft bell notes, a fifth apart

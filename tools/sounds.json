@@ -30,6 +30,36 @@
         "kettle-down": { "cue": ["kettleDown"], "vol": 0.3, "mode": "layer", "cap": 0.8, "takes": ["elite-kettle/metal-pot-3.wav"] }
       }
     },
+    "elite-soap": {
+      "for": ["act 2"],
+      "roles": {
+        "soap-pump": { "cue": ["soapPump"], "vol": 0.2, "mode": "layer", "cap": 0.5, "takes": ["elite-soap/spray-bottle-gore-hit.wav"] },
+        "soap-bubbles": { "cue": ["soapBubbles"], "vol": 0.2, "mode": "layer", "cap": 0.45, "takes": ["elite-soap/single-bubble-cluster.wav"] },
+        "soap-bubble-pop": { "cue": ["bubblePop"], "vol": 0.18, "mode": "layer", "takes": ["elite-soap/mouth-bubble-pop-2.wav"] },
+        "soap-down": { "cue": ["soapDown"], "vol": 0.3, "mode": "layer", "cap": 0.4, "takes": ["elite-soap/bottle.wav"] }
+      }
+    },
+    "elite-clock": {
+      "for": ["act 2"],
+      "roles": {
+        "clock-sweep": { "cue": ["clockSweep"], "vol": 0.18, "mode": "layer", "cap": 0.5, "takes": ["elite-clock/fast-cable-whoosh.wav"] },
+        "clock-strike": { "cue": ["clockStrike", true], "vol": 0.25, "mode": "layer", "cap": 0.45, "takes": ["elite-clock/ringing-metal.wav"] },
+        "clock-chime": { "cue": ["clockChime", 0], "vol": 0.2, "mode": "layer", "cap": 0.78, "takes": ["elite-clock/glassy-church-bell-hit.wav"] },
+        "wreath-whirr": { "cue": ["wreathWhirr"], "vol": 0.15, "mode": "layer", "cap": 0.43, "takes": ["elite-clock/bamboo-swing-transition-effect.wav"] },
+        "clock-down": { "cue": ["clockDown"], "vol": 0.3, "mode": "layer", "cap": 1.0, "takes": ["elite-clock/trap-springing-shut.wav"] }
+      }
+    },
+    "elite-whipper": {
+      "for": ["act 2"],
+      "roles": {
+        "balloon-fill": { "cue": ["balloonFill", 1.0], "vol": 0.1, "mode": "layer", "cap": 1.0, "takes": ["elite-whipper/balloon-inflation.wav"] },
+        "balloon-loose": { "cue": ["balloonLoose"], "vol": 0.2, "mode": "layer", "cap": 0.6, "takes": ["elite-whipper/balloon-rub-squeak.wav"] },
+        "balloon-pop": { "cue": ["balloonPop"], "vol": 0.3, "mode": "layer", "cap": 0.32, "takes": ["elite-whipper/balloon-popping.wav"] },
+        "cream-spray": { "cue": ["creamSpray"], "vol": 0.2, "mode": "layer", "cap": 0.5, "takes": ["elite-whipper/aerosol-can-14.wav"] },
+        "cream-splat": { "cue": ["creamSplat"], "vol": 0.25, "mode": "layer", "cap": 0.36, "takes": ["elite-whipper/mud-splat.wav"] },
+        "whipper-down": { "cue": ["whipperDown"], "vol": 0.2, "mode": "layer", "cap": 0.8, "takes": ["elite-whipper/torch-gas-flow.wav"] }
+      }
+    },
     "lightning": {
       "for": ["jelly lightning", "act 4"],
       "roles": {
