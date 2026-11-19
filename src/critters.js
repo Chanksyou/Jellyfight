@@ -186,39 +186,59 @@ export function buildAnts() {
     return p;
   });
   const pin = new THREE.Group();
+  pin.name = 'ant-pin';
   pin.position.set(0, 0.6, 0.94);                                  // gripped in the mandibles
   pin.add(new THREE.Mesh(pinGeo(outer.userData.pin), M.shell));
   body.add(pin);
-  const ease = THREE.MathUtils.smoothstep;
+  for (const L of legs) L.z0 = L.pivot.position.z;
+  for (const a of antennae) a.sp = { x: 0, v: 0 };
   let t = 0, k = 0, fired = 0, since = 9;
+  // its pin throw (attack-motion "throw", src/attack-motion.js): braces low and coils back with its pin trembling,
+  // its head snapping to the line as the aim locks (antennae flicking forward), goes dead still, then drives head
+  // and pin forward as the pin leaves (the same frame as ever) with its legs skidding; it rocks back past neutral
+  // and settles, the antennae whipping a beat late
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (3 + 16 * k);
-    // the throw (the spit word's aimT and firedT): ready, brace, coil, then thrust and release
-    const c = e.aimT > 0 ? 1 - e.aimT / (e.aimMax || 0.5) : 0;
-    const brace = ease(c, 0.15, 0.5), coil = ease(c, 0.5, 1);
-    if ((e.firedT || 0) > fired) since = 0;                       // it just threw
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    let brace = 0, coilK = 0, thrust = 0, dip = 0, shake = 0, len = 1;
+    if (ph === 'build') {
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;
+      brace = Math.min(1, c * 1.6); coilK = c;
+      dip = lockBeat(A) ? 1 : 0;                                  // the lock: its head snaps to the line, the antennae flick forward
+      shake = A.still ? 0 : quiver(A.k, A.t, e.phase) * A.quiet;   // the pin trembles, then dead still for the last 0.1 s
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      brace = Math.max(0, 1 - s); coilK = A.vary * Math.max(0, 1 - s); thrust = s;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(A.k, 1, 1);   // (one bounce: its recoil is a quarter second)
+    // the throw (the spit word's firedT): the pin goes the frame it is thrown, then a new one swells into its jaws
+    if ((e.firedT || 0) > fired) since = 0;
     fired = e.firedT || 0;
     since += dt;
-    const thrust = since < 0.3 ? Math.sin(Math.PI * since / 0.3) : 0;
-    body.position.set(0, Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coil * 0.03, coil * -0.16 + thrust * 0.26);
-    body.rotation.x = coil * -0.18 + thrust * 0.2;                 // rears back, then drives its head down
-    body.rotation.z = Math.sin(t) * 0.03 * k;
+    body.position.set(shake * 0.02, Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coilK * 0.03, coilK * -0.16 + thrust * 0.26);
+    body.rotation.x = coilK * -0.18 + thrust * 0.2 + dip * 0.1;      // rears back, then drives its head down
+    body.rotation.z = Math.sin(t) * 0.03 * k + shake * 0.05;
+    stretch(body, len);
     for (const L of legs) {
       L.pivot.rotation.y = Math.sin(t + L.phase) * 0.4 * k;
       L.pivot.rotation.z = (Math.max(0, Math.cos(t + L.phase)) * 0.25 * k + brace * 0.12) * L.s;   // lifts a foot; braced, splays out
+      L.pivot.position.z = L.z0 - thrust * 0.1;                  // the feet skid: they stay while the body goes
     }
-    antennae.forEach((p, j) => {
-      p.rotation.x = Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.4;
+    for (let j = 0; j < antennae.length; j++) {
+      const p = antennae[j];
+      spring(p.sp, Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.4 - dip * 0.45, 0.06, 2.2, dt);   // lagging the head, a beat late
+      p.rotation.x = p.sp.x;
       p.rotation.y = Math.sin(t * 0.9 + j * 2) * 0.2;
-    });
+    }
     // the pin: gone as it's thrown, then a new one swells into its jaws
     const grow = THREE.MathUtils.clamp((since - 0.25) / 0.3, 0, 1);
     pin.scale.setScalar(since < 0.25 ? 0 : 1 + 2.7 * (grow - 1) ** 3 + 1.7 * (grow - 1) ** 2);   // with a little overshoot
-    pin.rotation.x = coil * 0.12;
+    pin.rotation.x = coilK * 0.12;
+    pin.rotation.z = shake * 0.6;
   };
-  anim.reset = () => { t = 0; k = 0; fired = 0; since = 9; };
+  anim.reset = () => { t = 0; k = 0; fired = 0; since = 9; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const L of legs) L.pivot.position.z = L.z0; for (const a of antennae) { a.sp.x = 0; a.sp.v = 0; } pin.rotation.z = 0; };   // (a pooled model killed mid-throw)
   return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.pivot) };
 }
 
@@ -678,30 +698,54 @@ export function buildSpider() {
     }
   });
 
-  let t = 0, k = 0, rearUp = 0, recoil = 0;
+  const frontUp = { x: 0, v: 0 }, spread = { x: 0, v: 0 };     // the front legs: how high they are raised, how far apart they are spread
+  let t = 0, k = 0, drum = 0;
+  // its web lob (attack-motion "throw", src/attack-motion.js): rears in a quarter second with a small overshoot,
+  // front legs high and the abdomen tucked, palps drumming; the front legs spread as the aim locks; then they
+  // flick down and forward as the abdomen whips round to aim and the web goes; it rocks back, its knees bending
+  // to take it, and settles, the front legs coming down last
   const anim = (dt, e) => {
     t += dt;
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
-    rearUp += ((e.aimT > 0 ? 1 : 0) - rearUp) * (1 - Math.exp(-10 * dt));
-    recoil = e.firedT > 0 ? 1 : recoil * Math.exp(-7 * dt);
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    let rearUp = 0, flick = 0, rock = 0, bend = 0, len = 1, shake = 0, dip = 0;
+    if (ph === 'build') {
+      rearUp = coil(A.k, A.style.hold, A.style.over) * A.vary;
+      dip = lockBeat(A) ? 1 : 0;
+      shake = A.still ? 0 : quiver(A.k, A.t, e.phase) * A.quiet;
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      rearUp = A.vary * Math.max(0, 1 - s); flick = s; rock = s;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+    } else if (ph === 'recoil') {
+      const b = settle(A.k, 1, 1);                      // (one bounce: its recoil is a quarter second)
+      flick = rock = (1 + A.tier.over) * b;
+      bend = 1 - A.k;                                              // its knees bend to take the throw, then straighten
+    }
+    drum += dt * (6 + 14 * rearUp);
+    spring(frontUp, ph === 'build' || !A ? 0.55 * rearUp : -0.25 * flick, 0.07, 2.4, dt);   // the front legs lead in, flick down, and are last up or down
+    spring(spread, dip, 0.05, 2, dt);
     const step = t * (3 + 11 * k) + e.phase;
     for (const L of legs) {
-      const ph = step + L.phase, up = Math.max(0, Math.sin(ph));          // lifted while it swings forward
-      L.swing.rotation.y = Math.cos(ph) * 0.28 * k * L.s;              // (forward while lifted, on both sides)
+      const ph2 = step + L.phase, up = Math.max(0, Math.sin(ph2));          // lifted while it swings forward
+      L.swing.rotation.y = Math.cos(ph2) * 0.28 * k * L.s + (L.pair === 0 ? L.s * spread.x * 0.35 : 0);   // (forward while lifted, on both sides)
       // rearing: the front pair lifts high and reaches forward, the second pair a little
-      const raise = L.pair === 0 ? rearUp * 0.55 : L.pair === 1 ? rearUp * 0.2 : 0;
-      L.lift.rotation.z = L.e1 + up * 0.35 * k + raise;
-      L.knee.rotation.z = L.k2 - up * 0.25 * k + raise * 0.6;
+      const raise = L.pair === 0 ? frontUp.x : L.pair === 1 ? rearUp * 0.2 : 0;
+      L.lift.rotation.z = L.e1 + up * 0.35 * k + raise - bend * 0.12;
+      L.knee.rotation.z = L.k2 - up * 0.25 * k + raise * 0.6 + bend * 0.18;
       L.ankle.rotation.z = L.k3 + raise * 0.4;
     }
-    // the body: a slight bob with each step set, nose up when it rears, a kick back when it fires
-    body.position.y = Math.abs(Math.sin(step)) * 0.02 * k;
-    front.rotation.x = -rearUp * 0.16 + recoil * 0.08;
-    rear.rotation.x = -rearUp * 0.35 - recoil * 0.15;                        // abdomen tipped up toward its target
-    for (const p of palps) p.rotation.x = Math.sin(t * 6 + e.phase) * 0.15 + rearUp * -0.4;   // palps twitch, lift when it rears
+    // the body: a slight bob with each step set, nose up and drawn back when it rears, a kick back when it throws
+    body.position.set(shake * 0.02, Math.abs(Math.sin(step)) * 0.02 * k * (A?.still ? 0 : 1) - bend * 0.03, -0.14 * rearUp + 0.1 * rock);
+    body.rotation.z = shake * 0.04;
+    stretch(body, len);
+    front.rotation.x = -rearUp * 0.16 + rock * 0.1 + dip * 0.05;
+    rear.rotation.x = -rearUp * 0.35 - flick * 0.3;                          // abdomen tucked, then whipped to aim
+    for (const p of palps) p.rotation.x = Math.sin(drum + e.phase) * 0.15 + rearUp * -0.4;   // palps drum, lift when it rears
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; rearUp = 0; recoil = 0; };
+  anim.reset = () => { t = 0; k = 0; drum = 0; frontUp.x = frontUp.v = spread.x = spread.v = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1193,7 +1237,8 @@ export function buildLadybug() {
   add(body, G.head ||= new THREE.SphereGeometry(1, 24, 14).scale(HE.x, HE.y, HE.z).translate(HC.x, HC.y, HC.z), M.lbBlack);
   for (const s of [-1, 1]) onShell(body, HC, HE, V(s * 0.6, 0.35, 0.7), 0.07, M.lbCream);
   const antennae = [-1, 1].map((s) => { const a = add(body, G.antenna, M.lbLeg, V(s * 0.12, -0.04, 1.2)); a.scale.x = s; return a; });
-  body.add(angryEyes({ y: -0.06, z: 1.22, size: 0.1, gap: 0.12 }));
+  const face = angryEyes({ y: -0.06, z: 1.22, size: 0.1, gap: 0.12 });
+  body.add(face);
   // the elytra: each a half dome on a hinge at its front inner corner, its spots riding on it
   const EC = V(0, -0.02, -0.16), EE = V(0.92, 0.78, 1.0);
   G.halves ||= {};
@@ -1208,6 +1253,7 @@ export function buildLadybug() {
     add(shell, half(1), M.lbRed);
     add(shell, half(0.97), M.lbInside);
     for (const [d, r] of [[V(s * 0.08, 0.82, 0.58), 0.13], [V(s * 0.72, 0.5, 0.38), 0.13], [V(s * 0.46, 0.86, -0.05), 0.19], [V(s * 0.62, 0.42, -0.62), 0.14]]) onShell(shell, EC, EE, d, r, M.lbBlack);
+    pivot.name = 'elytron';
     return { s, pivot };
   });
   // the hind wings, folded under the elytra until it flies
@@ -1227,7 +1273,7 @@ export function buildLadybug() {
     hip.position.set(s * 0.32, -0.24, L.z);
     add(hip, L.geo[side], M.lbLeg);
     body.add(hip);
-    legs.push({ s, pair, hip });
+    legs.push({ s, pair, hip, z0: L.z });
   }));
   // the missile on its rail, between the raised elytra
   const pod = new THREE.Group();
@@ -1240,31 +1286,63 @@ export function buildLadybug() {
   loaded.flame.visible = false;
   pod.add(loaded.group);
 
+  const shellSp = { x: 0, v: 0 }, tilt = { x: 0, v: 0 };      // the wing cases (a spring: they open past full and snap shut), the pod's lean at you
   let t = 0, shell = 0, fly = 0, flap = 0;
+  // its sortie (attack-motion "throw", src/attack-motion.js; the word's own clocks still say when it lands, opens
+  // and flies): touching down it squashes and springs, the wing cases opening a little past full; aiming it braces
+  // low with its legs wide, its antennae quivering with the beeps and the pod leaning to you in the last 0.1 s;
+  // the missile goes with the pod jumping and the wing cases flaring wider; it slides back with its legs
+  // dragging and settles, the wing cases snap shut with a small hop, and it crouches before it takes off
   const anim = (dt, e) => {
     t += dt;
-    shell += ((e.shellK ?? 0) - shell) * (1 - Math.exp(-12 * dt));
+    spring(shellSp, e.shellK ?? 0, 0.08, 3.8, dt);
+    shell = Math.max(0, shellSp.x);
     fly += ((e.flyK ?? 0) - fly) * (1 - Math.exp(-9 * dt));
     flap += ((e.wingK ?? 0) - flap) * (1 - Math.exp(-12 * dt));
+    const A = e.atk, ph = A ? A.phase : 'idle', key = A ? A.key : '';
+    let squash = 0, brace = 0, shake = 0, flare = 0, jump = 0, shove = 0, hop = 0, crouch = 0, len = 1;
+    if (A) {
+      if (ph === 'build') {
+        if (key === 'raise') squash = 0.15 * settle(Math.min(1, A.st / 0.4), 1, 2);   // touching down: squashed, then springing up
+        else if (key === 'aim') { brace = THREE.MathUtils.smoothstep(A.st / 0.1, 0, 1); shake = A.still ? 0 : quiver(A.st / A.len, A.t, e.phase) * A.quiet; }   // (the beeps quicken through the aim itself)
+      } else if (ph === 'swing') {
+        const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+        brace = Math.max(0, 1 - s); flare = s; jump = s; shove = s;
+        len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      } else if (ph === 'recoil') {
+        const u = Math.min(1, Math.max(0, A.pt - A.style.follow) / 0.36);        // the kick: 0.36 s after the follow-through hold
+        shove = (1 + A.tier.over) * settle(u, A.style.bounces, A.style.damp);
+        if (key === 'close') hop = Math.sin(Math.PI * Math.min(1, Math.max(0, A.st - 0.2) / 0.2)) * 0.07;   // the cases snap shut: a small hop
+        else if (key === 'rest') crouch = THREE.MathUtils.smoothstep(1 - (A.len - A.st) / 0.15, 0, 1);       // the last 0.15 s: down before it takes off
+      }
+    }
+    spring(tilt, A && A.still ? 1 : 0, 0.05, 2, dt);
     // elytra: the back lifts on the front hinge and the outer edges swing up and out
-    for (const E of elytra) E.pivot.rotation.set(shell * 1.15, -E.s * shell * 0.2, E.s * shell * 0.7, 'YXZ');
+    for (const E of elytra) E.pivot.rotation.set(shell * 1.15, -E.s * shell * 0.2, E.s * (shell * 0.7 + flare * 0.26), 'YXZ');
     // hind wings: unfold sideways and back, beating as a blur
     for (const W of wings) {
       W.pivot.scale.setScalar(Math.max(0.001, flap));
       W.pivot.rotation.set(0.15, -W.s * (0.2 + 0.9 * flap), 0);
       W.flap.rotation.z = W.s * (0.2 + Math.sin(t * 90 + (W.s > 0 ? 0 : 0.5)) * 0.85) * flap;
     }
-    // legs: a shuffle on the ground, tucked up in flight
-    for (const L of legs) L.hip.rotation.set(fly * 0.9, Math.sin(t * 9 + L.pair * 2.1 + (L.s > 0 ? Math.PI : 0)) * 0.12 * (1 - fly) * (e.stepK ?? 0), L.s * fly * 0.5);
-    for (const a of antennae) a.rotation.y = Math.sin(t * 5 + e.phase) * 0.15 + (e.state === 'aim' ? Math.sin(t * 30) * 0.1 : 0);
+    const slide = -0.2 * shove;
+    // legs: a shuffle on the ground, tucked up in flight, wide when it braces, dragging as it slides back
+    for (const L of legs) {
+      L.hip.rotation.set(fly * 0.9, Math.sin(t * 9 + L.pair * 2.1 + (L.s > 0 ? Math.PI : 0)) * 0.12 * (1 - fly) * (e.stepK ?? 0), L.s * (fly * 0.5 + brace * 0.3));
+      L.hip.position.z = L.z0 - slide * 0.7;
+    }
+    for (const a of antennae) a.rotation.y = Math.sin(t * 5 + e.phase) * 0.15 + (A ? shake * 0.3 : e.state === 'aim' ? Math.sin(t * 30) * 0.1 : 0);
     // the body: nose up in flight with a wobble; a kick back as the missile goes
-    const kick = Math.max(0, e.firedT || 0);
-    body.rotation.x = -fly * 0.35 + Math.sin(t * 7 + e.phase) * 0.05 * fly - kick * 0.5;
-    body.position.y = Math.sin(t * 6 + e.phase) * 0.06 * fly;
+    body.rotation.x = -fly * 0.35 + Math.sin(t * 7 + e.phase) * 0.05 * fly - (A ? 0.17 * shove : 0.5 * Math.max(0, e.firedT || 0)) + 0.08 * brace + 0.1 * crouch;
+    body.position.set(0, Math.sin(t * 6 + e.phase) * 0.06 * fly - 0.1 * brace - 0.1 * crouch + hop, slide);
+    stretch(body, len);
+    if (squash) { body.scale.x *= 1 + squash * 0.5; body.scale.y *= 1 - squash; body.scale.z *= 1 + squash * 0.5; }
     pod.visible = shell > 0.55 && e.loaded !== false;
-    pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3;
+    pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3 + jump * 0.1;
+    pod.rotation.x = -0.25 * tilt.x;
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; shell = 0; fly = 0; flap = 0; };
+  anim.reset = () => { t = 0; shell = 0; fly = 0; flap = 0; shellSp.x = shellSp.v = tilt.x = tilt.v = 0; stretch(body, 1); body.position.set(0, 0, 0); pod.rotation.x = 0; for (const L of legs) L.hip.position.z = L.z0; face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-sortie)
   return { body: outer, face: new THREE.Group(), anim, deathParts: [elytra[1].pivot] };
 }
 
@@ -1815,7 +1893,8 @@ export function buildBeetle() {
   body.add(new THREE.Mesh(G.body, M.stag));
   const shell = new THREE.Mesh(G.shell, M.stag);
   body.add(shell);
-  body.add(angryEyes({ y: 0.5, z: 1.26, size: 0.085, gap: 0.27 }));
+  const face = angryEyes({ y: 0.5, z: 1.26, size: 0.085, gap: 0.27 });
+  body.add(face);
   const jaws = G.mandibles.map((geo, i) => {
     const s = i ? 1 : -1, hinge = new THREE.Group();
     hinge.position.set(s * 0.17, 0.38, 1.3);
@@ -1830,29 +1909,50 @@ export function buildBeetle() {
     hip.position.set(s * 0.28, 0.3, L.z);
     hip.add(new THREE.Mesh(L.geo[j], M.stag));
     body.add(hip);
-    legs.push({ hip, base: s * (L.i - 1) * 0.55, s, phase: (L.i + j) % 2 ? Math.PI : 0 });   // front legs reach forward, back legs back; a tripod gait
+    legs.push({ hip, z0: L.z, base: s * (L.i - 1) * 0.55, s, phase: (L.i + j) % 2 ? Math.PI : 0 });   // front legs reach forward, back legs back; a tripod gait
   });
-  let t = 0, k = 0, open = 0;
+  let t = 0, k = 0, open = 0, pump = 0;
+  // its charge-shot (attack-motion "throw", tier heavy, src/attack-motion.js): plants itself (legs splayed, body
+  // dropped), jaws parting and trembling round the growing ball, a pump in its shell quickening with it; the aim
+  // locks with the jaws clamping in a little and its head dipping; then dead still, the jaws snapping wide and the head
+  // throwing up as the shot goes. It is a tank: the whole body is shoved back with its feet dragging, and
+  // eases home with no bounce, the jaws closing slowly
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 8) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (2.5 + 9 * k);
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    const charge = e.state === 'charge' ? e.ballK || 0 : 0;
+    let plant = 0, dip = 0, shove = 0, len = 1, still = 0, kick = A ? 0 : Math.max(0, (e.firedT || 0) / 0.3);
+    if (ph === 'build') {
+      plant = THREE.MathUtils.smoothstep(A.pt / 0.2, 0, 1);
+      dip = lockBeat(A) ? 1 : 0;
+      still = A.still ? 1 : 0;
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      plant = 1; shove = kick = s;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+    } else if (ph === 'recoil') { plant = 1 - A.k; shove = kick = heavy(A.k); }   // (it stands up as it eases home)
+    const slide = A ? -0.15 * shove : -0.12 * kick;
     for (const L of legs) {
       L.hip.rotation.y = L.base + Math.sin(t + L.phase) * 0.3 * k;
-      L.hip.rotation.z = -L.s * Math.max(0, Math.cos(t + L.phase)) * 0.18 * k;   // lifts the leg as it swings forward
+      L.hip.rotation.z = -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.18 * k + plant * 0.14);   // lifts the leg as it swings forward; planted, they splay
+      L.hip.position.z = L.z0 - slide * 0.7;                      // the feet drag: they stay put as the body is shoved back
     }
     // the charge: its jaws part and tremble round the growing ball, its head rearing a little; the
     // shot: they snap wide and it rocks back
-    const charge = e.state === 'charge' ? e.ballK || 0 : 0, kick = Math.max(0, (e.firedT || 0) / 0.3);
     open += (charge * 0.22 - open) * (1 - Math.exp(-10 * dt));
-    const tremble = charge > 0 ? Math.sin(t * 50 + e.phase) * 0.03 * charge : 0;
-    for (const J of jaws) J.hinge.rotation.y = J.s * (open + tremble + kick * 0.35 + Math.sin(t * 0.8) * 0.02);
-    body.rotation.x = -0.06 * charge - 0.1 * kick;
-    body.position.z = -0.12 * kick;
-    body.position.y = Math.abs(Math.sin(t)) * 0.012 * k;
+    pump += dt * (8 + charge * 24);
+    const tremble = charge > 0 && !still ? Math.sin(t * 50 + e.phase) * 0.03 * charge * (A ? A.quiet : 1) : 0;
+    for (const J of jaws) J.hinge.rotation.y = J.s * (open * (1 - 0.1 * dip) + tremble + kick * 0.35 + Math.sin(t * 0.8) * 0.02);
+    shell.scale.y = 1 + Math.sin(pump) * 0.012 * charge;
+    body.rotation.x = -0.06 * charge + dip * 0.06 - (A ? 0.14 * kick : 0.1 * kick);
+    body.position.set(0, Math.abs(Math.sin(t)) * 0.012 * k * (1 - still) - 0.08 * plant, slide);
     body.rotation.z = Math.sin(t) * 0.02 * k;
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; open = 0; };
+  anim.reset = () => { t = 0; k = 0; open = 0; pump = 0; stretch(body, 1); shell.scale.y = 1; body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const L of legs) L.hip.position.z = L.z0; face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-shot)
   return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
 }
 
@@ -2381,9 +2481,13 @@ export function buildFirefly() {
     body.add(pivot);
     return { pivot, s };
   });
-  body.add(angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 }));
+  const face = angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 });
+  body.add(face);
   const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
-  let t = 0, wind = 0;
+  let t = 0, wind = 0, held = 0;
+  // its lob (attack-motion "throw", src/attack-motion.js): its tail lifts (nose down) with a quiver, dips a
+  // little more in the last 0.1 s as it winds back, then the tail flicks up and over, stretched along the throw;
+  // it tumbles nose up and corrects. The lamp is the word's own: lit and swelling as it aims, squeezed as it throws
   const anim = (dt, e) => {
     t += dt;
     wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
@@ -2394,12 +2498,29 @@ export function buildFirefly() {
     lamp.userData.color.copy(dim).lerp(hot, k * k);
     const flap = Math.sin(t * (50 + wind * 20));
     for (const W of wings) { W.pivot.rotation.z = W.s * (0.3 + flap * 0.55); W.pivot.rotation.y = W.s * (0.25 + 0.15 * Math.cos(t * 50)); }
-    body.position.y = Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - wind);
-    body.position.z = kick * kick * 0.3;                  // the throw jolts it forward, off its tail
-    body.rotation.x = 0.05 + wind * 0.55 - kick * 0.35;  // lifting its tail (nose down) to throw; the throw flicks it back
+    const A = e?.atk, ph = A ? A.phase : 'idle';
+    let lift = wind, jolt = kick * kick, tumble = kick * 0.54, len = 1, shake = 0;   // (without an attack clock: the word's own blends)
+    if (A) {
+      lift = jolt = tumble = 0;
+      if (ph === 'build') {
+        lift = coil(A.k, A.style.hold, A.style.over) * A.vary + 0.17 * THREE.MathUtils.smoothstep(A.k, 0.78, 0.92);   // (10 degrees more, winding back)
+        shake = A.still ? 0 : quiver(A.k, A.t, e.phase) * A.quiet;
+      } else if (ph === 'swing') {
+        const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+        lift = (A.vary + 0.17) * Math.max(0, 1 - s); jolt = s; tumble = s;
+        len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      } else if (ph === 'recoil') jolt = tumble = (1 + A.tier.over) * settle(A.k, A.style.bounces, A.style.damp);
+      if (ph === 'idle') lift = held *= Math.exp(-14 * dt);   // broken off (frozen, stunned): the tail comes down, not pops
+      else held = lift;
+    }
+    body.position.set(shake * 0.03, Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - Math.max(wind, A?.still ? 1 : 0)), jolt * 0.3);   // the throw jolts it forward, off its tail
+    body.rotation.x = 0.05 + lift * 0.55 - tumble * 0.65;        // lifting its tail (nose down) to throw; the throw flicks it up and over
+    body.rotation.z = shake * 0.06;
+    stretch(body, len);
     lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; wind = 0; };
+  anim.reset = () => { t = 0; wind = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
   return { body: outer, face: new THREE.Group(), anim };
 }
 

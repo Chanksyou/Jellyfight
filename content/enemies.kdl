@@ -15,6 +15,7 @@ enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
 // as it coils. A pin that misses sticks in whatever it hits for a moment.
 enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
     death-motion "crumple"
+    attack-motion "throw" tier="light"
     chase 0.3 stop=0.3
     spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true
 }
@@ -43,6 +44,7 @@ enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.045 dmg=2 xp=4 model="lan
 // up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
 // and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
 enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
+    attack-motion "throw" tier="mid"
     chase 0.3 stop=0.55                // keeps its distance (backs off if you close in) so it can lob webs
     spit every=2 reach=1 speed=0.8 life=2.5 dmg=3 aim=0.7 shot="web" height=0.5 arc=0.7 slow=2
 }
@@ -73,6 +75,7 @@ enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipe
 // it sputters out and falls. Hit it while it's grounded and locking on.
 enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
     death-motion "shell"
+    attack-motion "throw" tier="mid"
     sortie circle=0.3 height=0.12 speed=0.45 fly=4 land=0.35 aim=0.6 rest=1 rocket=0.6 turn=3 fuel=4 dmg=5
 }
 
@@ -111,6 +114,7 @@ enemy "moth" name="Moth" hp=110 r=0.045 dmg=1 xp=9 model="moth" {
 // drains your Health while you stand in it (jump it); pools from several fireflies add up.
 enemy "firefly" name="Firefly" hp=60 r=0.036 dmg=1 xp=3 model="firefly" {
     death-motion "flutter"
+    attack-motion "throw" tier="light"
     hover 0.25 above=0.11 speed=0.22 circle=0.35 bob=0.03 pause=0.3
     on-beat every=4
     lob range=0.6 every=8 windup=0.45 flight=1.2 peak=0.2 radius=0.14 dmg=2 drain=1 last=10 most=12 rest=0.6
@@ -147,6 +151,7 @@ enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
 // lands, a Blast 30 cm round. Step well aside once it locks.
 enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
     death-motion "shell"
+    attack-motion "throw" tier="heavy"
     chase 0.14
     charge-shot range=0.6 charge=2 lock=0.5 speed=0.6 dmg=5 size=0.08 blast=0.3 knock=0.6 life=2 rest=0.7 every=3.5
 }
