@@ -209,3 +209,25 @@ story('sound/rewards-play-recorded-before-a-run-starts', {
     return ok(loaded && !missing.length && played.has('xp-pickup') && rates.length === 2 && rates[1] > rates[0] * 2, { loaded, missing, rates });
   },
 });
+
+story('sound/effects-sit-a-fifth-quieter-than-the-music', {
+  about: 'Sound effects play through their own bus at 0.8 into the master the music shares, so effects are 20% quieter and the music is untouched; muting still silences both.',
+  setup() { setupFight(); },
+  async play() {
+    const edges = [], real = AudioNode.prototype.connect;
+    stub(AudioNode.prototype, 'connect', function (dest, ...rest) { edges.push([this, dest]); return real.call(this, dest, ...rest); });
+    const S = await freshSfx();
+    S.unlock();
+    const A = S.audio();
+    const bus = edges.find(([, d]) => d === A.master)?.[0];   // the node feeding master: the effects' bus
+    edges.length = 0;
+    S.sfx.pop(false, true);
+    S.sfx.hurt();
+    const toBus = edges.filter(([, d]) => d === bus).length, toMaster = edges.filter(([, d]) => d === A.master).length;
+    const level = bus?.gain.value, masterGain = A.master.gain.value;
+    S.setMuted(true);
+    const muted = A.master.gain.value;
+    S.setMuted(false);
+    return ok(Math.abs(level - 0.8) < 1e-6 && toBus > 0 && toMaster === 0 && Math.abs(masterGain - 0.55) < 1e-6 && muted === 0, { level, toBus, toMaster, masterGain, muted });
+  },
+});
