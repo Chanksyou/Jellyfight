@@ -4,7 +4,7 @@
 // or a burst of filtered noise with a quick envelope, with a little random pitch so repeats
 // don't sound robotic. Browsers only allow audio after a tap or click: main.js calls unlock()
 // from the Play button.
-let ctx = null, master = null, noiseBuf = null, deep = null;   // deep: a lowpass in the master chain (deepen)
+let ctx = null, master = null, sfxBus = null, noiseBuf = null, deep = null;   // deep: a lowpass in the master chain (deepen)
 const last = {};                 // throttle: the last time each sound played
 let muted = false;
 let at = null;                   // previews (tools/music.mjs): a fixed time to play sounds at, on an offline context
@@ -139,7 +139,7 @@ export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false,
   }
   src.buffer = take.buf; src.playbackRate.value = speed;
   g.gain.value = vol * r.vol * loud;
-  src.connect(g).connect(master);
+  src.connect(g).connect(sfxBus);
   src.start(t, from, len);
   voices++; live[role] = (live[role] ?? 0) + 1;
   src.onended = () => { voices--; live[role]--; src.disconnect(); g.disconnect(); };
@@ -180,7 +180,7 @@ function recordedFireFlight(weight) {
   gain.gain.linearRampToValueAtTime(volume * 0.45, t + Math.min(0.18, duration * 0.5));
   gain.gain.setValueAtTime(volume * 0.45, t + Math.max(0.18, duration - 0.15));
   gain.gain.linearRampToValueAtTime(0, t + duration);
-  source.connect(gain).connect(master);
+  source.connect(gain).connect(sfxBus);
   const voice = { until: t + duration, stop: null };
   fireVoices.add(voice);
   source.onended = () => { fireVoices.delete(voice); source.disconnect(); gain.disconnect(); };
@@ -199,12 +199,18 @@ function recordedFireFlight(weight) {
   return voice.stop;
 }
 
+// every sound effect plays through this bus into master (which the music shares), so the effects can
+// sit lower than the music without touching it
+export const SFX_LEVEL = 0.8;
+function newSfxBus(c) { const g = c.createGain(); g.gain.value = SFX_LEVEL; g.connect(master); return g; }
+
 // Previews: play the sounds into another (offline) context, each at the time given by when(t)
 export function preview(c, dest) {
   ctx = c;
   master = c.createGain();
   master.gain.value = 0.55;
   master.connect(dest);
+  sfxBus = newSfxBus(c);
   noiseBuf = c.createBuffer(1, c.sampleRate * 0.5, c.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -229,6 +235,7 @@ export function unlock() {
       deep = ctx.createBiquadFilter();                  // wide open until something deepens the sound
       deep.type = 'lowpass'; deep.frequency.value = 20000; deep.Q.value = 0.9;
       master.connect(deep).connect(comp).connect(ctx.destination);
+      sfxBus = newSfxBus(ctx);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -317,7 +324,7 @@ function tone(type, f0, f1, dur, vol, delay = 0) {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol * loud, t + 0.006);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(master);
+  o.connect(g).connect(sfxBus);
   o.start(t);
   o.stop(t + dur + 0.02);
 }
@@ -336,7 +343,7 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol * loud, t + 0.004);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f).connect(g).connect(master);
+  s.connect(f).connect(g).connect(sfxBus);
   s.start(t, Math.random() * 0.3);
   s.stop(t + dur + 0.02);
 }
@@ -491,7 +498,7 @@ export const sfx = {
     filter.frequency.exponentialRampToValueAtTime(2200, t + duration);
     gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.12, t + duration * 0.8);
     gain.gain.linearRampToValueAtTime(0, t + duration);
-    source.connect(filter).connect(gain).connect(master);
+    source.connect(filter).connect(gain).connect(sfxBus);
     source.start(t); source.stop(t + duration + 0.02);
     source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
     return () => {
@@ -1048,13 +1055,13 @@ export const sfx = {
     g.gain.exponentialRampToValueAtTime(0.3, t + 0.5);
     g.gain.setValueAtTime(0.3, t + dur - 0.3);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.2);
-    src.connect(f).connect(g).connect(master);
+    src.connect(f).connect(g).connect(sfxBus);
     src.start(t); src.stop(t + dur + 0.25); lfo.start(t); lfo.stop(t + dur + 0.25);
     const sub = ctx.createOscillator(), sg = ctx.createGain(), sl = ctx.createOscillator(), slg = ctx.createGain();
     sub.frequency.setValueAtTime(55, t); sub.frequency.exponentialRampToValueAtTime(38, t + dur);
     sl.frequency.value = 3.5; slg.gain.value = 0.12; sl.connect(slg).connect(sg.gain);
     sg.gain.setValueAtTime(0.0001, t); sg.gain.linearRampToValueAtTime(0.22, t + 0.6); sg.gain.setValueAtTime(0.22, t + dur - 0.3); sg.gain.linearRampToValueAtTime(0, t + dur + 0.2);
-    sub.connect(sg).connect(master);
+    sub.connect(sg).connect(sfxBus);
     sub.start(t); sub.stop(t + dur + 0.25); sl.start(t); sl.stop(t + dur + 0.25);
     tone('sawtooth', 180 * j, 720 * j, dur, 0.035);
   },
@@ -1072,7 +1079,7 @@ export const sfx = {
     o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(1400, t + dur * 0.6);
     trem.frequency.value = 32; tg.gain.value = 0.05; trem.connect(tg).connect(g.gain);
     g.gain.setValueAtTime(0.06, t); g.gain.setValueAtTime(0.06, t + dur - 0.1); g.gain.linearRampToValueAtTime(0, t + dur);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfxBus);
     o.start(t); o.stop(t + dur + 0.05); trem.start(t); trem.stop(t + dur + 0.05);
   },
   vacSweep() {
@@ -1104,7 +1111,7 @@ export const sfx = {
     o.type = 'sawtooth'; o.frequency.value = 600 * jitter(0.06);
     lfo.frequency.value = 4.5; lg.gain.value = 260; lfo.connect(lg).connect(o.frequency);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.2); g.gain.setValueAtTime(0.06, t + dur - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfxBus);
     o.start(t); o.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
     for (let k = 0; k * 0.22 < dur; k++) noise(800, 0.7, 0.2, 0.12, 'bandpass', k * 0.22, 2400);
   },
@@ -1208,7 +1215,7 @@ export const sfx = {
     o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(420, t + dur);
     trem.frequency.setValueAtTime(8, t); trem.frequency.exponentialRampToValueAtTime(40, t + dur); tg.gain.value = 0.03; trem.connect(tg).connect(g.gain);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
-    o.connect(g).connect(master);
+    o.connect(g).connect(sfxBus);
     o.start(t); o.stop(t + dur + 0.1); trem.start(t); trem.stop(t + dur + 0.1);
   },
   milliRoll(dur) {
@@ -1243,7 +1250,7 @@ export const sfx = {
     tg.gain.value = peak * 0.15; trem.connect(tg).connect(g.gain); trem.start(t); trem.stop(t + dur + 0.05); oscs.push(trem);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak * 0.3, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(peak, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
-    lp.connect(g).connect(master);
+    lp.connect(g).connect(sfxBus);
     const voice = { until: t + dur + 0.05 };
     beamVoices.add(voice);
     return () => { beamVoices.delete(voice); const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
@@ -1290,7 +1297,7 @@ export const sfx = {
     }
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.075, t + dur);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);
-    g.connect(master);
+    g.connect(sfxBus);
     for (let i = 0; i < 9; i++) { const d = dur * Math.sqrt(Math.random()); noise(3500 + Math.random() * 4000, 4, 0.025, 0.04 + 0.08 * d / dur, 'bandpass', d); }   // crackles, more as it nears
     return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); for (const o of oscs) { try { o.stop(n + 0.06); } catch {} } };
   },
@@ -1332,7 +1339,7 @@ export const sfx = {
     o.frequency.setValueAtTime(190 * k, t); o.frequency.exponentialRampToValueAtTime(420 * k, t + dur);
     o2.frequency.setValueAtTime(196 * k, t); o2.frequency.exponentialRampToValueAtTime(430 * k, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
-    o.connect(g); o2.connect(g); g.connect(master);
+    o.connect(g); o2.connect(g); g.connect(sfxBus);
     o.start(t); o2.start(t); o.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
   },
   waspSting() { if (!ready() || !gap('waspSting', 60)) return; const j = jitter(0.1); noise(4200 * j, 2, 0.05, 0.25, 'bandpass'); tone('sawtooth', 900 * j, 120, 0.2, 0.08); noise(700 * j, 0.8, 0.2, 0.2, 'lowpass', 0.03, 200); patter(3, 0.1, 0.25); },
@@ -1363,7 +1370,7 @@ export const sfx = {
     o.frequency.setValueAtTime(560 * k, t); o.frequency.exponentialRampToValueAtTime(1150 * k, t + dur);
     o2.frequency.setValueAtTime(574 * k, t); o2.frequency.exponentialRampToValueAtTime(1180 * k, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.06);
-    o.connect(g); o2.connect(g); g.connect(master);
+    o.connect(g); o2.connect(g); g.connect(sfxBus);
     o.start(t); o2.start(t); o.stop(t + dur + 0.08); o2.stop(t + dur + 0.08);
   },
   biteGo() { if (!ready() || !gap('biteGo', 80)) return; const j = jitter(0.12); noise(4200 * j, 2, 0.12, 0.05, 'bandpass', 0, 7000 * j); tone('sawtooth', 1100 * j, 1500 * j, 0.1, 0.02); },

@@ -209,3 +209,18 @@ story('sound/rewards-play-recorded-before-a-run-starts', {
     return ok(loaded && !missing.length && played.has('xp-pickup') && rates.length === 2 && rates[1] > rates[0] * 2, { loaded, missing, rates });
   },
 });
+
+story('sound/effects-sit-a-fifth-quieter-than-the-music', {
+  about: 'Sound effects play through their own bus at 0.8 into the master the music shares, so effects are 20% quieter and the music is untouched; muting still silences both.',
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx();
+    S.unlock();
+    const A = S.audio(), masterGain = A.master.gain.value;
+    const level = S.SFX_LEVEL;
+    S.setMuted(true);
+    const muted = A.master.gain.value;
+    S.setMuted(false);
+    return ok(level === 0.8 && Math.abs(masterGain - 0.55) < 1e-6 && muted === 0 && Math.abs(A.master.gain.value - 0.55) < 1e-6, { level, masterGain, muted });
+  },
+});
