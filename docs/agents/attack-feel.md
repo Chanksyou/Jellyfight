@@ -100,7 +100,7 @@ usually one call to an existing primitive, not a new system.
 
 | Phase | Player attacks | Hostile attacks (Elites, Vacuum) | Existing pieces |
 |---|---|---|---|
-| Anticipation | The bell squeeze (`run.js` `onBlow` → `avatar.pulse`); cooldown cues. Automatic fire gets no added charge delay. | The Warning: floor shape + volume filling to the hit (`fx.tele`, `fx.volume`, ADR 0001). | `src/vfx.js`, `src/fx.js` |
+| Anticipation | The bell squeeze (`run.js` `onBlow` → `avatar.pulse`); cooldown cues. Automatic fire gets no added charge delay. | The Warning: floor shape + volume filling to the hit (`fx.tele`, `fx.volume`, ADR 0001). Basic bugs have no Warning: their build-up pose (`attack-motion`, `src/attack-motion.js`) is the tell, with no flash or colour change. | `src/vfx.js`, `src/fx.js` |
 | Release | Squeeze, `sfx.blow` and the bubble on the same frame (`bubbles.js`). | `fx.impact` at the muzzle, launch sound. | `src/fx.js`, `src/sfx.js` |
 | Travel | The bubble body and Element looks. | A Shot: `fx.orb` + `fx.orbTick`. | `src/bubble-looks.js`, `src/fx.js` |
 | Impact | `fx.impact` (flash and sparks) and `fx.burst` at the contact point; `fx.ring` only for the real reach of an area hit. | `fx.impact`; `blastHits` decides the hit. | `src/fx.js` |
