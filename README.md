@@ -351,6 +351,8 @@ Edits are saved in the browser (`localStorage` key `jf-layout-v1`, one slice per
 The **Act** buttons in the top bar switch which act you're editing — one per act in the game, so a new act gets one automatically — the game reloads into that act with the editor open, and each act's edits are kept and exported separately, so an edit can never leak into another act's rooms. **Export** shows a JSON code tagged with its act; paste it back to Claude to bake the layout into the stage for everyone.
 Claude bakes it with `node tools/bake-layout.mjs`.
 Baked edits live per act in `src/layout-baked.js`; they load first and become each object's "home", with your own browser edits on top.
+Act 4 is the same living room as act 1 and always has act 1's layout, plants and things on top included: edit the furniture in act 1 and act 4 follows.
+Only act 4's Elites' furniture (the Singing Bowl, Mushroom Pillow and Headphones), the two things act 1 has where they stand (the glass-shade lamp in the lounge chair and the mustard pillow on the sofa, hidden in act 4: `clears` in `src/stage4.js`) and its vents are its own; `node tests/check.mjs` and `tools/bake-layout.mjs` refuse anything else baked into act 4.
 Hide just stops showing an object; **delete** (🗑) also records it as `deleted` in the export, so the bake drops it for good. **Vents** are edited here too: each shows an orange disc (the grille on the floor) and a cyan ball (where it throws you) joined by the jump's arc.
 Drag either and it sticks to whatever surface is under the pointer (point at a cushion or a shelf); R/F nudge it up or down, ⌂ puts it back.
 They export with the furniture as `vent:<name>` entries, which get baked into the vent list in `src/stage1.js`.

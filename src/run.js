@@ -23,6 +23,7 @@ import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
 import { Sunrise } from './sunrise.js';
 import { BassWave } from './bass-wave.js';
+import { ConcertDressing } from './concert-dressing.js';
 import { SONGS } from './music.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
@@ -115,6 +116,7 @@ export class Run {
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.sunrise = new Sunrise(this);   // a stage's sun (act 4's room): the line creeping across, drying you out (sunrise.js)
+    this.dress = new ConcertDressing(this);   // a stage's dressing: the barrier, the cables, the lit props on the beat, the stage door moment (concert-dressing.js)
     this.bass = new BassWave(this);     // a stage's bass wave (act 4's room): the Soundbar's wave on the bar (bass-wave.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
@@ -209,6 +211,7 @@ export class Run {
       const P = this.player.position, r = this.cfg.radius, c = LOOK.color('jump-splash', '#cfefff');
       this.fx.burst(_drop.set(P.x, P.y + r * 0.3, P.z), [c, '#ffffff'], 5, r * 0.09, 0.22, P.y);
       sfx.jump();
+      this.dress.skip();   // a jump skips the stage door's warm-up
     };
     this.player.onLand = (drop) => {
       // the landing: a splash mark and droplets, bigger and louder the further it fell (not a step down)
@@ -305,6 +308,7 @@ export class Run {
 
     this.phase = 'explore';
     this.doorOpen = false;            // a two-scene act's stage door (openStageDoor)
+    this.doorWarming = false;         // time's up: the door's few beats of flare before it opens (concert-dressing.js)
     this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9; this.pawT = -1e9;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
     this.startPicked = false;         // the run's opening tip is shown on its first frame
@@ -419,6 +423,7 @@ export class Run {
     this.sunrise.start(s, !this.spots);   // (and the sun's sheet, draped over the room as it stands)
     this.bpm = SONGS[s.music]?.bpm || 120; this.beat = 0;   // the act's song's tempo, and the run's own count of its beats
     this.bass.start(s);
+    this.dress.start(s);
     if (!this.spots) {
       this.spots = [];
       this.spotRejects = [];
@@ -565,10 +570,13 @@ export class Run {
     this.enemies.power = this.power;    // swat (Badminton Racket): a Shot knocked back hits for x Attack damage
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
+    this.dress.update(dt);   // the room's lit props on the beat, and the stage door's moment
     this.bass.update(dt, this.beat);   // a stage's bass wave: on the song's bar line (put away outside the night)
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
+      // a returning player's run opens with 1 of 3 Attack upgrades from the jelly's pool (not a first run, a dev run or a later act)
+      if (!this.carry && !this.dev && !this.firstRun.active) this.pickUpgrade(null, () => this.resume());
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
       if (hint) { this.hint = hint; this.hintT = 7; }
     }
@@ -817,7 +825,7 @@ export class Run {
   // ------------------------------------------------------------ waves
   // How the night fills with bugs: content/waves.kdl
   spawnWaves(dt) {
-    if (this.devCalm || !this.duration || this.doorOpen) return;   // dev test kit: waves off; none in an act with no night, nor once its stage door is open
+    if (this.devCalm || !this.duration || this.doorOpen || this.doorWarming) return;   // dev test kit: waves off; none in an act with no night, nor once its stage door is warming up or open
     if (this.nestsAt != null && this.t >= this.nestsAt) { this.nestsAt = null; this.spawnNests(); }   // nests that come later in the night
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
@@ -1403,13 +1411,14 @@ export class Run {
   forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }
 
   // The end of an act (with jelly types): 1 of 3 Attack upgrades from the jelly's pool
-  // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after
+  // (content/upgrades.kdl), without ones taken or whose needs= isn't; then: what happens after.
+  // next: the act it is for, or null at the start of a run
   pickUpgrade(next, then) {
     const pool = CONTENT.upgrades.filter((u) => u.jelly === this.jelly && !this.upgrades.includes(u.id) && (!u.needs || this.upgrades.includes(u.needs)));
     const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
     if (!left.length) { then(); return; }
     sfx.treasure();
-    this.ui.choose('An Attack upgrade', `Choose how your attack grows for act ${next.id}.`, left, (u) => {
+    this.ui.choose('An Attack upgrade', next ? `Choose how your attack grows for act ${next.id}.` : 'Choose how your attack grows to start the run.', left, (u) => {
       const before = this.S.health;
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
@@ -1605,11 +1614,16 @@ export class Run {
   // A two-scene act's night is over (stage.stageDoor: act 4): the bugs go, the XP comes to you, and
   // the door opens; the act goes on through it (throughStageDoor)
   openStageDoor() {
-    if (this.doorOpen) return;
-    this.doorOpen = true;
-    this.hud.toast(this.stage.stageDoor.opens, 2600);
+    if (this.doorOpen || this.doorWarming) return;
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     this.collectAll = true;
+    this.doorWarming = true;
+    if (!this.dress.door()) this.showStageDoor();   // the dressing's few beats of TV flare first, if the stage has it
+  }
+  // the door is open (a toast, a hint, a marker on the map)
+  showStageDoor() {
+    this.doorOpen = true;
+    this.hud.toast(this.stage.stageDoor.opens, 2600);
   }
   atStageDoor(p) {
     const { min, max } = this.stage.stageDoor;

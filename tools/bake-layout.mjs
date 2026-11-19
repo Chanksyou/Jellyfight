@@ -37,6 +37,13 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const kind = (k) => k.startsWith('vent:') ? 'vent' : k.startsWith('copy:') || k.startsWith('prop:') ? 'added' : 'moved';
 
 const { BAKED_LAYOUT } = await import(pathToFileURL(FILE).href);
+// act 4 takes act 1's layout (layout-baked.js); only its Elites' furniture and vents are its own
+if (acts[4]) {
+  const { ELITES4 } = await import(pathToFileURL(path.join(ROOT, 'src/stage4.js')).href);
+  const own = new Set(ELITES4.flatMap((e) => [e.hide, ...(e.clears || [])]).map((k) => `${k}#1`));
+  const stray = Object.keys(acts[4]).filter((k) => !k.startsWith('vent:') && !own.has(k) && !(BAKED_LAYOUT[4][k] && sameJson(Object.entries(acts[4][k]).sort(), Object.entries(BAKED_LAYOUT[4][k]).sort())));
+  if (stray.length) { console.error(`act 4 uses act 1's layout: make these changes in act 1 instead (act 4 follows): ${stray.join(', ')}. Nothing written.`); process.exit(1); }
+}
 let out = fs.readFileSync(FILE, 'utf8').split('\n');
 const changed = [];
 for (const act of Object.keys(acts).sort()) {
@@ -63,6 +70,7 @@ for (const act of Object.keys(acts).sort()) {
 }
 if (check) { console.log('--check: nothing written.'); process.exit(0); }
 if (!changed.length) process.exit(0);
+if (changed.includes('1') && !changed.includes('4')) changed.push('4');   // act 4 is act 1's room
 fs.writeFileSync(FILE, out.join('\n'));
 console.log(`wrote src/layout-baked.js; baking shadows for act ${changed.join(', ')}`);
 const r = spawnSync('node', ['tools/bake-ao.mjs', ...changed], { cwd: ROOT, stdio: 'inherit' });

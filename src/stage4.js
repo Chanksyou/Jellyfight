@@ -56,11 +56,12 @@ export const ENCORE = {
 // No two are ever awake together (guard story night4/elite-spots-are-spread-out): their wake boxes never
 // overlap and each stands 2 m or more from the next.
 // "Nothing from the back shelves" (Chan): the Glass-dome speaker is up there, so the third is the Headphones.
+// clears: act 1's things that stand where the Elite does, hidden in act 4 only (layout-baked.js)
 export const ELITES4 = [
-  { kind: 'bowl', hide: 'Singing_bowl', area: 'lounge chair', face: 0.67, vent: 'Vent by the lounge chair',
+  { kind: 'bowl', hide: 'Singing_bowl', clears: ['Glass_shade_floor_lamp'], area: 'lounge chair', face: 0.67, vent: 'Vent by the lounge chair',
     at: [3.17, 0.435, 1.0], wake: { min: [2.82, 0.38, 0.593], max: [3.49, 1.2, 1.433] }, stand: [3.17, 0.435, 1.275],
     seat: { min: [2.95, 0.803], max: [3.39, 1.303] } },   // seat: the cushion's top (x, z), where the bowl's Hum fills (measured: the wake box also takes in the chair's back and arms)
-  { kind: 'pillow', hide: 'Mushroom_pillow', area: 'sofa', face: 0.49, vent: 'Vent by the sofa',
+  { kind: 'pillow', hide: 'Mushroom_pillow', clears: ['Mustard_pillow'], area: 'sofa', face: 0.49, vent: 'Vent by the sofa',
     at: [1.196, 0.508, 1.46], wake: { min: [0.515, 0.46, 0.482], max: [2.015, 1.2, 1.782] }, stand: [1.215, 0.511, 1.70] },
   { kind: 'headphones', hide: 'Headphones', area: 'kitchen counter', face: -2.906, vent: 'Vent by the stove',
     at: [4.62, 0.94, 2.85], wake: { min: [4.35, 0.89, 1.7], max: [5.0, 1.6, 3.0] }, stand: [4.57, 0.94, 2.65] },
@@ -115,6 +116,21 @@ export const STAGE4 = {
   // Elites aren't hurt. It never reaches the stage door (z 4.35 up). `across`: the room's x span.
   sun: { from: 0.3, to: 3.3, drain: 1.5, across: [0, 5] },
 
+  // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
+  // painted flat, never a collider or a light.
+  //   wristbands: a low crowd barrier of Festival wristbands strung along z, behind where the sun stops
+  //   cables: runs along the floor from the media console's front (from) to the room's edge (to), x z
+  //   pulse: the lit props that flash on the song's beat (their emissive, by the apartment's names)
+  dressing: {
+    wristbands: { z: 3.42, across: [0.2, 4.85], gap: 0.055 },
+    cables: [
+      { from: [1.0, 4.33], to: [0.28, 3.78] },
+      { from: [1.6, 4.33], to: [3.0, 3.86] },
+      { from: [2.25, 4.33], to: [4.15, 4.3] },
+    ],
+    pulse: ['LED_cove_strip', 'Corner_LED_floor_lamp', 'Spotlight_floor_lamp'],
+  },
+
   // The Soundbar's bass wave (bass-wave.js): every `every` bars of the song (16: 30 s at 128 BPM), on the
   // bar, one low wave rolls from the TV wall (z `from`, the media console's front) to the window wall
   // (z `to`), the room's width (`across`), `width` m deep and `height` m tall, at `speed` m/s (4 s across):
@@ -128,6 +144,7 @@ export const STAGE4 = {
     min: [0.9, 0.55, 4.35],
     max: [2.4, 1.3, 4.83],
     to: ENCORE,
+    starts: '⏰ 8:00 AM! The show is starting…',   // the TV flares and the console lights up for a few beats (concert-dressing.js), then:
     opens: '⏰ 8:00 AM! The stage door is open on the media console',
     hint: 'The stage door is open: get onto the media console by the TV',
   },

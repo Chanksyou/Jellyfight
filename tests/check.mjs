@@ -12,6 +12,8 @@ import zlib from 'node:zlib';
 import { ROOT } from './lib.mjs';
 import { withPreload } from '../tools/preload.mjs';
 import { README, oneSentencePerLine } from '../tools/one-sentence.mjs';
+import { BAKED_LAYOUT, ACT4_OWN, HIDDEN_SHELL } from '../src/layout-baked.js';
+import { ELITES4 } from '../src/stage4.js';
 
 let bad = 0;
 const files = ['src', 'src/stories', 'tests', 'tools', 'worker'].flatMap((d) => {
@@ -42,6 +44,12 @@ for (const f of files.filter(f => f.startsWith(path.join(ROOT, 'src') + path.sep
 if (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8') !== withPreload()) { bad++; console.log('✗ index.html\'s preload list is out of date: run node tools/preload.mjs'); }
 // README keeps one sentence per line, so pull requests editing different sentences don't conflict
 if (fs.readFileSync(README, 'utf8') !== oneSentencePerLine(fs.readFileSync(README, 'utf8'))) { bad++; console.log('✗ README.md has a line with more than one sentence: run node tools/one-sentence.mjs'); }
+// Act 4 is act 1's living room with the same furniture, plants and things on top: its layout is
+// act 1's, and only its Elites' furniture (stage4.js ELITES4 `hide`, `clears`) and vents may differ
+const elitesOwn = new Set(ELITES4.flatMap((e) => [e.hide, ...(e.clears || [])]).map((k) => `${k}#1`));
+const stray = ACT4_OWN.filter((k) => !k.startsWith('vent:') && !elitesOwn.has(k));
+if (stray.length) { bad++; console.log(`✗ act 4's layout must match act 1's, but layout-baked.js act 4 sets ${stray.join(', ')}: bake that change into act 1 instead (act 4 follows it)`); }
+if (Object.keys(BAKED_LAYOUT[1]).some((k) => !(k in BAKED_LAYOUT[4])) || JSON.stringify(HIDDEN_SHELL[1]) !== JSON.stringify(HIDDEN_SHELL[4])) { bad++; console.log('✗ act 4 no longer takes act 1\'s layout: keep BAKED_LAYOUT[4] = { ...BAKED_LAYOUT[1], ...act 4\'s own } and the same HIDDEN_SHELL'); }
 for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apartment-act\d+|props)\.glb$/.test(f))) {
   const glb = path.join(ROOT, 'assets', f);
   if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs, or tools/props.mjs for props.glb`); }

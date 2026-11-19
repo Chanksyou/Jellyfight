@@ -14,6 +14,7 @@
 // moving, turning and tilting is what drags the tentacles.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { stepChain } from './chain.js';
 
 const SEG = 20;       // rings along a tentacle (and points in its chain)
 const RAD = 8;        // vertices around a ring
@@ -185,32 +186,7 @@ export class TentacleRig {
       if (!this.fresh) {
         this.work += n * SEG;
         const slip = 1 - this.alongDrag, sink = this.weight * h, bend = 1 / (1 + this.compliance / (h * h));   // share of a fold undone per substep
-        for (let it = 0; it < n; it++) {
-          T.sim[0].copy(T.goal[0]);
-          for (let j = 1; j <= SEG; j++) {
-            const p = T.sim[j], v = T.vel[j], g = T.goal[j], C = this.C[j];
-            _d.copy(p).sub(T.sim[j - 1]);
-            const along = _d.dot(v) / (_d.lengthSq() || 1) * C * slip;  // drag given back along the tentacle
-            v.x += (this.K[j] * (g.x - p.x) - C * v.x + along * _d.x) * h;
-            v.y += (this.K[j] * (g.y - p.y) - C * v.y + along * _d.y) * h - sink;
-            v.z += (this.K[j] * (g.z - p.z) - C * v.z + along * _d.z) * h;
-            p.addScaledVector(v, h);
-            _o.copy(p);
-            // bend: folded tighter than the pose (two points up the chain closer than in the pose)?
-            // undo most of the fold, so it curves instead of kinking
-            if (j > 1) {
-              _d.copy(p).sub(T.sim[j - 2]);
-              const len = _d.length(), want = T.goal[j].distanceTo(T.goal[j - 2]);
-              if (len < want && len > 1e-6) p.addScaledVector(_d, (want - len) / len * bend);
-            }
-            // keep the segment its length: the tentacle bends, it doesn't stretch
-            const seg = T.goal[j].distanceTo(T.goal[j - 1]);
-            _d.copy(p).sub(T.sim[j - 1]);
-            const len = _d.length();
-            if (len > 1e-6) p.copy(T.sim[j - 1]).addScaledVector(_d, seg / len);
-            v.addScaledVector(_o.sub(p), -KEEP / h);                    // a little of the correction carries on
-          }
-        }
+        for (let it = 0; it < n; it++) stepChain(T.sim, T.vel, T.goal, this.K, this.C, h, slip, sink, bend, KEEP);
       }
       // back to the parent's frame (drawn off the floor; the chain itself just swings back up)
       const floor = 0.015 * (1 - fall);

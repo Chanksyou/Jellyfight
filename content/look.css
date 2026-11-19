@@ -483,6 +483,12 @@
   --jelly-motion-drag-along: 0.5;       /* drag along a tentacle, as a share of across (slender things slip lengthwise) */
   --jelly-motion-weight: 0.6;           /* how hard a tentacle sinks against its pose (model units/s²) */
   --jelly-motion-bend-compliance: 0.0002; /* how easily a tentacle folds past its pose's curve (XPBD; higher = kinks more) */
+  --jelly-motion-arm-spring: 60;        /* how firmly an oral arm's end is pulled back to hanging (1/s²; its root 500): arms.js */
+  --jelly-motion-arm-drag: 9;           /* water drag across an oral arm (1/s): draggier than a tentacle, so it lags turns */
+  --jelly-motion-arm-weight: 1.5;       /* how hard an oral arm sinks against its pose (model units/s²): heavier than a tentacle */
+  --jelly-motion-arm-carry: 0.8;        /* share of the jelly's speed the water round its arms moves with (it carries water along): less = they trail further */
+  --jelly-motion-arm-carry-max: 6;      /* fastest the carried water goes (model units/s; full swim is ~4.7): a blink or a shove doesn't whip the arms */
+  --jelly-motion-arm-flare: 0.5;        /* how far the arms' ends are pushed out as the bell relaxes (share of arm length per unit of relax) */
   --comb-ripple: 0.35;         /* how fast the Comb Jelly's rainbow runs down its rows */
   --jelly-halo: 0.37;          /* the soft halo around the bell (shows on phones too) */
   --shield: #b8e6ff;            /* the Shield (shield.js): its faint shell on the jelly, its HUD bar and its burst */
@@ -785,6 +791,24 @@
   --warning-volume-hex: 90;      /* hex cells per metre (about 1.1 cm across) */
   --warning-volume-glow: 1.1;    /* brightness boost (was 1.5: Elite Warnings read too bright and busy, Chan Nov 18) */
   --warning-floor-glow: 1.45;    /* the floor Warning's (src/vfx.js TeleMaterial) brightness boost: lights up a dark stove, still covers a pale floor (was 1.7) */
+  /* act 4's concert dressing (src/concert-dressing.js): painted flat on the room, lit props flashing on the song's beat */
+  --dress-wristbands: #ff5ca8 #38d6ff #ffd34a #8cff5a #b78bff;   /* the crowd barrier's wristbands */
+  --dress-cord: #202026;         /* the cord the wristbands are strung on */
+  --dress-cable: #666672;        /* the cables from the media console: charcoal, light enough to read on the floorboards */
+  --dress-band-radius: 0.032;    /* m: a wristband lying flat (outer radius; its inner is 70% of it) */
+  --dress-cable-width: 0.018;    /* m */
+  --dress-lift: 0.003;           /* m they float over the floor (a barrier on furniture or a rug's edge is left out) */
+  --dress-pulse: 0.7;            /* how much brighter a lit prop is on the beat (x its own glow); Reduce effects: steady */
+  --dress-decay: 4;              /* how fast that flash dies away (per beat) */
+  --dress-tv: #6f9bff;           /* the TV's glow: a screen on, cool, until the door flare */
+  --dress-tv-glow: 0.35;         /* its steady glow, and what it adds on the beat */
+  --dress-tv-beat: 0.5;
+  --dress-tv-flare: 3;           /* its glow at the moment the stage door opens */
+  --dress-door: #8fe8ff;         /* the media console lighting up: friendly cool, it's the way out */
+  --dress-door-glow: 0.55;       /* how bright it stays once the door is open, and the beat's flash on it */
+  --dress-door-beat: 0.35;
+  --dress-door-beats: 8;         /* beats between time-up and the door opening (about 3.75 s at 128 BPM) */
+  --dress-door-beats-calm: 2;    /* the same under Reduce effects, which also keeps the glow steady */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */

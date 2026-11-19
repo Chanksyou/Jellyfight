@@ -36,7 +36,6 @@ story('types/ice-plays', {
   setup() { setupFight({ types: 'ice' }); },
   play() {
     const { run, menus } = G(), s = run.stats;
-    run.startPicked = false;
     step(2);
     const stats = run.jelly === 'ice' && s.health === 31 && s.shield === 5 && s.bubbleDamage === 9 && s.fireRate === 1.2 && s.moveSpeed === 0.88 && s.jumpHeight === 0.9 && !menus.open && run.owned.size === 0;
     const bug = roachAt(0, -0.15);

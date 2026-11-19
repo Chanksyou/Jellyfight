@@ -101,74 +101,23 @@ export const BAKED_LAYOUT = {
     'Bronze_figurine#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
   },
   4: {
-    // act 4's props: the Elites' furniture (stage4.js ELITES4) is cleared round each one
+    // Act 4 is act 1's living room: it gets act 1's whole layout (below), and only these entries
+    // differ (tests/check.mjs refuses any other). The three Elites sit on their furniture
+    // (stage4.js ELITES4, with what they clear), and the vents by them land you across from them, not on them
+    // (the other three are stage1.js's).
     'Singing_bowl#1': { p: [1.1266, -0.165, -3.5821], q: [0, 0, 0, 1] },
     'Mushroom_pillow#1': { p: [0.0145, 0, -0.0681], q: [0, 0, 0, 1] },
     'Headphones#1': { p: [1.195, -0.3, -0.785], q: [0, 0, 0, 1] },
-    'Wooden_bowl#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    'Disco-ball_mobile#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    // the vents by the Elites land you across from them, not on them (the other three are stage1.js's)
+    // act 1 has these where the Singing Bowl and Mushroom Pillow stand (ELITES4 clears)
+    'Glass_shade_floor_lamp#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
+    'Mustard_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.36, 0.435, 1.27] },
     'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [1.35, 0.511, 1.75] },
     'vent:Vent by the stove': { at: [4.221, 0.013, 2.78], land: [4.5, 0.94, 2.35] },
-    // the two throw pillows at the desk end of the sofa make room for the Mushroom Pillow
-    'Olive_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    'Mustard_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    // the oils and grinders leave the counter by the stove free for the Headphones
-    'Oils_and_grinders#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    // the glass-shade lamp now stands in the lounge chair's seat: it makes room for the Singing Bowl
-    'Glass_shade_floor_lamp#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    // the rest is act 1's living room (the layout it ends on)
-    'Pet_corner#1': { p: [-0.0835, 0, 0.2538], q: [0, 0, 0, 1] },
-    'Mug#1': { p: [-0.0027, 0, -0.043], q: [0, 0, 0, 1], hidden: true },
-    'Cat_scratcher_and_box#1': { p: [0.0439, 0, -0.1053], q: [0, 0, 0, 1] },
-    'Controllers#1': { p: [2.6066, 0, 9.0406], q: [0, -1, 0, 0] },
-    'Glass_dish#1': { p: [5.8131, 0, -1.9077], q: [0, -0.5, 0, 0.86603] },
-    'Spice_carousel#1': { p: [0.1283, 0, 0.0051], q: [0, 0, 0, 1] },
-    'Kitchen#1': { p: [-0.0251, 0, -0.0147], q: [0, 0, 0, 1] },
-    'Water_filter_pitcher#1': { p: [6.4716, 0, -2.886], q: [0, -0.70711, 0, 0.70711] },
-    'Dish_cloth#1': { p: [-0.0211, 0, 0.1532], q: [0, 0, 0, 1] },
-    'Standing_desk#1': { p: [-0.0431, 0, 0.0693], q: [0, 0, 0, 1] },
-    'Spotlight_floor_lamp#1': { p: [-0.0554, 0, 0.1182], q: [0, 0, 0, 1] },
-    'Snake_plant#1': { p: [2.396, 0, -0.1834], q: [0, 0, 0, 1], deleted: true },
-    'Rubber_plant#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Corduroy_sofa#1': { p: [0.0145, 0, -0.5181], q: [0, 0, 0, 1] },
-    'Cat_window_perches#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Monstera#1': { p: [-0.1163, 0, -0.1153], q: [0, 0, 0, 1], deleted: true },
-    'Tall_snake_plant#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Plushie_shelf#1': { p: [1.3068, 0, -0.8023], q: [0, -0.13053, 0, 0.99144] },
-    'Baby_bouncer#1': { p: [0, 0, 0.15], q: [0, 0, 0, 1] },
-    'Crowned_cow_plush#1': { p: [1.1622, 0, -0.114], q: [0, 0, 0, 1] },
-    'Dinosaur_plush#1': { p: [1.1383, 0, -0.1737], q: [0, 0, 0, 1] },
-    'Painted_figurine#1': { p: [1.2672, 0, -0.1788], q: [0, 0, 0, 1] },
-    'Horned_skull#1': { p: [1.1197, 0, -0.161], q: [0, 0, 0, 1] },
-    'Dragon_head_plush#1': { p: [1.0228, 0, -0.1774], q: [0, 0, 0, 1] },
-    'Brown_plush#1': { p: [1.0597, 0, 0.3766], q: [0, 0, 0, 1] },
-    'Face_bowl#1': { p: [1.1957, 0, -0.0118], q: [0, 0, 0, 1] },
-    'Ceramic_bird#1': { p: [1.0408, 0, 0.2593], q: [0, 0, 0, 1] },
-    'Plush_and_crochet_friends#1': { p: [0.8175, 0, 0.289], q: [0, 0, 0, 1] },
-    'Black_cat_plush#1': { p: [1.1265, 0, -0.0748], q: [0, 0, 0, 1] },
-    'Crystal_pitcher#1': { p: [1.1803, 0, -0.0281], q: [0, 0, 0, 1] },
-    'Orb_lamp#1': { p: [0.9303, 0, -0.0612], q: [0, 0, 0, 1] },
-    'Round_plant_stand#1': { p: [1.5614, 0, 1.767], q: [0, 0, 0, 1], deleted: true },
-    'Globe_clamp_lamp#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Glass_side_table#1': { p: [0.0067, 0, 0.6493], q: [0, 0, 0, 1] },
-    'Ladder_bookshelf#1': { p: [-1.1418, 0, 1.9164], q: [0, 0.60876, 0, 0.79335] },
-    'Glass-dome_speaker#1': { p: [-0.7197, 0, 0.3489], q: [0, 0, 0, 1] },
-    'Board_books#1': { p: [-0.8726, 0, 0.1273], q: [0, 0, 0, 1] },
-    'Board_games#1': { p: [-0.5323, 0, 0.2815], q: [0, 0, 0, 1] },
-    'Kiwi_bird#1': { p: [-0.8149, 0, 0.2151], q: [0, 0, 0, 1] },
-    'Mini_radio#1': { p: [-0.4745, 0, 0.5944], q: [0, 0, 0, 1] },
-    'Baby_camera#1': { p: [-0.7631, 0, 0.2864], q: [0, 0, 0, 1] },
-    'Aloe#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Smart_speaker#1': { p: [-0.9736, 0, 0.4821], q: [0, 0, 0, 1] },
-    'Drip-glaze_vase#1': { p: [1.0855, 0, 0.2607], q: [0, 0, 0, 1] },
-    'Blue_pillow#1': { p: [0.371, 0, -0.9951], q: [0, -0.13053, 0, 0.99144] },
-    'Fluffy_white_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], deleted: true },
-    'Glass_coffee_table#1': { p: [-0.1535, 0, -0.4531], q: [0, 0, 0, 1] },
-    'Red_hardcover#1': { p: [0.2575, 0, -0.5363], q: [0, 0, 0, 1], deleted: true },
-    'Book_stack#1': { p: [-0.167, 0, -0.4388], q: [0, 0, 0, 1] },
-    'Baby_play_gym#1': { p: [0.0338, 0, -0.3684], q: [0, 0, 0, 1] },
-    'Lounge_chair#1': { p: [-0.0284, 0, -0.4971], q: [0, 0, 0, 1] },
   },
 };
+
+// Act 4 is the same room as act 1, so it takes act 1's layout with its own few entries on top:
+// a change baked into act 1 is in act 4 too.
+export const ACT4_OWN = Object.keys(BAKED_LAYOUT[4]);
+BAKED_LAYOUT[4] = { ...BAKED_LAYOUT[1], ...BAKED_LAYOUT[4] };

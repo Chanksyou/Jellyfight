@@ -35,6 +35,7 @@ function buildTV(box) {
   const screen = new THREE.Mesh(new THREE.BoxGeometry(s.x - 0.014, s.y - 0.014, 0.003),
     new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.08, metalness: 0.25, envMapIntensity: 1.6 }));
   screen.position.z = -0.0045;
+  screen.name = 'TV screen';              // act 4's concert dressing lights it (concert-dressing.js)
   const led = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.0025, 0.001),
     new THREE.MeshStandardMaterial({ color: 0x1a0505, emissive: 0xff2d1e, emissiveIntensity: 1.6 }));
   led.position.set(s.x / 2 - 0.03, -s.y / 2 + 0.004, -0.006);
