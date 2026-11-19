@@ -1090,7 +1090,7 @@ export function buildMillipede() {
   let t = 0, move = 0, gap = 0;
   const follow = () => {
     for (let k = 1; k < N; k++) {
-      const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
+      const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.sqrt(dx * dx + dz * dz) || 1e-6;   // (Math.sqrt, not hypot: hypot allocates a number every call)
       b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
     }
   };
@@ -1111,8 +1111,9 @@ export function buildMillipede() {
     for (let pass = 0; pass < 2; pass++) {
       let pushed = false;
       for (let a = 0; a < N; a++) for (let b = a + 3; b < N; b++) {
-        const A = W[a], B = W[b], dx = B[0] - A[0], dz = B[1] - A[1], d = Math.hypot(dx, dz);
-        if (d >= wide || d < 1e-7) continue;
+        const A = W[a], B = W[b], dx = B[0] - A[0], dz = B[1] - A[1], d2 = dx * dx + dz * dz;
+        if (d2 >= wide * wide || d2 < 1e-14) continue;
+        const d = Math.sqrt(d2);
         const k = (wide - d) / d * 0.5;
         if (a > 0) { A[0] -= dx * k; A[1] -= dz * k; B[0] += dx * k; B[1] += dz * k; }
         else { B[0] += dx * k * 2; B[1] += dz * k * 2; }        // the head goes where it goes: the body gives way

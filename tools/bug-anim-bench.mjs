@@ -6,6 +6,7 @@
 //   node tools/bug-anim-bench.mjs                  600 frames, medium graphics
 //   node tools/bug-anim-bench.mjs --frames=1200    more frames
 //   node tools/bug-anim-bench.mjs --throttle=1     no CPU slowdown
+//   node tools/bug-anim-bench.mjs --kinds=millipede  only these kinds
 //   node tools/bug-anim-bench.mjs --json=out.json  also write the numbers
 //
 // Headless Chromium draws with SwiftShader, so only the JS side is measured (the game step; nothing is
@@ -18,7 +19,8 @@ import { start, openGame } from '../tests/lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] ?? d;
 const FRAMES = +arg('frames', 600), THROTTLE = +arg('throttle', 4), JSON_OUT = arg('json', '');
-const KINDS = ['roach', 'ants', 'mosquito', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const ALL = ['roach', 'ants', 'mosquito', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const KINDS = arg('kinds', '') ? arg('kinds', '').split(',') : ALL;   // --kinds=millipede,mantis: just those (20 bugs, cycling through them)
 const COUNT = 20, WARM = 120;
 
 const env = await start();
@@ -33,7 +35,7 @@ try {
     K.tp(3.2, 0.05, 3.0, 0);
     K.holdJelly();
     K.stub(window.run, 'hurt', () => {}); window.run.health = 1e6;
-    window.__bench = { mix: [], acc: 0 };
+    window.__bench = { mix: [], acc: 0, kinds: {} };
     const B = window.__bench;
     // one wrapper per bug, timing its anim; a replacement for any that died
     B.fill = () => {
@@ -42,7 +44,7 @@ try {
         if (B.mix[i] && !B.mix[i].dead) continue;
         const a = (i / COUNT) * Math.PI * 2, r = 0.25 + (i % 3) * 0.1;
         const e = K.spawn(kind, K.near(Math.cos(a) * r, Math.sin(a) * r), { hp: 1e9 });
-        if (e.anim) { const f = e.anim, w = (dt, x) => { const t = performance.now(); f(dt, x); B.acc += performance.now() - t; }; w.reset = f.reset; e.anim = w; }
+        if (e.anim) { const f = e.anim, q = (B.kinds[kind] ||= { sum: 0, n: 0, max: 0 }), w = (dt, x) => { const t = performance.now(); f(dt, x); const d = performance.now() - t; B.acc += d; q.sum += d; q.n++; if (d > q.max) q.max = d; }; w.reset = f.reset; e.anim = w; }
         B.mix[i] = e;
       }
     };
@@ -55,6 +57,7 @@ try {
   await cdp.send('HeapProfiler.startSampling', { samplingInterval: 256, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
   const m = await page.evaluate(({ N, WARM }) => {
     const B = window.__bench, animMs = [], stepMs = [], busy = [];
+    for (const q of Object.values(B.kinds)) { q.sum = 0; q.n = 0; q.max = 0; }   // (not the warm-up's)
     for (let i = 0; i < WARM + N; i++) {
       B.fill(); B.acc = 0;
       const t0 = performance.now(); window.GAME.step(1 / 60); const t1 = performance.now();
@@ -63,7 +66,7 @@ try {
       busy.push(B.mix.filter((e) => e && !e.dead && e.state && !['approach', 'idle', 'rest'].includes(e.state) || e && e.aimT > 0).length);
     }
     const q = (a, k) => { const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(k * s.length))].toFixed(3); };
-    return { animMs: { median: q(animMs, 0.5), p95: q(animMs, 0.95), max: q(animMs, 1) }, stepMs: { median: q(stepMs, 0.5), p95: q(stepMs, 0.95) }, inAttack: { mean: +(busy.reduce((a, b) => a + b, 0) / busy.length).toFixed(1), max: Math.max(...busy) }, bugs: B.mix.filter((e) => e && !e.dead).length };
+    return { animMs: { median: q(animMs, 0.5), p95: q(animMs, 0.95), max: q(animMs, 1) }, stepMs: { median: q(stepMs, 0.5), p95: q(stepMs, 0.95) }, inAttack: { mean: +(busy.reduce((a, b) => a + b, 0) / busy.length).toFixed(1), max: Math.max(...busy) }, bugs: B.mix.filter((e) => e && !e.dead).length, perKind: Object.entries(B.kinds).map(([k, q]) => `${k} ${(q.sum / q.n).toFixed(3)} ms a call (max ${q.max.toFixed(1)})`) };
   }, { N: FRAMES, WARM });
   const { profile } = await cdp.send('HeapProfiler.stopSampling');
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
@@ -84,6 +87,7 @@ try {
   console.log(`anim JS per frame: median ${m.animMs.median} ms, p95 ${m.animMs.p95} ms, max ${m.animMs.max} ms (${THROTTLE}x slowdown); game step median ${m.stepMs.median} ms, p95 ${m.stepMs.p95} ms`);
   console.log(`bugs ${m.bugs}, mid-attack per frame ${m.inAttack.mean} (most ${m.inAttack.max}); allocation ${m.allocKBPerFrame.all} KB/frame in all, ${m.allocKBPerFrame.inBugBuilders} KB/frame inside critters.js / attack-motion.js`);
   console.log(m.topAlloc.join('\n'));
+  console.log('per kind:\n  ' + m.perKind.join('\n  '));
   if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(m, null, 1));
   if (errors.length) console.log('page errors:\n  ' + errors.slice(0, 5).join('\n  '));
 } finally { await env.close(); }
