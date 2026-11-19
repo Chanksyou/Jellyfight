@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v540 turns every sound effect down 20%, so effects sit a little lower than the music; the volume setting and music are unchanged.
+
 v539 frees the mouse when the start-of-run Attack upgrade pick opens on desktop, so its cards can be clicked without pressing Escape.
 
 v538 keeps a bug's body touching you from counting as its attack landing (no contact pose or hit recoil for a brush; a Millipede's roll and a Cockroach's jab still count), stops the eyes of a bug that has thrown something (Ant, House spider, Firefly, Ladybug, Stag beetle, Dragonfly whirlwind) drooping as if it missed, brings the Praying mantis, Stag beetle, Ant, House spider and Wasp home earlier in their recoil so the last fifth is the punish window closing, and opens the Mantis's lean and the Stag beetle's jaws a little wider in their build-up.
