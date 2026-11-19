@@ -15,6 +15,7 @@ import { LOOK } from './look.js';
 import { TeleMaterial, VolumeMaterial, volumeGeometry } from './vfx.js';
 import { ENCORE } from './stage4.js';
 import { sfx } from './sfx.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { juice } from './juice.js';
 
 const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2, BOSS = ENCORE.bossSpace;
@@ -28,16 +29,7 @@ function recordGeometry(r, label) {
   const paint = (g, fn) => { const p = g.attributes.position, col = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) fn(Math.hypot(p.getX(i), p.getZ(i))).toArray(col, i * 3); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); };
   paint(disc, (d) => (d > r * 0.97 ? groove : black));
   paint(lab, () => c);
-  const g = mergeTwo(disc, lab); disc.dispose(); lab.dispose();
-  return g;
-}
-function mergeTwo(a, b) {
-  const g = new THREE.BufferGeometry(), A = a.toNonIndexed(), B = b.toNonIndexed();
-  for (const k of ['position', 'normal', 'color']) {
-    const x = A.attributes[k].array, y = B.attributes[k].array, out = new Float32Array(x.length + y.length);
-    out.set(x); out.set(y, x.length); g.setAttribute(k, new THREE.BufferAttribute(out, 3));
-  }
-  A.dispose(); B.dispose();
+  const g = mergeGeometries([disc, lab]); disc.dispose(); lab.dispose();
   return g;
 }
 
@@ -58,32 +50,33 @@ export function landing(x, z, r, edge, out = [0, 0]) {
 
 export class EncoreRecords {
   // arena: buildAct4's; fx: the game's (orb, impact, ice); onHit(dmg, record): the jelly was hit
-  constructor(arena, fx, { onHit = () => {}, color = '#3d6bff' } = {}) {
+  // (scene: where the Warnings go, beside every other attack's, so the Warning checks find them)
+  constructor(arena, fx, { onHit = () => {}, color = '#3d6bff', scene = arena.root } = {}) {
     Object.assign(this, { arena, fx, onHit });
     this.color = new THREE.Color(color);
-    this.r = LOOK.num('encore-record-radius', 0.055);
+    this.r = LOOK.num('encore-record-radius', 0.055); this.edge = LOOK.num('encore-record-edge', 0.06);
+    this.warnGlow = LOOK.num('encore-record-warning', 0.6); this.laneGlow = LOOK.num('encore-record-volume', 0.35);
+    this.on = [0, 0.3];                                   // where the jelly is, when a cast names no target
     this.beat = null; this.casts = []; this.pushX = 0; this.pushZ = 0;
     // the records: one instanced draw, always drawn (unused ones scaled to nothing) so its shader is built with the arena
     this.mesh = new THREE.InstancedMesh(recordGeometry(this.r, LOOK.color('encore-record-label', '#9bbaff')),
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, metalness: 0.4 }), RECORDS);
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }), RECORDS);
     this.mesh.name = 'Encore records'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true;
     for (let i = 0; i < RECORDS; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
     this.slots = Array.from({ length: RECORDS }, (_, i) => ({ i, cast: null }));
     // the Warnings: a floor strip and the lane over it each
-    this.root = new THREE.Group(); this.root.name = 'Encore record Warnings'; this.root.add(this.mesh);
+    this.scene = scene;
     this.owned = [this.mesh.geometry, this.mesh.material];
     this.warnings = Array.from({ length: WARNINGS }, () => {
       const band = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.0015, 0.5), new TeleMaterial(this.color, 'strip'));
       const lane = new THREE.Mesh(volumeGeometry('lane'), new VolumeMaterial(this.color, 'lane'));
       band.renderOrder = 3; lane.renderOrder = 4;
-      for (const o of [band, lane]) { o.visible = false; o.userData.noCollide = true; this.root.add(o); }
+      for (const o of [band, lane]) { o.visible = false; o.userData.noCollide = true; scene.add(o); }
       this.owned.push(band.geometry, band.material, lane.material);
       return { band, lane, cast: null };
     });
-    arena.root.add(this.root);
+    arena.root.add(this.mesh);
   }
-  get busy() { return this.casts.length > 0; }
-  get standing() { return this.casts.filter((c) => c.state === 'stand'); }
 
   // a record landing on beat `land`, thrown from `from()` (where his hand is, a Vector3) at `target()`
   // ([x, z]: where the jelly is) until it locks; null if the pool is full
@@ -100,7 +93,7 @@ export class EncoreRecords {
   // where it will land, from where the hand is to where the jelly is (`on`), kept on the open floor
   aim(c, on) {
     const h = c.from();
-    landing(on[0], on[1], this.r, LOOK.num('encore-record-edge', 0.06), c.to);
+    landing(on[0], on[1], this.r, this.edge, c.to);
     c.start.copy(h);
     const dx = c.to[0] - h.x, dz = c.to[1] - h.z, len = Math.hypot(dx, dz) || 1;
     c.ux = dx / len; c.uz = dz / len; c.len = len;
@@ -123,6 +116,7 @@ export class EncoreRecords {
     this.px = p?.x ?? null; this.pz = p?.z ?? null;
     this.beat = beat; this.pushX = this.pushZ = 0;
     const R = this.r, pr = player?.cfg?.radius ?? 0.03;
+    let dropped = false;
     for (const c of this.casts) {
       if (c.state === 'wind' || c.state === 'fly') this.warnStep(c, beat, player);
       if (c.state === 'wind' && beat >= c.release) {
@@ -131,12 +125,12 @@ export class EncoreRecords {
         c.orb = this.fx.orb(this.color, 0.006);
       }
       if (c.state === 'fly') {
-        const was = c.s; c.s = Math.min(1, (beat - c.release) / (c.land - c.release));
-        // the hit: anything of the jelly the record passes this frame, below the lane's top
-        if (!skip && !c.hit && player && player.position.y < c.height) {
+        c.s = Math.min(1, (beat - c.release) / (c.land - c.release));
+        // the hit, as it lands on the bar line: anything of the jelly in its lane then, below the lane's top
+        if (c.s >= 1 && !skip && player && player.position.y < c.height) {
           const p = player.position, rx = p.x - c.start.x, rz = p.z - c.start.z;
           const along = rx * c.ux + rz * c.uz, across = Math.abs(rx * c.uz - rz * c.ux);
-          if (across < R + pr && along > was * c.len - R - pr && along < c.s * c.len + R + pr) { c.hit = true; this.onHit(c.dmg, c); }
+          if (across < R + pr && along > this.stripStart(c) - pr && along < c.len + R + pr) { c.hit = true; this.onHit(c.dmg, c); }
         }
         this.place(c, c.s, beat);
         if (c.orb) { c.orb.position.copy(_p); this.fx.orbTick(c.orb, dt); }
@@ -149,20 +143,24 @@ export class EncoreRecords {
       }
       if (c.state === 'stand') {
         this.place(c, 1, beat);
-        if (beat >= c.land + c.stand) { this.shatter(c, !skip); continue; }
+        if (beat >= c.land + c.stand) { this.shatter(c, !skip); dropped = true; continue; }
         // it blocks the jelly (not over it: a jump clears it): pushed out of the record's footprint
         if (player && player.position.y < 2 * R) this.block(c, player, pr);
       }
     }
-    this.casts = this.casts.filter((c) => c.slot.cast === c);
-    this.mesh.instanceMatrix.needsUpdate = true;
+    if (dropped) this.casts = this.casts.filter((c) => c.slot.cast === c);
+    if (this.casts.length || dropped) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
   // its Warning: from 3 beats before the throw, following the jelly until a beat before, filling to the landing
   warnStep(c, beat, player) {
     if (beat < c.warnAt) return;
     if (!c.warn) { c.warn = this.warnings.find((w) => !w.cast); if (c.warn) c.warn.cast = c; }
-    if (beat < c.lockAt || !c.len) this.aim(c, c.target?.() ?? (player ? [player.position.x, player.position.z] : [0, 0.3]));
+    if (beat < c.lockAt || !c.len) {
+      const on = c.target?.() ?? this.on;
+      if (!c.target && player) { this.on[0] = player.position.x; this.on[1] = player.position.z; }
+      this.aim(c, on);
+    }
     const w = c.warn; if (!w) return;
     const t0 = this.stripStart(c), x = c.start.x + c.ux * t0, z = c.start.z + c.uz * t0, len = Math.max(0.01, c.len - t0 + this.r), a = Math.atan2(c.ux, c.uz);
     const progress = Math.min(1, Math.max(0, (beat - c.warnAt) / (c.land - c.warnAt))), width = this.r * 2;
@@ -171,8 +169,8 @@ export class EncoreRecords {
     w.lane.position.set(x, 0, z); w.lane.rotation.set(0, a, 0); w.lane.scale.set(width, c.height, len);
     w.band.material.progress = w.lane.material.progress = progress;
     w.band.material.uniforms.uTime.value = beat;
-    w.band.material.opacity = LOOK.num('encore-record-warning', 0.6);
-    w.lane.material.opacity = LOOK.num('encore-record-volume', 0.35);
+    w.band.material.opacity = this.warnGlow;
+    w.lane.material.opacity = this.laneGlow;
   }
   freeWarning(c) { if (c.warn) { c.warn.band.visible = c.warn.lane.visible = false; c.warn.cast = null; c.warn = null; } }
 
@@ -230,5 +228,5 @@ export class EncoreRecords {
   }
   // show the Warnings for the shader build at load (main.js warmUp)
   warm(on) { for (const w of this.warnings) w.band.visible = w.lane.visible = on && !w.cast; }
-  dispose() { this.root.removeFromParent(); for (const o of this.owned) o.dispose(); this.mesh.dispose(); }
+  dispose() { this.mesh.removeFromParent(); for (const w of this.warnings) { w.band.removeFromParent(); w.lane.removeFromParent(); } for (const o of this.owned) o.dispose(); this.mesh.dispose(); }
 }

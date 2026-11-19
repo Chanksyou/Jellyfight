@@ -41,7 +41,7 @@ import { EncoreRecords } from './encore-records.js';
 
 // what it does, for the attack audit (src/stories/kit.js EVERY_ATTACK)
 export const ATTACKS = { calm: ['floor', 'laser', 'pulse', 'disco', 'contact', 'records'], angry: [] };
-const DJS = ['silver', 'gold'];
+const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing' };
 // each DJ's solo attack: books what he plays from bar line `at` (gold's Pyro and the duet are still to come)
 const SOLO_ATTACKS = {
   silver(at, S) {
@@ -49,7 +49,7 @@ const SOLO_ATTACKS = {
     for (let k = 0; k < bars; k++) {
       const land = at + k * 4;
       if (this.quiet(land)) continue;                      // (the breakdown rests it, as it rests the floor)
-      this.records.cast(land, { from: () => this.hand('silver'), target: () => [this.player.position.x, this.player.position.z],
+      this.records.cast(land, { from: () => this.hand('silver'), target: () => this.jellyAt(),
         dmg: R.dmg ?? 4, height: R.height ?? 0.25, stand: (R.stand ?? 4) * 4, flight: R.flight ?? 1, windup: R.windup ?? 3, lock: R.lock ?? 1 });
     }
   },
@@ -85,12 +85,14 @@ export class Encore {
       const away = new THREE.Vector3().subVectors(this.player.position, point).setY(0);
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
-    this.records = new EncoreRecords(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-silver')), color: hostile('encore-silver') });
+    this.records = new EncoreRecords(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-silver')), color: hostile('encore-silver'), scene });
     this.solo = null; this.restBow = false;
     this.spots = Object.fromEntries(DJS.map((who) => [who, spotlight(A, who)]));
     this.bowLift = Number(LOOK.list('encore-dance-bow', [])[3]) || 1.5;    // beats a bow takes to come back up
     // a hit on the jelly during a solo spoils it: the bow after is the short one
-    this.offHurt = bus.on('damage_taken', (e) => { const S = this.solo; if (e.targetId === PLAYER && e.amount > 0 && S && this.beat !== null && this.beat >= S.at && this.beat < S.end) S.clean = false; });
+    // (up to a beat before its end, when he goes into his bow and its length is settled)
+    this.offHurt = bus.on('damage_taken', (e) => { const S = this.solo; if (e.targetId === PLAYER && e.amount > 0 && S && !S.bowing && this.beat !== null && this.beat >= S.at) S.clean = false; });
+    this.colors = Object.fromEntries(DJS.map((who) => [who, hostile(`encore-${who}`)]));
     this.set = null;
     this.field = forceField(A.boss); A.root.add(this.field); this.fieldScale = this.field.scale.clone();
     this.booth = boothBox(A.boss);
@@ -114,7 +116,7 @@ export class Encore {
   // a solo slot (kind 'silver', 'gold' or 'duet') from bar line `at`: that DJ solos, if he has a solo
   // attack yet (else the plain set plays through)
   slot(kind, at) {
-    if (!SOLO_ATTACKS[kind] || this.solo) return;
+    if (!SOLO_ATTACKS[kind] || this.solo) return;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
     const bars = this.def.skills.solo?.bars ?? 4;
     this.solo = { who: kind, at, end: at + bars * 4, bowEnd: null, clean: true, bowing: false, lit: false };
     SOLO_ATTACKS[kind].call(this, at, this.solo);
@@ -125,8 +127,10 @@ export class Encore {
   get exposed() {
     const b = this.beat, S = this.solo;
     if (b === null || this.dead || this.cut || this.falling || this.shielded) return false;
-    return !!(S && S.bowEnd !== null && b >= S.end && b < S.bowEnd) || this.quiet(b);
+    return !!(S && S.bowEnd !== null && b >= S.end && b < S.bowEnd) || (this.quiet(b) && this.quiet(b - 1));   // (the breakdown's bow is down a beat in)
   }
+  // where the jelly is ([x, z], one array reused)
+  jellyAt() { const a = (this._at ||= [0, 0]); a[0] = this.player.position.x; a[1] = this.player.position.z; return a; }
   // where a DJ's throwing hand is (his outer glove), in the arena
   hand(who, out = this._hand ||= new THREE.Vector3()) {
     const r = this.arenaView.boss.rigs[who];
@@ -136,15 +140,16 @@ export class Encore {
   soloStep(beat) {
     const S = this.solo, M = this.arenaView.boss, K = this.def.skills.solo || {};
     if (!S) return;
-    const next = this.records.casts.find((c) => c.state === 'wind');                // his next throw (asked again each frame: it plays on)
-    if (next && beat >= next.release - 4) M.perform(S.who, 'throw', next.release);
-    const bow = (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
-    if (S.bowEnd !== S.end + bow) { S.bowEnd = S.end + bow; if (S.bowing) { M.perform(S.who, null); S.bowing = false; } }   // a hit shortens it
-    if (!S.bowing && beat >= S.end - 1) { S.bowing = true; M.perform(S.who, 'bow', S.end, 1, Math.max(0, bow - this.bowLift)); }
+    for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4) M.perform(S.who, 'throw', c.release); break; }   // his next throw (asked again each frame: it plays on)
+    // his bow, a beat before his solo ends: the long one if no hit reached the jelly till then
+    if (!S.bowing && beat >= S.end - 1) {
+      const bow = (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
+      S.bowing = true; S.bowEnd = S.end + bow; M.perform(S.who, 'bow', S.end, 1, Math.max(0, bow - this.bowLift));
+    }
     // the spotlight and his wing come up over the beat before his solo and go down over the beat after
     S.on = beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
     this.spotOn(S.who, S.on);
-    if (beat >= S.bowEnd) this.endSolo();
+    if (S.bowEnd !== null && beat >= S.bowEnd) this.endSolo();
   }
   spotOn(who, on) {
     const m = this.spots[who];
@@ -156,7 +161,7 @@ export class Encore {
     const S = this.solo;
     if (!S) return;
     this.spotOn(S.who, 0);
-    if (S.lit) { this.arenaView.boss.setLighting(S.who === 'silver' ? 'leftWing' : 'rightWing', 0, 0); this.floor.lit = true; }
+    if (S.lit) { this.arenaView.boss.setLighting(WING[S.who], 0, 0); this.floor.lit = true; }
     this.solo = null;
   }
   // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind)
@@ -328,8 +333,8 @@ export class Encore {
       else if (this.broken && !this.floor.casts.length) M.setLighting('all', LOOK.color('encore-broken', '#ff2a3a'), 0.25 + red);
       // a solo: his wing lit his colour, pulsing on the beat
       const S = this.solo;
-      if (S && S.on > 0 && !this.hurtT) { M.setLighting(S.who === 'silver' ? 'leftWing' : 'rightWing', hostile(`encore-${S.who}`), S.on * (0.6 + 0.4 * Math.exp(-((beat % 1 + 1) % 1) * 4))); S.lit = true; }
-      else if (S?.lit && !S.on) { M.setLighting(S.who === 'silver' ? 'leftWing' : 'rightWing', 0, 0); S.lit = false; this.floor.lit = true; }
+      if (S && S.on > 0 && !this.hurtT) { M.setLighting(WING[S.who], this.colors[S.who], S.on * (0.6 + 0.4 * Math.exp(-((beat % 1 + 1) % 1) * 4))); S.lit = true; }
+      else if (S?.lit && !S.on) { M.setLighting(WING[S.who], 0, 0); S.lit = false; this.floor.lit = true; }
     }
     this.sparks.update(dt);
     // on the beat the DJs nod and the booth pumps; a hit squashes it a touch (the short-out shakes it)

@@ -688,7 +688,7 @@
   --encore-record-label: #9bbaff; /* their label: his helmet's piping, not the hostile blue (a standing record is harmless) */
   --encore-record-edge: 0.06;    /* m: a record never lands nearer than this to the boss's reserved space */
   --encore-record-warning: 0.6;  /* its floor strip's strength, and the lane's over it */
-  --encore-record-volume: 0.35;
+  --encore-record-volume: 0.25;
   --encore-record-shards: 16;    /* shards when a record shatters */
   --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
   --encore-spotlight-opacity: 0.22;
