@@ -42,7 +42,15 @@ try {
       // pass 1 finds the frames (the attack's start and its hit test); pass 2 replays it exactly and films
       const span = await page.evaluate(async ({ id, miss, dt }) => {
         const M = await import('/src/stories/bug-attack-motion.js'), S = M.stage(M.ATTACKS.find((a) => a.id === id), { miss, dt, hurt: true });
-        try { while (S.frame < M.MAX_FRAMES * 2 && !S.found) S.advance(); return { begun: S.begun, hit: S.begun + (S.found?.frames ?? 0), ok: !!S.found }; } finally { S.done(); }
+        // where the bug goes from its attack beginning to its hit test: the box the cameras frame (a bug that
+        // attacks from far off, the Dragonfly, is framed on itself, not on the gap to the jelly)
+        const P = [];
+        try {
+          while (S.frame < M.MAX_FRAMES * 2 && !S.found) { S.advance(); P.push([S.e.pos.x, S.e.pos.y, S.e.pos.z, S.e.r]); }
+          const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+          for (const [x, y, z, r] of P.slice(Math.max(0, S.begun))) { lo[0] = Math.min(lo[0], x - r); lo[1] = Math.min(lo[1], y - r); lo[2] = Math.min(lo[2], z - r); hi[0] = Math.max(hi[0], x + r); hi[1] = Math.max(hi[1], y + r); hi[2] = Math.max(hi[2], z + r); }
+          return { begun: S.begun, hit: S.begun + (S.found?.frames ?? 0), ok: !!S.found, lo, hi };
+        } finally { S.done(); }
       }, { id, miss, dt });
       if (!span.ok) { console.log(`${size.name} ${name}: no hit test seen, skipped`); continue; }
       const first = Math.max(0, span.begun - Math.round(BEFORE / dt)), last = span.hit + Math.round(AFTER / dt);
@@ -57,16 +65,17 @@ try {
         await page.evaluate(() => { window.__bug.advance(); });
         if (f < first || (f - first) % every) continue;
         for (const view of VIEWS) {
-          await page.evaluate(({ view }) => {
-            const { THREE } = window, S = window.__bug, camera = window.tpc.camera, J = window.player.position;
-            if (!S.mid) S.mid = new THREE.Vector3().addVectors(S.e.pos, J).multiplyScalar(0.5).setY(J.y + 0.05);   // fixed on where the fight starts
-            const p = S.mid;
-            if (view === 'side') { camera.position.set(p.x, p.y, p.z + 0.3); camera.up.set(0, 1, 0); }
-            else { camera.position.set(p.x, p.y + 0.32, p.z + 0.001); camera.up.set(0, 0, -1); }
+          await page.evaluate(({ view, lo, hi }) => {
+            const camera = window.tpc.camera;
+            // fixed on the box the bug fills (pass 1), far enough back to hold all of it
+            const p = new window.THREE.Vector3((lo[0] + hi[0]) / 2, Math.max((lo[1] + hi[1]) / 2, window.player.position.y + 0.05), (lo[2] + hi[2]) / 2);   // (never down at the floor: eye level with the jelly at least)
+            const wide = Math.max(hi[0] - lo[0], (hi[1] - lo[1]) * 1.4, hi[2] - lo[2]), back = Math.max(0.3, wide * 0.9);
+            if (view === 'side') { camera.position.set(p.x, p.y, hi[2] + back); camera.up.set(0, 1, 0); }
+            else { camera.position.set(p.x, hi[1] + back, p.z + 0.001); camera.up.set(0, 0, -1); }
             camera.lookAt(p);
             camera.updateMatrixWorld(true);
             window.GAME.render();
-          }, { view });
+          }, { view, lo: span.lo, hi: span.hi });
           await page.screenshot({ path: path.join(dirs[view], String(times.length).padStart(4, '0') + '.png'), clip: { x: (vp.width - w) / 2, y: (vp.height - h) / 2, width: w, height: h } });
         }
         times.push(((f - span.begun) * dt).toFixed(2));

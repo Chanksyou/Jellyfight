@@ -1,0 +1,1 @@
+evens out how the basic bugs' attacks move: the Praying mantis and Horsehair worm reach their wind-up pose sooner and hold it longer, mid-sized bugs stretch a little further at full reach than light ones, and a Cicada whose burst misses you lands tipped onto one side (one that hits stands dazed upright).
