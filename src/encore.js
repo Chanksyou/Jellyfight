@@ -211,7 +211,7 @@ export class Encore {
     else if (!this.dead && beat !== null) {
       // A restarted track needs a new set, with fresh warnings rather than old scheduled beats.
       if (this.beat !== null && beat < this.beat) {
-        this.floor.reset(); this.lasers.reset(); this.pulses.reset(beat); this.disco.reset(beat); this.set = null;
+        this.floor.reset(); this.lasers.reset(); this.pulses.reset(beat); this.disco.reset(beat); this.set = null; this.flinched = null;
       }
       this.beat = beat;
       const S = this.def.skills.set || {};

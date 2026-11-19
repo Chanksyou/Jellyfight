@@ -198,8 +198,8 @@ export class EncoreFloor {
       for (const part of [].concat(c.part)) if (b > boss[part][0]) boss[part] = [b, who];
       // and its DJ dances from the wind-up to the wave's end
       if (u >= -4 && beat <= this.endOf(c) + fade) dancing[c.dj] = true;
-      // his gesture for this wave starts 4 beats ahead (the first of his waves whose accent isn't already past)
-      if (!next[c.dj] && u >= -4 && u < GESTURE_HOLD) next[c.dj] = c;
+      // his gesture for this wave starts 4 beats ahead (the one with the earliest accent not already past)
+      if (u >= -4 && u < GESTURE_HOLD && (!next[c.dj] || c.at < next[c.dj].at)) next[c.dj] = c;
     }
     this.casts = this.casts.filter((c) => beat < this.endOf(c) + fade);
     for (const dj of DJS) this.arena.boss.dance?.(dj, dancing[dj] ? beat : null);
