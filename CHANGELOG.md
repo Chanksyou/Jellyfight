@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v544 mixes sound 30 ms ahead instead of at the smallest buffer, so a busy moment on the audio thread no longer crackles and pops.
+
 v543 stops the pop at the end of the Vacuum's suck: its breathing wobble (and the wobble in the Vacuum's brushes, the millipede's rev and the dragonfly's charge hum) now fades with the sound instead of playing on after it and being cut off, and a recorded hit that has to start part-way through fades in instead of clicking.
 
 v542 keeps vent rides smooth on phones: while the air carries the jelly up, the camera turns nothing new see-through (a ride up through the bathroom vanity had started 30+ see-through copies at once).
