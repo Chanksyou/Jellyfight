@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v521 tunes the jelly's new motion: its tentacles are drawn about twice as fast (every jelly's animation now costs less than before the motion work), a victory or death copy keeps its oral arms' bend, and the bell is never culled at a screen edge while it flares.
+
 v520 the jelly's tentacle roots now hang from the bell's flexing rim (also while lashing) and ride it in and down on each stroke, so they pull in a little further and open a little wider than before; its fringe streams out behind the rim's lag, and the victory and death copies keep the bell's bend they were made with.
 
 v519 makes act 4's sunlight smooth: the room's own shaders light it, so it follows the sofa's curves without stair-steps, warms each surface's own colour, and lights the sides facing the window (one draw fewer).
