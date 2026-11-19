@@ -44,7 +44,7 @@ import { EncoreWall } from './encore-wall.js';
 
 // what it does, for the attack audit (src/stories/kit.js EVERY_ATTACK)
 export const ATTACKS = { calm: ['floor', 'laser', 'disco', 'contact', 'records', 'wall'], angry: [] };
-const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing', duet: 'all' };
+const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing', duet: 'all' }, SOLOISTS = { silver: ['silver'], gold: ['gold'], duet: DJS };
 // each DJ's solo attack: books what he plays from bar line `at` (gold's Pyro is still to come)
 const SOLO_ATTACKS = {
   silver(at, S) {
@@ -62,7 +62,7 @@ const SOLO_ATTACKS = {
   duet(at, S) {
     const R = this.def.skills.records || {}, W = this.def.skills.wall || {}, n = W.records ?? 3, casts = [];
     S.warnAt = at + (n - 1) * 4; S.rest = S.end + 4; S.bow = (W.bow ?? 2) * 4;
-    if (this.quiet(S.warnAt) || this.quiet(S.end)) { S.wall = { state: 'off' }; return; }   // (the song's breakdown would rest it mid-wall: called off, the plain set plays)
+    for (let b = S.warnAt; b <= S.rest; b++) if (this.quiet(b)) { S.wall = { state: 'off' }; return; }   // (the song's breakdown would rest it mid-wall: called off, the plain set plays)
     for (let k = 0; k < n; k++) {
       const land = at + k * 4, before = casts.slice();
       if (this.quiet(land)) continue;
@@ -76,7 +76,7 @@ const SOLO_ATTACKS = {
 // round the jelly, where a duet's next record goes: at it, or the nearest of 12 spots `apart` round it
 // that is that far from every record `before` it (towards the middle of the floor first), never so near
 // the back of the floor that its safe strip has no room
-const ROOM = 0.15, _spot = [0, 0];
+const ROOM = 0.15, _spot = [0, 0], _try = [0, 0];
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17];
 const _hit = new THREE.Vector3();
@@ -153,12 +153,19 @@ export class Encore {
   // the duet's wall is up (its Warning or its roll) on beat `b`: the disco ball rests, so the strips stay safe
   walling(b) { const w = this.solo?.wall; return !!w && w.state !== 'off' && b >= w.warnAt && b < w.end; }
   // a duet record's landing spot (see ROOM)
+  // (if none of them is far enough, the one farthest from the rest)
   cover(before, apart) {
-    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, far = (p) => before.every((c) => Math.hypot(p[0] - c.to[0], p[1] - c.to[1]) >= apart);
-    const base = Math.atan2(0.3 - z, -x), at = (a) => landing(x + Math.cos(a) * apart, Math.min(z + Math.sin(a) * apart, (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM), r, e, _spot);
-    let p = landing(x, Math.min(z, (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM), r, e, _spot);
-    for (let k = 0; k < 12 && !far(p); k++) p = at(base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6);
-    return p;
+    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, back = (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM, base = Math.atan2(0.3 - z, -x);
+    let best = -1;
+    for (let k = -1; k < 12; k++) {
+      const a = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6, d = k < 0 ? 0 : apart;
+      landing(x + Math.cos(a) * d, Math.min(z + Math.sin(a) * d, back), r, e, _try);
+      let near = Infinity;
+      for (const c of before) near = Math.min(near, Math.hypot(_try[0] - c.to[0], _try[1] - c.to[1]));
+      if (near > best) { best = near; _spot[0] = _try[0]; _spot[1] = _try[1]; }
+      if (near >= apart) break;
+    }
+    return _spot;
   }
   // EXPOSED: bowing after a solo, or both DJs bowing in the song's breakdown: hits do bosses.kdl `solo exposed` x
   get exposed() {
@@ -178,7 +185,7 @@ export class Encore {
     const S = this.solo, M = this.arenaView.boss, K = this.def.skills.solo || {};
     if (!S) return;
     if (S.wall?.state === 'off') { this.endSolo(); return; }   // (a duet whose records all missed: no wall)
-    const who = S.who === 'duet' ? DJS : [S.who];
+    const who = SOLOISTS[S.who];
     for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4) M.perform('silver', 'throw', c.release); break; }   // his next throw (asked again each frame: it plays on)
     // the duet: both DJs throw their hands up as the wall's Warning fills, held till they bow
     if (S.warnAt != null && !S.bowing && beat >= S.warnAt) for (const d of DJS) M.perform(d, 'hands-up', S.warnAt + 1, 1, Math.max(0, S.end - S.warnAt - 3.5));

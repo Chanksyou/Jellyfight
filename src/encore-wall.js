@@ -76,11 +76,11 @@ export class EncoreWall {
       this.band.material.progress = this.slab.material.progress = u;
       this.band.material.opacity = this.warnGlow; this.slab.material.opacity = this.slabGlow;
       this.swell = u;
-      w.shields.forEach((s, i) => { this.safe[i].visible = s.c.slot.cast === s.c; });   // (gone if its record is)
+      for (let i = 0; i < w.shields.length; i++) this.safe[i].visible = w.shields[i].c.slot.cast === w.shields[i].c;   // (gone if its record is)
       if (beat >= w.rollAt) {
         w.state = 'roll';
         this.band.visible = this.slab.visible = false; for (const m of this.safe) m.visible = false;
-        if (!skip) { this.fx.impact(_p.set(0, 0.1, LIP), this.color, 0.06, 18); juice.feel('impact-big'); sfx.encoreWall?.(); }
+        if (!skip) { this.fx.impact(_p.set(0, 0.1, LIP), this.color, 0.06, 18); juice.feel('impact-big'); sfx.encoreWall(); }
       }
     }
     if (w.state === 'roll') {
@@ -125,7 +125,8 @@ export class EncoreWall {
     const cw = (2 * HALF) / COLS, H = w.height;
     for (let i = 0; i < COLS; i++) {
       const x = -HALF + (i + 0.5) * cw, start = Math.abs(x - BOSS.center[0]) < BOSS.width / 2 ? LIP : Z0;
-      const gap = w.shields.some((s) => Math.abs(x - s.x) < w.safe / 2 && front > s.z && front < s.z + s.len);
+      let gap = false;
+      for (const s of w.shields) gap ||= Math.abs(x - s.x) < w.safe / 2 && front > s.z && front < s.z + s.len;
       const on = front >= start && !gap, h = H * (0.82 + 0.18 * Math.abs(Math.sin(i * 1.7 + beat * Math.PI)));
       for (let k = 0; k < 2; k++) {
         const z = front - k * 0.03, j = i + k * COLS;
