@@ -1,7 +1,7 @@
 // Act 2's Elites (Soap Dispenser, Wall Clock, Cream Whipper) play recorded sounds layered over their
 // synthesized ones (docs/agents/sound.md, packs elite-soap / elite-clock / elite-whipper).
 import { sfx, unlock as unlockAudio, loadPack, cueLog, deepen, calm } from '../sfx.js';
-import { G, V, act2, fresh, hallClock, holdJelly, ok, startBalloon, startClock, startSoap, step, stub, whipper } from './kit.js';
+import { G, V, act2, fresh, hallClock, holdJelly, ok, startBalloon, startClock, startPiping, startSoap, step, stub, whipper } from './kit.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const PACKS = ['elite-soap', 'elite-clock', 'elite-whipper'];
@@ -49,7 +49,7 @@ function wholeAttack(e, frame) {
 }
 
 act2('sound/act-2-elite-attacks-play-their-recordings', {
-  about: "A real Soap Dispenser bubble trap and bubble ring, Wall Clock sweep, and Cream Whipper balloon (let go, then burst) each play their recorded take on the same frame as the synthesized cue.",
+  about: "A real Soap Dispenser bubble trap and bubble ring (and the bubbles popping), Wall Clock sweep, wreath and chime, and Cream Whipper balloon (let go, then burst) and cream piping (spray, then a bead hitting the still jelly) each play their recorded take on the same frame as the synthesized cue.",
   setup() { startSoap(0); },
   async play() {
     unlockAudio();
@@ -64,6 +64,8 @@ act2('sound/act-2-elite-attacks-play-their-recordings', {
     soap.next = 1; soap.cool = 0;
     wholeAttack(soap, frame);                    // the bubble ring
     const ring = { foam: seen('soap-bubbles') };
+    step(600, () => !G().run.elites.soapBubbles.length); frame.n += 60;   // the ring drifts out and its bubbles pop
+    ring.pops = seen('soap-bubble-pop');
     await wait(1500);
     startClock(0);
     holdJelly();
@@ -72,16 +74,29 @@ act2('sound/act-2-elite-attacks-play-their-recordings', {
     wholeAttack(clock, frame);                   // the sweeping hand
     const sweep = { sweep: seen('clock-sweep'), strike: seen('clock-strike') };
     await wait(1500);
+    clock.next = 1; clock.cool = 0;
+    wholeAttack(clock, frame);                   // Victory's wreath
+    const wreath = { whirr: seen('wreath-whirr') };
+    await wait(1500);
+    clock.next = 2; clock.cool = 0;
+    wholeAttack(clock, frame);                   // telling the time: the chime
+    const chime = { chime: seen('clock-chime') };
+    await wait(1500);
     startBalloon();
     holdJelly();
     const w = whipper();
     wholeAttack(w, frame);                       // a balloon filled and let go
     for (let i = 0; i < 400 && !seen('balloon-pop'); i++) { step(1); frame.n++; }   // and its fuse burning down
+    await wait(1500);
+    startPiping();
+    holdJelly();
+    wholeAttack(whipper(), frame);               // the cream piped over the still jelly
     cueLog(null);
+    const cream = { spray: seen('cream-spray'), splat: seen('cream-splat') };
     const balloon = { fill: seen('balloon-fill'), loose: seen('balloon-loose'), pop: seen('balloon-pop') };
-    const paired = [['soap-pump', 'soapPump'], ['soap-bubbles', 'soapBubbles'], ['clock-sweep', 'clockSweep'], ['clock-strike', 'clockStrike'], ['balloon-fill', 'balloonFill'], ['balloon-loose', 'balloonLoose'], ['balloon-pop', 'balloonPop']]
-      .every(([role, cue]) => log.filter((c) => c.cue === role).every((c) => log.some((d) => d.cue === cue && d.frame === c.frame)));
-    return ok(loaded.every(Boolean) && trap.pump >= 1 && trap.foam >= 1 && ring.foam > trap.foam && sweep.sweep >= 1 && sweep.strike >= 1 && balloon.fill >= 1 && balloon.loose >= 1 && balloon.pop >= 1 && paired, { loaded, trap, ring, sweep, balloon, paired });
+    const paired = [['soap-pump', 'soapPump'], ['soap-bubbles', 'soapBubbles'], ['clock-sweep', 'clockSweep'], ['clock-strike', 'clockStrike'], ['balloon-fill', 'balloonFill'], ['balloon-loose', 'balloonLoose'], ['balloon-pop', 'balloonPop'], ['wreath-whirr', 'wreathWhirr'], ['clock-chime', 'clockChime'], ['cream-spray', 'creamSpray'], ['cream-splat', 'creamSplat']]
+      .every(([role, cue]) => log.some((c) => c.cue === role) && log.filter((c) => c.cue === role).every((c) => log.some((d) => d.cue === cue && d.frame === c.frame)));
+    return ok(loaded.every(Boolean) && trap.pump >= 1 && trap.foam >= 1 && ring.foam > trap.foam && sweep.sweep >= 1 && sweep.strike >= 1 && balloon.fill >= 1 && balloon.loose >= 1 && balloon.pop >= 1 && ring.pops >= 1 && wreath.whirr >= 1 && chime.chime >= 1 && cream.spray >= 1 && cream.splat >= 1 && paired, { loaded, trap, ring, sweep, wreath, chime, balloon, cream, paired });
   },
 });
 
@@ -94,7 +109,8 @@ act2('sound/cream-whipper-deep-sound-slows-recordings', {
     await wait(2000);
     const made = [], create = BaseAudioContext.prototype.createBufferSource;
     BaseAudioContext.prototype.createBufferSource = function () { const s = create.call(this); made.push(s); return s; };
-    const speedOfNext = async () => { made.length = 0; sfx.balloonPop(); await wait(30); return made.length ? made[made.length - 1].playbackRate.value : null; };
+    // the recording is the source playing the whole pack's buffer (seconds long); the synthesized sound's sources have tiny buffers
+    const speedOfNext = async () => { made.length = 0; sfx.balloonPop(); await wait(30); const rec = made.find((s) => s.buffer?.duration > 3); return rec ? rec.playbackRate.value : null; };
     try {
       const normal = await speedOfNext();
       await wait(600);

@@ -123,16 +123,17 @@ function onset(buf, { start, length }) {
 // Play the next take of `role` (rate: its speed and pitch, vol: times the role's own loudness).
 // peakAt: an audio-clock time its peak should land on (a hit lined up with what it hits), else now.
 // urgent: a hostile build-up or a hit on the jelly, which may use the last 2 voices.
+// steady: no random speed (a tuned sound, like the clock's bell, that has to stay in tune with a note beside it).
 // soft: an everyday sound that leaves the last 2 ordinary voices to the rarer ones; max: at most this many takes of the role at once.
 // Returns true when the caller should skip its synthesized sound: a 'replace' role that is loaded
 // (even when every voice is busy), false for a 'layer' role or one not loaded yet.
-export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false, soft = false, max = 0 } = {}) {
+export function sample(role, { rate = 1, vol = 1, peakAt = null, urgent = false, soft = false, max = 0, steady = false } = {}) {
   const r = ROLES[role];
   if (!r || !ready()) return false;
   const skip = r.mode === 'replace';
   if (voices >= VOICES - (urgent ? 0 : URGENT) - (soft ? 2 : 0) || (max && (live[role] ?? 0) >= max)) return skip;
   const list = r.takes, take = list[(turn[role] = ((turn[role] ?? Math.floor(rng() * list.length)) + 1) % list.length)];
-  const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * (1 + (rng() - 0.5) * 0.08);
+  const src = ctx.createBufferSource(), g = ctx.createGain(), speed = rate * pitch() * (steady ? 1 : 1 + (rng() - 0.5) * 0.08);
   let t = now(), from = take.start, len = take.length;
   if (peakAt !== null) {
     t = peakAt - take.peak / speed;
@@ -1677,9 +1678,9 @@ export const sfx = {
   },
   // the wreath back in Victory's hand: a soft metal catch
   wreathCatch() { if (!ready()) return; const j = jitter(0.06); tone('triangle', 1700 * j, 1600 * j, 0.08, 0.05); noise(900 * j, 1.5, 0.06, 0.08, 'lowpass'); },
-  clockChime(k = 0) {
+  clockChime(k = 0, urgent = true) {   // urgent false: the clock settling on its wall, which isn't an attack
     if (!ready()) return;
-    if (sample('clock-chime', { urgent: true, rate: CHIME_RATE * Math.pow(2, -k * 2 / 12) })) return;   // the recorded bell at the pitch of the synthesized one below
+    if (sample('clock-chime', { urgent, steady: true, rate: CHIME_RATE * Math.pow(2, -k * 2 / 12) })) return;   // the recorded bell at the pitch of the synthesized one below
     const f = 392 * Math.pow(2, -k * 2 / 12) * jitter(0.006);
     for (const [m, v, d] of [[1, 0.16, 1.6], [2.01, 0.07, 1.1], [2.76, 0.05, 0.8], [5.4, 0.025, 0.4]]) tone('sine', f * m, f * m * 0.998, d, v);
     noise(3000, 2, 0.03, 0.08, 'bandpass');                              // the strike

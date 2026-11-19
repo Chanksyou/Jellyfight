@@ -1283,7 +1283,7 @@ export class Elites {
         if (awake || e.state !== 'idle') e.downT = 1.5; else e.downT = Math.max(0, (e.downT || 0) - dt);
         const want = e.downT > 0 ? e.fightY : e.hangY, wasUp = e.holder.position.y > e.fightY + 0.05;
         e.holder.position.y += (want - e.holder.position.y) * (1 - Math.exp(-3.5 * dt));
-        if (wasUp && e.holder.position.y <= e.fightY + 0.05 && want === e.fightY) { this.fx.puff(e.base.clone().setY(e.base.y + 0.02), 0xd8c8b0, 0.06, 0.5); sfx.clockChime(1); }
+        if (wasUp && e.holder.position.y <= e.fightY + 0.05 && want === e.fightY) { this.fx.puff(e.base.clone().setY(e.base.y + 0.02), 0xd8c8b0, 0.06, 0.5); sfx.clockChime(1, false); }
         e.ready = Math.abs(e.holder.position.y - e.fightY) < 0.03;
       }
       // face you (unless an attack has locked its aim, or it hangs on a wall), and bob so it reads as alive
