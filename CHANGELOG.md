@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v524 gives the jelly's everyday sounds recordings: the bubble's blow, pop and hit, a crit, a bug dying (small and large), jump, land, hurt, and the jelly's Shield coming up, taking a hit and breaking; the Vacuum's Shield and sounds with no recording yet keep their synthesized sounds.
+
 v523 gives pickups and menus recorded sounds: the coin chime for XP (climbing with the chain) and Treasure, the chest creak and pop, the level-up chime, a shimmer for card reveals and awards, a till for buying, and soft taps for menus; they load as soon as sound is on, and the old synthesized sounds stay behind them.
 
 v522 moves lightning's recorded sounds into the first sound pack: they now download only for a Lightning Jelly run and never while muted, follow the Cream Whipper's deep sound, and a heavy chain strike has a synthesized sound when the recording can't load. `sounds.html` plays every recorded take next to its synthesized sound.
