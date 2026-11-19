@@ -966,7 +966,13 @@ export function buildMillipede() {
   const W = [];
   const qWalk = new THREE.Quaternion(), qBall = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), qSway = new THREE.Quaternion(), Y = V(0, 1, 0), X = V(1, 0, 0);
   const pWalk = new THREE.Vector3(), pBall = new THREE.Vector3();
-  let t = 0, move = 0;
+  let t = 0, move = 0, gap = 0;
+  const follow = () => {
+    for (let k = 1; k < N; k++) {
+      const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
+      b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
+    }
+  };
   const smooth = (u) => { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); };
   // its roll (attack-motion "roll", src/attack-motion.js), on top of the word's own curl and spin (curlK, spinA):
   // spinning up it leans back against its lane and squats, rocking harder as it revs, and tips forward at the
@@ -976,15 +982,10 @@ export function buildMillipede() {
   const anim = (dt, e) => {
     t += dt;
     const root = e.root, ry = root.rotation.y, sc = Math.max(1e-4, e.mesh.scale.x);
-    const hx = e.pos.x, hz = e.pos.z, gap = MIL.gap * sc, wide = 0.92 * sc;   // wide: the body's thickness
+    const hx = e.pos.x, hz = e.pos.z, wide = 0.92 * sc;   // wide: the body's thickness
+    gap = MIL.gap * sc;
     if (!W.length) for (let k = 0; k < N; k++) W.push([hx - Math.sin(ry) * k * gap, hz - Math.cos(ry) * k * gap]);
     W[0][0] = hx; W[0][1] = hz;
-    const follow = () => {
-      for (let k = 1; k < N; k++) {
-        const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
-        b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
-      }
-    };
     follow();
     for (let pass = 0; pass < 2; pass++) {
       let pushed = false;
@@ -1019,7 +1020,7 @@ export function buildMillipede() {
     const spin = (e.spinA || 0) + over, unroll = ph === 'recoil';
     qSpin.setFromAxisAngle(X, spin);
     for (let i = 0; i < N; i++) {
-      const [wx, wz] = W[i];
+      const wx = W[i][0], wz = W[i][1];
       // each segment faces the one in front of it; the head faces away from the one behind (where it's going)
       const f = i === 0 ? W[0] : W[i - 1], b = i === 0 ? W[1] : W[i];
       const tx = f[0] - b[0], tz = f[1] - b[1];
