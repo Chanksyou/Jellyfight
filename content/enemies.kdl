@@ -56,6 +56,7 @@ enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
 // pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
 enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
     death-motion "flutter"
+    attack-motion "lunge" tier="light"
     hover 0.05 above=0.01 speed=0.42 circle=0.9
     poke range=0.2 windup=0.3 reach=0.2 dmg=4 time=0.08 hold=0.15 rest=1 every=1.5
 }
@@ -188,6 +189,7 @@ enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
 // line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
 enemy "wasp" name="Wasp" hp=40 r=0.04 dmg=1 xp=0 model="wasp" {
     death-motion "flutter"
+    attack-motion "lunge" tier="light"
     hover 0.2 above=0.08 speed=0.55 circle=1.6
     dive range=0.5 every=3 windup=0.5 speed=2 reach=0.5 dmg=4 rest=0.6
 }
