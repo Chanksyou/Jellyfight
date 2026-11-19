@@ -1,0 +1,1 @@
+the Encore's DJs now call each wave: 4 beats ahead the DJ whose wave it is circles his arm (rings, arcs), swings it (sweeps), points down the floor (arrows, gates) or claps with his partner (closings, pincers), an arc's DJ turns to face its gap, a DJ whose wave hits you pumps his fist, and the nearer DJ flinches when you hit the booth.

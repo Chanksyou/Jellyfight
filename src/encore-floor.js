@@ -26,6 +26,8 @@ export const FLOOR_DMG = 4;
 // beats between a wave's steps: a tile every third of a beat (8th-note triplets)
 export const FLOOR_STEP = 1 / 3;
 export const DJS = ['silver', 'gold'];
+// each pattern's DJ gesture (encore-model.js MOVES); an arc's DJ also turns his helmet to its gap
+export const GESTURE = { ring: 'circle', arc: 'circle', sweep: 'sweep', arrow: 'point', gate: 'point', closing: 'clap', pincer: 'clap' };
 // the tiles a pattern can use: not under the boss's riser and reserved space
 const OPEN = [];
 for (let i = 0; i < N * N; i++) {
@@ -123,6 +125,8 @@ function pincer() {
   return out;
 }
 
+// a gesture is asked for until its accent has just passed (beats)
+const GESTURE_HOLD = 0.5;
 const _c = new THREE.Color(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 const PARTS = ['pyramid', 'leftWing', 'rightWing'];
 
@@ -138,6 +142,8 @@ export class EncoreFloor {
     this.casts = [];
     this.beat = null;
     this.turn = 0;                                        // whose wave is next, when a cast doesn't say
+    this.reacting = { silver: null, gold: null };         // a DJ's reaction ({ move, at }) takes over from his wave's gesture while it plays
+    this.playing = { silver: false, gold: false };
     this.hot = new Float32Array(N * N); this.who = new Uint8Array(N * N);
     this.lit = false;
     // the volumes over the hot tiles: one instanced draw, unlit, no depth write, black (unseen) when idle
@@ -156,7 +162,7 @@ export class EncoreFloor {
   cast(name, at, opts = {}) {
     const P = PATTERNS[name], o = { ...opts };
     const dj = DJS.includes(o.dj) ? o.dj : DJS[this.turn++ % 2];
-    const cast = { name, at, dj, steps: P.steps(o), step: o.step ?? FLOOR_STEP, part: typeof P.part === 'function' ? P.part(o) : P.part, dmg: o.dmg ?? FLOOR_DMG, hit: false, fired: -1 };
+    const cast = { name, at, dj, steps: P.steps(o), step: o.step ?? FLOOR_STEP, part: typeof P.part === 'function' ? P.part(o) : P.part, dmg: o.dmg ?? FLOOR_DMG, hit: false, fired: -1, opts: o };
     this.casts.push(cast);
     return cast;
   }
@@ -175,7 +181,7 @@ export class EncoreFloor {
     this.beat = beat;
     const fade = LOOK.num('encore-floor-fade', 0.45), band = LOOK.num('encore-floor-height', 0.04);
     this.hot.fill(0);
-    const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false };
+    const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false }, next = { silver: null, gold: null };
     for (const c of this.casts) {
       const who = DJS.indexOf(c.dj);
       // steps whose time has come
@@ -192,10 +198,31 @@ export class EncoreFloor {
       for (const part of [].concat(c.part)) if (b > boss[part][0]) boss[part] = [b, who];
       // and its DJ dances from the wind-up to the wave's end
       if (u >= -4 && beat <= this.endOf(c) + fade) dancing[c.dj] = true;
+      // his gesture for this wave starts 4 beats ahead (the one with the earliest accent not already past)
+      if (u >= -4 && u < GESTURE_HOLD && (!next[c.dj] || c.at < next[c.dj].at)) next[c.dj] = c;
     }
     this.casts = this.casts.filter((c) => beat < this.endOf(c) + fade);
     for (const dj of DJS) this.arena.boss.dance?.(dj, dancing[dj] ? beat : null);
+    for (const dj of DJS) this.gesture(dj, next[dj], beat);
     this.draw(band, boss);
+  }
+
+  // the DJ's move this frame: a reaction while it plays, else the gesture of his next wave, else none
+  gesture(dj, c, beat) {
+    const B = this.arena.boss, r = this.reacting[dj];
+    if (r && beat >= r.at + 1.5) this.reacting[dj] = null;
+    const now = this.reacting[dj];
+    if (now) B.perform?.(dj, now.move, now.at);
+    else if (c) {
+      const o = c.opts, silver = dj === 'silver';
+      B.perform?.(dj, GESTURE[c.name], c.at, c.name === 'sweep' ? ((o.spin ?? 1) > 0) === silver ? 1 : -1 : 1, undefined, c.name === 'arc' ? o.heading ?? 0 : null);
+    } else if (this.playing[dj]) B.perform?.(dj, null);
+    this.playing[dj] = !!(now || c);
+  }
+  // a reaction from `dj` (fist pump, flinch) whose accent lands at `at` beat, unless one is playing already
+  react(dj, move, at) {
+    if (this.beat === null || !DJS.includes(dj) || this.reacting[dj]) return;
+    this.reacting[dj] = { move, at };
   }
 
   // does the jelly's footprint (a circle) overlap any of these tiles
@@ -232,8 +259,9 @@ export class EncoreFloor {
   // stop everything: the floor and the Encore dark, the DJs back on the decks
   reset() {
     this.casts.length = 0; this.lit = true; this.hot.fill(0);
+    this.reacting.silver = this.reacting.gold = null; this.playing.silver = this.playing.gold = false;
     this.draw(0, { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] });
-    for (const dj of DJS) this.arena.boss.dance?.(dj, null);
+    for (const dj of DJS) { this.arena.boss.dance?.(dj, null); this.arena.boss.perform?.(dj, null); }
     this.beat = null;
   }
   dispose() { this.volumes.removeFromParent(); this.volumes.geometry.dispose(); this.volumes.material.dispose(); this.volumes.dispose(); }
