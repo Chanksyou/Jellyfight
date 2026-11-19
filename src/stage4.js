@@ -24,9 +24,10 @@ export const ENCORE = {
   start: [0, 0.01, 0.48],
   duration: 0,                        // straight into the fight
   clock: [360, 360],
-  // tougher again than act 3: the Encore's Health, every hit you take, the XP
+  // tougher again than act 3: the Encore's Health (18000 x 2 = 36000: the run log's 35 wins took a median 71 s and a mean 2 minutes at 18000,
+  // so a projected 2 minutes and 3 to 4, a little less as the act's room makes you stronger), every hit you take, the XP
   toughness: 3.5,
-  bossHp: 1,
+  bossHp: 2,
   power: 2,
   bugs: 1,
   xpMult: 1.6,
@@ -87,11 +88,11 @@ export const STAGE4 = {
   clock: [360, 480],                  // in-game minutes after midnight: 6:00 AM -> 8:00 AM
   sky: 'dawn',                        // the look: content/look.css --dawn-* (blue hour at 6:00 warming to gold by 8:00; main.js)
   music: 'sunrise',                   // "Sunrise Set" (music.js)
-  // as tough as the arena (the act's numbers); `bugs` is act 3's pacing, a stand-in like the bugs
-  // themselves (content/waves.kdl act=4)
+  // as tough as the arena (the act's numbers); `bugs` is how many come at once: act 3's 0.7 left this room's
+  // bugs costing a third of act 3's Health a second, 1 brings 43% more of them (a 12 bug pack: 1 Health a second for act 4's, 3 for act 3's; the spawn rate and the most alive at once both rise with it)
   toughness: 3.5,
   power: 2,
-  bugs: 0.7,
+  bugs: 1,
   xpMult: 1.6,
 
   noCollide: [],
@@ -107,7 +108,7 @@ export const STAGE4 = {
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
   // the opening acts (elites.js): the Singing Bowl, the Mushroom Pillow and the Headphones
   elites: ELITES4,
-  eliteHp: 2.8,                       // a stand-in until the tuning phase picks act 4's: act 3's 2.4 grown as its toughness grows (3 -> 3.5): 800 x 2.8 = 2240
+  eliteHp: 1.8,                       // 800 x 1.8 = 1440: act 4's Elites take about as long to beat as act 3's (800 x 2.4 = 1920), the same level 17 build at 2.8 took 1.6x as long (a level 17 build, 3 seeds, 2 jelly types)
 
   // The sun (sunrise.js): its line runs straight across the room in x and creeps from the window
   // wall (z `from`) to `to` over the night (`duration`), then stays. All of the room on the window
