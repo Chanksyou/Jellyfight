@@ -959,10 +959,11 @@ export function buildMillipede() {
   if (!M.milRing) { M.milRing = new THREE.MeshStandardMaterial({ map: G.ring, roughness: 0.18, metalness: 0.1 }); standOut(M.milRing, { base: 0.18, rim: 0.55 }); }
   if (!M.milPart) { M.milPart = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.08 }); standOut(M.milPart, { base: 0.16, rim: 0.4 }); }
   const N = MIL.rings + 2;                       // head, rings, tail
-  const coil = (G.coil ||= coilTable(N));
+  const spiral = (G.coil ||= coilTable(N));
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   const segs = [];
+  let face = null;
   for (let i = 0; i < N; i++) {
     const seg = new THREE.Group();
     const geo = i === 0 ? G.head : i === N - 1 ? G.tail : G.ringGeo;
@@ -971,7 +972,7 @@ export function buildMillipede() {
     seg.add(shell);
     let legs = null;
     if (i > 0 && i < N - 2) { legs = new THREE.Mesh(G.legs, M.milPart); seg.add(legs); }
-    if (i === 0) { const face = angryEyes({ y: 0.14, z: 0.36, size: 0.12, gap: 0.16 }); seg.add(face); }
+    if (i === 0) { face = angryEyes({ y: 0.14, z: 0.36, size: 0.12, gap: 0.16 }); seg.add(face); }
     body.add(seg);
     segs.push({ seg, legs, shell });
   }
@@ -980,21 +981,28 @@ export function buildMillipede() {
   // gap, like a rope pulled by the head, and segments that aren't neighbours push each other apart
   // so the body never folds through itself
   const W = [];
-  const qWalk = new THREE.Quaternion(), qBall = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), Y = V(0, 1, 0), X = V(1, 0, 0);
+  const qWalk = new THREE.Quaternion(), qBall = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), qSway = new THREE.Quaternion(), Y = V(0, 1, 0), X = V(1, 0, 0);
   const pWalk = new THREE.Vector3(), pBall = new THREE.Vector3();
-  let t = 0, move = 0;
+  let t = 0, move = 0, gap = 0;
+  const follow = () => {
+    for (let k = 1; k < N; k++) {
+      const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
+      b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
+    }
+  };
+  const smooth = (u) => { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); };
+  // its roll (attack-motion "roll", src/attack-motion.js), on top of the word's own curl and spin (curlK, spinA):
+  // spinning up it leans back against its lane and squats, rocking harder as it revs, and tips forward at the
+  // end; rolling, it leans in, stretched along the lane; stopping, it skids on, over-rotates a quarter turn and
+  // topples as it unrolls, tail first and head last, a ripple down the body; resting, its head sways, dizzy,
+  // steadying over the last 0.3 s
   const anim = (dt, e) => {
     t += dt;
     const root = e.root, ry = root.rotation.y, sc = Math.max(1e-4, e.mesh.scale.x);
-    const hx = e.pos.x, hz = e.pos.z, gap = MIL.gap * sc, wide = 0.92 * sc;   // wide: the body's thickness
+    const hx = e.pos.x, hz = e.pos.z, wide = 0.92 * sc;   // wide: the body's thickness
+    gap = MIL.gap * sc;
     if (!W.length) for (let k = 0; k < N; k++) W.push([hx - Math.sin(ry) * k * gap, hz - Math.cos(ry) * k * gap]);
     W[0][0] = hx; W[0][1] = hz;
-    const follow = () => {
-      for (let k = 1; k < N; k++) {
-        const a = W[k - 1], b = W[k], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1e-6;
-        b[0] = a[0] + dx / d * gap; b[1] = a[1] + dz / d * gap;
-      }
-    };
     follow();
     for (let pass = 0; pass < 2; pass++) {
       let pushed = false;
@@ -1011,10 +1019,28 @@ export function buildMillipede() {
       follow();
     }
     move += (Math.min(1, Math.hypot(e.vel.x, e.vel.z) * 8) - move) * (1 - Math.exp(-8 * dt));
-    const curl = e.curlK || 0, spin = e.spinA || 0;
+    const curl = e.curlK || 0, K = e.atk, ph = K ? K.phase : 'idle';
+    let lean = 0, squat = 0, len = 1, tilt = 0, skid = 0, over = 0, wave = 0, sway = 0;
+    const u = K && K.len > 0 ? Math.min(1, K.st / K.len) : 0;          // through this step of the attack
+    if (ph === 'build' && K.key === 'spin') {
+      const c = coil(u, K.style.hold, K.style.over) * K.vary, end = smooth(1 - (K.len - K.st) / 0.15);
+      lean = -0.21 * c * (1 - end) + 0.1 * end; squat = 0.06 * c;
+      lean += (K.still ? 0 : 1) * quiver(u, K.t, e.phase, 18) * 0.08 * K.quiet;   // rocking harder as it revs
+    } else if (ph === 'swing') {
+      const s = snap(Math.min(1, K.pt / K.style.strike), K.tier.over);
+      lean = 0.1 + 0.16 * s * K.vary; len = 1 + (K.tier.stretch - 1) * 0.5 * s * (K.smear ? 1.5 : 1);
+      squat = 0.06 * K.vary * (1 - s);                                  // (from the spin's squat, not a pop)
+    } else if (ph === 'recoil' && K.key !== 'rest') {
+      const q = Math.min(1, K.k * 2);                                   // (the uncurl fills the first half of the recoil)
+      skid = 0.25 * Math.sin(Math.PI * q); over = Math.PI / 2 * (1 - (1 - q) * (1 - q));
+      tilt = K.side * 0.6 * Math.sin(Math.PI * q); wave = 0.05 * Math.sin(Math.PI * q);
+      const ease = 1 - smooth(q * 3);                                   // the roll's lean and stretch, let go
+      lean = 0.26 * K.vary * ease; len = 1 + (K.tier.stretch - 1) * 0.5 * ease;
+    } else if (ph === 'recoil') sway = Math.sin(K.t * 7 + e.phase) * 0.4 * K.vary * Math.min(1, (1 - u) * K.len / 0.3, K.st / 0.1);
+    const spin = (e.spinA || 0) + over, unroll = ph === 'recoil';
     qSpin.setFromAxisAngle(X, spin);
     for (let i = 0; i < N; i++) {
-      const [wx, wz] = W[i];
+      const wx = W[i][0], wz = W[i][1];
       // each segment faces the one in front of it; the head faces away from the one behind (where it's going)
       const f = i === 0 ? W[0] : W[i - 1], b = i === 0 ? W[1] : W[i];
       const tx = f[0] - b[0], tz = f[1] - b[1];
@@ -1022,24 +1048,30 @@ export function buildMillipede() {
       pWalk.set((dx * c - dz * s) / sc, MIL.y, (dx * s + dz * c) / sc);
       qWalk.setFromAxisAngle(Y, Math.atan2(tx, tz) - ry);
       // the coil, spun about its axle
-      const C = coil.at[i];
-      pBall.copy(C.p).applyQuaternion(qSpin).add(coil.center);
+      const C = spiral.at[i];
+      pBall.copy(C.p).applyQuaternion(qSpin).add(spiral.center);
       qBall.copy(qSpin).multiply(C.q);
       // the tail curls in first, the head last
-      const ki = THREE.MathUtils.smoothstep(THREE.MathUtils.clamp(curl * 1.5 - (1 - i / N) * 0.5, 0, 1), 0, 1);
+      const ki = THREE.MathUtils.smoothstep(THREE.MathUtils.clamp(curl * 1.5 - (unroll ? i / N : 1 - i / N) * 0.5, 0, 1), 0, 1);   // and uncurls tail first, head last
       const S = segs[i];
       S.seg.position.lerpVectors(pWalk, pBall, ki);
-      S.seg.position.y += Math.sin(t * 9 - i * 0.7) * 0.015 * move * (1 - ki);   // a slight ripple as it goes
+      S.seg.position.y += Math.sin(t * 9 - i * 0.7) * (0.015 * move + wave) * (1 - ki);   // a slight ripple as it goes
       S.seg.quaternion.slerpQuaternions(qWalk, qBall, ki);
+      if (i === 0 && sway) S.seg.quaternion.multiply(qSway.setFromAxisAngle(Y, sway));
       if (S.legs) {
         // the leg wave: each pair steps a little after the one in front of it
         S.legs.rotation.x = Math.sin(t * 14 - i * 0.9) * 0.5 * (0.3 + move) * (1 - ki);
         S.legs.scale.setScalar(MIL.fat * (1 - ki * 0.6));          // tucked in when coiled
       }
     }
+    body.rotation.set(lean, 0, tilt);
+    body.position.set(0, 0, skid);
+    const w = 1 / Math.sqrt(len) * (1 + squat * 0.5);
+    body.scale.set(w, (1 - squat) / Math.sqrt(len), len);
+    if (K) eyes(face, K);
   };
-  anim.reset = () => { t = 0; move = 0; W.length = 0; };
-  return { body: outer, face: new THREE.Group(), anim, ballRadius: coil.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
+  anim.reset = () => { t = 0; move = 0; W.length = 0; body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); body.scale.set(1, 1, 1); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
+  return { body: outer, face: new THREE.Group(), anim, ballRadius: spiral.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
 }
 
 // ------------------------------------------------------------------ homing missile
@@ -1586,7 +1618,8 @@ export function buildMantis({ dead = false } = {}) {
   add(body, G.abdomenGeo, M.mtAbdomen);
   for (const s of [-1, 1]) { const w = add(body, G.wingGeo, M.mtWing); w.scale.x = s; w.position.y = s * 0.004; }
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.mtEye, V(s * 0.19, 1.24, 1.13)); e.rotation.y = s * 0.55; }
-  if (!dead) body.add(angryEyes({ y: 1.28, z: 1.22, size: 0.075, gap: 0.19 }));
+  const face = dead ? null : angryEyes({ y: 1.28, z: 1.22, size: 0.075, gap: 0.19 });
+  if (face) body.add(face);
   const tail = new THREE.Object3D();                                   // the tip of the abdomen (the worm comes out here)
   tail.position.copy(MANTIS.tail);
   body.add(tail);
@@ -1596,7 +1629,7 @@ export function buildMantis({ dead = false } = {}) {
     shoulder.rotation.y = s * 0.08;
     add(shoulder, G.coxa, M.mtBody);
     femur.position.z = 0.38; shoulder.add(femur); add(femur, G.femur, M.mtBody);
-    tibia.position.z = 0.5; femur.add(tibia); add(tibia, G.tibia, M.mtBody);
+    tibia.position.z = 0.5; tibia.name = 'foreleg'; femur.add(tibia); add(tibia, G.tibia, M.mtBody);   // (named: its hook is the striking part, motion/contact-pose-is-on-the-hit)
     body.add(shoulder);
     return { s, shoulder, femur, tibia };
   });
@@ -1610,7 +1643,6 @@ export function buildMantis({ dead = false } = {}) {
     legs.push({ s, pair, hip, phase: (pair + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });
   }));
   const pose = (P) => { for (const F of fore) { F.shoulder.rotation.x = P[0]; F.femur.rotation.x = P[1]; F.tibia.rotation.x = P[2]; } };
-  const mix = mixPose;
   if (dead) {
     // a carcass: rolled onto its side, the legs crumpled, the forelegs limp
     pose(LIMP);
@@ -1620,31 +1652,61 @@ export function buildMantis({ dead = false } = {}) {
     return { body: outer, face: new THREE.Group(), anim: null, rig: { body, tail } };
   }
   pose(PRAY);
-  let t = 0, k = 0, raise = 0, strike = 0;
+  const stuck = LOOK.num('bug-attack-mantis-stuck', 0.15);   // s a missed swat leaves its forelegs out, crossed
+  let t = 0, k = 0, walk = 1;
   const P = [0, 0, 0];
+  // its swat (attack-motion "swipe", src/attack-motion.js): rears and throws its forelegs open past raised, holds
+  // them quivering, goes dead still; the forelegs lead, snapping shut crossed (shoulder, then knee, then hook, a
+  // frame apart) and the body lunges after them; landed, the forelegs pull back in an arc to prayer as the body
+  // rocks back past upright; missed, they stay crossed and stuck out, head down, before it recovers
   const anim = (dt, e) => {
     t += dt;
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 6) - k) * (1 - Math.exp(-8 * dt));
-    raise += ((e.state === 'windup' ? 1 : 0) - raise) * (1 - Math.exp(-10 * dt));
-    strike += ((e.state === 'swat' ? 1 : 0) - strike) * (1 - Math.exp(-(e.state === 'swat' ? 40 : 6) * dt));
-    // forelegs: folded in prayer, raised and opened in the windup, lunging and snapping shut in the swat
-    mix(PRAY, RAISED, raise, P);
-    mix(P, STRUCK, strike, P);
+    const A = e.atk, ph = A ? A.phase : 'idle';
+    let z = 0, y = 0, rx = 0, cross = 0, len = 1, shake = 0;
+    if (ph === 'build') {
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary;      // open by 60% (0.18 s), past raised, then held
+      for (let i = 0; i < 3; i++) P[i] = PRAY[i] + (RAISED[i] - PRAY[i]) * c;
+      shake = (A.still ? 0 : 1) * quiver(A.k, A.t, e.phase) * A.quiet;
+      z = -0.1 * c; y = 0.06 * c; rx = -0.22 * c + (lockBeat(A) ? 0.08 : 0);   // the lock: its head dips at you
+    } else if (ph === 'swing') {
+      const u = A.pt / A.style.strike;
+      for (let i = 0; i < 3; i++) P[i] = RAISED[i] + (STRUCK[i] - RAISED[i]) * snap(u - i * 0.35, A.tier.over);
+      const b = snap(u - 0.7, A.tier.over);                            // the body two frames behind the forelegs
+      cross = snap(u - 0.35, A.tier.over);
+      z = -0.1 * A.vary + (0.45 * A.vary) * b; y = 0.06 * A.vary * (1 - b); rx = -0.22 * A.vary + 0.42 * b;
+      len = 1 + (A.tier.stretch - 1) * 0.5 * b;
+    } else if (ph === 'recoil') {
+      // a miss leaves the forelegs out, crossed, `stuck` s longer (the punish window), its head down
+      const span = Math.max(1e-3, A.len - A.style.follow), miss = !A.hit;
+      const q = miss ? Math.max(0, Math.min(1, (A.k * span - stuck) / Math.max(1e-3, span - stuck))) : A.k;
+      const h = heavy(q), u = 1 - h, rock = Math.sin(Math.PI * q) * 0.14;
+      mixPose(STRUCK, PRAY, u * 1.3, P, 0.15);                         // back to prayer, shoulder first, hook last
+      P[0] += (RAISED[0] - PRAY[0]) * Math.sin(Math.PI * u) * 0.35;    // up and round in an arc
+      cross = h;
+      z = 0.35 * A.vary * h; rx = 0.2 * h - rock * (miss ? 0.4 : 1) + (miss ? 0.18 * h : 0);
+    } else for (let i = 0; i < 3; i++) P[i] = PRAY[i];
     pose(P);
-    for (const F of fore) F.shoulder.rotation.x += Math.sin(t * 1.6 + e.phase) * 0.04 * (1 - raise);   // a slow sway as it watches you
-    const step = t * (3 + 10 * k), walk = 1 - Math.max(raise, strike);
+    for (const F of fore) {
+      F.shoulder.rotation.x += Math.sin(t * 1.6 + e.phase) * 0.04 * walk + shake * 0.08;   // a slow sway as it watches you; tension in the hold
+      F.tibia.rotation.x += shake * 0.1;
+      F.shoulder.rotation.y = F.s * (0.08 - 0.3 * cross);              // snapped shut past the middle: crossed
+      F.tibia.scale.z = A?.smear ? knobs().smear : 1;
+    }
+    const step = t * (3 + 10 * k);
+    walk += ((ph === 'idle' ? 1 : 0) - walk) * (1 - Math.exp(-12 * dt));   // its walk eases out as it attacks
     for (const L of legs) {
       L.hip.rotation.y = Math.sin(step + L.phase) * 0.35 * k * walk;
       L.hip.rotation.z = Math.max(0, Math.cos(step + L.phase)) * 0.2 * k * walk;
     }
-    // the body: a stalking sway, reared back in the windup, thrown forward in the swat
-    body.rotation.x = -raise * 0.22 + strike * 0.2;
-    body.position.z = -raise * 0.1 + strike * 0.35;
-    body.position.y = raise * 0.06;
-    body.rotation.z = Math.sin(step * 0.5) * 0.03 * k;
+    body.rotation.x = rx;
+    body.position.set(0, y, z);
+    body.rotation.z = Math.sin(step * 0.5) * 0.03 * k * walk;
+    stretch(body, len);
+    if (A && face) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; raise = 0; strike = 0; P.fill(0); };
+  anim.reset = () => { t = 0; k = 0; walk = 1; P.fill(0); stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const F of fore) { F.shoulder.rotation.y = F.s * 0.08; F.tibia.scale.z = 1; } face?.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -1924,19 +1986,23 @@ export function buildWorm() {
   const base = carcass.rig.tail.getWorldPosition(new THREE.Vector3());   // in the outer group's space (radius units)
   const beads = [];
   for (let i = 0; i < WORM.n; i++) { const b = new THREE.Mesh(GEO.wormBead, M.worm); b.visible = false; outer.add(b); beads.push(b); }
-  const pts = Array.from({ length: WORM.n + 1 }, () => new THREE.Vector3()), tmp = new THREE.Vector3(), A = new THREE.Vector3(), B = new THREE.Vector3();
+  const pts = Array.from({ length: WORM.n + 1 }, () => new THREE.Vector3()), tmp = new THREE.Vector3(), PA = new THREE.Vector3(), PB = new THREE.Vector3();
   const UPV = V(0, 1, 0), FWD = V(0, 0, 1), q = new THREE.Quaternion(), dir = new THREE.Vector3();
   // the poses, s from 0 (in the head) to 1 (the tip); d: the way it lashes (local, flat)
   const idle = (s, t, out) => {
     const a = s * 4.2 * Math.PI + t * 1.6, rho = 0.3 + 0.35 * s;
     return out.set(base.x + rho * Math.cos(a) - rho * 0.6, base.y + s * 1.8 + Math.sin(s * 9 + t * 3) * 0.08, base.z + rho * Math.sin(a));
   };
-  const back = (s, t, d, out) => {
+  const back = (s, t, d, wig, out) => {
     const lift = Math.sin(s * Math.PI * 0.9);
-    return out.set(base.x - d.x * lift * 1.3 + Math.sin(s * 12 + t * 8) * 0.06, base.y + s * 2.8 - Math.max(0, s - 0.75) * 2.4, base.z - d.z * lift * 1.3);
+    return out.set(base.x - d.x * lift * 1.3 + Math.sin(s * 12 + t * 8) * 0.06 * wig, base.y + s * 2.8 - Math.max(0, s - 0.75) * 2.4, base.z - d.z * lift * 1.3);
   };
   const lash = (s, len, d, out) => out.set(base.x + d.x * s * len, 0.06 + base.y * (1 - s) * (1 - s), base.z + d.z * s * len);
-  let t = 0, wind = 0, out = 0, grow = 0;
+  const smooth = (u) => { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); };
+  let t = 0, grow = 0;
+  // its whip (attack-motion "swipe", src/attack-motion.js): rears back into an S, holds it with the tip quivering,
+  // goes dead still; cracks down tip last, thinning as it stretches, and a ripple runs base to tip along the floor;
+  // then it lifts off base first, a wave running out to the tip, and sways back to idle
   const anim = (dt, e) => {
     t += dt;
     // where it lashes, in the body's own space (the body never turns: it's rooted)
@@ -1945,31 +2011,49 @@ export function buildWorm() {
     const len = (e.whipReach ?? 0.25) / e.r;
     const emerging = e.state === 'emerge';
     grow = emerging ? 0 : Math.min(1, grow + dt * 3);
-    wind += ((e.state === 'windup' ? 1 : 0) - wind) * (1 - Math.exp(-8 * dt));
-    out = e.state === 'lash' ? Math.min(1, out + dt / 0.12) : e.state === 'down' ? 1 : Math.max(0, out - dt * 2.5);
+    const K = e.atk, ph = K ? K.phase : 'idle';
+    let wind = 0, out = 0, rise = -1, wig = 1, tipQ = 0, thin = 0, rip = 0, at = 0, sway = 0;
+    if (ph === 'build') {
+      wind = coil(K.k, K.style.hold, K.style.over) * K.vary;           // reared back by 60%, past, then held
+      wig = K.still ? 0 : 1;
+      tipQ = wig * quiver(Math.max(0, (K.k - 0.57) / 0.43), K.t, e.phase) * K.quiet;   // the tip, over the last 0.3 s
+    } else if (ph === 'swing') {
+      // the lash (its step's own clock), then lying along its line (down); held as it was after that (the contact)
+      const lashing = K.key === 'lash', d = K.key === 'down' ? Math.min(1, K.st / Math.max(1e-3, K.len)) : lashing ? 0 : 1;
+      wind = K.vary; out = lashing ? Math.min(1, K.st / Math.max(1e-3, K.len)) : 1;
+      thin = 0.15 * (out < 1 ? out : 1 - d);
+      rip = 0.16 * (1 - d) * Math.min(1, d * 8); at = d * 1.2;            // a ripple running base to tip, dying away
+    } else if (ph === 'recoil') {
+      rise = K.k;
+      sway = settle(K.k, K.style.bounces, K.style.damp) * Math.min(1, K.pt / 0.15) * 0.35 * K.side;
+    }
     // the carcass twitches while the worm is coming
     body.rotation.x = emerging ? Math.sin(t * 40) * 0.05 * Math.min(1, t) : 0;
     for (let i = 0; i <= WORM.n; i++) {
       const s = (i / WORM.n) * grow;
-      idle(s, t, A);
-      back(s, t, dir, B);
-      A.lerp(B, wind);
-      if (out > 0) { const u = THREE.MathUtils.clamp(out * 1.6 - s * 0.6, 0, 1); A.lerp(lash(s, len, dir, B), u * u * (3 - 2 * u)); }   // the tip arrives last: a whip's crack
-      pts[i].copy(A);
+      idle(s, t, PA);
+      if (wind) PA.lerp(back(s, t, dir, wig, PB), wind);
+      if (tipQ) { const w = tipQ * 0.3 * s * s * s; PA.x += dir.z * w; PA.z -= dir.x * w; }
+      // on the floor along its line: lashing, the tip arrives last (a whip's crack); lifting off, the base goes first
+      const u = ph === 'swing' ? smooth(out * 1.6 - s * 0.6) : rise >= 0 ? 1 - smooth(rise * 1.8 - s * 0.8) : 0;
+      if (u > 0) PA.lerp(lash(s, len, dir, PB), u);
+      if (rip) { const g = (s - at) / 0.12; PA.y += rip * Math.exp(-g * g); }
+      if (sway) { const w = sway * s * (1 - u); PA.x += dir.z * w; PA.z -= dir.x * w; }
+      pts[i].copy(PA);
     }
     // the pieces, each from one point to the next (a little longer, so the joins close), thinning to the tip
     for (let i = 0; i < WORM.n; i++) {
       const b = beads[i], p = pts[i], n = pts[i + 1];
-      const l = tmp.copy(n).sub(p).length(), th = WORM.thick * (1 - 0.55 * i / WORM.n);
+      const l = tmp.copy(n).sub(p).length(), th = WORM.thick * (1 - 0.55 * i / WORM.n) * (1 - thin);
       b.visible = grow > 0.02;
       b.position.copy(p).add(n).multiplyScalar(0.5);
       if (l > 1e-5) b.quaternion.copy(q.setFromUnitVectors(FWD, tmp.divideScalar(l)));
-      b.scale.set(th, th, l * 1.15 + th * 0.5);
+      b.scale.set(th, th, (l * 1.15 + th * 0.5) * (K?.smear && i > WORM.n - 8 ? knobs().smear : 1));   // the smear frame: the tip stretched
     }
     // where the worm comes out, in the world: the burst and whip words read it
     (e.emergeAt ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
-  anim.reset = () => { t = 0; wind = 0; out = 0; grow = 0; };
+  anim.reset = () => { t = 0; grow = 0; };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
