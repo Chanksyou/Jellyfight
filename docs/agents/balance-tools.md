@@ -106,3 +106,13 @@ The pure checks run in `tests/check.mjs`.
 The browser smoke checks real shields/Health/healing, armor/vulnerability/overkill, mortal revival, current card values, prerequisite controls, deterministic replays and rooting.
 It forces boss victories only in the smoke harness to verify all four acts' evolution/reward/carry/ending paths; ordinary balance runs never force victories.
 These are tool checks, not evidence that a build or the whole game is balanced.
+
+## Act 4 encounter checks
+
+```powershell
+node tests/act4-tuning.mjs elite:bowl,elite:pillow,elite:headphones,elite:croc,pack4,pack3 --seeds=11,12,13 --types=normal,fire > .wrangler/act4.jsonl
+```
+
+A synthetic end-of-act-3 build (level 17, 12 Treasures, 3 Legendary picks, 4 Attack upgrades, rolled with the game's own functions) fights one Elite or a bug pack, with the sun and bass wave off, against the act 3 reference on the same seeds.
+The bot never dodges, so read Health lost as a ceiling for comparing before and after.
+It cannot play the Encore or the shark (`boss`, `boss-god` jobs exist but their results are not reliable): take boss times from the run log instead.

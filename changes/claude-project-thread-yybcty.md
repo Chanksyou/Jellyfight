@@ -1,0 +1,1 @@
+tunes act 4: the Elites in the living room have less Health (800 x 1.8 instead of 800 x 2.8, so they take about as long to beat as act 3's, and the Mushroom Pillow's spores hit for 3 instead of 4), the Encore has twice the Health (36000, so a fight takes about 2 to 3 minutes instead of about one), and the room sends 43% more bugs at once.
