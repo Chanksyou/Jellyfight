@@ -849,36 +849,79 @@ export function buildHouseFly() {
     }
   });
 
-  let t = 0, rub = 0, lunge = 0, aim = 1.15;
+  pad.name = 'tip';                              // (the stories look for where the straw ends)
+  let t = 0;
+  const BASE_Y = -0.14, BASE_Z = 0.74, AIM = 1.15, LEN = 0.22;   // where the straw hangs from (under its head), how it hangs at rest
+  // its poke (attack-motion "lunge", src/attack-motion.js): rubs its front legs, head drawing back and straw curling
+  // up; the rubbing stops dead and the legs spread (the tell); the straw shoots out on the word's own clock, the body
+  // following a frame late, stretched; held out its tip buzzes, dying away. Then the straw whips back and curls past
+  // its rest pose; landed, the head rocks back, missed it tips forward off balance; it wipes its face and squares up.
+  // The straw's tip is always drawn on the spot the poke tests (e.pokeAt), whatever the body is doing.
   const anim = (dt, e) => {
     t += dt;
-    rub += ((e.state === 'windup' ? 1 : 0) - rub) * (1 - Math.exp(-12 * dt));
-    lunge += ((e.state === 'poke' ? 1 : 0) - lunge) * (1 - Math.exp(-20 * dt));
-    // the straw: hanging down at rest, drawn back and curled in the windup, aimed and shot out in the poke
-    const k = e.pokeK || 0;
-    aim += ((e.state === 'windup' ? 1.45 : e.pokeK > 0 ? (e.pokePitch ?? 0.2) : 1.15) - aim) * (1 - Math.exp(-18 * dt));
-    straw.rotation.x = aim;
-    const len = THREE.MathUtils.lerp(e.state === 'windup' ? 0.14 : 0.22, e.pokeLen || 0.22, k);
-    trunk.scale.set(1, 1, len);
-    pad.position.z = len;
+    const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep, clamp = THREE.MathUtils.clamp;
+    let back = 0, rear = 0, len = 1, roll = 0, shake = 0, rub = 0, spread = 0, tuck = 0, bob = 1, aim = AIM, slen = LEN, hit = 0, ext = 0, nod = 0;
+    if (ph === 'build') {
+      const c = coil(A.k, A.style.hold, A.style.over) * A.vary, k = Math.min(1, c);
+      back = -0.25 * c; rear = 0.2 * c;
+      if (lockBeat(A)) rear -= 0.1;              // the lock: its head dips at you
+      aim = AIM + 0.3 * k; slen = LEN - 0.08 * k;
+      rub = A.still ? 0 : S(A.pt, 0, 0.06); spread = A.still ? 1 : 0;   // the rubbing stops dead, the legs spread: that is the tell
+      shake = (A.still ? 0 : quiver(A.k, A.t, e.phase)) * A.quiet;
+      bob = 1 - rub;
+    } else if (ph === 'swing') {
+      ext = e.state === 'poke' ? e.pokeK : 1;    // the straw, on the word's own clock (held out through the hold)
+      const k = ext * ext * ext, bk = k * ext;   // the body follows a frame late: a steeper curve
+      back = -0.25 * A.vary * (1 - bk) + 0.15 * bk; rear = 0.2 * A.vary * (1 - bk);
+      len = A.smear ? 1 + (knobs().smear - 1) * 0.5 : 1 + (A.tier.stretch - 1) * bk;
+      tuck = 1; bob = 0; hit = k;
+      aim = AIM + 0.3 * Math.min(1, A.vary); slen = LEN - 0.08 * Math.min(1, A.vary);
+    } else if (ph === 'recoil') {
+      const p = A.pt, b = settle(Math.min(1, p / 0.55), A.style.bounces, A.style.damp) * Math.min(1, p / 0.05), u = 1 - S(p, 0, 0.12);
+      back = 0.15 * u + (A.hit ? -0.3 : 0.12) * b; rear = (A.hit ? 0.45 : -0.35) * b;   // landed: head rocks back; missed: tips forward
+      roll = A.hit ? 0 : A.side * 0.2 * b;
+      len = 1 + (A.tier.stretch - 1) * u;
+      tuck = 1 - S(p, 0, 0.25); bob = S(p, 0.3, 0.7);
+      rub = S(p, 0.25, 0.3) * (1 - S(p, 0.65, 0.7));   // wipes its face with its front legs
+      nod = Math.sin(Math.PI * clamp((A.k - 0.9) * 10, 0, 1)) * 0.12;   // and squares up in the last 0.2 s
+      aim = AIM + 0.35 * settle(clamp((p - 0.1) / 0.55, 0, 1), 2, 2);   // curls past its rest pose and settles
+      hit = 1 - S(p, 0, 0.1);
+    }
+    const w = 1 / Math.sqrt(len), by = bob ? Math.sin(t * 5 + e.phase) * 0.08 * bob : 0, rx = 0.08 - rear + nod + shake * 0.04;
+    // the straw: from curled up to the spot it tests, as far as the strike has gone; the tip is solved in the body's
+    // own frame (its offset, tilt and stretch) so that at full reach it is on e.pokeAt
+    let sy = BASE_Y + slen * -Math.sin(aim), sz = BASE_Z + slen * Math.cos(aim);   // where the tip is without a strike
+    if (hit > 0 && e.pokeAt) {
+      const ry = e.root.rotation.y, dx = e.pokeAt.x - e.pos.x, dz = e.pokeAt.z - e.pos.z, sc = e.mesh.scale;
+      let ty = (e.pokeAt.y - e.pos.y) / sc.y - by, tz = (dx * Math.sin(ry) + dz * Math.cos(ry)) / sc.z - back;   // its frame, minus the body's offset
+      const cs = Math.cos(rx), sn = Math.sin(rx), y2 = ty * cs + tz * sn;
+      tz = (-ty * sn + tz * cs) / len; ty = y2 / w;                                       // un-tilt, un-stretch
+      sy += (ty - sy) * hit; sz += (tz - sz) * hit;
+    }
+    const dy = sy - BASE_Y, dz = sz - BASE_Z, buzz = A && ph === 'swing' && ext >= 1 ? Math.sin(t * 90) * 0.04 * S(A.pt, 0.09, 0.1) * (1 - S(A.pt, 0.1, 0.25)) : 0;
+    straw.rotation.x = Math.atan2(-dy, dz) + buzz;
+    const reach = Math.hypot(dy, dz);
+    trunk.scale.set(1, 1, reach);
+    pad.position.z = reach;
     for (const W of wings) W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 85 + (W.s > 0 ? 0 : 0.4)) * 0.75);   // a blur of wings
     for (const L of legs) {
       const sway = Math.sin(t * 3 + L.pair + e.phase) * 0.08;
       if (L.pair === 0) {
-        // the front pair: dangling, raised and rubbed together before a poke
-        L.hip.rotation.x = sway * (1 - rub) - rub * (1.15 + Math.sin(t * 32) * L.s * 0.18) + lunge * 0.3;
-        L.hip.rotation.z = -L.s * rub * (0.5 + Math.sin(t * 32 + 1) * 0.1);
+        // the front pair: dangling, raised and rubbed together before a poke (spread wide as it locks), and to wipe its face
+        L.hip.rotation.x = sway * (1 - rub) - rub * (1.15 + Math.sin(t * 32) * L.s * 0.18) + tuck * 0.3;
+        L.hip.rotation.z = -L.s * (rub * (0.5 + Math.sin(t * 32 + 1) * 0.1) + spread * 0.45);
       } else {
-        L.hip.rotation.x = sway + (L.pair === 2 ? 0.35 : 0.1) + lunge * 0.15;   // trailing back
+        L.hip.rotation.x = sway + (L.pair === 2 ? 0.35 : 0.1) + tuck * 0.15;   // trailing back
         L.hip.rotation.z = 0;
       }
     }
-    // the body: a hovering bob; reared back in the windup, a jab forward with the poke
-    body.position.y = Math.sin(t * 5 + e.phase) * 0.08 * (1 - rub);
-    body.position.z = -rub * 0.12 + lunge * 0.18;
-    body.rotation.x = 0.08 - rub * 0.2 + lunge * 0.12;
+    // the body: a hovering bob; reared back and drawn in for the poke, a jab forward with it
+    body.position.set(0, by, back);
+    body.rotation.set(rx, 0, roll + shake * 0.03);
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; rub = 0; lunge = 0; aim = 1.15; };
+  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); straw.rotation.x = AIM; trunk.scale.set(1, 1, LEN); pad.position.z = LEN; face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 
@@ -2192,7 +2235,8 @@ export function buildWasp() {
   add(body, G.body, M.wpBody);
   add(body, G.thoraxGeo, M.wpThorax);
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.wpEye, V(s * 0.24, 0.04, 0.88)); e.rotation.set(0.15, s * 0.5, 0); }
-  body.add(angryEyes({ y: 0.16, z: 1.02, size: 0.09, gap: 0.17 }));
+  const face = angryEyes({ y: 0.16, z: 1.02, size: 0.09, gap: 0.17 });
+  body.add(face);
   // the abdomen hangs from the waist, a little low, and pumps as it flies
   const tail = new THREE.Group();
   tail.position.set(0, -0.04, 0.02);
@@ -2200,6 +2244,11 @@ export function buildWasp() {
   body.add(tail);
   add(tail, G.gasterGeo, M.wpGaster, V(0, 0, -0.02));
   add(tail, G.sting, M.wpBody);
+  G.sting.computeBoundingBox();
+  const tip = new THREE.Object3D();                // where the sting ends (the stories look for it)
+  tip.name = 'tip';
+  tip.position.set(0, -0.03, G.sting.boundingBox.min.z);
+  tail.add(tip);
   const wings = [];
   for (const [geo, z, fore] of [[G.foreGeo, 0.52, true], [G.hindGeo, 0.36, false]]) for (const s of [-1, 1]) {
     const hinge = new THREE.Group(), flap = new THREE.Group();
@@ -2209,7 +2258,7 @@ export function buildWasp() {
     const m = add(flap, geo, M.wpWing);
     m.scale.x = s;
     body.add(hinge);
-    wings.push({ s, fore, flap });
+    wings.push({ s, fore, flap, hinge, sweep: hinge.rotation.y });
   }
   const legs = [];
   G.legs.forEach((L, pair) => [-1, 1].forEach((s) => {
@@ -2220,20 +2269,51 @@ export function buildWasp() {
     body.add(hip);
     legs.push({ s, pair, hip });
   }));
-  let t = 0, wind = 0;
+  let t = 0;
+  const CURL = 2.25;   // how far the abdomen curls under to point its sting ahead (radians, past its rest angle)
+  // its dive (attack-motion "lunge", src/attack-motion.js): rears, the abdomen curling under to point the sting at
+  // you, pumping faster; the pumping stops and the wings sweep half back; it darts nose-down along its line, wings
+  // held swept back, stretched, legs tucked, the sting ahead. A miss pulls up (a landed sting kills it): its nose
+  // swings through level, it banks, and its wings start up again, fore then hind.
   const anim = (dt, e) => {
     t += dt;
-    const ph = e?.phase || 0, speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
-    for (const W of wings) W.flap.rotation.z = W.s * (0.1 + Math.sin(t * 80 + (W.fore ? 0 : 0.5)) * 0.7);   // a blur of wings
-    for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15 + Math.sin(t * 3 + L.pair + ph) * 0.06;   // hanging, trailing back
-    // winding up to sting: it rears, abdomen curled forward under it; diving: nose down along its line
-    wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-10 * dt));
-    const diving = e?.state === 'dive' && e.diveDir;
-    tail.rotation.x = -0.35 - wind * 0.9 + Math.sin(t * (6 + wind * 20) + ph) * 0.06;   // the abdomen pumps, faster as it winds up
-    body.position.y = Math.sin(t * 5 + ph) * 0.08 * (1 - wind);
-    body.rotation.x = diving ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) + 0.3 : 0.05 + Math.min(1, speed * 4) * 0.15 - wind * 0.5;
+    const ph0 = e?.phase || 0, speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0, A = e?.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    let rear = 0, curl = 0, pump = 6, still = 0, sweep = 0, foreAmp = 1, hindAmp = 1, tuck = 0, len = 1, roll = 0, bob = 1, pitch = 0.05, dive = 0;
+    const down = e?.diveDir ? Math.asin(THREE.MathUtils.clamp(-e.diveDir.y, -1, 1)) : 0;   // its nose-down angle along the dive line
+    if (ph === 'build') {
+      const c = Math.min(1.1, coil(A.k, A.style.hold, A.style.over) * A.vary);
+      rear = 0.52 * c; curl = c; pump = 6 + 20 * A.k;
+      if (lockBeat(A)) rear -= 0.1;              // the lock: its nose dips at you
+      still = A.still ? 1 : 0; sweep = still * 0.5;   // the last 0.1 s: the pumping stops, the wings sweep half back
+      roll = (1 - still) * quiver(A.k, A.t, ph0) * 0.05 * A.quiet;
+      bob = 0;
+    } else if (ph === 'swing') {
+      dive = S(A.pt, 0, 0.06);                   // tips over, not jumps, to nose-down
+      rear = 0.52 * Math.min(1, A.vary) * (1 - dive); curl = 1; pitch = 0.05 + (down - 0.05) * dive; sweep = 1; still = 1; tuck = 1;
+      foreAmp = hindAmp = 0;                     // no flapping: a dart silhouette
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * dive;
+      bob = 0;
+    } else if (ph === 'recoil') {
+      const u = settle(A.k, A.style.bounces, A.style.damp), p = A.pt;
+      pitch = 0.05 + (down - 0.05) * u; curl = S(1 - p / 0.4, 0, 1); sweep = 1 - S(p, 0.05, 0.3); tuck = 1 - S(p, 0, 0.3);
+      roll = A.side * 0.52 * Math.sin(Math.PI * Math.min(1, p / 0.6));   // banks past level
+      foreAmp = S(p, 0.1, 0.25); hindAmp = S(p, 0.2, 0.35);              // the wings restart, fore then hind
+      len = 1 + (A.tier.stretch - 1) * Math.max(0, u);
+      bob = S(p, 0.3, 0.6);
+    } else pitch += Math.min(1, speed * 4) * 0.15;
+    for (const W of wings) {
+      const amp = W.fore ? foreAmp : hindAmp;
+      W.flap.rotation.z = W.s * (0.1 + Math.sin(t * 80 + (W.fore ? 0 : 0.5)) * 0.7 * amp);   // a blur of wings
+      W.hinge.rotation.y = W.sweep + W.s * sweep * 0.45;
+    }
+    for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15 + Math.sin(t * 3 + L.pair + ph0) * 0.06 * (1 - tuck) + tuck * 0.5;   // hanging, trailing back (tucked in a dive)
+    tail.rotation.x = -0.35 - curl * CURL + Math.sin(t * pump + ph0) * 0.06 * (1 - still);   // the abdomen pumps, faster as it winds up
+    body.position.y = Math.sin(t * 5 + ph0) * 0.08 * bob;
+    body.rotation.set(pitch - rear, 0, roll);
+    stretch(body, len);
+    if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; wind = 0; };
+  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 

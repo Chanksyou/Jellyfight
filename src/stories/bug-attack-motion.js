@@ -106,7 +106,7 @@ story('attacks/animation-never-moves-a-hit', {
 
 // ------------------------------------------------------------------ how an attack moves (src/attack-motion.js)
 // Bugs whose attack still moves the old way: wave 1 of the plan converts them, then this list is empty.
-const KNOWN_UNCONVERTED = ['roach', 'ants', 'housefly', 'spider', 'ladybug', 'dragonfly', 'beetle', 'wasp', 'firefly'];
+const KNOWN_UNCONVERTED = ['roach', 'ants', 'spider', 'ladybug', 'dragonfly', 'beetle', 'firefly'];
 // Words that set a state but aren't an attack with a build-up: the worm bursting out of the mantis once
 const NOT_ATTACK_STATES = ['burst'];
 
@@ -199,14 +199,16 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 });
 
 // the bugs converted to an attack-motion, each filmed through one attack
-const CONVERTED = ['mosquito', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede'];
+const CONVERTED = ['mosquito', 'housefly', 'wasp', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede'];
+// a Wasp that stings dies doing it, so only its miss has a recoil to film
+const filmed = (id, o = {}) => film(id, { miss: id === 'wasp', probe: PROBES[id], ...o });
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug\'s attack (the Mosquito\'s bite, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
     const out = {};
     for (const id of CONVERTED) {
-      const F = film(id, { probe: PROBES[id] }), idle = F.find((f) => f.phase === 'idle');
+      const F = filmed(id), idle = F.find((f) => f.phase === 'idle');
       const order = F.map((f) => f.phase).filter((p, i, a) => p !== a[i - 1] && p !== 'idle').join(' ');
       const far = (phase) => +Math.max(...of(F, phase).map((f) => Math.max(apart(f, idle), Math.abs(f.y - idle.y)))).toFixed(3);   // (its height too: a Cicada sinks)
       out[id] = { order, build: far('build'), swing: far('swing'), recoil: far('recoil') };
@@ -216,7 +218,7 @@ story('motion/attack-has-three-phases', {
 });
 
 story('motion/contact-pose-is-on-the-hit', {
-  about: 'On its contact pose the striking part is drawn where the hit is tested: a Praying mantis\'s foreleg hooks lie inside the wedge its swat tests, and a Horsehair worm\'s tip lies on the floor at the end of the line its whip tests (within 1 cm), low enough that a jump still clears it.',
+  about: 'On its contact pose the striking part is drawn where the hit is tested: a Praying mantis\'s foreleg hooks lie inside the wedge its swat tests, a Horsehair worm\'s tip lies on the floor at the end of the line its whip tests (within 1 cm), low enough that a jump still clears it, a House fly\'s straw tip is on the spot its poke tests (within 1 cm), and a Wasp\'s sting tip is on the jelly (within 1 cm of its surface) with its body where the bug really is, on the frame its sting is tested.',
   setup() {},
   async play() {
     const kdl = parse(await (await fetch('content/enemies.kdl')).text());
@@ -241,7 +243,34 @@ story('motion/contact-pose-is-on-the-hit', {
       const side = Math.abs((f.p[0] - f.from[0]) * f.dir[1] - (f.p[2] - f.from[2]) * f.dir[0]);
       worm = Math.max(worm, Math.abs(along - whip.reach) - 0.01, side - 0.01, f.p[1] - f.floor - 0.03);
     }
-    return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4) });
+    // the House fly's straw tip and the Wasp's sting tip: on the frame their hit is tested
+    const out = {}, v = new THREE.Vector3(), tipAt = (e) => { e.mesh.updateWorldMatrix(true, true); return e.mesh.getObjectByName('tip').getWorldPosition(v); };
+    {
+      const S = stage(ATTACKS.find((a) => a.id === 'housefly'), { hurt: true });
+      try {
+        while (S.frame < MAX_FRAMES && !S.found) S.advance();
+        const e = S.e;
+        out.housefly = { found: !!S.found, phase: e.atk.phase, tipOff: mm(tipAt(e).distanceTo(e.pokeAt)) };
+      } finally { S.done(); }
+    }
+    {
+      let seen = null;
+      // (its hit test is the sting call, and the sting kills it: look at it as it is called)
+      const a = { ...ATTACKS.find((x) => x.id === 'wasp'), aim: (e, c) => {
+        const pc = c.realPc || c.pc, body = e.mesh.children[0];
+        e.mesh.updateWorldMatrix(true, true);
+        const mesh = e.mesh.getWorldPosition(new THREE.Vector3()), b = body.getWorldPosition(new THREE.Vector3());
+        seen = { phase: e.atk.phase, drawnOff: mm(b.distanceTo(mesh)), tipFromSurface: mm(tipAt(e).distanceTo(pc) - (G().enemies.playerRadius || 0.03)) };
+        return null;
+      } };
+      const S = stage(a, { hurt: true });
+      try {
+        while (S.frame < MAX_FRAMES && !S.found) S.advance();
+        out.wasp = { found: !!S.found, ...seen };
+      } finally { S.done(); }
+    }
+    const bugs = out.housefly.found && out.housefly.phase === 'swing' && out.housefly.tipOff <= 10 && out.wasp.found && out.wasp.phase === 'swing' && out.wasp.drawnOff <= 10 && Math.abs(out.wasp.tipFromSurface) <= 10;
+    return ok(held.length >= 2 && mantis <= 0 && tips.length >= 2 && worm <= 0 && bugs, { mantisHeld: held.length, mantisOutside: +mantis.toFixed(4), wormFrames: tips.length, wormOff: +worm.toFixed(4), ...out });
   },
 });
 
@@ -275,20 +304,27 @@ story('motion/build-up-holds-its-pose', {
 });
 
 story('motion/a-miss-recovers-differently', {
-  about: 'A Mosquito whose bite lands bounces back squashed; one that misses carries on past and rolls. A Praying mantis whose swat misses leaves its forelegs crossed and stuck out --bug-attack-mantis-stuck s longer than one that lands. So the moment to hit back shows on the bug.',
+  about: 'A Mosquito whose bite lands bounces back squashed; one that misses carries on past and rolls. A House fly whose poke lands rocks its head back; one that misses tips forward off balance. A Praying mantis whose swat misses leaves its forelegs crossed and stuck out --bug-attack-mantis-stuck s longer than one that lands. So the moment to hit back shows on the bug.',
   setup() {},
   play() {
     const H = of(film(), 'recoil'), M = of(film('mosquito', { miss: true }), 'recoil');
     const at = (R, k) => R.find((f) => f.k >= k) || R.at(-1);
     const h = at(H, 0.05), m = at(M, 0.05);
     const landed = H[0]?.hit && h.z < -0.2 && h.sz < 0.95, missed = M[0] && !M[0].hit && m.z > 0.05 && Math.abs(m.rz) > 0.2;
+    // the House fly: landed, its head rocks back (nose up, drawn back); missed, it tips forward off balance
+    // (the fly hovers against the jelly, so its touch is switched off: only the poke can hurt, or miss)
+    const noTouch = () => { stub(G().run, 'contactDamage', () => {}); return null; };
+    const FH = of(film('housefly', { also: noTouch }), 'recoil'), FM = of(film('housefly', { miss: true, also: noTouch }), 'recoil');
+    const lo = (R, key) => Math.min(...R.map((f) => f[key])), hi = (R, key) => Math.max(...R.map((f) => f[key]));
+    const flyHit = FH[0]?.hit && lo(FH, 'rx') < -0.1 && lo(FH, 'z') < -0.1, flyMiss = FM[0] && !FM[0].hit && hi(FM, 'rx') > 0.25 && hi(FM, 'z') > 0.05 && hi(FM, 'rz') > 0.1;
     // the mantis: how far its forelegs are still swung in (crossed), 0.1 s after the follow-through hold
     const when = knobs().style.swipe.follow + 0.1, near = (R) => R.reduce((b, f) => (Math.abs(f.pt - when) < Math.abs(b.pt - when) ? f : b), { pt: 9, p: [0] });
     const MH = of(film('mantis', { probe: mantisProbe }), 'recoil'), MM = of(film('mantis', { miss: true, probe: mantisProbe }), 'recoil');
     const full = 0.3 - 0.08;   // fully crossed: the shoulders swung in 0.3 past their 0.08 rest (buildMantis)
     const ch = near(MH).p[0], cm = near(MM).p[0], back = MM.at(-1)?.p[0] ?? 9;
     const stuck = MH[0]?.hit && MM[0] && !MM[0].hit && cm >= full - 0.01 && ch < cm - 0.03 && Math.abs(back - 0.08) < 0.02;   // and it does uncross
-    return ok(landed && missed && stuck, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit }, mantis: { landedCross: +ch.toFixed(3), missedCross: +cm.toFixed(3), missEnd: +back.toFixed(3), hit: MH[0]?.hit, missHit: MM[0]?.hit } });
+    return ok(landed && missed && stuck && flyHit && flyMiss, { hit: { z: +h.z.toFixed(3), squash: +h.sz.toFixed(3) }, miss: { z: +m.z.toFixed(3), roll: +m.rz.toFixed(3), hit: M[0]?.hit }, mantis: { landedCross: +ch.toFixed(3), missedCross: +cm.toFixed(3), missEnd: +back.toFixed(3), hit: MH[0]?.hit, missHit: MM[0]?.hit },
+      flyHit: { rx: +lo(FH, 'rx').toFixed(3), z: +lo(FH, 'z').toFixed(3), hit: FH[0]?.hit }, flyMiss: { rx: +hi(FM, 'rx').toFixed(3), z: +hi(FM, 'z').toFixed(3), rz: +hi(FM, 'rz').toFixed(3), hit: FM[0]?.hit } });
   },
 });
 
@@ -340,12 +376,12 @@ story('motion/attack-pose-is-the-same-at-30-and-60', {
 });
 
 story('motion/attacks-never-recolour-the-bug', {
-  about: 'No material on an attacking bug (each converted one: Mosquito, Spotted lanternfly, Moth, Cicada) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
+  about: 'No material on an attacking bug (each converted one: Mosquito, House fly, Wasp, Spotted lanternfly, Moth, Cicada) changes through its build-up and swing: no flash, blink or colour change on a bug that attacks (the owner\'s rule; only being hit flashes it white). The lanternfly\'s red shows only because its wings open.',
   setup() {},
   play() {
     const out = {};
     for (const id of CONVERTED) {
-      const F = film(id).filter((f) => f.phase === 'build' || f.phase === 'swing');
+      const F = filmed(id).filter((f) => f.phase === 'build' || f.phase === 'swing');
       out[id] = { frames: F.length, recoloured: F.filter((f) => f.recolour).length };
     }
     return ok(Object.values(out).every((o) => o.frames > 3 && !o.recoloured), out);
