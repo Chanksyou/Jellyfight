@@ -144,6 +144,7 @@ export class EncoreFloor {
     this.turn = 0;                                        // whose wave is next, when a cast doesn't say
     this.reacting = { silver: null, gold: null };         // a DJ's reaction ({ move, at }) takes over from his wave's gesture while it plays
     this.playing = { silver: false, gold: false };
+    this.held = { silver: false, gold: false };           // set by the Encore while it moves that DJ itself (his solo, his bow)
     this.hot = new Float32Array(N * N); this.who = new Uint8Array(N * N);
     this.lit = false;
     // the volumes over the hot tiles: one instanced draw, unlit, no depth write, black (unseen) when idle
@@ -211,6 +212,7 @@ export class EncoreFloor {
   gesture(dj, c, beat) {
     const B = this.arena.boss, r = this.reacting[dj];
     if (r && beat >= r.at + 1.5) this.reacting[dj] = null;
+    if (this.held[dj]) { this.reacting[dj] = null; this.playing[dj] = false; return; }   // the Encore has him (a solo, a bow): no gesture over it
     const now = this.reacting[dj];
     if (now) B.perform?.(dj, now.move, now.at);
     else if (c) {

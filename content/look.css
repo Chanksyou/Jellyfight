@@ -683,6 +683,16 @@
   --burrow-dome-glow: 0.8;       /* and the dome's brightness (the normal volume's is --warning-volume-glow) */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
+  --encore-record-radius: 0.055; /* m: the silver DJ's records (11 cm across), standing on edge where they land (encore-records.js) */
+  --encore-record: #0b0c10;      /* their vinyl */
+  --encore-record-label: #9bbaff; /* their label: his helmet's piping, not the hostile blue (a standing record is harmless) */
+  --encore-record-edge: 0.06;    /* m: a record never lands nearer than this to the boss's reserved space */
+  --encore-record-warning: 0.6;  /* its floor strip's strength, and the lane's over it */
+  --encore-record-volume: 0.25;
+  --encore-record-shards: 16;    /* shards when a record shatters */
+  --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
+  --encore-spotlight-opacity: 0.22;
+  --encore-spotlight-radius: 0.09; /* m: its pool on the booth */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
   --encore-sparks: #fff6c8 #ffd23a #ff8a1e;   /* the flash where sparks spray out of its booth */
   --encore-spark-hot: #ffe58a;   /* each spark streak, white-hot as it leaves... */

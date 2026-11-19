@@ -111,6 +111,7 @@ body.calm #hud .shield-bar.charging > i::after { animation: none; opacity: 0; }
 #hud .boss { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 116px); transform: translateX(-50%); width: min(460px, 70vw); text-align: center; }
 #hud .boss .bar { height: 14px; }
 #hud .boss.shield .bar { --fill: var(--ui-epic); border-color: var(--ui-epic); }   /* shielded (the Vacuum's lanternflies): nothing gets through */
+#hud .boss.exposed .bar { --fill: var(--ui-gold); border-color: var(--ui-gold); }   /* exposed (the Encore bowing): hits do more */
 #hud .elite { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 66px); transform: translateX(-50%); width: min(320px, 56vw); text-align: center; }
 #hud .elite .bar { height: 12px; }
 #hud :is(.boss, .elite) .nm { margin-bottom: 4px; font: 700 var(--ui-size-label)/1.2 var(--ui-font-text); letter-spacing: .1em; text-shadow: var(--hud-outline); }
@@ -172,7 +173,7 @@ body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); 
 export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
-    bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText }) => this.setBoss(name, hp / maxHp, shielded, shieldText));
+    bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText, exposed }) => this.setBoss(name, hp / maxHp, shielded, shieldText, exposed));
     bus.on('xp_collected', ({ amount }) => this.pulseXp(amount));
     this.el = document.createElement('div');
     this.el.id = 'hud';
@@ -446,13 +447,15 @@ export class Hud {
   setEasy(on) { this.$('.easy-badge').hidden = !on; }
   setStage(text) { this.set('stage', '.stage', () => text); }
 
-  // shielded: the bar turns purple and says so (the Vacuum's lanternflies)
-  setBoss(name, frac, shielded = false, shieldText = 'SHIELDED') {
+  // shielded: the bar turns purple and says so (the Vacuum's lanternflies); exposed: it turns gold and
+  // says EXPOSED (the Encore bowing: hits do more)
+  setBoss(name, frac, shielded = false, shieldText = 'SHIELDED', exposed = false) {
     const b = this.$('.boss');
     b.hidden = name == null;
     if (name == null) return;
     b.classList.toggle('shield', shielded);
-    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : name.toUpperCase()));
+    b.classList.toggle('exposed', !shielded && !!exposed);
+    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : exposed ? `${name.toUpperCase()} · EXPOSED` : name.toUpperCase()));
     this.$('.boss i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 

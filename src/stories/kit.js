@@ -510,7 +510,10 @@ export const EVERY_ATTACK = {
     // Floor waves have no Warning by decision (you watch the wave come: docs/adr/0001); a laser's
     // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
     // stage edge is a hazard
-    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' } },
+    // The silver DJ's records: a floor strip and the lane over it, from a solo booked on the next bar but one
+    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' },
+      records: { is: 'volume', scene: 2, start: () => { const B = G().run.boss; B.slot('silver', Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4); },
+        during: () => G().run.boss.records.casts.some((c) => c.warn), end: () => G().run.boss.stopActs() } },
     // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line
     sun: { light: { is: 'hazard' } },
     // the room's bass wave (bass-wave.js): a floor strip and its volume over the bar before it goes. Only
