@@ -307,11 +307,11 @@ story('motion/recoil-ends-ready', {
 });
 
 story('motion/half-rate-shows-the-same-pose', {
-  about: 'A far bug (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock. Proven on each converted bug.',
+  about: 'A far bug (its anim run on alternate frames with both frames\' time) shows the same attack pose as a near one on the frames it is drawn: poses are a function of the attack clock. Proven on the Mosquito and the five throws.',
   setup() {},
   play() {
     const bugs = {};
-    for (const id of CONVERTED) {
+    for (const id of ['mosquito', ...THROWS]) {   // (each bug's own wave adds its case when its pose is only the clock's)
       const N = film(id), F = film(id, { far: true });
       let worst = 0, compared = 0;
       for (let i = 0; i < Math.min(N.length, F.length); i++) {
