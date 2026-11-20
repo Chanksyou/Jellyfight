@@ -211,16 +211,17 @@ export class Encore {
     return _spot;
   }
   // EXPOSED: bowing after a solo, or both DJs bowing in the song's breakdown: hits do bosses.kdl `solo exposed` x
+  // (the duet on the floor bows at bowAt, after pushing the wall out: exposed from the bow, not the push)
   get exposed() {
     const b = this.beat, S = this.solo;
     if (b === null || this.dead || this.cut || this.falling || this.shielded) return false;
-    return !!(S && S.bowEnd !== null && b >= S.end && b < S.bowEnd) || (this.quiet(b) && this.quiet(b - 1));   // (the breakdown's bow is down a beat in)
+    return !!(S && S.bowEnd !== null && b >= (S.bowAt ?? S.end) && b < S.bowEnd) || (this.quiet(b) && this.quiet(b - 1));   // (the breakdown's bow is down a beat in)
   }
   // the word after its name on the boss bar: the soloing DJ, or the bow (hits do more)
   get tag() {
     const S = this.solo, b = this.beat;
     if (this.exposed) return 'BOW · EXPOSED';
-    return S && b !== null && b >= S.at && b < S.end ? (S.who === 'duet' ? 'DUET' : `${S.who.toUpperCase()} DJ SOLO`) : null;
+    return S && b !== null && b >= S.at && b < (S.bowAt ?? S.end) ? (S.who === 'duet' ? 'DUET' : `${S.who.toUpperCase()} DJ SOLO`) : null;
   }
   // its first-time lines: the last song (a toast each fight), and the hints (once ever): the first bow,
   // the first DJ landing on the floor, the first duet record standing before its wall
@@ -284,7 +285,7 @@ export class Encore {
     }
     // the duet on the floor: both push the wall out as it rolls, then bow
     if (S.bowAt > S.end && S.bowing && !S.bowed && beat >= S.bowAt - 1) { S.bowed = true; for (const d of who) M.perform(d, 'bow', S.bowAt, 1, S.down); }
-    if (S.bowing && !S.exhaled && beat >= S.end) { S.exhaled = true; if (beat < S.end + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
+    if (S.bowing && !S.exhaled && beat >= (S.bowAt ?? S.end)) { S.exhaled = true; if (beat < (S.bowAt ?? S.end) + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
     // the spotlight and his wing come up over the beat before his solo and go down over the beat after
     // (on the floor: up over the beat after he is booked, and on him till he is home)
     S.on = S.mark ? Math.min(1, Math.max(0, beat - (S.at - 5))) : beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
@@ -301,7 +302,7 @@ export class Encore {
   // same whoosh and thud; a duet's push on its roll beat
   floorSounds(S, beat, air) {
     const heard = (S.heard ||= {}), once = (k, at, play) => { if (!heard[k] && beat >= at) { heard[k] = 1; if (beat < at + 1) play(); } };
-    once('off', S.off, () => { sfx.vaultWhoosh(); sfx.crowdRise(air * 60 / TRACKS.encore.bpm); });
+    once('off', S.off, () => { sfx.vaultWhoosh(); sfx.crowdRise((S.at - S.off) * 60 / TRACKS.encore.bpm); });   // (booked late: only the air left)
     once('down', S.at, () => sfx.landThud());
     if (S.bowEnd !== null) { once('back', S.bowEnd - air, () => sfx.vaultWhoosh()); once('home', S.bowEnd, () => sfx.landThud()); }
     if (S.bowAt > S.end) once('push', S.end, () => sfx.wallShove());
