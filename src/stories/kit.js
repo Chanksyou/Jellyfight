@@ -58,9 +58,9 @@ export function restore() {
   }
 }
 // A clean run with the noise switched off: no waves, no scheduled treasures, no level-ups, no dying
-// (each can be turned back on), and the start pick skipped. types: '<id>'
+// (each can be turned back on), the reward spin off, and the start pick skipped. types: '<id>'
 // starts the run as that type (src/jelly-types.js); left out, Normal.
-export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null } = {}) {
+export function fresh({ waves = false, treasures = false, hurt = false, levels = false, elites = true, bubbles = true, lash = true, firstRun = false, types = null, spin = false } = {}) {
   const { run, menus, enemies, mainMenu } = G();
   restore();
   TYPE_PICK.start = types || 'normal';
@@ -74,6 +74,7 @@ export function fresh({ waves = false, treasures = false, hurt = false, levels =
   G().touch.setTurnHint(firstRun);         // the camera-turn hint (touch.js) as a new player sees it, else gone
   run.startPicked = !firstRun;          // the start pick is skipped, unless the story is about it
   menus.close();
+  if (!spin) stub(menus, 'spinOn', false);   // the reward spin (spin-screen.js) is off, so picks open as they always have
   if (!waves) stub(run, 'spawnWaves', () => {});
   if (!treasures) stub(run, 'scheduleTreasures', () => {});   // elites' chests still work
   if (!hurt) stub(run, 'hurt', () => {});

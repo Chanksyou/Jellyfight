@@ -5,7 +5,7 @@ import { CONTENT } from '../content.js';
 import { RARITY, TREASURES, CHEST_WEIGHTS, rollCards, cardAmount } from '../stats.js';
 import { tierOdds, buildStrips, spinCells, spinTimes } from '../spin.js';
 import { seededRandom } from '../story-random.mjs';
-import { G, story, ok, fresh, stub, give } from './kit.js';
+import { G, story, ok, fresh, stub, give, step } from './kit.js';
 
 const card = (stat, tier) => ({ stat, rarity: RARITY[tier], amount: CONTENT.levelups.cards[stat].amounts[tier] });
 const treasuresOf = (rarity, n) => TREASURES.filter((t) => t.rarity === rarity && G().run.takeable(t)).slice(0, n);
@@ -234,5 +234,179 @@ story('spin/owed-cards-stay-rerolls-upgrade', {
     const owed = sameCards(shown, three) && !shown.some((c) => c.upgraded);
     const again = reroll();
     return ok(owed && again.filter((c) => c.upgraded && c.rarity.id === 'rare').length === 1, { owed, again: again.map((c) => c.rarity.id) });
+  },
+});
+
+// --- the machine (src/spin-screen.js): stories open a pick with the spin on (fresh({ spin: true })) and step the game's clock
+const spinning = () => G().menus._spin;
+const machine = () => document.querySelector('.jf-modal .jf-spin');
+const shownCards = () => [...document.querySelectorAll('.jf-modal .jf-card')];
+// each reel's payline card, as the screen shows it: its rarity and name
+const paylines = () => [...document.querySelectorAll('.jf-spin .sp-reel')].map((r) => { const c = r.querySelector('.sp-cell.win'); return { r: c?.dataset.r, name: c?.querySelector('.nm').textContent }; });
+const tierId = (c) => c.rarity?.id ?? c.rarity;
+// a level-up as the game opens one (levels are stubbed off in stories), its roll swapped for `cards` when given;
+// the reels' filler stays the real roll
+function openLevelUp(cards = null) {
+  const { run } = G(), proto = Object.getPrototypeOf(run);
+  if (cards) stub(run, 'rollLevelUp', (n = 3, rng) => (rng ? proto.rollLevelUp.call(run, n, rng) : cards.map((c) => ({ ...c }))));
+  stub(run.hud, 'levelDing', () => {});
+  run.pendingLevels = 1;
+  proto.levelUp.call(run);
+}
+// step the game until the spin hands over to the cards (or `max` frames); -> frames stepped
+const untilCards = (max = 400) => step(max, () => !spinning());
+
+story('spin/cards-follow-the-spin', {
+  about: 'A level-up and a chest open on the machine, not the cards; each reel lands on the offered card in order, and the cards deal in by themselves once the reels have landed and held (no tap needed).',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G(), res = {};
+    for (const kind of ['levelup', 'treasure']) {
+      if (kind === 'levelup') openLevelUp(); else run.pickTreasure('A treasure!', 'Choose a treasure.', 'room');
+      const offer = kind === 'levelup' ? run.cardsOnOffer : spinning().o.offer, sp = spinning();
+      const first = !!machine() && !shownCards().length && !!sp;
+      const T = sp.times, want = T.lever + Math.max(...T.stops) + T.hold;
+      const landedAt = step(400, () => sp.reels.every((r) => r.landed)) + 1, lines = paylines();
+      const frames = landedAt + untilCards();
+      const names = shownCards().map((b) => b.querySelector('.ui-card-name').textContent);
+      res[kind] = { first, lines: lines.every((l, i) => l.r === tierId(offer[i])), cards: names.length === offer.length,
+        inOrder: lines.every((l, i) => names[i] === l.name), ms: Math.round(frames * 1000 / 60), want };
+      res[kind].ok = res[kind].first && res[kind].lines && res[kind].cards && res[kind].inOrder && Math.abs(res[kind].ms - want - 120) < 80;
+      G().menus.close();
+    }
+    return ok(res.levelup.ok && res.treasure.ok, res);
+  },
+});
+
+story('spin/tap-lands-the-reels', {
+  about: 'A tap while the reels roll lands every one within 150 ms; number keys and R do nothing yet; a second tap during the hold goes straight to the cards.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    openLevelUp();
+    const sp = spinning(), rerolls = run.rerolls;
+    step(20);   // the lever is down and the reels are rolling
+    const rolling = sp.reels.filter((r) => !r.landed).length;
+    for (const code of ['Digit1', 'KeyR']) dispatchEvent(new KeyboardEvent('keydown', { code }));
+    const keysIgnored = !!spinning() && run.choosingCard && run.rerolls === rerolls;
+    machine().click();
+    const quick = sp.reels.every((r) => r.landed || r.anim.effect.getTiming().duration <= 150);
+    step(10);   // 167 ms
+    const landed = sp.reels.every((r) => r.landed) && sp.phase === 'hold';
+    machine().click();
+    step(10);   // the machine leaves (120 ms)
+    const cards = shownCards().length === 3 && !spinning();
+    return ok(rolling > 0 && keysIgnored && quick && landed && cards, { rolling, keysIgnored, quick, landed, cards });
+  },
+});
+
+story('spin/reroll-spins-again', {
+  about: 'A tap in the first moment after the spin hands over picks nothing (it was meant to skip); then a reroll sends the cards off and plays the short spin again with the new roll, which its reels land on before the new cards deal in.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    run.rerolls = 1;
+    openLevelUp();
+    untilCards();
+    const before = run.cardsOnOffer;
+    document.querySelector('.jf-modal [data-act="reroll"]').click();
+    const early = run.cardsOnOffer === before;   // a tap straight after the hand-over (meant to skip) is ignored
+    step(20);
+    document.querySelector('.jf-modal [data-act="reroll"]').click();
+    const leaving = !!document.querySelector('.jf-modal .jf-level.ui-leave') && !machine();
+    step(10);
+    const again = !!machine() && run.cardsOnOffer !== before;
+    step(400, () => spinning()?.reels.every((r) => r.landed));
+    const lines = paylines().every((l, i) => l.r === tierId(run.cardsOnOffer[i]));
+    untilCards();
+    return ok(early && leaving && again && lines && shownCards().length === 3 && run.rerolls === 0, { early, leaving, again, lines });
+  },
+});
+
+story('spin/four-reels-with-notebook', {
+  phone: true,
+  about: 'With the Notebook a level-up has four reels, and on a phone held sideways (with an iPhone\'s 47 px notch margins) the machine fits on screen with every rarity word whole, at Normal and at Large text.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G(), root = document.documentElement, was = root.dataset.textSize, res = {};
+    run.mods.cardChoices = 1;
+    G().menus.modal.style.paddingInline = '47px';   // (what env(safe-area-inset-*) gives on an iPhone held sideways)
+    try {
+      for (const size of ['normal', 'large']) {
+        root.dataset.textSize = size;
+        openLevelUp();
+        spinning().stay = true;
+        machine().click();
+        step(30);
+        for (const a of document.getAnimations()) if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish();
+        const box = machine().querySelector('.sp-cab').getBoundingClientRect(), cut = [...document.querySelectorAll('.jf-spin .sp-cell .r')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent);
+        res[size] = { reels: document.querySelectorAll('.jf-spin .sp-reel').length, fits: box.left >= 47 && box.top >= 0 && box.right <= innerWidth - 47 && box.bottom <= innerHeight, cut: [...new Set(cut)] };
+        G().menus.close();
+      }
+    } finally { root.dataset.textSize = was || 'normal'; G().menus.modal.style.paddingInline = ''; }
+    return ok(['normal', 'large'].every((s) => res[s].reels === 4 && res[s].fits && !res[s].cut.length), res);
+  },
+});
+
+story('spin/calm-only-fades', {
+  about: 'With Reduce effects the machine fades in already landed (nothing rolls, the lever stays still), holds 600 ms or until a tap, and fades out for the cards: only opacity animates.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G(), was = document.body.classList.contains('calm');
+    document.body.classList.add('calm');
+    try {
+      const moved = new Set(), read = () => { for (const a of document.getAnimations()) if (a.effect?.target?.closest?.('.jf-spin')) for (const kf of a.effect.getKeyframes()) for (const k of Object.keys(kf)) if (!['offset', 'computedOffset', 'easing', 'composite'].includes(k)) moved.add(k); };
+      run.pickTreasure('A treasure!', 'Choose a treasure.', 'room');
+      read();
+      const landed = [...document.querySelectorAll('.jf-spin .sp-reel')].every((r) => r.classList.contains('landed')) && !spinning().reels.length;
+      const held = step(100, () => !spinning());
+      read();
+      run.ui.close();
+      openLevelUp();
+      read();
+      machine().click();
+      step(10);
+      read();
+      const tapped = !spinning() && shownCards().length === 3;
+      const fadesOnly = [...moved].every((k) => k === 'opacity');
+      return ok(landed && Math.abs(held * 1000 / 60 - 720) < 40 && tapped && fadesOnly, { landed, heldMs: Math.round(held * 1000 / 60), tapped, moved: [...moved] });
+    } finally { document.body.classList.toggle('calm', was); }
+  },
+});
+
+story('spin/reload-skips-the-spin', {
+  about: 'Cards a reload owes come straight back, with no spin; a reroll of them spins.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    run.rerolls = 1;
+    run.owedCards = [[card('range', 0), card('fireRate', 1), card('moveSpeed', 0)]];
+    openLevelUp();
+    const straight = !spinning() && !machine() && shownCards().length === 3;
+    step(30);
+    document.querySelector('.jf-modal [data-act="reroll"]').click();
+    step(10);
+    return ok(straight && !!machine(), { straight, spinsOnReroll: !!machine() });
+  },
+});
+
+story('spin/three-of-a-kind-rolls-one-reel-again', {
+  about: 'Three Commons land matching; the sign says "Three Commons! One becomes Rare.", the upgraded card\'s reel gets a gold rim and rolls on to it with an Upgraded tag, and its pick card says Upgraded too.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    openLevelUp([card('range', 0), card('fireRate', 0), card('moveSpeed', 0)]);
+    const sp = spinning(), up = run.cardsOnOffer.findIndex((c) => c.upgraded);
+    step(400, () => sp.phase === 'upgrade');
+    const sign = document.querySelector('.jf-spin .sp-sign p').textContent;
+    const reels = [...document.querySelectorAll('.jf-spin .sp-reel')], rim = reels.map((r) => r.classList.contains('up'));
+    const otherLines = paylines().filter((_, i) => i !== up).every((l) => l.r === 'common');
+    const rolling = !sp.reels[up].landed;
+    step(60, () => sp.reels[up].landed);
+    const line = paylines()[up], tag = !!reels[up].querySelector('.sp-cell.win .up');
+    untilCards();
+    const badge = shownCards()[up]?.querySelector('.jf-up')?.textContent || '';
+    return ok(up >= 0 && sign === 'Three Commons! One becomes Rare.' && rim.filter(Boolean).length === 1 && rim[up] && otherLines && rolling && line.r === 'rare' && tag && badge.includes('Upgraded'),
+      { up, sign, rim, otherLines, rolling, line, tag, badge });
   },
 });

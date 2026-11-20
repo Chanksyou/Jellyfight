@@ -29,6 +29,7 @@ import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, 
 import { discover, isFound, found } from './collection.js';
 import { OPTIONS } from './character.js';
 import { LOOK } from './look.js';
+import { tierOdds } from './spin.js';
 import { meshesNamed } from './traversal.js';
 import { BossSet } from './boss-set.js';
 import { Elites, ELITE_NAMES, ELITE_DOWN } from './elites.js';
@@ -1345,7 +1346,8 @@ export class Run {
     // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
     // same ones come back, so a reload isn't a free reroll
     const roll = () => threeOfAKind(this.rollLevelUp(), this.S);
-    this.cardsOnOffer = this.owedCards.shift() || roll();
+    const owed = this.owedCards.shift();
+    this.cardsOnOffer = owed || roll();
     this.choosingCard = true;
     sfx.levelUp();
     if (document.pointerLockElement) document.exitPointerLock();
@@ -1360,7 +1362,9 @@ export class Run {
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
       this.resume();
-    }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect());
+    }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect(),
+    // the reward spin (spin-screen.js): not for cards a reload owes; its filler is real rolls on its own dice
+    { first: !owed, rollOne: (rng) => this.rollLevelUp(1, rng), luck: this.S.luck, odds: tierOdds('levelup', { luck: this.S.luck, bonus: this.mods.cardRarity }) });
   }
 
   // The level-up roll: n cards as a level-up offers them (rng: the reward spin's own dice for its
@@ -1408,7 +1412,8 @@ export class Run {
       const delta = levelled ? (next > 1 ? `Lv ${next - 1} → Lv ${next}` : 'Lv 1') : t.stack > 1 ? (next > 1 ? `×${next - 1} → ×${next}` : `1/${t.stack}`) : null;
       return { ...t, tier: treasureTier(t), text, delta };
     });
-    this.offer(title, sub, left);
+    const pool = TREASURES.filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0 && this.takeable(t));   // what the chest could hold (the Luck panel's odds)
+    this.offer(title, sub, left, undefined, { kind: 'treasure', rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
   }
 
   // The Boss reward: a Legendary pick of three from the Legendary treasures you can take, the
@@ -1452,7 +1457,8 @@ export class Run {
   // (true when it's a first)
   found(kind, id, label = id) { if (!this.dev && discover(kind, id)) { this.newFinds.push(label); return true; } return false; }
 
-  offer(title, sub, choices, then = () => this.resume()) {
+  // spin: the reward spin's { kind, rollOne, odds, luck } (ui.choose), or none
+  offer(title, sub, choices, then = () => this.resume(), spin = null) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
@@ -1470,7 +1476,7 @@ export class Run {
       this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();
-    }, (t) => this.treasureSlot(t));
+    }, (t) => this.treasureSlot(t), spin);
   }
 
   // Where a Treasure just picked belongs in the HUD's row, for its icon to fly to (measured once, as it's picked):
