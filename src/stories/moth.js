@@ -6,13 +6,13 @@ const plungeSetup = () => { fresh({ hurt: true, elites: false, bubbles: false, l
 const FLOOR = () => G().enemies.floorBelow(G().player.position, G().player.position.y);
 
 story('words/plunge', {
-  about: 'A moth circles you, then climbs about 30 cm over you while a circle and a column fill under it; it drops straight down into the column for 3, lives, pulls up and comes round again for a second plunge.',
+  about: 'A moth circles you, then climbs about 40 cm over you while a circle and a column fill under it; it drops straight down into the column for 5, lives, pulls up and comes round again for a second plunge.',
   act: 4,
   setup() { plungeSetup(); },
   play() {
     const { enemies } = G(), m = enemies.list[0], log = record('damage_taken'), states = new Set();
     const floor = FLOOR(); let top = 0, marks = false, ascending = true, fell = 0;
-    const stings = () => log.filter((d) => d.source === 'moth' && d.amount === 3).length;
+    const stings = () => log.filter((d) => d.source === 'moth' && d.amount === 5).length;
     holdJelly();
     step(60 * 14, () => {
       states.add(m.state); top = Math.max(top, m.pos.y - floor);
@@ -20,7 +20,7 @@ story('words/plunge', {
       if (m.state === 'drop' && m.pos.y - floor > 0.12) fell++;
       return stings() >= 2;
     });
-    return ok(stings() >= 2 && top > 0.22 && marks && fell > 0 && states.has('climb') && states.has('drop') && !m.dead, { stings: stings(), top: +top.toFixed(2), marks, fell, states: [...states], dead: m.dead });
+    return ok(stings() >= 2 && top > 0.3 && marks && fell > 0 && states.has('climb') && states.has('drop') && !m.dead, { stings: stings(), top: +top.toFixed(2), marks, fell, states: [...states], dead: m.dead });
   },
 });
 
@@ -43,8 +43,8 @@ story('words/plunge-jump', {
   play() {
     const { enemies, player } = G(), m = enemies.list[0], log = record('damage_taken');
     holdJelly(); const floor = FLOOR(); let jumped = false;
-    step(60 * 6, () => { if (!jumped && m.state === 'drop') { player.position.y = floor + JUMP_FEET; jumped = true; } return log.some((d) => d.source === 'moth' && d.amount === 3); });
-    return ok(jumped && log.some((d) => d.source === 'moth' && d.amount === 3), { jumped, hits: log.filter((d) => d.source === 'moth').length });
+    step(60 * 6, () => { if (!jumped && m.state === 'drop') { player.position.y = floor + JUMP_FEET; jumped = true; } return log.some((d) => d.source === 'moth' && d.amount === 5); });
+    return ok(jumped && log.some((d) => d.source === 'moth' && d.amount === 5), { jumped, hits: log.filter((d) => d.source === 'moth').length });
   },
 });
 

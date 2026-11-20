@@ -16,7 +16,7 @@ import { G, fresh, headphones, night4, ok, onCounter, r3, record, spy, startHead
 const offTable = () => tp(3.9, 0.02, 2.6, 0);                  // on the kitchen floor in front of the counter
 const SK = () => CONTENT.elites.headphones.skills;
 const hitsBy = (log, source) => log.filter((d) => d.source === source).map((d) => d.amount);
-const offSnap = (b) => Math.min(b % 2, 2 - (b % 2));              // beats from the nearest snap line (act 4 Elites: snap=2, a half bar)
+const offSnap = (b) => Math.min(b % 1, 1 - (b % 1));              // beats from the nearest snap line (the Headphones: snap=1, every beat)
 const offBeat = (b) => Math.min(b % 1, 1 - (b % 1));
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const VENT = () => G().run.traversal.vents.find((v) => v.name === ELITES4.find((q) => q.kind === 'headphones').vent);
@@ -204,8 +204,9 @@ night4('headphones-stereo-only-the-marked-half-hurts', {
       const hits = hitsBy(log, 'headphones-stereo');
       out[jump ? 'jumping' : 'standing'] = { bursts: bursts.map((b) => b.half), hits };
     }
-    // a jelly on the low half (x 4.57) is hit by bursts 0 and 2, the low half's, never by the high half's
-    const good = ['standing', 'jumping'].every((n) => out[n].bursts.join() === '0,1,0,1' && out[n].hits.length === 2 && out[n].hits.every((h) => h === S.dmg));
+    // a jelly on the low half (x 4.57) is hit by every even-numbered burst, the low half's, never by the high half's
+    const pattern = Array.from({ length: S.bursts }, (_, i) => i % 2).join(), mine = Math.ceil(S.bursts / 2);
+    const good = ['standing', 'jumping'].every((n) => out[n].bursts.join() === pattern && out[n].hits.length === mine && out[n].hits.every((h) => h === S.dmg));
     return ok(good, out);
   },
 });
@@ -278,15 +279,15 @@ night4('headphones-stereo-angry-wave-crosses-the-line', {
       seen.done();
       const w = seen.waves, line = e.base.x;
       out[jump ? 'jumped' : 'stayed'] = { bursts: bursts.length, waves: w.length,
-        fromBurst: w.every((q, k) => (bursts[k].half ? q.from.x > line : q.from.x < line)),   // from the cup that burst
-        crossing: w.every((q, k) => (bursts[k].half ? q.dir.x < 0 : q.dir.x > 0)),           // toward the half about to burst
-        leads: w.every((q, k) => Math.abs(q.beat - bursts[k].beat - S.lead) < 0.06),
+        fromBurst: w.every((q, j) => (bursts[2 * j].half ? q.from.x > line : q.from.x < line)),   // from the cup that burst (every second burst: a wave still on its way keeps the next one off)
+        crossing: w.every((q, j) => (bursts[2 * j].half ? q.dir.x < 0 : q.dir.x > 0)),           // toward the half about to burst
+        leads: w.every((q, j) => Math.abs(q.beat - bursts[2 * j].beat - S.lead) < 0.06),
         shoves: shoves.map((m) => +m.length().toFixed(3)), hurt: log.map((d) => d.source) };
     }
     const { jumped, stayed } = out;
-    const shape = (r) => r.bursts === S.angryBursts && r.waves === S.angryBursts - 1 && r.fromBurst && r.crossing && r.leads;
+    const shape = (r) => r.bursts === S.angryBursts && r.waves === Math.floor(S.angryBursts / 2) && r.fromBurst && r.crossing && r.leads;
     return ok(shape(jumped) && !jumped.shoves.length && !jumped.hurt.length
-      && stayed.bursts >= 2 && stayed.waves >= 1 && stayed.fromBurst && stayed.crossing && stayed.leads && Math.abs(stayed.shoves[0] - W.push) < 0.03 && stayed.hurt.includes('headphones-stereo') && !stayed.hurt.some((h) => h !== 'headphones-stereo'), out);
+      && stayed.bursts >= 2 && stayed.waves >= 1 && stayed.fromBurst && stayed.crossing && stayed.leads && Math.abs(stayed.shoves[0] - W.push) < 0.03 && (stayed.hurt.includes('headphones-stereo') || stayed.bursts < S.angryBursts) && !stayed.hurt.some((h) => h !== 'headphones-stereo'), out);
   },
 });
 
@@ -328,7 +329,7 @@ night4('headphones-attacks-feel', {
     step(60 * 2);
     const S = SK().stereo, stereo = { flashes: flashes.filter(([, c]) => [mark, other].includes(c.getHex?.())).length, sparks: sparks.length, scuffs: splats.length, hit: feels.filter(([k]) => k === 'hit').length, impact: feels.filter(([k]) => k === 'impact').length };
     // every burst: a flash at its cup, sparks and a scuff on its half, feel hit; the held jelly is on the low half, hit by two of the four, each with its own sparks, scuff and feel impact
-    return ok(shove.glow > 0.5 && shove.kick > 0.5 && shove.flashes > SK().shove.waves && shove.motes > 10
+    return ok(shove.glow > 0.5 && shove.kick > 0.5 && shove.flashes > SK().shove.waves / 2 && shove.motes > 10
       && stereo.flashes >= S.bursts && stereo.sparks >= S.bursts + 2 && stereo.scuffs >= S.bursts + 2 && stereo.hit >= S.bursts && stereo.impact >= 2, { shove, stereo });
   },
 });

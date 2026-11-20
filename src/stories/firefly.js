@@ -9,8 +9,8 @@ const drained = (log) => log.filter((d) => d.source === 'firefly' && d.drain).re
 const settle = () => { const { run } = G(); stub(run, 'song', null); run.beat = 1.3; };
 
 night4('firefly-flies', {
-  about: 'A firefly flies: it drifts 12 to 20 cm off the floor about 25 cm from you, bobbing up and down, and now and then hangs still in the air.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.11)).lobCd = 1e9; },
+  about: 'A firefly flies: it drifts 30 to 55 cm off the floor about 25 cm from you, bobbing up and down, and now and then hangs still in the air.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.4)).lobCd = 1e9; },
   play() {
     const e = G().enemies.list[0], P = G().player.position;
     step(60 * 2);
@@ -22,14 +22,14 @@ night4('firefly-flies', {
       flat += Math.hypot(e.pos.x - P.x, e.pos.z - P.z); n++;
     });
     flat /= n;
-    return ok(lo > 0.115 && hi < 0.205 && hi - lo > 0.025 && still > 20 && Math.abs(flat - 0.25) < 0.06 && e.T.fly, { lo: +lo.toFixed(3), hi: +hi.toFixed(3), stillFrames: still, flat: +flat.toFixed(3) });
+    return ok(lo > 0.3 && hi < 0.6 && hi - lo > 0.1 && still > 20 && Math.abs(flat - 0.25) < 0.06 && e.T.fly, { lo: +lo.toFixed(3), hi: +hi.toFixed(3), stillFrames: still, flat: +flat.toFixed(3) });
   },
 });
 
 story('words/lob', {
-  about: 'lob: on the bar a firefly turns its tail to you, lifts it and lobs a glowing Shot in a high arc from its tail; a Warning circle and dome fill together at where you stood, full the moment it lands there as a Blast that hits you for 2, and a glowing pool is left behind.',
+  about: 'lob: on a blink a firefly turns its tail to you, lifts it and lobs a glowing Shot in a high arc from its tail; a Warning circle and dome fill together at where you stood, full the moment it lands there as a Blast that hits you for 3, and a glowing pool is left behind.',
   act: 4,
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.11)).lobCd = 0; },
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.4)).lobCd = 0; },
   play() {
     const { run } = G(), e = G().enemies.list[0], P = G().player.position, log = record('damage_taken');
     let wound = null, L = null, tail = null, at = null, peak = 0, fill = [], landK = null;
@@ -53,17 +53,17 @@ story('words/lob', {
     });
     const missed = !log.some((d) => d.source === 'firefly' && !d.drain);
     // and once more, standing still: it lands on you
-    const e2 = spawn('firefly', near(-0.25, 0, 0.11)); e2.lobCd = 0; e.lobCd = 1e9;
+    const e2 = spawn('firefly', near(-0.25, 0, 0.4)); e2.lobCd = 0; e.lobCd = 1e9;
     step(60 * 6, () => log.some((d) => d.source === 'firefly' && !d.drain));
     const hit = log.find((d) => d.source === 'firefly' && !d.drain);
-    return ok(wound != null && wound % 4 < 0.1 && tail < 0.3 && at < 0.01 && peak > 0.09 && fill.every((x) => x === 0) && landK > 0.97 && missed && hit?.amount === 2 && pools().pools.length >= 1,
+    return ok(wound != null && wound % 2 < 0.1 && tail < 0.3 && at < 0.01 && peak > 0.09 && fill.every((x) => x === 0) && landK > 0.97 && missed && hit?.amount === 3 && pools().pools.length >= 1,
       { wound, tail: tail && +tail.toFixed(2), at: at && +at.toFixed(4), peak: +peak.toFixed(3), landK, missed, hit: hit?.amount, pools: pools().pools.length });
   },
 });
 
 night4('firefly-lobs-on-the-bar', {
-  about: 'A firefly\'s lamp blinks on every beat; its lob only winds up on the fourth blink (the bar), with at least three blinks between, about every 8 s.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.11)).lobCd = 0; },
+  about: 'A firefly\'s lamp blinks on every beat; its lob only winds up on a blink (every second beat), about every 4 s.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.4)).lobCd = 0; },
   play() {
     const { run } = G(), e = G().enemies.list[0], starts = [];
     let was = e.state, pulses = 0;
@@ -74,7 +74,7 @@ night4('firefly-lobs-on-the-bar', {
       return starts.length >= 2;
     });
     const gap = starts.length >= 2 ? starts[1].t - starts[0].t : 0;
-    return ok(starts.length >= 2 && starts.every((s) => s.beat % 4 < 0.1) && gap >= 8 && gap < 11 && pulses >= 12 && !e.dead, { starts, gap: +gap.toFixed(2), pulses });
+    return ok(starts.length >= 2 && starts.every((s) => s.beat % 2 < 0.1) && gap >= 4 && gap < 7 && pulses >= 12 && !e.dead, { starts, gap: +gap.toFixed(2), pulses });
   },
 });
 
