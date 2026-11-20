@@ -40,7 +40,7 @@ vec3 paint(vec2 uv) {
   // the floor and the water low down glow warm
   // the water above the fire takes its light, strongest low down and up the sides where they climb
   float side = abs(uv.x - 0.5) * 2.0;
-  c += uRamp[2] * (0.16 * (1.0 - smoothstep(0.0, 0.55 + 0.25 * side, uv.y)) * flick) * uStrength;
+  c += uRamp[2] * (0.09 * (1.0 - smoothstep(0.0, 0.55 + 0.25 * side, uv.y)) * flick) * uStrength;
   // thin dark smoke drifting up behind, off to the sides
   float s = fbm(uv * vec2(3.2, 2.2) - vec2(t * 0.07, t * 0.3), 3);
   float sa = cut(s, 0.45, 0.3) * smoothstep(0.4, 0.9, uv.y) * smoothstep(0.2, 0.7, side);

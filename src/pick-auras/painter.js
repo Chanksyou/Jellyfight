@@ -25,13 +25,14 @@ export class AuraPainter {
   has(kind) { return !!SHADERS[kind]; }
 
   material(kind) {
-    const K = SHADERS[kind], ramp = LOOK.list(K.RAMP, K.RAMP_FALLBACK).map((c) => new THREE.Color(c));
-    const lin = (n, f) => new THREE.Color(LOOK.color(n, f));
+    // (the game's colours are written in sRGB; the shader works in linear light)
+    const lin = (c) => new THREE.Color(c).convertSRGBToLinear();
+    const K = SHADERS[kind], ramp = LOOK.list(K.RAMP, K.RAMP_FALLBACK).map(lin);
     return new THREE.ShaderMaterial({
       uniforms: {
         uPortrait: { value: null }, uJelly: { value: null }, uTime: { value: 0 }, uStrength: { value: 1 }, uLayers: { value: 4 },
         uColor: { value: new THREE.Color() }, uRamp: { value: ramp },
-        uWater: { value: lin('menu-water-deep', '#06162e') }, uWaterHigh: { value: lin('menu-water-shallow', '#175c70').lerp(lin('menu-water-deep', '#06162e'), 0.55) },
+        uWater: { value: lin(LOOK.color('menu-water-deep', '#06162e')) }, uWaterHigh: { value: lin(LOOK.color('menu-water-shallow', '#175c70')).lerp(lin(LOOK.color('menu-water-deep', '#06162e')), 0.85) },
       },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `${KIT}\n${K.PAINT}\nvoid main() { gl_FragColor = vec4(paint(vUv), 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`,
@@ -60,7 +61,7 @@ export class AuraPainter {
     if (!this.ready(kind)) return false;
     const L = portraitLayers(R, look, { room: LOOK.num('pick-portrait-room', 1.3) }), m = this.mats[kind], u = m.uniforms;
     u.uPortrait.value = L.color.texture; u.uJelly.value = L.jelly.texture;
-    u.uTime.value = t; u.uStrength.value = strength; u.uColor.value.set(colour);
+    u.uTime.value = t; u.uStrength.value = strength; u.uColor.value.set(colour).convertSRGBToLinear();
     u.uLayers.value = this.tier() === 'low' ? 2 : 4;
     this.quad.material = m;
     const ratio = R.getPixelRatio(), px = Math.min(gl.width, gl.height, size);
