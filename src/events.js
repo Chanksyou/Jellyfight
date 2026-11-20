@@ -22,7 +22,8 @@
 //   lucky_roll      {}                               a Lucky Cat second roll hit (chance.js); presentation only
 //   big_splash      { pos, kills }                   one splash killed 3 or more bugs (stack-buff's big-splash)
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
-//   boss_health     { name, hp, maxHp, shielded? }
+//   boss_health     { name, hp, maxHp, shielded?, exposed?, tag? }
+//   toast           { text, ms? }                    a line in the middle of the screen (hud.js)
 //   xp_collected    { amount, chain }                grouped pickup feedback, at most once per XP feedback gap
 export const PLAYER = 'player';
 

@@ -17,6 +17,7 @@ import { EncoreRecords, landing } from '../encore-records.js';
 import { EncoreWall } from '../encore-wall.js';
 import { EncorePyro } from '../encore-pyro.js';
 import { bus, PLAYER } from '../events.js';
+import { EncoreHints, ENCORE_HINTS, ENCORE_HINTS_KEY } from '../first-run.js';
 import { story, ok, V, encoreFight, step, stub, G } from './kit.js';
 
 const N = ENCORE.tiles, S = ENCORE.tileSize, BOSS = ENCORE.bossSpace;
@@ -1216,5 +1217,73 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
         lands, lit, apart, standing, hands, disco, wallHit, bowed, late, after, clear };
     }
     return ok(Object.values(out).every((r) => r.ok), out);
+  },
+});
+
+
+// ---- the last song (25% Health): its set, its toast, the boss bar's words, the first-time hints
+story('encore/the-last-song-doubles-every-wave-and-books-a-slot-every-10-bars', {
+  about: 'In the last song every wave is two at a time (one from each DJ), where set 3 plays one; its solo slots come 2 bars in and then every 10 bars (silver, gold, duet, silver…), and a slot that finds a solo still playing is tried again the next bar, not skipped.',
+  setup() {},
+  play() {
+    const run = (stage, refuse) => {
+      const f = recorder(), slots = [], set = new SetList(f, 8, { random: lcg(7), stage: () => stage, soloLast: 10, slot: (kind, at) => { if (refuse-- > 0) return false; slots.push(kind + '@' + at); } });
+      for (let b = -6; b <= 200; b += 0.5) set.update(b);
+      const per = {}; for (const c of f.casts) per[c.at] = (per[c.at] || 0) + 1;
+      return { slots: slots.join(), waves: [...new Set(Object.values(per))].join() };
+    };
+    const last = run('last', 1), set3 = run('set3', 0);
+    return ok(last.waves === '2' && set3.waves === '1' && last.slots === 'silver@20,gold@60,duet@100,silver@140,gold@180', { last, set3 });
+  },
+});
+
+fight('the-last-song-starts-at-a-quarter-health-with-a-toast', {
+  about: 'Crossing 25% Health turns the stage to the last song and shows one toast, "The last song!", once however long it plays; above 25% there is none.',
+  setup() {},
+  play() {
+    const { B, go } = soloFight(), { hud } = G(), toasts = [];
+    stub(hud, 'toast', (t) => toasts.push(t)); B.broken = true; B.hp = B.maxHp * 0.26;
+    go(10); const before = B.stage === 'set3' && !toasts.length;
+    B.damage(B.maxHp * 0.02); go(14); const now = B.stage === 'last' && toasts.filter((t) => /^The last song/.test(t)).length;
+    go(60);
+    return ok(before && now === 1 && toasts.length === 1, { before, now, toasts });
+  },
+});
+
+fight('the-boss-bar-names-the-solo-the-duet-and-the-bow', {
+  about: 'The boss bar says whose solo is playing (SILVER DJ SOLO, GOLD DJ SOLO, DUET), turns to BOW · EXPOSED (gold) while a DJ bows, and is just the Encore\'s name between.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { hud } = G(), name = () => hud.$('.boss .nm').textContent, out = {};
+    stub(B, 'hurtPlayer', () => {}); B.hp = B.maxHp * 0.4; B.broken = true;
+    go(34); slot('silver', 40);
+    go(42); out.silver = name();
+    go(58); out.bow = name(); out.gold = hud.$('.boss').classList.contains('exposed');
+    go(76); out.between = name();
+    slot('gold', 80); go(82); out.goldSolo = name();
+    go(114); slot('duet', 120); go(126); out.duet = name();
+    const good = /SILVER DJ SOLO$/.test(out.silver) && /BOW · EXPOSED$/.test(out.bow) && out.gold && !/·/.test(out.between) && /GOLD DJ SOLO$/.test(out.goldSolo) && /DUET$/.test(out.duet);
+    return ok(good, out);
+  },
+});
+
+fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
+  about: 'The first time a DJ bows, a toast says the Encore is exposed and hits do 1.5x; the first time a duet record stands before its wall, one says to get behind it. Each shows once, never again in the fight or after it (it is remembered across runs).',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { hud } = G(), toasts = [], had = localStorage.getItem(ENCORE_HINTS_KEY);
+    try {
+      localStorage.removeItem(ENCORE_HINTS_KEY); B.hints = new EncoreHints();
+      stub(hud, 'toast', (t) => toasts.push(t)); stub(B, 'hurtPlayer', () => {}); B.hp = B.maxHp * 0.4; B.broken = true;
+      const n = (id) => toasts.filter((t) => t === ENCORE_HINTS[id]).length, seen = {};
+      go(34); slot('silver', 40); go(55); seen.early = n('bow') + n('cover');
+      go(60); seen.bow = n('bow');
+      go(74); slot('silver', 80); go(100); seen.bow2 = n('bow');
+      go(114); slot('duet', 120); go(119); seen.coverEarly = n('cover');
+      go(122); seen.cover = n('cover');
+      go(150); seen.after = [n('bow'), n('cover'), toasts.length];
+      const again = new EncoreHints(); seen.remembered = again.take('bow') === null && again.take('cover') === null;
+      return ok(seen.early === 0 && seen.bow === 1 && seen.bow2 === 1 && seen.coverEarly === 0 && seen.cover === 1 && seen.after.join() === '1,1,2' && seen.remembered, seen);
+    } finally { had === null ? localStorage.removeItem(ENCORE_HINTS_KEY) : localStorage.setItem(ENCORE_HINTS_KEY, had); }
   },
 });
