@@ -90,6 +90,7 @@ export class EncoreDisco {
     this.flare = LOOK.num('encore-disco-strike', 0.2);         // beats the spots blaze white-hot as they strike
     this.r = LOOK.num('encore-disco-radius', 0.12);
     this.hang = LOOK.num('encore-disco-hang', 0.5);          // the ball's centre when it's down
+    this.stayHang = LOOK.num('encore-disco-stay-hang', 0.64); // ...and when it's down for good (stay: set 3, the DJs' duet on the floor below it)
     this.top = 1.4;                                           // up out of sight
     this.spotR = LOOK.num('encore-disco-spot', 0.028);
     this.white = new THREE.Color(LOOK.color('encore-disco-light', '#fff4e2'));
@@ -173,7 +174,8 @@ export class EncoreDisco {
     // the ball: drops over the beat before, hangs for the show, rises away over the beat and a half after
     const down = u === null ? 0 : u < 0 ? 1 + u : u <= len ? 1 : Math.max(0, 1 - (u - len) / 1.5);
     this.hanger.visible = down > 0.001;
-    const y = this.top + (this.hang - this.top) * (1 - (1 - down) ** 3);
+    const hang = this.stayFrom != null ? this.stayHang : this.hang;
+    const y = this.top + (hang - this.top) * (1 - (1 - down) ** 3);
     this.hanger.position.set(CENTER[0], y, CENTER[1]);
     this.rod.scale.set(1, Math.max(0.01, this.top + 0.4 - y), 1);
     // (a visit's spots stay a moment past its last strike, to show it)

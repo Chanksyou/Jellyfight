@@ -2248,6 +2248,13 @@ function djsInFrame() {
         out[`${moment} ${who}`] = { head: h, feet, bar: Math.round(top) };
         if (!seen) bad.push(`${moment} ${who}`);
       }
+      if (kind === 'duet') {
+        // the disco ball, down for good in set 3 (look.css --encore-disco-stay-hang), hangs clear above both their heads
+        const D = B.disco, c = D.hanger.getWorldPosition(V(0, 0, 0)), up = V(0, 1, 0).applyQuaternion(APT.camera.quaternion);
+        const ball = px(c.addScaledVector(up, -D.r * D.hanger.getWorldScale(V(0, 0, 0)).y))[1], heads = Math.min(...['silver', 'gold'].map((w) => out[`${moment} ${w}`].head[1]));
+        out[`${moment} ball`] = { bottom: ball, heads, down: D.hanger.visible && D.stayFrom != null };
+        if (!(D.hanger.visible && D.stayFrom != null && ball < heads - 4)) bad.push(`${moment} ball`);
+      }
       const arena = new Set(B.arenaView.root.children);
       for (const m of tpc._fades.keys()) if (arena.has(m)) faded.add(`${moment}: ${m.name}`);
     };
@@ -2259,12 +2266,12 @@ function djsInFrame() {
   return ok(!bad.length && !faded.size && tpc.fightK > 0.99, { bad, faded: [...faded], k: +tpc.fightK.toFixed(2), ...out });
 }
 fight('the-fight-view-shows-each-dj-on-the-floor-head-to-feet', {
-  about: 'In the Encore\'s own fight view (look.css --encore-camera-*), with the jelly 0.42 m out from the stage facing it, each DJ on the floor is on screen head to feet, below the boss bar: silver in his solo and bow, gold in his, and both in the duet\'s Warning and bow. The view stands back past the arena\'s invisible fence and nothing in the arena fades (a faded fence used to take the floor tiles and records with it).',
+  about: 'In the Encore\'s own fight view (look.css --encore-camera-*), with the jelly 0.42 m out from the stage facing it, each DJ on the floor is on screen head to feet, below the boss bar: silver in his solo and bow, gold in his, and both in the duet\'s Warning and bow, with the disco ball (down for good in set 3) hanging clear above both their heads. The view stands back past the arena\'s invisible fence and nothing in the arena fades (a faded fence used to take the floor tiles and records with it).',
   setup() {},
   play: djsInFrame,
 });
 story('phone/encore-fight-view-shows-each-dj-on-the-floor-head-to-feet', {
-  about: 'On a phone (its own fight view values, look.css --encore-camera-*-phone), with the jelly 0.42 m out from the stage, each DJ on the floor is on screen head to feet below the boss bar: silver\'s solo and bow, gold\'s, and the duet\'s Warning and bow; nothing in the arena fades.',
+  about: 'On a phone (its own fight view values, look.css --encore-camera-*-phone), with the jelly 0.42 m out from the stage, each DJ on the floor is on screen head to feet below the boss bar: silver\'s solo and bow, gold\'s, and the duet\'s Warning and bow, the disco ball hanging clear above their heads; nothing in the arena fades.',
   phone: true, act: 4, scene: 2,
   setup() {},
   play: djsInFrame,
