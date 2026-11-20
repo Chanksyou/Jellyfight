@@ -11,10 +11,10 @@ import { Music, SONGS } from '../music.js';
 import { SongTrack, TRACKS } from '../song-track.js';
 import { EncoreLasers, CORNERS, LASER_DMG } from '../encore-laser.js';
 import { EncoreDisco, DISCO, DISCO_DMG } from '../encore-disco.js';
-import { EncorePulses, SPEAKERS } from '../encore-pulse.js';
 import { LOOK } from '../look.js';
 import { buildEncoreBoss, MOVES } from '../encore-model.js';
 import { EncoreRecords, landing } from '../encore-records.js';
+import { EncoreWall } from '../encore-wall.js';
 import { bus, PLAYER } from '../events.js';
 import { story, ok, V, encoreFight, step, stub, G } from './kit.js';
 
@@ -457,50 +457,6 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
   },
 });
 
-story('encore/speakers-fire-one-pulse-at-a-time-in-turn', {
-  about: 'Once started (the set list starts them after the warm-up; beat 64 here), one corner speaker at a time fires a white sound wave, the four taking turns round the arena; each crosses to the opposite corner\'s speaker in 2 beats, at jelly height across the floor, and the next fires as it arrives, so only one is ever in flight. None before they start, none in the breakdown.',
-  setup() {},
-  play() {
-    const scene = new THREE.Scene(), arena = buildAct4(scene), P = new EncorePulses(arena, { quiet: (b) => b >= 80 && b < 84 }); P.start(64);
-    try {
-      const seen = [];
-      let maxLive = 0;
-      for (let b = 50; b <= 90; b += 1 / 30) { P.update(b, null); maxLive = Math.max(maxLive, P.live.length); for (const p of P.live) if (!seen.includes(p)) seen.push(p); }
-      const T = LOOK.num('encore-pulse-travel', 2), first = seen[0]?.at === 64, every = seen.every((p, k) => k === 0 || p.at - seen[k - 1].at === (seen[k - 1].at === 78 ? 3 * T : T));
-      const turns = seen.every((p) => p.from === ((p.at - 64) / T) % 4), rest = !seen.some((p) => p.at >= 80 && p.at < 84), single = maxLive <= 1;
-      const mid = P.at(seen[0], 0.5, new THREE.Vector3()), [ax, az] = SPEAKERS[seen[0].from], [bx, bz] = SPEAKERS[(seen[0].from + 2) % 4];
-      const across = Math.abs(mid.y - 0.06) < 1e-9 && Math.abs(mid.x - (ax + bx) / 2) < 1e-9 && Math.abs(mid.z - (az + bz) / 2) < 1e-9;
-      return ok(first && every && turns && rest && across && single, { first: seen[0]?.at, at: seen.map((p) => p.at), every, turns, rest, across, maxLive });
-    } finally { P.dispose(); arena.dispose(); }
-  },
-});
-
-story('encore/a-speaker-pulse-shoves-the-jelly-12-cm-and-does-no-damage', {
-  about: 'A sound wave rolling through a real jelly standing in its path shoves it 12 cm the way it is going (slid over a moment, not a jump), once, and does no damage (it has no hit at all); a jelly jumping as it passes is not moved.',
-  setup() {},
-  play() {
-    const T = make();
-    try {
-      const run = (jump) => {
-        const p = new Player(T.world, CONFIG.player); T.scene.add(p.mesh);
-        const P = new EncorePulses(T.arena, { push: (dx, dz) => { p.moveHorizontal(dx, dz); p.syncMesh(); } }); P.start(64);
-        const [ax, az] = SPEAKERS[0], [bx, bz] = SPEAKERS[2], spot = V(ax + (bx - ax) * 0.35, 0.01, az + (bz - az) * 0.35);
-        p.spawn(spot); p.snapToGround(); T.world.focus(p.position, 1);
-        const start = p.position.clone(); let j = false;
-        const input = { moveAxes: () => ({ x: 0, y: 0 }), consumeJump: () => { const k = j; j = false; return k; }, jumpHeld: false };
-        let jumped = false;
-        for (let b = 63; b <= 66.5; b += DT * BPM / 60) { if (jump && !jumped && b >= 64.2) { j = jumped = true; } T.world.focus(p.position, DT); p.update(DT, input, 0); P.update(b, p, DT); }
-        const moved = V(p.position.x - start.x, 0, p.position.z - start.z), dir = V(bx - ax, 0, bz - az).normalize();
-        P.dispose(); T.scene.remove(p.mesh);
-        return { along: +moved.dot(dir).toFixed(4), side: +Math.abs(moved.x * dir.z - moved.z * dir.x).toFixed(4) };
-      };
-      const shoved = run(false), jumping = run(true);
-      const push = LOOK.num('encore-pulse-push', 0.05);
-      return ok(Math.abs(shoved.along - push) < 0.006 && shoved.side < 0.004 && Math.abs(jumping.along) < 0.004, { shoved, jumping, push });
-    } finally { T.done(); }
-  },
-});
-
 // The set list (encore.js SetList). Its waves and lasers at a fixed roll, recorded from the old
 // fixed-timer set (encore-floor.js EncoreSet, v544) before the set list replaced it
 const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -519,25 +475,24 @@ story('encore/the-set-list-plays-the-same-waves-as-the-old-set', {
 });
 
 story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
-  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no speaker pulses, no doubling at a drop); from set 1 a laser on every wave and the speakers start on that first bar; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, each stage starting from silver.',
+  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no doubling at a drop); from set 1 a laser on every wave; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, each stage starting from silver.',
   setup() {},
   play() {
     // the stage by beat (a stand-in for the Encore's Health)
     const stageAt = (b) => (b < 40 ? 'warmup' : b < 300 ? 'set1' : b < 600 ? 'set2' : 'set3');
     let now = 0;
-    const f = recorder(), shots = [], visits = [], slots = [], starts = [];
+    const f = recorder(), shots = [], visits = [], slots = [];
     const set = new SetList(f, 8, { random: lcg(3), drop: (b) => b >= 16 && b < 32, stage: () => stageAt(now + 6), lasers: { cast: (at) => shots.push(at) },
-      disco: { visit: (at) => visits.push(at) }, pulses: { first: null, start(at) { this.first = at; starts.push(at); } }, slot: (kind, at) => slots.push(`${kind}@${at}`) });
+      disco: { visit: (at) => visits.push(at) }, slot: (kind, at) => slots.push(`${kind}@${at}`) });
     for (now = -6; now <= 900; now += 0.25) set.update(now);
     const o = set.origin;
     const warm = f.casts.filter((c) => c.at < o), single = warm.length > 0 && new Set(warm.map((c) => c.at)).size === warm.length;
     const noLasers = shots.every((at) => at >= o) && shots.length > 100 && f.casts.filter((c) => c.at >= o).every((c) => shots.includes(c.at));
-    const speakers = starts.join() === `${o}`;
     const disco = visits.length > 3 && visits.every((at) => stageAt(at) === 'set2' && (at - o) % 32 === 16);
     const want = []; let k = 0, was = null;
     for (let at = o + 64; at <= 900; at += 64) { const st = stageAt(at); if (st !== was) { was = st; k = 0; } const kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[st]; want.push(`${kinds[k++ % kinds.length]}@${at}`); }
     const solos = slots.join() === want.join() && slots.some((x) => x.startsWith('duet'));
-    return ok(o === 40 && single && noLasers && speakers && disco && solos, { origin: o, single, noLasers, speakers, starts, disco, visits: visits.slice(0, 6), solos, slots: slots.slice(0, 8) });
+    return ok(o === 40 && single && noLasers && disco && solos, { origin: o, single, noLasers, disco, visits: visits.slice(0, 6), solos, slots: slots.slice(0, 8) });
   },
 });
 
@@ -549,16 +504,16 @@ const counting = (B) => {
   return n;
 };
 fight('fight-stages-follow-its-health-not-the-clock', {
-  about: 'The Encore\'s stage comes from its Health, not the time: behind its opening force field it warms up with waves only (no lasers, no speakers); then set 1 adds lasers and speakers; however long set 1 plays, its disco ball never visits, and a visit is booked within 8 bars of it reaching 75% (set 2). 50% is set 3 and 25% the last song.',
+  about: 'The Encore\'s stage comes from its Health, not the time: behind its opening force field it warms up with waves only (no lasers); then set 1 adds lasers; however long set 1 plays, its disco ball never visits, and a visit is booked within 8 bars of it reaching 75% (set 2). 50% is set 3 and 25% the last song.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false });
     stub(B, 'song', { beat: () => null });
     const n = counting(B);
     step(60 * 8);
-    const warm = B.stage === 'warmup' && n.floor >= 3 && n.laser === 0 && B.pulses.first == null;
+    const warm = B.stage === 'warmup' && n.floor >= 3 && n.laser === 0;
     step(60 * 9, () => !B.opening); step(60 * 4);
-    const set1 = B.stage === 'set1' && n.laser > 0 && B.pulses.first != null;
+    const set1 = B.stage === 'set1' && n.laser > 0;
     B.clock += 400; step(60 * 16);                                // a long set 1, far past where the old timer dropped the ball
     const noDisco = B.disco.visitAt == null && B.stage === 'set1';
     B.hp = B.maxHp * 0.75; const set2 = B.stage === 'set2';
@@ -584,7 +539,7 @@ fight('fight-a-hit-straight-past-half-still-shorts-out', {
 });
 
 fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
-  about: 'When the song rewinds in any stage, the set list starts again cleanly from the new beat: no attack is left booked for the old beats, fresh waves follow with their full wind-up, and what that stage adds (lasers and speakers after the warm-up, disco ball visits in set 2) comes back.',
+  about: 'When the song rewinds in any stage, the set list starts again cleanly from the new beat: no attack is left booked for the old beats, fresh waves follow with their full wind-up, and what that stage adds (lasers after the warm-up, disco ball visits in set 2) comes back.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false }), results = {};
@@ -596,10 +551,10 @@ fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
       beat = 300; step(60 * 2, () => { beat += 128 / 3600; });
       const n = counting(B);
       beat = 20; step(1);
-      const cleared = B.floor.casts.every((c) => c.at >= 20) && B.lasers.casts.every((c) => c.at >= 20) && (B.disco.visitAt ?? 20) >= 20 && B.pulses.live.length === 0 && B.set?.from >= 20;
+      const cleared = B.floor.casts.every((c) => c.at >= 20) && B.lasers.casts.every((c) => c.at >= 20) && (B.disco.visitAt ?? 20) >= 20 && B.set?.from >= 20;
       step(60 * 20, () => { beat += 128 / 3600; });
       const warm = stage === 'warmup';
-      results[stage] = { ok: cleared && B.stage === stage && n.floor >= 4 && (warm ? n.laser === 0 && B.pulses.first == null : n.laser >= 4 && B.pulses.first >= 20) && (stage !== 'set2' || B.disco.visitAt >= 20), cleared, floor: n.floor, laser: n.laser, pulses: B.pulses.first, visit: B.disco.visitAt };
+      results[stage] = { ok: cleared && B.stage === stage && n.floor >= 4 && (warm ? n.laser === 0 : n.laser >= 4) && (stage !== 'set2' || B.disco.visitAt >= 20), cleared, floor: n.floor, laser: n.laser, visit: B.disco.visitAt };
     }
     return ok(Object.values(results).every((r) => r.ok), results);
   },
@@ -735,7 +690,7 @@ story('encore/dj-rig-a-song-rewind-drops-a-move', {
 });
 
 // ---- solos, bows and the Record toss (encore.js slot/solo, encore-records.js)
-const fakeFx = () => ({ orb: () => new THREE.Object3D(), orbTick() {}, free() {}, impact() {}, ice: { shatter() {} } });
+const fakeFx = () => ({ orb: () => new THREE.Object3D(), orbTick() {}, free() {}, impact() {}, splat() {}, ice: { shatter() {} } });
 const HAND = () => V(-0.083, 0.45, -0.5);
 function recordsRig() {
   const T = make(), hits = [], rec = new EncoreRecords(T.arena, fakeFx(), { onHit: (dmg, c) => hits.push({ dmg, beat: rec.beat, c }) });
@@ -1021,5 +976,136 @@ fight('a-dj-in-his-solo-or-bow-keeps-his-pose-over-wave-gestures', {
     go(58.5); const bowed = rigs.silver.at === 56 && !!rigs.silver.move;
     go(72); cast('ring', 78, 'silver'); go(76); const after = rigs.silver.at === 78;
     return ok(throwing && goldWave && bowed && after, { throwing, goldWave, bowed, after, silver: rigs.silver.at, gold: rigs.gold.at });
+  },
+});
+
+// ---- the duet: the Wall of sound (encore-wall.js), behind the silver DJ's records
+const HALF = (N * S) / 2;
+// three records facing the stage at x -0.3, 0 and 0.3 (z 0.1), landing on beats 8, 12, 16; the wall's
+// Warning from 16, rolling from 24 for 2 beats
+function wallRig({ records = true } = {}) {
+  const T = recordsRig(), hits = [], wall = new EncoreWall(T.arena, fakeFx(), { onHit: (dmg) => hits.push({ dmg, beat: wall.beat }) });
+  const casts = records ? [-0.3, 0, 0.3].map((x, k) => T.rec.cast(8 + k * 4, recordOpts(() => [x, 0.1], { from: () => V(x, 0.45, -0.5), stand: 99, face: 0 }))) : [];
+  const w = wall.cast(16, 24, casts, { dmg: 6, height: 0.4, roll: 2, safe: 0.1, behind: 0.3, knock: 0.6 });
+  return { ...T, wall, w, casts, wallHits: hits, done() { wall.dispose(); T.done(); } };
+}
+// play a wall rig from beat `from` to `to` with jelly J (a stand-in, or a real one), `each(b)` first each frame
+function playWall(T, J, from, to, each) {
+  for (let b = from; b <= to; b += DT * BPM / 60) { each?.(b); T.rec.update(b, J.p ?? J, DT); T.wall.update(b, J.p ?? J); J.step?.({ x: T.rec.pushX / DT, z: T.rec.pushZ / DT }); }
+}
+// where the front is as beat b: from the back of the stage at 24 to the back of the floor 2 beats later
+const frontBeat = (z) => 24 + (z + HALF) / (2 * HALF) * 2;
+
+story('encore/wall-spares-only-a-strip-behind-a-standing-record', {
+  about: 'As the last record lands the whole floor fills as a Warning (a floor strip and the 40 cm slab over it, filling together for 2 bars) with a white strip 10 cm wide and 30 cm long behind each standing record. On the bar line the wall rolls from the stage to the back of the floor in 2 beats: a jelly in a strip is spared; anywhere else (in front of a record, just beside a strip, out on the floor, or jumping 35 cm up) it is hit once, for 6 Health, as the front reaches it.',
+  setup() {},
+  play() {
+    const at = { strip: [0, 0.25, 0], front: [0, 0.02, 0], beside: [0.075, 0.2, 0], open: [0.15, 0.45, 0], jump: [0.15, 0.45, 0.35] }, out = {};
+    let warn = null;
+    for (const [k, [x, z, y]] of Object.entries(at)) {
+      const T = wallRig();
+      try {
+        const J = standing(x, z, y), seen = [];
+        playWall(T, J, 3, 27, (b) => {
+          if (k === 'strip' && b > 16.2 && b < 23.9) seen.push({ band: T.wall.band.visible && T.wall.slab.visible, p: T.wall.band.material.progress, same: T.wall.band.material.progress === T.wall.slab.material.progress, safe: T.wall.safe.filter((m) => m.visible).length });
+          if (k === 'strip' && Math.abs(b - 24.5) < 0.02) warn ??= { gone: !T.wall.band.visible && !T.wall.safe.some((m) => m.visible) };
+        });
+        if (k === 'strip') {
+          const s = T.wall.safe[1];
+          warn = { ...warn, shown: seen.every((f) => f.band && f.same && f.safe === 3) && seen.every((f, i) => !i || f.p >= seen[i - 1].p), height: T.wall.slab.scale.y, strip: [s.scale.x, s.scale.z, +s.position.x.toFixed(3), +s.position.z.toFixed(3)] };
+        }
+        out[k] = T.wallHits.map((h) => ({ dmg: h.dmg, beat: +h.beat.toFixed(2), want: +frontBeat(z).toFixed(2) }));
+      } finally { T.done(); }
+    }
+    const once = (h) => h.length === 1 && h[0].dmg === 6 && Math.abs(h[0].beat - h[0].want) < 0.05;
+    const good = out.strip.length === 0 && ['front', 'beside', 'open', 'jump'].every((k) => once(out[k]));
+    const shown = warn.shown && warn.gone && Math.abs(warn.height - 0.4) < 1e-9 && Math.abs(warn.strip[0] - 0.1) < 1e-9 && Math.abs(warn.strip[1] - 0.3) < 1e-9 && warn.strip[2] === 0 && Math.abs(warn.strip[3] - 0.1) < 1e-3;
+    return ok(good && shown, { out, warn });
+  },
+});
+
+story('encore/wall-records-shatter-as-they-take-it', {
+  about: 'Each record stands until the wall reaches it and shatters on that frame; while the front crosses its strip the wall shows a gap there (the columns behind the record are not drawn) and is whole again past the strip; after the roll no record and nothing of the wall is left.',
+  setup() {},
+  play() {
+    const T = wallRig();
+    try {
+      const gone = [], gaps = [], frame = DT * BPM / 60, col = (x) => Math.round((x + HALF) / (2 * HALF / 36) - 0.5), m = new THREE.Matrix4(), sc = new THREE.Vector3();
+      const drawn = (i) => { T.wall.mesh.getMatrixAt(i, m); sc.setFromMatrixScale(m); return sc.y > 0; };
+      playWall(T, standing(0.6, 0.6), 3, 27, (b) => {
+        T.casts.forEach((c, k) => { if (gone[k] == null && c.slot.cast !== c) gone[k] = b; });
+        if (Math.abs(b - frontBeat(0.25)) < frame / 2) gaps.push({ behind: !drawn(col(0)), open: drawn(col(0.15)) });
+        if (Math.abs(b - frontBeat(0.5)) < frame / 2) gaps.push({ past: drawn(col(0)) });
+      });
+      const want = frontBeat(0.1), onTime = gone.length === 3 && gone.every((b) => b >= want - 1e-9 && b < want + 2 * frame);
+      const gap = gaps[0]?.behind && gaps[0]?.open && gaps[1]?.past;
+      const after = !T.rec.casts.length && !T.wall.w && [...Array(72).keys()].every((i) => !drawn(i));
+      return ok(onTime && gap && after, { gone: gone.map((b) => +b.toFixed(3)), want: +want.toFixed(3), gaps, after });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/wall-with-no-standing-record-is-called-off', {
+  about: 'If no record is standing as the Warning would start (none could be thrown, or they are gone), the wall is called off: no Warning, no wall, no hit.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const how of ['none', 'gone']) {
+      const T = wallRig({ records: how !== 'none' });
+      try {
+        const J = standing(0.15, 0.45);
+        let shown = false;
+        playWall(T, J, 3, 27, (b) => { if (how === 'gone' && b > 15 && b < 15.1) T.rec.reset(); shown ||= T.wall.band.visible || T.wall.slab.visible; });
+        out[how] = { off: T.w.state === 'off', shown, hits: T.wallHits.length };
+      } finally { T.done(); }
+    }
+    return ok(Object.values(out).every((r) => r.off && !r.shown && !r.hits), out);
+  },
+});
+
+story('encore/the-duet-rests-the-floor-and-comes-only-below-half', {
+  about: 'A duet slot rests the floor and the lasers from its first bar until a bar after the wall rolls (no wave from either DJ), then the set plays on; the set list books a duet only in set 3 and the last song (below half Health), never in set 1 or 2.',
+  setup() {},
+  play() {
+    const f = recorder(), shots = [], solo = { who: 'duet', at: 72, end: 88, rest: 92 };
+    const set = new SetList(f, 8, { random: lcg(7), lasers: { cast: (at) => shots.push(at) }, soloing: (at) => (at >= solo.at && at < solo.rest ? solo : null) });
+    for (let b = -6; b <= 120; b += 0.25) set.update(b);
+    const rests = !f.casts.some((c) => c.at >= 72 && c.at < 92) && !shots.some((at) => at >= 72 && at < 92) && f.casts.some((c) => c.at === 92) && f.casts.some((c) => c.at === 68);
+    const kinds = (stage) => { const slots = [], L = new SetList(recorder(), 8, { random: lcg(7), stage: () => stage, slot: (kind) => slots.push(kind) }); for (let b = -6; b <= 900; b += 0.5) L.update(b); return slots; };
+    const below = ['set1', 'set2'].every((st) => !kinds(st).includes('duet')) && ['set3', 'last'].every((st) => kinds(st).includes('duet'));
+    return ok(rests && below, { rests, below, waves: f.casts.filter((c) => c.at > 60 && c.at < 100).map((c) => c.at) });
+  },
+});
+
+fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
+  about: 'Below half Health a duet slot plays the Wall of sound: both DJs lit, the silver DJ throws three records that land a bar apart on the bar lines, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls as the 4th bar ends and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED for 2 bars (hits do 1.5x), and everything is gone after.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const [k, spot] of [['middle', null], ['corner', [0.58, 0.5]]]) {
+      const { B, go, slot } = soloFight(), M = B.arenaView.boss, p = G().player.position, hurt = [];
+      B.hp = B.maxHp * 0.4; B.broken = true;
+      stub(B, 'hurtPlayer', (dmg, color) => hurt.push({ dmg, beat: +B.beat.toFixed(2), wall: color === B.colors.duet }));
+      if (spot) { p.x = spot[0]; p.z = spot[1]; }
+      go(34); slot('duet', 40);
+      const lands = B.records.casts.map((c) => c.land).join();
+      go(41); const lit = B.spots.silver.visible && B.spots.gold.visible;
+      go(48.1);
+      const to = B.records.casts.map((c) => c.to), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const apart = [d(to[0], to[1]), d(to[0], to[2]), d(to[1], to[2])].map((x) => +x.toFixed(3));
+      const standing = B.records.casts.length === 3 && B.records.casts.every((c) => c.state === 'stand') && B.solo?.wall?.shields.length === 3 && B.wall.band.visible;
+      go(50); const hands = M.rigs.silver.move != null && M.rigs.gold.move != null && M.rigs.silver.at === 49 && M.rigs.gold.at === 49, disco = B.walling(50) && B.disco.quiet(50);
+      const open = [[-0.62, 0.62], [0.62, 0.62], [-0.62, 0.1], [0.62, 0.1]].sort((u, v) => Math.min(...to.map((t) => d(v, t))) - Math.min(...to.map((t) => d(u, t))))[0];
+      p.x = open[0]; p.z = open[1];                                        // out in the open, far from every strip
+      go(56.2);
+      const hp = () => B.hp, hit = () => { const was = hp(); B.damage(100); return Math.round(was - hp()); };
+      const bowed = M.rigs.silver.at === 56 && M.rigs.gold.at === 56 && B.exposed && hit() === 150;
+      go(58.1); const wallHit = hurt.filter((h) => h.wall);
+      go(63.8); const late = hit();
+      go(64.3); const after = hit(), clear = !B.solo && !B.records.casts.length && !B.wall.w && !B.spots.silver.visible && !B.disco.quiet(64.3);
+      out[k] = { ok: lands === '40,44,48' && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 56 && wallHit[0].beat < 58 && bowed && late === 150 && after === 100 && clear,
+        lands, lit, apart, standing, hands, disco, wallHit, bowed, late, after, clear };
+    }
+    return ok(Object.values(out).every((r) => r.ok), out);
   },
 });

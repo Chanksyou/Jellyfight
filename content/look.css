@@ -664,8 +664,9 @@
   --pillow-dust: #c9a0d8;        /* the harmless spore dust a burst leaves (fading), */
   --pillow-dust-size: 0.7;       /* its size as a part of the spot's radius, */
   --pillow-cap: #ff7ae8;         /* the little caps of its Fairy ring as they sprout */
-  --hostile-headphones: #5a40ff; /* the Headphones' Stereo, the half the low-x cup marks and bursts: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --encore-pulse: they don't hurt) */
+  --hostile-headphones: #5a40ff; /* the Headphones' Stereo, the half the low-x cup marks and bursts: hot electric indigo, the one hue apart from act 4's dawn oranges, golds and reds, the pillow's violet and the cicada's green (its shove waves are white, --headphones-shove: they don't hurt) */
   --hostile-headphones-right: #00ffa8; /* and the half the other cup does: hot spearmint, the second hue the two cups' halves tell apart by (cooler than the cicada's acid green, greener than the friendly cyan) */
+  --headphones-shove: #f4f8ff;   /* the Headphones' shove waves: white (they shove, they don't hurt) */
   --headphones-wave-warning: 0.15; /* how strongly a shove wave's white floor strip shows (white blooms on the glass table: kept faint; it shoves, never hurts, so it stays under the hurting Warnings), */
   --headphones-wave-volume: 0.15; /* and the lane over it (was 0.35), */
   --headphones-speaker-glow: 0.9; /* the Headphones: a cup's speaker glowing as it gets ready to play, */
@@ -694,6 +695,11 @@
   --encore-spotlight-opacity: 0.22;
   --encore-spotlight-radius: 0.09; /* m: its pool on the booth */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
+  --hostile-encore-wall: #ff2020; /* the DJs' Wall of sound (encore-wall.js): its Warning, the wall and the booth while they play it: hot crimson, nearer the broken panels' red than the gold DJ's gold or the disco magenta */
+  --encore-wall-glow: 1.6;       /* how bright the wall's columns are (additive) */
+  --encore-wall-warning: 0.4;    /* its floor strip's strength, and the slab's over it */
+  --encore-wall-volume: 0.2;
+  --arena-wall-swell: 3;         /* how much brighter the speakers' trims build as the wall gathers */
   --encore-sparks: #fff6c8 #ffd23a #ff8a1e;   /* the flash where sparks spray out of its booth */
   --encore-spark-hot: #ffe58a;   /* each spark streak, white-hot as it leaves... */
   --encore-spark-cool: #ff7a14;  /* ...cooling to orange as it falls */
@@ -731,12 +737,6 @@
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */
   --encore-shield-glow: 2.4;
   --encore-shield-room: 1.3;      /* how much bigger than the booth the dome is */
-  --encore-pulse: #f4f8ff;       /* the speakers' sound waves: white (they shove, they don't hurt) */
-  --encore-pulse-radius: 0.22;   /* m: the front arc of a wave (about 40 cm across) */
-  --encore-pulse-arc: 2.2;       /* radians each arc spans (about 125°) */
-  --encore-pulse-gap: 0.03;      /* m between a wave's nested arcs */
-  --encore-pulse-travel: 2;      /* beats it takes corner to corner */
-  --encore-pulse-push: 0.12;     /* m it shoves the jelly */
   --hostile-encore-disco: #ff2fd2; /* the disco ball's spots as they stop and flash, about to strike: hot magenta */
   --encore-disco-light: #fff4e2; /* its spots while they wheel round: warm white, harmless */
   --encore-disco-radius: 0.12;   /* m: the ball (24 cm across, about three jellies tall) */
