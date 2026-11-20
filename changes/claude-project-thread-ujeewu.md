@@ -1,1 +1,0 @@
-puts scores on a new scale: each act now pays for what you did in it (the night survived, damage to its boss and beating it, up to 3 Elites, the share of the night's bugs cleared, and for a cleared act Clean play and Boss pace), up to 15,500 an act and 62,000 a run. Kills, Levels and Treasures no longer add to the score, and damage your Shield soaks counts against Clean play.
