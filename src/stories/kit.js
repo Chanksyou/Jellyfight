@@ -515,6 +515,9 @@ export const EVERY_ATTACK = {
     encore: { floor: { is: 'none' }, laser: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' },
       records: { is: 'volume', scene: 2, start: () => { const B = G().run.boss; B.slot('silver', Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4); },
         during: () => G().run.boss.records.casts.some((c) => c.warn), end: () => G().run.boss.stopActs() },
+      // the gold DJ's flame lanes: from the second bar of a solo, each lane's floor strip and its volume
+      pyro: { is: 'volume', scene: 2, start: () => { const B = G().run.boss; B.slot('gold', Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4); },
+        during: () => G().run.boss.pyro.warnings.some((w) => w.band.visible), end: () => G().run.boss.stopActs() },
       wall: { is: 'volume', scene: 2, start: () => { const B = G().run.boss, at = Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4; B.wall.cast(at, at + 8, [B.records.cast(at, { from: () => B.hand('silver'), target: () => B.jellyAt(), stand: 99, face: 0 })]); },
         during: () => G().run.boss.wall.w?.state === 'warn', end: () => G().run.boss.stopActs() } },
     // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line

@@ -691,6 +691,12 @@
   --encore-record-warning: 0.6;  /* its floor strip's strength, and the lane's over it */
   --encore-record-volume: 0.25;
   --encore-record-shards: 16;    /* shards when a record shatters */
+  --encore-pyro-lane: 0.24;      /* m: one of the gold DJ's six flame lanes (the floor is 1.44 m across; encore-pyro.js) */
+  --encore-pyro-warning: 0.6;    /* a lane's floor strip, and the volume over it */
+  --encore-pyro-volume: 0.3;
+  --encore-flame-opacity: 0.8;   /* the flames bursting (his gold, white-hot at the foot) */
+  --encore-scorch: #1a1410;      /* the soot left where they stood: dark, never the hostile gold */
+  --encore-scorch-opacity: 0.55;
   --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
   --encore-spotlight-opacity: 0.22;
   --encore-spotlight-radius: 0.09; /* m: its pool on the booth */

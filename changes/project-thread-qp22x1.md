@@ -1,0 +1,1 @@
+gives the gold DJ his own solo in the Encore: he cranks his fader, then six flame lanes across the floor go off a set a beat (odd lanes, then even), each lighting its Warning two beats ahead, burning 35 cm tall and 48 cm out from the stage and leaving a fading scorch mark; step into a lane that just fired, a jump won't clear them.
