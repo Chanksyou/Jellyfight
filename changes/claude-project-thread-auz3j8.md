@@ -1,1 +1,0 @@
-lets the Encore's solos take turns across the whole fight instead of starting over at the silver DJ in each stage: set 2 opens on the gold DJ's Pyro and set 3 on the duet's Wall of sound, so a fight of a few minutes sees every solo (the duet still only below half Health).
