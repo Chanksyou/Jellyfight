@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v558 sends the silver DJ out of the booth for his solo: he vaults onto the floor two beats before it, lands on his mark on its first beat, throws three records from there (was four) and bows there, then vaults home as his bow ends. While he is out he is the one to hit (the booth can't be hurt), he pushes the jelly aside and never hurts it, and his partner watches from the booth and pumps his fist when a record lands on you. The short-out, the last hit and a song rewind send him straight home; no DJ leaves while the force field is up. The gold DJ's solo and the duet still play from the booth.
+
 v557 gives the Encore's DJs legs and a rig to leave the booth with (a vault there and back on the beat, landing, slam, conduct with either arm, push), ready for their solos on the floor; nothing changes in play yet.
 
 v556 makes the Encore's floor waves half as frequent (one every other bar) and only lines (sweeps, arrows, gates and pincers, no rings), including the last song's doubled waves and the lighter waves during solos; its lasers keep their pace.
