@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v576 slows the reward spin: reels now roll 40% slower and the whole spin (every reel's stop and the hold before the cards) lasts twice as long.
+
 v575 paints the Fire card on the jelly pick screen in a shader instead of drawn-on shapes: flames eaten by moving noise lick up behind and in front of the tentacles, the jelly is lit warm from below, embers rise with short trails, smoke drifts behind and the heat bends the jelly above the fire (the other side cards follow one by one).
 
 v574 keeps the reward spin's reels landing on time on a slow phone or under hit-stop, silences its ticking when the machine closes mid-roll, times the lever's clunk to the lever, and hides the touch controls behind the machine.
