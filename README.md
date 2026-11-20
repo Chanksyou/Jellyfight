@@ -296,7 +296,10 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   At 50% its booth shorts out for a moment and the disco ball comes down for good, and the **duet** joins the set.
   At 25% it's the last song, and the waves come two at a time.
   Every 16 bars (every 10 in the last song) one DJ takes a **Solo**: the silver DJ's Record toss, the gold DJ's Pyro, or the duet's Wall of sound.
-  After a Solo he **bows**, and the Encore is **Exposed** while he does, so hits do 1.5x: 2 bars, or 4 if no hit reached the jelly during his Solo.
+  A Solo happens on the floor: the DJ vaults out of the booth onto his mark, and while he's out he is the Encore's one target, since the booth can't be hurt until he is back.
+  In the duet both DJs come out together, with the one target between them.
+  Touching a DJ on the floor pushes you out of his way, and his landing shoves a jelly on his mark, but he never hurts you.
+  After a Solo he **bows** on the floor, and the Encore is **Exposed** while he does, so hits do 1.5x: 2 bars, or 4 if no hit reached the jelly during his Solo, then he goes home to the booth.
   The Wall of sound replaces the old speaker pulse that used to play in every set.
   The fight's code and numbers are listed in `CLAUDE.md`'s "Where each kind of change lives" table (`src/encore.js`, `content/bosses.kdl`).
 
