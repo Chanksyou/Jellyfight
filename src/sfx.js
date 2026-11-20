@@ -848,14 +848,15 @@ export const sfx = {
   spinTick(reels) {
     stopTicker();
     if (!ready()) return;
-    const times = reels.flat().sort((a, b) => a - b).filter((t, i, a) => !i || t - a[i - 1] >= TICK_GAP);   // a fast reel's cells blur into one buzz
+    let last = -1;
+    const times = reels.flat().sort((a, b) => a - b).filter((t) => t - last >= TICK_GAP && (last = t, true));   // a fast reel's cells blur into one buzz
     if (!times.length) return;
     const t0 = now(), s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noiseBuf; s.loop = true;                      // one voice for the whole roll, a gain event per tick
     f.type = 'bandpass'; f.Q.value = 3;
     g.gain.value = 0.0001;
     times.forEach((t, i) => {
-      f.frequency.setValueAtTime(2000 + 1500 * (i / times.length) * (i / times.length), t0 + t);   // brighter as the reel slows
+      f.frequency.setValueAtTime((2000 + 1500 * (i / times.length) * (i / times.length)) * pitch(), t0 + t);   // brighter as the reel slows
       g.gain.setValueAtTime(0.14 * loud, t0 + t);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + t + 0.022);
     });
