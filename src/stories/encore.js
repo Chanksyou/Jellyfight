@@ -1413,7 +1413,7 @@ story('encore/the-duet-rests-the-floor-and-comes-only-below-half', {
 });
 
 fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
-  about: 'Below half Health a duet slot plays the Wall of sound: both DJs lit, the silver DJ throws three records that land a bar apart on the bar lines, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls as the 4th bar ends and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED for 2 bars (hits do 1.5x), and everything is gone after.',
+  about: 'Below half Health a duet slot plays the Wall of sound on the floor: both DJs lit, both out on the floor for its first bar, then the silver DJ throws three records that land a bar apart on the bar lines of bars 2 to 4, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the 8-beat Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls on the bar line as the 5th bar ends (both DJs push it out on that beat) and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED for 2 bars (hits do 1.5x), and everything is gone after.',
   setup() {},
   play() {
     const out = {};
@@ -1423,23 +1423,24 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
       stub(B, 'hurtPlayer', (dmg, color) => hurt.push({ dmg, beat: +B.beat.toFixed(2), wall: color === B.colors.duet }));
       if (spot) { p.x = spot[0]; p.z = spot[1]; }
       go(34); slot('duet', 40);
-      const lands = B.records.casts.map((c) => c.land).join();
+      const lands = B.records.casts.map((c) => c.land).join(), warn = B.solo.wall.rollAt - B.solo.wall.warnAt, bar = (B.solo.wall.rollAt - 40) % 4 === 0;
       go(41); const lit = B.spots.silver.visible && B.spots.gold.visible;
-      go(48.1);
+      go(52.1);
       const to = B.records.casts.map((c) => c.to), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const apart = [d(to[0], to[1]), d(to[0], to[2]), d(to[1], to[2])].map((x) => +x.toFixed(3));
       const standing = B.records.casts.length === 3 && B.records.casts.every((c) => c.state === 'stand') && B.solo?.wall?.shields.length === 3 && B.wall.band.visible;
-      go(50); const hands = M.rigs.silver.move != null && M.rigs.gold.move != null && M.rigs.silver.at === 49 && M.rigs.gold.at === 49, disco = B.walling(50) && B.disco.quiet(50);
+      go(54); const hands = M.rigs.silver.move != null && M.rigs.gold.move != null && M.rigs.silver.at === 53 && M.rigs.gold.at === 53, disco = B.walling(54) && B.disco.quiet(54);
       const open = [[-0.62, 0.62], [0.62, 0.62], [-0.62, 0.1], [0.62, 0.1]].sort((u, v) => Math.min(...to.map((t) => d(v, t))) - Math.min(...to.map((t) => d(u, t))))[0];
       p.x = open[0]; p.z = open[1];                                        // out in the open, far from every strip
-      go(56.2);
+      go(60.2); const push = M.rigs.silver.at === 60 && M.rigs.gold.at === 60;
+      go(62.2);
       const hp = () => B.hp, hit = () => { const was = hp(); B.damage(100); return Math.round(was - hp()); };
-      const bowed = M.rigs.silver.at === 56 && M.rigs.gold.at === 56 && B.exposed && hit() === 150;
-      go(58.1); const wallHit = hurt.filter((h) => h.wall);
-      go(63.8); const late = hit();
-      go(64.3); const after = hit(), clear = !B.solo && !B.records.casts.length && !B.wall.w && !B.spots.silver.visible && !B.disco.quiet(64.3);
-      out[k] = { ok: lands === '40,44,48' && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 56 && wallHit[0].beat < 58 && bowed && late === 150 && after === 100 && clear,
-        lands, lit, apart, standing, hands, disco, wallHit, bowed, late, after, clear };
+      const bowed = M.rigs.silver.at === 62 && M.rigs.gold.at === 62 && B.exposed && hit() === 150;
+      const wallHit = hurt.filter((h) => h.wall);
+      go(67.8); const late = hit();
+      go(68.3); const after = hit(), clear = !B.solo && !B.records.casts.length && !B.wall.w && !B.spots.silver.visible && !B.disco.quiet(68.3) && !M.out('silver') && !M.out('gold');
+      out[k] = { ok: lands === '44,48,52' && warn === 8 && bar && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && push && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 60 && wallHit[0].beat < 62 && bowed && late === 150 && after === 100 && clear,
+        lands, warn, bar, lit, apart, standing, hands, disco, push, wallHit, bowed, late, after, clear };
     }
     return ok(Object.values(out).every((r) => r.ok), out);
   },
@@ -1659,7 +1660,7 @@ fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
       go(60); seen.bow = n('bow');
       go(74); slot('silver', 80); go(100); seen.bow2 = n('bow');
       go(114); slot('duet', 120); go(119); seen.coverEarly = n('cover');
-      go(122); seen.cover = n('cover');
+      go(126); seen.cover = n('cover');
       go(150); seen.after = [n('bow'), n('cover'), toasts.length];
       const again = new EncoreHints(); seen.remembered = again.take('bow') === null && again.take('cover') === null;
       return ok(seen.early === 0 && seen.bow === 1 && seen.bow2 === 1 && seen.coverEarly === 0 && seen.cover === 1 && seen.after.join() === '1,1,2' && seen.remembered, seen);
@@ -1924,5 +1925,133 @@ fight('the-other-dj-watches-from-the-booth-and-pumps-his-fist-when-a-record-hits
     go(200, () => !B.solo); go(B.beat + 4);
     const after = Math.abs(g.head.rotation.y - yaw0);
     return ok(watching < 0.3 && watching < before && pump !== null && pump >= 44 && pump < 44.2 && after < 0.05 && !M.out('gold'), { before: +before.toFixed(3), watching: +watching.toFixed(3), pump, after: +after.toFixed(3) });
+  },
+});
+
+// ---- the duet on the floor (B4): both DJs vault out together to their marks (ENCORE.marks.duet), one
+// target between them, the Wall of sound a bar longer (records A+4, A+8, A+12; roll A+20; bow to A+28)
+const DUO = ['silver', 'gold'];
+const duoAt = (B, d) => V(ENCORE.marks.duet[d][0], 0, ENCORE.marks.duet[d][1]).applyMatrix4(B.arenaView.root.matrixWorld);
+// a duet booked on beat 40, below half Health (records and wall as they play; `hurt` collects its hits)
+function duetFight(fps = 60, opts = {}) {
+  const T = soloFight(fps, opts), hurt = [];
+  T.B.hp = T.B.maxHp * 0.4; T.B.broken = true;
+  stub(T.B, 'hurtPlayer', (dmg, color) => hurt.push({ dmg, beat: T.B.beat, wall: color === T.B.colors.duet }));
+  return { ...T, hurt, M: T.B.arenaView.boss };
+}
+for (const fps of [30, 60]) fight(`the-duet-djs-vault-out-together-and-home-together-at-${fps}fps`, {
+  about: `At ${fps} fps, a duet booked on beat 40: both DJs crouch and take off together 2 beats before it and land on the same beat, its first (within a frame), each on his own mark at the stage front under his own spotlight; the Encore's one target sits between them (its duet radius, 14 cm) all the while they are out, the booth out of reach; they stay on their marks through the duet and its bow and take off together 2 beats before the bow ends (beat 68), landing home, at rest, as it ends.`,
+  setup() {},
+  play() {
+    const { B, go, slot, M } = duetFight(fps), F = FL(), db = BPM / 60 / fps + 1e-6, mark = Object.fromEntries(DUO.map((d) => [d, duoAt(B, d)])), home = Object.fromEntries(DUO.map((d) => [d, worldOf(M.rigs[d].body)]));
+    go(33.9); slot('duet', 40);
+    const off = {}, landed = {}, back = {};
+    let target = 0, still = 0, spots = 0;
+    go(200, () => {
+      const b = B.beat;
+      for (const d of DUO) {
+        const p = worldOf(M.rigs[d].body), out = M.out(d);
+        if (off[d] == null && out) off[d] = b;
+        if (landed[d] == null && out && flat(p, mark[d]) < 0.002) landed[d] = b;
+        if (landed[d] != null && back[d] == null && !out) back[d] = { b, at: +p.distanceTo(home[d]).toFixed(4) };
+        if (B.solo && b > 40.1 && b < B.solo.bowEnd - 2.05) { still = Math.max(still, flat(p, mark[d])); spots = Math.max(spots, B.spots[d].visible ? flat(worldOf(B.spots[d]), p) : 1); }
+      }
+      if (M.out('silver') && M.out('gold')) {
+        const mid = worldOf(M.rigs.silver.body).add(worldOf(M.rigs.gold.body)).multiplyScalar(0.5).add(V(0, F.chest, 0));
+        target = Math.max(target, B.position.distanceTo(mid) + Math.abs(B.r - F.duet));
+      }
+      if (back.silver && back.gold) return true;
+    });
+    const t = (o, want) => o != null && o - want >= -1e-6 && o - want < db;
+    const res = { off, landed, back, target: +target.toFixed(5), still: +still.toFixed(5), spots: +spots.toFixed(4), duet: F.duet, after: B.position.distanceTo(V(0, 0.13, -0.17)) < 1e-6 && B.r === 0.14 };
+    const good = DUO.every((d) => t(off[d], 38) && t(landed[d], 40) && back[d] && t(back[d].b, 68) && back[d].at < 0.001) && target < 1e-6 && F.duet === 0.14 && still < 1e-4 && spots < 0.01 && res.after && !B.solo;
+    return ok(good, res);
+  },
+});
+
+fight('the-duets-warning-is-8-beats-and-its-wall-rolls-on-a-bar-line-as-both-push', {
+  about: 'On the floor the duet is 5 bars: its three records land on beats 44, 48 and 52, its Warning fills from 52 for 8 beats, and the wall rolls on the bar line, beat 60, as both DJs push (the push\'s accent on that beat); the floor and lasers rest from 40 to 64, and the duet\'s whole run, from take-off to both home on 68, is 30 beats.',
+  setup() {},
+  play() {
+    const { B, go, slot, M } = duetFight(), S = (go(33.9), slot('duet', 40), B.solo), w = S.wall;
+    const plan = { lands: B.records.casts.map((c) => c.land).join(), warnAt: w.warnAt, rollAt: w.rollAt, end: S.end, rest: S.rest, bowEnd: S.end + S.bow, rests: !!B.soloing(40) && !!B.soloing(63.9) && !B.soloing(64) };
+    let push = null, rolled = null;
+    go(61, () => { if (push == null && M.rigs.silver.move && M.rigs.silver.at === 60 && M.rigs.gold.at === 60) push = B.beat; if (rolled == null && w.state === 'roll') rolled = B.beat; });
+    const good = plan.lands === '44,48,52' && plan.warnAt === 52 && plan.rollAt === 60 && plan.rollAt - plan.warnAt === 8 && plan.end === 60 && plan.rest === 64 && plan.bowEnd === 68 && plan.rests && push !== null && push < 60 && rolled >= 60 && rolled < 60.05;
+    return ok(good, { plan, push, rolled });
+  },
+});
+
+fight('in-the-duet-only-a-strip-behind-a-standing-record-is-safe-and-no-record-lands-by-the-djs', {
+  about: 'With both DJs on the floor, no duet record lands within 17.5 cm of the line between them (their bodies, a record and 6 cm), even with the jelly standing right in front of them; when the wall rolls a jelly in the strip behind a standing record is spared, one just beside that strip is hit once for 6 Health; the gold DJ faces each record\'s landing spot and points at it as it locks.',
+  setup() {},
+  play() {
+    const out = {}, keep = FL().body + 0.055 + FL().keep;
+    for (const where of ['strip', 'beside']) {
+      const { B, go, slot, M, hurt } = duetFight(), { player } = G();
+      const seg = (x, z) => { const a = duoAt(B, 'silver'), b = duoAt(B, 'gold'), q = Math.max(a.x, Math.min(b.x, x)); return Math.hypot(x - q, z - a.z); };
+      go(33.9); slot('duet', 40);
+      let points = 0, faced = Infinity;
+      go(52.2, () => {
+        player.position.set(0, 0.01, 0.06); player.velocity?.set(0, 0, 0);   // (just in front of them)
+        const c = B.records.casts.find((r) => r.state === 'wind' && B.beat >= r.lockAt - 0.05 && B.beat < r.lockAt + 0.05);
+        if (c && M.rigs.gold.move && M.rigs.gold.at === c.lockAt) points++;
+        const a = B.records.casts.find((r) => r.state === 'fly');
+        if (a) { const g = worldOf(M.rigs.gold.body), f = M.rigs.gold.body.getWorldDirection(V(0, 0, 0)); faced = Math.min(faced, Math.abs(Math.atan2(f.x * (a.to[1] - g.z) - f.z * (a.to[0] - g.x), f.x * (a.to[0] - g.x) + f.z * (a.to[1] - g.z)))); }
+      });
+      const near = Math.min(...B.records.casts.map((c) => seg(c.to[0], c.to[1])));
+      const s = B.solo.wall.shields[0], at = where === 'strip' ? [s.x, s.z + 0.15] : [s.x + 0.075, s.z + 0.15];
+      go(62, () => { player.position.set(at[0], 0.01, at[1]); player.velocity?.set(0, 0, 0); });
+      out[where] = { near: +near.toFixed(3), wall: hurt.filter((h) => h.wall).map((h) => h.dmg), points, faced: +faced.toFixed(2) };
+    }
+    const good = ['strip', 'beside'].every((k) => out[k].near >= keep - 1e-6 && out[k].points >= 2) && out.strip.wall.length === 0 && out.beside.wall.join() === '6';
+    return ok(good, { keep, ...out });
+  },
+});
+
+fight('a-duet-called-off-sends-both-djs-home-with-no-bow', {
+  about: 'A duet the song\'s breakdown would cut into is called off as it is booked: neither DJ leaves the booth and the plain set plays. One whose records are all gone as its Warning would start (beat 52) is called off there: both DJs crouch and vault home at once, landing 4 beats later, with no bow, never EXPOSED, and no wall.',
+  setup() {},
+  play() {
+    const out = {};
+    {
+      const { B, song, go, slot, M } = duetFight();
+      song.quiet = (b) => b >= 58 && b < 90;
+      go(33.9); slot('duet', 40); go(36); const solo = !!B.solo;
+      let left = false; go(44, () => { left ||= M.out('silver') || M.out('gold'); });
+      out.breakdown = { solo, left, ok: !solo && !left };
+    }
+    {
+      const { B, go, slot, M, hurt } = duetFight();
+      go(33.9); slot('duet', 40);
+      go(51.5); B.records.reset();
+      let bowed = false, exposed = false, home = {};
+      const real = M.perform.bind(M);
+      stub(M, 'perform', (who, move, ...a) => { bowed ||= move === 'bow'; return real(who, move, ...a); });
+      go(80, () => {
+        for (const d of DUO) if (home[d] == null && !M.out(d)) home[d] = B.beat;
+        exposed ||= B.exposed;
+        if (home.silver != null && home.gold != null && !B.solo) return true;
+      });
+      out.gone = { home, bowed, exposed, wall: hurt.filter((h) => h.wall).length, solo: !!B.solo, ok: DUO.every((d) => home[d] >= 56 - 1e-6 && home[d] < 56.05) && !bowed && !exposed && !hurt.some((h) => h.wall) && !B.solo };
+    }
+    return ok(out.breakdown.ok && out.gone.ok, out);
+  },
+});
+
+fight('the-last-song-still-fits-a-duet-on-the-floor-between-its-slots', {
+  about: 'In the last song a slot comes every 10 bars (bosses.kdl set last, never below 9): a duet on the floor booked on beat 40 has both DJs home and its solo over by beat 68, so the next slot, booked 6 beats before its bar 9 or 10 bars on, starts (the silver DJ vaults out on time).',
+  setup() {},
+  play() {
+    const out = {};
+    for (const bars of [9, 10]) {
+      const { B, go, slot, M } = duetFight(), next = 40 + bars * 4;
+      go(33.9); slot('duet', 40);
+      go(next - 6); const started = slot('silver', next) === true, home = !M.out('silver') && !M.out('gold');
+      let landed = null; go(next + 1, () => { if (landed == null && B.beat >= next - 0.05 && M.out('silver')) landed = B.beat; });
+      out[bars] = { started, home, landed };
+    }
+    const last = G().run.boss.def.skills.set?.last;
+    return ok(last >= 9 && [9, 10].every((k) => out[k].started && out[k].home && out[k].landed != null), { last, ...out });
   },
 });

@@ -108,13 +108,16 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // apart (as his Record toss), each landing at least `apart` m from the others; as the last lands
     // the floor fills as a Warning `height` m tall but for a strip `safe` m wide and `behind` m long
     // behind each; as the solo's bars end the wall rolls stage to back in `roll` beats, `dmg` Health
-    // and a `knock` shove to a jelly outside a strip (at any height); then both DJs bow `bow` bars
+    // and a `knock` shove to a jelly outside a strip (at any height); then both DJs bow `bow` bars.
+    // On the floor (ENCORE.marks.duet) both vault out in its first bar and the records start in the
+    // second, so it is a bar longer (the Warning still 2 bars)
     // a solo on the floor (a DJ with a mark in src/stage4.js ENCORE.marks): he crouches `crouch` beats and is
     // `air` beats in the air, landing on his mark on the solo's first beat; home in his bow's last `air`
     // beats. Out there he is the Encore's one target (`r` m round his chest, `chest` m up) and the booth
     // can't be hit; his body (`body` m round) pushes the jelly out, never hurts it, and his landing gives
     // a jelly on the mark a `shove`; no record lands within `keep` m of his body's edge. The short-out or
-    // its defeat knock him home in `knock` s; a song rewind hops him home in `hop` s
-    floor crouch=2 air=2 body=0.06 r=0.1 chest=0.17 keep=0.06 shove=0.5 knock=0.3 hop=0.4
+    // its defeat knock him home in `knock` s; a song rewind hops him home in `hop` s. In the duet both go
+    // out together, and the one target is between them, `duet` m round
+    floor crouch=2 air=2 body=0.06 r=0.1 chest=0.17 keep=0.06 shove=0.5 knock=0.3 hop=0.4 duet=0.14
     wall dmg=6 height=0.4 records=3 apart=0.2 safe=0.1 behind=0.3 roll=2 knock=0.6 bow=2
 }

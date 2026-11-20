@@ -74,14 +74,17 @@ const SOLO_ATTACKS = {
     }
   },
   // the duet, the Wall of sound: the silver DJ throws `records` records a bar apart, facing the stage, each
-  // landing `apart` from the ones before; as the last lands the wall's Warning starts, and it rolls as
-  // the solo's bars end (S.end); the floor rests until a bar after that, and both DJs bow `bow` bars
+  // landing `apart` from the ones before; as the last lands the wall's Warning starts (2 bars), and it rolls
+  // as the solo's bars end (S.end); the floor rests until a bar after that, and both DJs bow `bow` bars.
+  // On the floor (ENCORE.marks.duet) both vault out for the first bar, so it is a bar longer: records on
+  // A+4, A+8, A+12, the roll on A+20 (both push it out), the bow to A+28, home in its last 2 beats
   duet(at, S) {
-    const R = this.def.skills.records || {}, W = this.def.skills.wall || {}, n = W.records ?? 3, casts = [];
-    S.warnAt = at + (n - 1) * 4; S.rest = S.end + 4; S.bow = (W.bow ?? 2) * 4;
+    const R = this.def.skills.records || {}, W = this.def.skills.wall || {}, n = W.records ?? 3, casts = [], k0 = S.mark ? 1 : 0;
+    S.warnAt = at + (n - 1 + k0) * 4; S.end += k0 * 4; S.rest = S.end + 4; S.bow = (W.bow ?? 2) * 4;
+    if (S.mark) S.bowAt = S.end + (W.roll ?? 2);                       // (on the floor they push the wall out first, then bow)
     for (let b = S.warnAt; b <= S.rest; b++) if (this.quiet(b)) { S.wall = { state: 'off' }; return; }   // (the song's breakdown would rest it mid-wall: called off, the plain set plays)
     for (let k = 0; k < n; k++) {
-      const land = at + k * 4, before = casts.slice();
+      const land = at + (k + k0) * 4, before = casts.slice();
       if (this.quiet(land)) continue;
       const c = this.records.cast(land, { from: () => this.hand('silver'), target: () => this.cover(before, W.apart ?? 0.2),
         dmg: R.dmg ?? 4, height: R.height ?? 0.25, stand: S.end + (W.roll ?? 2) - land, flight: R.flight ?? 1, windup: R.windup ?? 3, lock: R.lock ?? 1, face: 0 });
@@ -90,10 +93,23 @@ const SOLO_ATTACKS = {
     S.wall = this.wall.cast(S.warnAt, S.end, casts, { dmg: W.dmg ?? 6, height: W.height ?? 0.4, roll: W.roll ?? 2, safe: W.safe ?? 0.1, behind: W.behind ?? 0.3, knock: W.knock ?? 0.6 });
   },
 };
+// where each DJ of a solo of `kind` stands on the floor ({ silver: [x, 0, z], ..., mid: the middle of
+// them }, ENCORE.marks), or null: it plays from the booth
+function floorMarks(kind) {
+  const m = ENCORE.marks?.[kind];
+  if (!m) return null;
+  const who = SOLOISTS[kind], out = { mid: [0, 0, 0] };
+  for (const d of who) {
+    const p = Array.isArray(m) ? m : m[d];
+    out[d] = [p[0], 0, p[1]]; out.mid[0] += p[0] / who.length; out.mid[2] += p[1] / who.length;
+  }
+  return out;
+}
 // round the jelly, where a duet's next record goes: at it, or the nearest of 12 spots `apart` round it
 // that is that far from every record `before` it (towards the middle of the floor first), never so near
 // the back of the floor that its safe strip has no room
 const ROOM = 0.15, _spot = [0, 0], _try = [0, 0];
+const FLOOR_BACK = (ENCORE.tiles * ENCORE.tileSize) / 2;   // the back of the floor (z): where the wall rolls to
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17], BOOTH_R = 0.14;
 const _hit = new THREE.Vector3(), _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
@@ -164,11 +180,13 @@ export class Encore {
   // attack yet (else the plain set plays through); false if it didn't start (one already plays)
   // (none while its force field is up: no DJ leaves the booth then; nor while he is still on his way home)
   slot(kind, at) {
-    if (!SOLO_ATTACKS[kind] || this.solo || this.shielded || (ENCORE.marks?.[kind] && this.arenaView.boss.out(kind))) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
-    const bars = this.def.skills.solo?.bars ?? 4, mark = ENCORE.marks?.[kind], air = this.def.skills.floor?.air ?? 2;
+    const marks = floorMarks(kind);
+    if (!SOLO_ATTACKS[kind] || this.solo || this.shielded || (marks && SOLOISTS[kind].some((d) => this.arenaView.boss.out(d)))) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
+    const bars = this.def.skills.solo?.bars ?? 4, air = this.def.skills.floor?.air ?? 2;
     this.solo = { who: kind, at, end: at + bars * 4, bowEnd: null, clean: true, bowing: false, lit: false };
-    // a DJ with a mark plays it on the floor: he takes off `air` beats before his solo (at once, if it was booked late)
-    if (mark) Object.assign(this.solo, { mark: [mark[0], 0, mark[1]], off: Math.min(at - 0.25, Math.max(at - air, this.beat ?? -Infinity)) });
+    // a solo with a mark plays on the floor: its DJs take off `air` beats before it (at once, if it was booked late);
+    // `marks` where each stands, `mark` the middle of them
+    if (marks) Object.assign(this.solo, { marks, mark: marks.mid, off: Math.min(at - 0.25, Math.max(at - air, this.beat ?? -Infinity)) });
     SOLO_ATTACKS[kind].call(this, at, this.solo);
     return true;
   }
@@ -214,9 +232,15 @@ export class Encore {
   // where the jelly is ([x, z], one array reused)
   jellyAt() { const a = (this._at ||= [0, 0]); a[0] = this.player.position.x; a[1] = this.player.position.z; return a; }
   // whose fist pumps when the soloist's attack hits: his partner, watching from the booth (none in a duet)
-  watcher() { const S = this.solo; return S?.mark ? (S.who === 'silver' ? 'gold' : 'silver') : null; }
-  // the DJ out on the floor (from his take-off till he lands home): the Encore's one target
-  outDj() { const S = this.solo; return S?.mark && this.arenaView.boss.out(S.who) ? S.who : null; }
+  watcher() { const S = this.solo; return S?.mark && S.who !== 'duet' ? (S.who === 'silver' ? 'gold' : 'silver') : null; }
+  // the DJs out on the floor (each from his take-off till he lands home): the Encore's one target (one array, reused)
+  outDjs() {
+    const a = (this._out ||= []), S = this.solo;
+    a.length = 0;
+    if (S?.mark) for (const d of SOLOISTS[S.who]) if (this.arenaView.boss.out(d)) a.push(d);
+    return a;
+  }
+  outDj() { return this.outDjs()[0] ?? null; }
   // where a DJ's throwing hand is (his outer glove), in the arena
   hand(who, out = this._hand ||= new THREE.Vector3()) {
     const r = this.arenaView.boss.rigs[who];
@@ -226,8 +250,13 @@ export class Encore {
   soloStep(beat) {
     const S = this.solo, M = this.arenaView.boss, K = this.def.skills.solo || {};
     if (!S) return;
-    if (S.wall?.state === 'off') { this.endSolo(); return; }   // (a duet whose records all missed: no wall)
-    const who = SOLOISTS[S.who];
+    const who = SOLOISTS[S.who], F = this.def.skills.floor || {};
+    // a duet called off (the breakdown in its way, or no record standing as its Warning would start): over
+    // at once, or, if they are out on the floor, both vault home with no bow
+    if (S.wall?.state === 'off') {
+      if (!S.mark || (beat < S.off - (F.crouch ?? 2) && !this.outDjs().length)) { this.endSolo(); return; }
+      if (!S.bowing) { S.bowing = true; S.bowEnd = Math.round(beat) + (F.crouch ?? 2) + (F.air ?? 2); }   // (from the beat it was called off on)
+    }
     if (S.mark) this.floorStep(S, beat);
     // his next throw (asked again each frame: it plays on; on the floor, once he has landed)
     for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4 && (!S.mark || beat >= S.at + 1)) M.perform('silver', 'throw', c.release); break; }
@@ -240,9 +269,12 @@ export class Encore {
     if (!S.bowing && beat >= S.end - 1) {
       const bow = S.bow ?? (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
       S.bowing = true; S.bowEnd = S.end + bow;
-      const F = this.def.skills.floor || {}, up = S.mark ? (F.crouch ?? 2) + (F.air ?? 2) : 0;   // (on the floor, up in time to vault home)
-      for (const d of who) M.perform(d, 'bow', S.end, 1, Math.max(0, bow - up - this.bowLift));
+      const up = S.mark ? (F.crouch ?? 2) + (F.air ?? 2) : 0;   // (on the floor, up in time to vault home)
+      S.down = Math.max(0, S.bowEnd - (S.bowAt ?? S.end) - up - this.bowLift);
+      for (const d of who) if (S.bowAt > S.end) M.perform(d, 'push', S.end); else M.perform(d, 'bow', S.end, 1, S.down);
     }
+    // the duet on the floor: both push the wall out as it rolls, then bow
+    if (S.bowAt > S.end && S.bowing && !S.bowed && beat >= S.bowAt - 1) { S.bowed = true; for (const d of who) M.perform(d, 'bow', S.bowAt, 1, S.down); }
     if (S.bowing && !S.exhaled && beat >= S.end) { S.exhaled = true; if (beat < S.end + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
     // the spotlight and his wing come up over the beat before his solo and go down over the beat after
     // (on the floor: up over the beat after he is booked, and on him till he is home)
@@ -252,48 +284,65 @@ export class Encore {
   }
   // a solo on the floor, each frame: he crouches and vaults out to land on his mark on the solo's first
   // beat (a shove for a jelly standing there), faces the jelly till the lane he throws next locks, keeps
-  // his records clear of him, and in his bow's last beats crouches and vaults home, landing as it ends
+  // his records clear of him, and in his bow's last beats crouches and vaults home, landing as it ends.
+  // The duet: both, each to his own mark; the gold DJ faces and points at where each record will land,
+  // and from the wall's Warning both face down the floor
   floorStep(S, beat) {
-    const M = this.arenaView.boss, F = this.def.skills.floor || {}, who = S.who, air = F.air ?? 2, crouch = F.crouch ?? 2;
-    if (S.bowEnd === null || beat < S.bowEnd - air - crouch) {
-      if (beat < S.at - 0.3) { if (beat >= S.off - crouch) M.perform(who, 'vault', S.off, 1, Math.max(0, S.at - S.off - 0.5)); }
-      else if (beat < S.at + 1) M.perform(who, 'land', S.at);
-      M.travel(who, S.mark, S.off, S.at);
-      const k = this.keep; k[0] = S.mark[0]; k[1] = S.mark[2]; k[2] = (F.body ?? 0.06) + this.records.r + (F.keep ?? 0.06);
-      this.records.keep = k;
-    } else {
-      const off = S.bowEnd - air;
-      M.perform(who, 'vault', off, 1, Math.max(0, air - 0.5)); M.travel(who, 'home', off, S.bowEnd);
-      this.records.keep = null;
+    const M = this.arenaView.boss, F = this.def.skills.floor || {}, air = F.air ?? 2, crouch = F.crouch ?? 2, djs = SOLOISTS[S.who];
+    const home = S.bowEnd !== null && beat >= S.bowEnd - air - crouch, next = this.records.casts.find((c) => c.state === 'wind'), aim = this.records.casts.find((c) => c.state === 'wind' || c.state === 'fly');
+    for (const who of djs) {
+      if (!home) {
+        if (beat < S.at - 0.3) { if (beat >= S.off - crouch) M.perform(who, 'vault', S.off, 1, Math.max(0, S.at - S.off - 0.5)); }
+        else if (beat < S.at + 1) M.perform(who, 'land', S.at);
+        M.travel(who, S.marks[who], S.off, S.at);
+      } else { const off = S.bowEnd - air; M.perform(who, 'vault', off, 1, Math.max(0, air - 0.5)); M.travel(who, 'home', off, S.bowEnd); }
+      if (S.bowing) M.face(who, null);
+      else if (S.warnAt != null && beat >= S.warnAt) { const f = (this._down ||= [0, 0]); f[0] = S.marks[who][0]; f[1] = FLOOR_BACK; M.face(who, f); }
+      else if (who === 'gold' && S.who === 'duet') {
+        // he points at where the next record will land, from its Warning till it lands (once landed himself)
+        M.face(who, aim && beat >= aim.warnAt ? aim.to : this.jellyAt());
+        if (aim && beat >= S.at + 1) M.perform(who, 'point', aim.lockAt, 1, aim.land - aim.lockAt);
+      } else M.face(who, !next || beat < next.lockAt ? this.jellyAt() : null);
     }
-    const next = this.records.casts.find((c) => c.state === 'wind');
-    M.face(who, !S.bowing && (!next || beat < next.lockAt) ? this.jellyAt() : null);
-    // the landing: a jelly on his mark is shoved off it, unhurt; dust at his feet
-    if (!S.landed && beat >= S.at && M.out(who)) {
+    if (!home) {
+      const k = this.keep; k[0] = S.mark[0]; k[1] = S.mark[2]; k[2] = (F.body ?? 0.06) + this.records.r + (F.keep ?? 0.06);
+      k[3] = djs.length > 1 ? Math.abs(S.marks[djs[1]][0] - S.marks[djs[0]][0]) / 2 : 0;
+      this.records.keep = k;
+    } else this.records.keep = null;
+    // the landing: a jelly on a mark is shoved off it, unhurt; dust at their feet
+    if (!S.landed && beat >= S.at && M.out(djs[0])) {
       S.landed = true;
-      const p = this.player.position, d = Math.hypot(p.x - S.mark[0], p.z - S.mark[2]);
-      if (d < (F.body ?? 0.06) + (this.player.cfg?.radius ?? 0.03) && p.y < 2 * (F.chest ?? 0.17))
-        bus.emit('knockback', { targetId: PLAYER, dir: d > 1e-6 ? new THREE.Vector3(p.x - S.mark[0], 0, p.z - S.mark[2]).divideScalar(d) : new THREE.Vector3(0, 0, 1), force: F.shove ?? 0.5 });
-      this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6);
+      const p = this.player.position;
+      for (const who of djs) {
+        const m = S.marks[who], d = Math.hypot(p.x - m[0], p.z - m[2]);
+        if (d < (F.body ?? 0.06) + (this.player.cfg?.radius ?? 0.03) && p.y < 2 * (F.chest ?? 0.17))
+          bus.emit('knockback', { targetId: PLAYER, dir: d > 1e-6 ? new THREE.Vector3(p.x - m[0], 0, p.z - m[2]).divideScalar(d) : new THREE.Vector3(0, 0, 1), force: F.shove ?? 0.5 });
+        this.fx.puff(_hit.set(m[0], 0.01, m[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6);
+      }
       juice.feel('hit');
     }
   }
   // after the model moves (a DJ out on the floor): the target and his spotlight go with him, he flinches
   // when hit (the booth then can't be), and his partner in the booth turns his helmet to him
   floorFollow(dt, beat) {
-    const M = this.arenaView.boss, S = this.solo, F = this.def.skills.floor || {}, out = this.outDj();
-    if (out) { M.rigs[out].body.getWorldPosition(this.holder.position); this.holder.position.y += F.chest ?? 0.17; this.r = F.r ?? 0.1; }
-    else { this.holder.position.fromArray(TARGET); this.r = BOOTH_R; }
-    if (S?.mark && beat !== null) {
-      const m = this.spots[S.who], h = this.spotHome[S.who];
-      if (out && beat >= S.at) { M.rigs[out].body.getWorldPosition(m.position); this.arenaView.root.worldToLocal(m.position); m.position.y = 0.02; }
-      else { const u = THREE.MathUtils.smoothstep(beat, S.at - 5, S.at - 4); m.position.set(h.x + (S.mark[0] - h.x) * u, h.y + (0.02 - h.y) * u, h.z + (S.mark[2] - h.z) * u); }
+    const M = this.arenaView.boss, S = this.solo, F = this.def.skills.floor || {}, outs = this.outDjs(), out = outs[0] ?? null;
+    // (the duet's target is between the two of them)
+    if (out) {
+      const h = this.holder.position.set(0, 0, 0);
+      for (const d of outs) h.add(M.rigs[d].body.getWorldPosition(_wa));
+      h.divideScalar(outs.length); h.y += F.chest ?? 0.17; this.r = S.who === 'duet' ? F.duet ?? 0.14 : F.r ?? 0.1;
+    } else { this.holder.position.fromArray(TARGET); this.r = BOOTH_R; }
+    if (S?.mark && beat !== null) for (const d of SOLOISTS[S.who]) {
+      const m = this.spots[d], h = this.spotHome[d], to = S.marks[d];
+      if (M.out(d) && beat >= S.at) { M.rigs[d].body.getWorldPosition(m.position); this.arenaView.root.worldToLocal(m.position); m.position.y = 0.02; }
+      else { const u = THREE.MathUtils.smoothstep(beat, S.at - 5, S.at - 4); m.position.set(h.x + (to[0] - h.x) * u, h.y + (0.02 - h.y) * u, h.z + (to[2] - h.z) * u); }
     }
     this.flinchT = Math.max(0, this.flinchT - dt * 6);
-    if (out && this.flinchT > 0) M.rigs[out].torso.rotation.x -= this.flinchT * LOOK.num('encore-floor-flinch', 0.3);
-    const W = this.watch;
-    if (out) { W.of = out; W.who = out === 'silver' ? 'gold' : 'silver'; }
-    W.w += ((out ? 1 : 0) - W.w) * Math.min(1, dt * 4);
+    if (this.flinchT > 0) for (const d of outs) M.rigs[d].torso.rotation.x -= this.flinchT * LOOK.num('encore-floor-flinch', 0.3);
+    // (in the duet nobody is left in the booth to watch)
+    const W = this.watch, solo = out && S.who !== 'duet';
+    if (solo) { W.of = out; W.who = out === 'silver' ? 'gold' : 'silver'; }
+    W.w += ((solo ? 1 : 0) - W.w) * Math.min(1, dt * 4);
     if (W.who && W.w > 1e-3) {
       const a = M.rigs[W.who], side = W.who === 'silver' ? -1 : 1;
       a.head.getWorldPosition(_wa); M.rigs[W.of].body.getWorldPosition(_wb);
@@ -463,7 +512,7 @@ export class Encore {
       this.records.update(beat, player, dt);
       // a DJ standing on his mark pushes the jelly out of his body, as a standing record does (never hurts)
       const O = this.solo, F = this.def.skills.floor || {};
-      if (this.outDj() && beat >= O.at && !(O.bowEnd !== null && beat >= O.bowEnd - (F.air ?? 2))) this.records.ring(O.mark[0], O.mark[2], F.body ?? 0.06, 2 * (F.chest ?? 0.17), player);
+      if (O?.mark && beat >= O.at && !(O.bowEnd !== null && beat >= O.bowEnd - (F.air ?? 2))) for (const d of this.outDjs()) this.records.ring(O.marks[d][0], O.marks[d][2], F.body ?? 0.06, 2 * (F.chest ?? 0.17), player);
       this.pyro.update(beat, player, dt);
       this.wall.update(beat, player);
       this.shove.x += this.records.pushX; this.shove.z += this.records.pushZ;
