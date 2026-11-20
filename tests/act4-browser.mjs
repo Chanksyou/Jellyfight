@@ -122,7 +122,7 @@ export function pack({ seed, style, jelly, types, counts, minute = 1.5, seconds 
     run.devRun();
     const build = endOfAct3(seed, style);
     step(5);
-    const toughness = (run.stage.toughness || 1) * (1 + minute * CONTENT.waves.toughen), bugs = [];
+    const toughness = run.stage.toughness || 1, bugs = [];
     let k = 0;
     types.forEach((type, i) => { for (let n = 0; n < counts[i]; n++, k++) {
       const a = k * 2.399, d = 0.28 + (k % 3) * 0.05;

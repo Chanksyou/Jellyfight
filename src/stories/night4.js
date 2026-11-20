@@ -51,6 +51,23 @@ night4('the-act-opens-in-the-living-room-at-dawn', {
   },
 });
 
+night4('bug-health-is-constant-all-night', {
+  about: 'Act 4\'s regular bugs have the same Health however late in the night they spawn: Firefly 700, Moth 1000, Cicada 1200, exactly.',
+  setup() { fresh({ waves: true }); },
+  play() {
+    const { run, enemies } = G(), seen = {};
+    for (const t of [0, 90, 170]) {
+      run.t = t;
+      const before = new Set(enemies.list);
+      for (let i = 0; i < 40; i++) { run.spawnWaves(1); }
+      for (const e of enemies.list) if (!before.has(e) && e.T.id !== 'nest') (seen[e.T.id] ||= new Set()).add(e.maxHp);
+      enemies.list.filter((e) => !e.dead && !before.has(e)).forEach((e) => { e.dead = true; });
+    }
+    const want = { firefly: 700, moth: 1000, cicada: 1200 };
+    const flat = Object.keys(seen).length > 0 && Object.entries(seen).every(([id, v]) => v.size === 1 && v.has(want[id]));
+    return ok(flat, { seen: Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v]])) });
+  },
+});
 night4('time-up-opens-the-stage-door-instead-of-a-boss', {
   about: 'When the 3 minutes are up no boss comes: the bugs go, no more come, and the stage door opens on the media console (a toast, a hint, a marker on the map). The act stays in the room until the jelly goes through.',
   setup() { fresh({ waves: true }); },

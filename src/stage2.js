@@ -27,7 +27,7 @@ export const STAGE2 = {
   music: 'tide',                      // the song while you explore (music.js SONGS): "Ephyra Tide"
   details: 'bathroom',                // the tub dressed after the real one (bathroom.js)
   // you arrive levelled up with act 1's treasures, so everything here is tougher and hits harder:
-  // `toughness` the regular bugs' health (they toughen further with the hour), `eliteHp` and
+  // `toughness` the regular bugs' health (the same all act), `eliteHp` and
   // `bossHp` the elites' and the Clog's, `power` every hit you take (run.js)
   toughness: 2,
   eliteHp: 1.8,

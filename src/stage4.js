@@ -93,9 +93,9 @@ export const STAGE4 = {
   clock: [360, 480],                  // in-game minutes after midnight: 6:00 AM -> 8:00 AM
   sky: 'dawn',                        // the look: content/look.css --dawn-* (blue hour at 6:00 warming to gold by 8:00; main.js)
   music: 'sunrise',                   // "Sunrise Set" (music.js)
-  // as tough as the arena (the act's numbers); `bugs` is how many come at once: act 3's 0.7 left this room's
+  // regular bugs' Health is exactly what content/enemies.kdl says (Firefly 700, Moth 1000, Cicada 1200), so no multiplier here; `bugs` is how many come at once: act 3's 0.7 left this room's
   // bugs costing a third of act 3's Health a second, 1 brings 43% more of them (a 12 bug pack: 1 Health a second for act 4's, 3 for act 3's; the spawn rate and the most alive at once both rise with it)
-  toughness: 3.5,
+  toughness: 1,
   power: 2,
   bugs: 1,
   xpMult: 1.6,
