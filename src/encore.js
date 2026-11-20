@@ -198,7 +198,7 @@ export class Encore {
   // a duet record's landing spot (see ROOM)
   // (if none of them is far enough, the one farthest from the rest)
   cover(before, apart) {
-    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, keep = this.records.keep, back = (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM, base = Math.atan2(0.3 - z, -x);
+    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, keep = this.records.keep, back = FLOOR_BACK - ROOM, base = Math.atan2(0.3 - z, -x);
     let best = -1;
     for (let k = -1; k < 12; k++) {
       const a = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6, d = k < 0 ? 0 : apart;
@@ -254,7 +254,7 @@ export class Encore {
     // a duet called off (the breakdown in its way, or no record standing as its Warning would start): over
     // at once, or, if they are out on the floor, both vault home with no bow
     if (S.wall?.state === 'off') {
-      if (!S.mark || (beat < S.off - (F.crouch ?? 2) && !this.outDjs().length)) { this.endSolo(); return; }
+      if (!S.mark || !this.outDjs().length) { this.endSolo(); return; }
       if (!S.bowing) { S.bowing = true; S.bowEnd = Math.round(beat) + (F.crouch ?? 2) + (F.air ?? 2); }   // (from the beat it was called off on)
     }
     if (S.mark) this.floorStep(S, beat);
