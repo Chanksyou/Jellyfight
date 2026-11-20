@@ -60,9 +60,9 @@ export function setLite(lite, { scene, shelf, apartment, batches = [] }) {
     }
     if (o.isSpotLight) { o.visible = !on; spots = true; }
   });
-  scene.traverse((o) => {
+  if (spots) scene.traverse((o) => {   // (a scene without spots keeps its fill as it is: act 4's arena sets its own every frame)
     if (!o.isHemisphereLight) return;
     if (!FILL.has(o)) FILL.set(o, o.intensity);
-    o.intensity = FILL.get(o) * (on && spots ? LOOK.num('lite-fill', 1.6) : 1);
+    o.intensity = FILL.get(o) * (on ? LOOK.num('lite-fill', 1.6) : 1);
   });
 }
