@@ -96,7 +96,7 @@ const SOLO_ATTACKS = {
 const ROOM = 0.15, _spot = [0, 0], _try = [0, 0];
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17], BOOTH_R = 0.14;
-const _hit = new THREE.Vector3(), _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _away = new THREE.Vector3();
+const _hit = new THREE.Vector3(), _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
 
 export class Encore {
   constructor(scene, enemies, fx, B, world, ctx = {}) {
@@ -162,9 +162,9 @@ export class Encore {
   }
   // a solo slot (kind 'silver', 'gold' or 'duet') from bar line `at`: that DJ solos, if he has a solo
   // attack yet (else the plain set plays through); false if it didn't start (one already plays)
-  // (none while its force field is up: no DJ leaves the booth then)
+  // (none while its force field is up: no DJ leaves the booth then; nor while he is still on his way home)
   slot(kind, at) {
-    if (!SOLO_ATTACKS[kind] || this.solo || this.shielded) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
+    if (!SOLO_ATTACKS[kind] || this.solo || this.shielded || (ENCORE.marks?.[kind] && this.arenaView.boss.out(kind))) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
     const bars = this.def.skills.solo?.bars ?? 4, mark = ENCORE.marks?.[kind], air = this.def.skills.floor?.air ?? 2;
     this.solo = { who: kind, at, end: at + bars * 4, bowEnd: null, clean: true, bowing: false, lit: false };
     // a DJ with a mark plays it on the floor: he takes off `air` beats before his solo (at once, if it was booked late)
@@ -273,7 +273,7 @@ export class Encore {
       S.landed = true;
       const p = this.player.position, d = Math.hypot(p.x - S.mark[0], p.z - S.mark[2]);
       if (d < (F.body ?? 0.06) + (this.player.cfg?.radius ?? 0.03) && p.y < 2 * (F.chest ?? 0.17))
-        bus.emit('knockback', { targetId: PLAYER, dir: d > 1e-6 ? _away.set(p.x - S.mark[0], 0, p.z - S.mark[2]).divideScalar(d) : _away.set(0, 0, 1), force: F.shove ?? 0.5 });
+        bus.emit('knockback', { targetId: PLAYER, dir: d > 1e-6 ? new THREE.Vector3(p.x - S.mark[0], 0, p.z - S.mark[2]).divideScalar(d) : new THREE.Vector3(0, 0, 1), force: F.shove ?? 0.5 });
       this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6);
       juice.feel('hit');
     }
@@ -283,7 +283,7 @@ export class Encore {
   floorFollow(dt, beat) {
     const M = this.arenaView.boss, S = this.solo, F = this.def.skills.floor || {}, out = this.outDj();
     if (out) { M.rigs[out].body.getWorldPosition(this.holder.position); this.holder.position.y += F.chest ?? 0.17; this.r = F.r ?? 0.1; }
-    else { this.holder.position.set(...TARGET); this.r = BOOTH_R; }
+    else { this.holder.position.fromArray(TARGET); this.r = BOOTH_R; }
     if (S?.mark && beat !== null) {
       const m = this.spots[S.who], h = this.spotHome[S.who];
       if (out && beat >= S.at) { M.rigs[out].body.getWorldPosition(m.position); this.arenaView.root.worldToLocal(m.position); m.position.y = 0.02; }

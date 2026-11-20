@@ -37,7 +37,7 @@ export const ENCORE = {
   tiles: 12, tileSize: 0.12,
   bossSpace: { center: [0, 0, -0.36], width: 0.62, depth: 0.48 },
   // where a DJ stands on the floor for his solo ([x, z]; the Encore vaults him there and back, encore.js
-  // soloStep): the silver DJ out on the floor in front of his side of the stage. The gold DJ's (0.36, -0.06:
+  // floorStep): the silver DJ out on the floor in front of his side of the stage. The gold DJ's (0.36, -0.06:
   // the stage front, mid lane 4) and the duet's (+-0.12, -0.06) join when their solos leave the booth
   marks: { silver: [-0.3, 0.1] },
 
