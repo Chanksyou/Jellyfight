@@ -92,7 +92,7 @@ function census() {
   };
 }
 
-// Runs the frames with the GL upload calls wrapped (and the CPU profiler on, with --profile).
+// Runs a second sample of frames (the game has moved on a few seconds from the first, so uploads, profile and scene describe a slightly later state) with the GL upload calls wrapped (and the CPU profiler on, with --profile).
 async function uploadsAndProfile(page, cdp) {
   await page.evaluate(() => {
     const gl = APT.renderer.getContext(), c = window.__uploads = { names: ['texSubImage2D', 'texImage2D', 'bufferSubData', 'bufferData'], frame: {}, perFrame: {} };
@@ -106,15 +106,17 @@ async function uploadsAndProfile(page, cdp) {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
   if (PROFILE) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
   const uploads = await page.evaluate((N) => {
-    const yaw0 = tpc.yaw;
-    for (let i = 0; i < N; i++) { tpc.yaw = yaw0 + (i / N) * Math.PI * 2; GAME.step(1 / 60); GAME.render(); window.__flushUploads(); }
-    const gl = APT.renderer.getContext(), c = window.__uploads, out = {};
-    for (const n of c.names) {
-      const s = [...c.perFrame[n]].sort((a, b) => a - b);
-      out[n] = { median: s[Math.floor(s.length / 2)], max: s[s.length - 1] };
-      delete gl[n];   // the prototype's own method again
+    const yaw0 = tpc.yaw, gl = APT.renderer.getContext(), c = window.__uploads, out = {};
+    try {
+      for (let i = 0; i < N; i++) { tpc.yaw = yaw0 + (i / N) * Math.PI * 2; GAME.step(1 / 60); GAME.render(); window.__flushUploads(); }
+      for (const n of c.names) {
+        const s = [...c.perFrame[n]].sort((a, b) => a - b);
+        out[n] = { median: s[Math.floor(s.length / 2)], max: s[s.length - 1] };
+      }
+    } finally {
+      for (const n of c.names) delete gl[n];   // the prototype's own method again
+      delete window.__uploads; delete window.__flushUploads;
     }
-    delete window.__uploads; delete window.__flushUploads;
     return out;
   }, FRAMES);
   let profile = null;
@@ -131,7 +133,7 @@ async function uploadsAndProfile(page, cdp) {
       self.set(k, (self.get(k) || 0) + dt); files.set(file, (files.get(file) || 0) + dt);
     }
     const top = (m, n) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ at: k, msPerFrame: +v.toFixed(2) }));
-    profile = { totalMsPerFrame: +[...files.values()].reduce((a, b) => a + b, 0).toFixed(2), softwareGLMsPerFrame: +software.toFixed(1), topFunctions: top(self, 30), byFile: top(files, 20) };
+    profile = { totalMsPerFrame: +[...files.values()].reduce((a, b) => a + b, 0).toFixed(2), nativeNonScriptMsPerFrame: +software.toFixed(1), topFunctions: top(self, 30), byFile: top(files, 20) };
   }
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   return { uploads, profile };
@@ -196,7 +198,7 @@ async function measure(env, pageKey, tier) {
     const u = m.uploadsPerFrame, sc = m.scene;
     console.log(`  uploads/frame (median): texSub ${u.texSubImage2D.median}, tex ${u.texImage2D.median}, bufSub ${u.bufferSubData.median}, buf ${u.bufferData.median} | scene: ${sc.shownObjects} shown, ${sc.uniqueMaterials} materials, ${sc.transparent} see-through (${sc.doubleSidedWithoutSinglePass} two-pass), ${sc.batches} batches/${sc.batchInstances} pieces, ~${sc.textureMBEstimate} MB textures`);
     if (m.profile) {
-      console.log(`  CPU profile at ${THROTTLE}x, ms a frame: ${m.profile.totalMsPerFrame} of script and calls (software GL's own ${m.profile.softwareGLMsPerFrame} left out). Top functions:`);
+      console.log(`  CPU profile at ${THROTTLE}x, ms a frame: ${m.profile.totalMsPerFrame} of script and calls (${m.profile.nativeNonScriptMsPerFrame} of native non-script time, mostly software GL, left out). Top functions:`);
       for (const f of m.profile.topFunctions) console.log(`    ${String(f.msPerFrame).padStart(6)}  ${f.at}`);
       console.log('  By file: ' + m.profile.byFile.map((f) => `${f.at} ${f.msPerFrame}`).join(', '));
     }
