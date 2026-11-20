@@ -376,6 +376,7 @@
   /* the side cards' elements drawn in shaders (src/pick-auras/<kind>.js): each kind's colour ramp, white hot to its deep edge */
   --aura-flames-ramp: #fff6dc #ffc85a #ff6a1f #8a1a0a;
   --aura-frost-ramp: #ffffff #dcf6ff #86d3f4 #245f92;
+  --aura-bubbles-ramp: #ffffff #d9f4ff #7fd0e8 #2a6f9a;   /* Normal: white glints, pale blue rim, the water's blue */
   --aura-gust-ramp: #f4fffb #c4f0e0 #6fbfae #1f5a5a;   /* Wind: white air, pale mint, sage teal, deep */
   --aura-gust-leaves: #9fc46a #d1a455;                  /* Wind: the two leaf colours riding its spiral */
   --aura-sparks-ramp: #ffffff #fff3a6 #ffd23c #5a46c8;   /* Lightning: white core, yellow glow, the afterimage's violet */
