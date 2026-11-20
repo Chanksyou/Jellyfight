@@ -71,7 +71,7 @@ story('spin/reels-land-on-the-offer', {
 });
 
 story('spin/reels-are-real-rolls', {
-  about: 'Every filler cell is something the player could be offered now (eligible pool, not-for, stack limits), and each rarity turns up about as often as the Luck panel says.',
+  about: 'Every filler cell is something the player could be offered now (eligible pool, not-for, stack limits), and each Treasure rarity turns up about as often as the Luck panel says (within 2 points: no two neighbours alike nudges rare kinds down a little).',
   setup() { fresh({ types: 'tentacle' }); give('lemon', 'lemon', 'lemon', 'lemon', 'lemon'); },
   play() {
     const { run } = G();
@@ -215,5 +215,24 @@ story('spin/no-treasure-left-no-upgrade', {
     stub(run, 'takeable', (t) => t.rarity !== 'legendary' && real(t));
     const shown = chestWith(epics);
     return ok(shown.length === 3 && !shown.some((t) => t.upgraded) && shown.every((t) => t.rarity === 'epic'), { shown: shown.map((t) => t.id) });
+  },
+});
+
+story('spin/owed-cards-stay-rerolls-upgrade', {
+  about: 'Cards owed after a reload come back exactly as they were (no second three of a kind); a reroll of three Commons makes one Rare.',
+  setup() { fresh({ levels: true }); },
+  play() {
+    const { run } = G();
+    const three = [card('range', 0), card('fireRate', 0), card('moveSpeed', 0)];
+    let shown = null, reroll = null;
+    stub(run, 'rollLevelUp', () => three.map((c) => ({ ...c })));
+    stub(run.ui, 'levelUp', (level, offered, s, r, pick, again) => { shown = offered; reroll = again; });
+    stub(run.hud, 'levelDing', () => {});
+    run.owedCards = [three.map((c) => ({ ...c }))];
+    run.pendingLevels = 1;
+    run.levelUp();
+    const owed = sameCards(shown, three) && !shown.some((c) => c.upgraded);
+    const again = reroll();
+    return ok(owed && again.filter((c) => c.upgraded && c.rarity.id === 'rare').length === 1, { owed, again: again.map((c) => c.rarity.id) });
   },
 });
