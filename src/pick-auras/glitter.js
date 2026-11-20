@@ -52,7 +52,7 @@ vec4 flakes(vec2 uv, float t, float sc, float fall, float size, float seed, floa
   float shape = 1.0 - smoothstep(0.55, 1.0, (abs(p.x) + abs(p.y) * 1.3) / size);   // a diamond facet
   float flash = pow(abs(tumble), 18.0);                              // face on to the light
   vec3 body = spectrum(hash(id + seed + 3.3)) * (0.25 + 0.4 * abs(tumble));
-  vec3 shine = body * shape + vec3(1.0) * flash * shape * 1.6 + spectrum(hash(id + seed + 6.0)) * sparkle(p, size * 4.0) * flash * 1.4;
+  vec3 shine = body * shape + vec3(1.0) * flash * shape * 1.6 + spectrum(hash(id + seed + 6.0)) * sparkle(p, size * 2.2) * flash * 1.4;
   return vec4(shine, shape);
 }
 
@@ -63,9 +63,9 @@ vec3 stars(vec2 uv, float t, float sc, float seed, float few) {
   if (h > few) return vec3(0.0);
   vec2 at = 0.25 + 0.5 * hash2(id + seed + 1.1);
   float wink = pow(max(0.0, sin(t * (0.9 + hash(id + seed + 2.0)) + hash(id + seed + 3.0) * 40.0)), 4.0);
-  vec2 j = jelly(at / sc + floor(g) / sc).xy;                        // (not on the bell)
+  vec2 j = jelly((id + at - seed * 7.0) / sc).xy;                        // (not on the bell)
   vec3 c = mix(vec3(1.0), spectrum(hash(id + seed + 4.0)), 0.55);
-  return c * glint(f - at, 0.3 + 0.2 * hash(id + seed + 5.0)) * wink * (1.0 - 0.85 * j.x);
+  return c * glint(f - at, 0.2 + 0.1 * hash(id + seed + 5.0)) * wink * (1.0 - 0.85 * j.x);
 }
 
 vec3 paint(vec2 uv) {
