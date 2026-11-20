@@ -36,8 +36,22 @@ function recordGeometry(r, label) {
 }
 
 // keep a landing spot on the open floor: out of the boss's reserved space by `edge` (its stage edge
-// inside it), and on the floor
-export function landing(x, z, r, edge, out = [0, 0]) {
+// inside it), and on the floor; and `keep` ([x, z, d]: a DJ standing on the floor) at least d from it,
+// the nearest way round him that is open floor
+export function landing(x, z, r, edge, out = [0, 0], keep = null) {
+  onFloor(x, z, r, edge, out);
+  if (!keep) return out;
+  const [kx, kz, d] = keep;
+  if (Math.hypot(out[0] - kx, out[1] - kz) >= d) return out;
+  const base = Math.hypot(out[0] - kx, out[1] - kz) > 1e-6 ? Math.atan2(out[1] - kz, out[0] - kx) : Math.PI / 2;
+  for (let k = 0; k < 12; k++) {
+    const a = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6;
+    onFloor(kx + Math.cos(a) * (d + 0.001), kz + Math.sin(a) * (d + 0.001), r, edge, out);
+    if (Math.hypot(out[0] - kx, out[1] - kz) >= d) return out;
+  }
+  return out;
+}
+function onFloor(x, z, r, edge, out) {
   const lim = HALF - r - 0.01;
   x = Math.max(-lim, Math.min(lim, x)); z = Math.max(-lim, Math.min(lim, z));
   const hw = BOSS.width / 2 + edge + r, z0 = BOSS.center[2] - BOSS.depth / 2, z1 = BOSS.center[2] + BOSS.depth / 2 + edge + r;
@@ -47,7 +61,6 @@ export function landing(x, z, r, edge, out = [0, 0]) {
     if (front <= side || z < z0) z = z1; else x = BOSS.center[0] + Math.sign(x - BOSS.center[0] || 1) * hw;
   }
   out[0] = x; out[1] = z;
-  return out;
 }
 
 export class EncoreRecords {
@@ -60,6 +73,7 @@ export class EncoreRecords {
     this.warnGlow = LOOK.num('encore-record-warning', 0.6); this.laneGlow = LOOK.num('encore-record-volume', 0.35);
     this.on = [0, 0.3];                                   // where the jelly is, when a cast names no target
     this.beat = null; this.casts = []; this.pushX = 0; this.pushZ = 0;
+    this.keep = null;                                     // [x, z, d]: no record lands within d of it (a DJ on the floor; the Encore sets it)
     // the records: one instanced draw, always drawn (unused ones scaled to nothing) so its shader is built with the arena
     this.mesh = new THREE.InstancedMesh(recordGeometry(this.r, LOOK.color('encore-record-label', '#9bbaff')),
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }), RECORDS);
@@ -96,15 +110,17 @@ export class EncoreRecords {
   // where it will land, from where the hand is to where the jelly is (`on`), kept on the open floor
   aim(c, on) {
     const h = c.from();
-    landing(on[0], on[1], this.r, this.edge, c.to);
+    landing(on[0], on[1], this.r, this.edge, c.to, this.keep);
     c.start.copy(h);
     const dx = c.to[0] - h.x, dz = c.to[1] - h.z, len = Math.hypot(dx, dz) || 1;
     c.ux = dx / len; c.uz = dz / len; c.len = len;
     c.nx = c.face === null ? c.ux : Math.sin(c.face); c.nz = c.face === null ? c.uz : Math.cos(c.face);   // the way its face looks, standing
   }
-  // the floor strip starts where the lane comes out over the floor, past the boss's riser
+  // the floor strip starts where the lane comes out over the floor, past the boss's riser (from his
+  // hand: thrown from the floor, at once)
   stripStart(c) {
     const hw = BOSS.width / 2, z1 = BOSS.center[2] + BOSS.depth / 2;
+    if (c.start.z >= z1 || Math.abs(c.start.x - BOSS.center[0]) >= hw) return 0;
     const tz = c.uz > 1e-6 ? (z1 - c.start.z) / c.uz : Infinity, tx = Math.abs(c.ux) > 1e-6 ? (Math.sign(c.ux) * hw - (c.start.x - BOSS.center[0])) / c.ux : Infinity;
     const t = Math.min(tz, tx);
     return Number.isFinite(t) ? Math.max(0, Math.min(c.len - 0.02, t)) : 0;
@@ -214,6 +230,19 @@ export class EncoreRecords {
     else { na = 0; nb = Math.sign(b) || 1; depth = w - Math.abs(b) + pr; }
     const nx = na * c.nx + nb * c.nz, nz = na * c.nz - nb * c.nx;
     const into = Math.min(0, wx * nx + wz * nz), out = Math.max(0, depth) - into;
+    this.pushX += nx * out; this.pushZ += nz * out;
+  }
+
+  // push the jelly (below `top`) out of a circle `r` round x, z (a DJ standing on the floor), as block()
+  // does out of a record: the same walk, capped at WALK, so a jelly pinned against him can't run away
+  ring(x, z, r, top, player) {
+    const p = player?.position;
+    if (!p || p.y >= top) return;
+    const pr = player.cfg?.radius ?? 0.03, dx = p.x - x, dz = p.z - z, d = Math.hypot(dx, dz);
+    const wx = this.walkX || 0, wz = this.walkZ || 0, skin = Math.max(0.004, Math.hypot(wx, wz) * 2);
+    if (d >= r + pr + skin) return;
+    const nx = d > 1e-6 ? dx / d : 0, nz = d > 1e-6 ? dz / d : 1;
+    const into = Math.min(0, wx * nx + wz * nz), out = Math.max(0, r + pr - d) - into;
     this.pushX += nx * out; this.pushZ += nz * out;
   }
 

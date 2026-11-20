@@ -701,6 +701,7 @@
   --encore-hit-scorch: 0.035;    /* m: the scorch any Encore hit leaves on the floor under the jelly (fades as splats do) */
   --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
   --encore-spotlight-opacity: 0.22;
+  --encore-spotlight-floor-opacity: 0.1;  /* the same cone on a DJ out on the floor: fainter, so he reads through it */
   --encore-spotlight-radius: 0.09; /* m: its pool on the booth */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
   --hostile-encore-wall: #ff2020; /* the DJs' Wall of sound (encore-wall.js): its Warning, the wall and the booth while they play it: hot crimson, nearer the broken panels' red than the gold DJ's gold or the disco magenta */
@@ -823,6 +824,8 @@
   --encore-dance-push-hit: 0.25 0 0.1 0 -1.45 -0.1 0 -1.45 -0.1 0 -0.55 0.3;
   --encore-vault-height: 0.26;   /* m an arc between the booth and the floor rises over its straight line (clears the decks) */
   --encore-turn-rate: 6;         /* radians a second a DJ off the booth turns to face where he goes or looks */
+  --encore-floor-flinch: 0.3;    /* radians a DJ on the floor rocks back when a hit lands on him (the booth flashes only when it is the target) */
+  --encore-landing-dust: 0.04;   /* m: the puff of dust at a DJ's feet as he lands on his mark */
   --encore-dance-over: 0.12;     /* how far a swing runs past its accent (none with reduced effects) */
   --encore-dance-hold: 0.35;     /* of the wind-up, how soon it is wound (attack-motion.js coil) */
   --encore-dance-shake: 0.5;     /* beats the overshoot takes to settle, bouncing --encore-dance-bounces times */

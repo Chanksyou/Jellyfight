@@ -54,9 +54,10 @@ export const ATTACKS = { calm: ['floor', 'laser', 'disco', 'contact', 'records',
 const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing', duet: 'all' }, SOLOISTS = { silver: ['silver'], gold: ['gold'], duet: DJS };
 // each DJ's solo attack: books what he plays from bar line `at`
 const SOLO_ATTACKS = {
+  // the silver DJ's Record toss: a record a bar (from his mark, from the second bar: the first he vaults out)
   silver(at, S) {
     const R = this.def.skills.records || {}, bars = this.def.skills.solo?.bars ?? 4;
-    for (let k = 0; k < bars; k++) {
+    for (let k = S.mark ? 1 : 0; k < bars; k++) {
       const land = at + k * 4;
       if (this.quiet(land)) continue;                      // (the breakdown rests it, as it rests the floor)
       this.records.cast(land, { from: () => this.hand('silver'), target: () => this.jellyAt(),
@@ -94,8 +95,8 @@ const SOLO_ATTACKS = {
 // the back of the floor that its safe strip has no room
 const ROOM = 0.15, _spot = [0, 0], _try = [0, 0];
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
-const TARGET = [0, 0.13, -0.17];
-const _hit = new THREE.Vector3();
+const TARGET = [0, 0.13, -0.17], BOOTH_R = 0.14;
+const _hit = new THREE.Vector3(), _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _away = new THREE.Vector3();
 
 export class Encore {
   constructor(scene, enemies, fx, B, world, ctx = {}) {
@@ -105,7 +106,7 @@ export class Encore {
     this.music = 'encore';                // what run.js musicState plays for it (music.js / song-track.js)
     this.def = CONTENT.bosses.encore;
     this.maxHp = this.hp = this.def.hp;
-    this.r = 0.14;
+    this.r = BOOTH_R;
     this.dead = false; this.dying = false; this.rise = 1;
     this.state = 'set';
     this.t = 0; this.clock = 0; this.beat = null;
@@ -123,7 +124,7 @@ export class Encore {
       const away = new THREE.Vector3().subVectors(this.player.position, point).setY(0);
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
-    this.records = new EncoreRecords(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-silver')), color: hostile('encore-silver'), scene });
+    this.records = new EncoreRecords(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-silver'), this.watcher()), color: hostile('encore-silver'), scene });
     this.pyro = new EncorePyro(A, fx, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-gold')), color: hostile('encore-gold'), scene });
     this.wall = new EncoreWall(A, fx, { color: hostile('encore-wall'), scene, onHit: (dmg, w) => {
       this.hurtPlayer(dmg, hostile('encore-wall'));
@@ -131,6 +132,9 @@ export class Encore {
     } });
     this.solo = null; this.soloTurn = { last: null }; this.restBow = false; this.hints = new EncoreHints(); this.toldLast = false;
     this.spots = Object.fromEntries(DJS.map((who) => [who, spotlight(A, who)]));
+    this.spotHome = Object.fromEntries(DJS.map((who) => [who, this.spots[who].position.clone()]));
+    this.flinchT = 0; this.watch = { w: 0, who: null, of: null }; this.keep = [0, 0, 0];   // (a DJ on the floor: his flinch, his partner's look, his records' keep-out)
+    for (const who of DJS) { A.boss.travel(who, 'home', { secs: 1e-3 }); A.boss.perform(who, null); }   // (the arena outlives a fight: a DJ a last fight left out goes home)
     this.bowLift = Number(LOOK.list('encore-dance-bow', [])[3]) || 1.5;    // beats a bow takes to come back up
     // a hit on the jelly during a solo spoils it: the bow after is the short one
     // (up to a beat before its end, when he goes into his bow and its length is settled)
@@ -158,10 +162,13 @@ export class Encore {
   }
   // a solo slot (kind 'silver', 'gold' or 'duet') from bar line `at`: that DJ solos, if he has a solo
   // attack yet (else the plain set plays through); false if it didn't start (one already plays)
+  // (none while its force field is up: no DJ leaves the booth then)
   slot(kind, at) {
-    if (!SOLO_ATTACKS[kind] || this.solo) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
-    const bars = this.def.skills.solo?.bars ?? 4;
+    if (!SOLO_ATTACKS[kind] || this.solo || this.shielded) return false;   // (one at a time: 16 bars apart, a solo and its bow take 8 at most)
+    const bars = this.def.skills.solo?.bars ?? 4, mark = ENCORE.marks?.[kind], air = this.def.skills.floor?.air ?? 2;
     this.solo = { who: kind, at, end: at + bars * 4, bowEnd: null, clean: true, bowing: false, lit: false };
+    // a DJ with a mark plays it on the floor: he takes off `air` beats before his solo (at once, if it was booked late)
+    if (mark) Object.assign(this.solo, { mark: [mark[0], 0, mark[1]], off: Math.min(at - 0.25, Math.max(at - air, this.beat ?? -Infinity)) });
     SOLO_ATTACKS[kind].call(this, at, this.solo);
     return true;
   }
@@ -173,11 +180,11 @@ export class Encore {
   // a duet record's landing spot (see ROOM)
   // (if none of them is far enough, the one farthest from the rest)
   cover(before, apart) {
-    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, back = (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM, base = Math.atan2(0.3 - z, -x);
+    const [x, z] = this.jellyAt(), r = this.records.r, e = this.records.edge, keep = this.records.keep, back = (ENCORE.tiles * ENCORE.tileSize) / 2 - ROOM, base = Math.atan2(0.3 - z, -x);
     let best = -1;
     for (let k = -1; k < 12; k++) {
       const a = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6, d = k < 0 ? 0 : apart;
-      landing(x + Math.cos(a) * d, Math.min(z + Math.sin(a) * d, back), r, e, _try);
+      landing(x + Math.cos(a) * d, Math.min(z + Math.sin(a) * d, back), r, e, _try, keep);
       let near = Infinity;
       for (const c of before) near = Math.min(near, Math.hypot(_try[0] - c.to[0], _try[1] - c.to[1]));
       if (near > best) { best = near; _spot[0] = _try[0]; _spot[1] = _try[1]; }
@@ -206,6 +213,10 @@ export class Encore {
   }
   // where the jelly is ([x, z], one array reused)
   jellyAt() { const a = (this._at ||= [0, 0]); a[0] = this.player.position.x; a[1] = this.player.position.z; return a; }
+  // whose fist pumps when the soloist's attack hits: his partner, watching from the booth (none in a duet)
+  watcher() { const S = this.solo; return S?.mark ? (S.who === 'silver' ? 'gold' : 'silver') : null; }
+  // the DJ out on the floor (from his take-off till he lands home): the Encore's one target
+  outDj() { const S = this.solo; return S?.mark && this.arenaView.boss.out(S.who) ? S.who : null; }
   // where a DJ's throwing hand is (his outer glove), in the arena
   hand(who, out = this._hand ||= new THREE.Vector3()) {
     const r = this.arenaView.boss.rigs[who];
@@ -217,7 +228,9 @@ export class Encore {
     if (!S) return;
     if (S.wall?.state === 'off') { this.endSolo(); return; }   // (a duet whose records all missed: no wall)
     const who = SOLOISTS[S.who];
-    for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4) M.perform('silver', 'throw', c.release); break; }   // his next throw (asked again each frame: it plays on)
+    if (S.mark) this.floorStep(S, beat);
+    // his next throw (asked again each frame: it plays on; on the floor, once he has landed)
+    for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4 && (!S.mark || beat >= S.at + 1)) M.perform('silver', 'throw', c.release); break; }
     // his fader crank, as the first Warning shows (held to his bow: his lanes burn under it)
     if (S.who === 'gold' && !S.bowing) M.perform('gold', 'crank', S.at + 2, 1, Math.max(0, S.end - 1 - (S.at + 2)));
     if (S.who === 'gold' && !S.cranked && beat >= S.at + 2) { S.cranked = true; if (beat < S.at + 3) sfx.faderCrank(); }
@@ -227,29 +240,84 @@ export class Encore {
     if (!S.bowing && beat >= S.end - 1) {
       const bow = S.bow ?? (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
       S.bowing = true; S.bowEnd = S.end + bow;
-      for (const d of who) M.perform(d, 'bow', S.end, 1, Math.max(0, bow - this.bowLift));
+      const F = this.def.skills.floor || {}, up = S.mark ? (F.crouch ?? 2) + (F.air ?? 2) : 0;   // (on the floor, up in time to vault home)
+      for (const d of who) M.perform(d, 'bow', S.end, 1, Math.max(0, bow - up - this.bowLift));
     }
     if (S.bowing && !S.exhaled && beat >= S.end) { S.exhaled = true; if (beat < S.end + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
     // the spotlight and his wing come up over the beat before his solo and go down over the beat after
-    S.on = beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
+    // (on the floor: up over the beat after he is booked, and on him till he is home)
+    S.on = S.mark ? Math.min(1, Math.max(0, beat - (S.at - 5))) : beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
     for (const d of who) this.spotOn(d, S.on);
     if (S.bowEnd !== null && beat >= S.bowEnd) this.endSolo();
+  }
+  // a solo on the floor, each frame: he crouches and vaults out to land on his mark on the solo's first
+  // beat (a shove for a jelly standing there), faces the jelly till the lane he throws next locks, keeps
+  // his records clear of him, and in his bow's last beats crouches and vaults home, landing as it ends
+  floorStep(S, beat) {
+    const M = this.arenaView.boss, F = this.def.skills.floor || {}, who = S.who, air = F.air ?? 2, crouch = F.crouch ?? 2;
+    if (S.bowEnd === null || beat < S.bowEnd - air - crouch) {
+      if (beat < S.at - 0.3) { if (beat >= S.off - crouch) M.perform(who, 'vault', S.off, 1, Math.max(0, S.at - S.off - 0.5)); }
+      else if (beat < S.at + 1) M.perform(who, 'land', S.at);
+      M.travel(who, S.mark, S.off, S.at);
+      const k = this.keep; k[0] = S.mark[0]; k[1] = S.mark[2]; k[2] = (F.body ?? 0.06) + this.records.r + (F.keep ?? 0.06);
+      this.records.keep = k;
+    } else {
+      const off = S.bowEnd - air;
+      M.perform(who, 'vault', off, 1, Math.max(0, air - 0.5)); M.travel(who, 'home', off, S.bowEnd);
+      this.records.keep = null;
+    }
+    const next = this.records.casts.find((c) => c.state === 'wind');
+    M.face(who, !S.bowing && (!next || beat < next.lockAt) ? this.jellyAt() : null);
+    // the landing: a jelly on his mark is shoved off it, unhurt; dust at his feet
+    if (!S.landed && beat >= S.at && M.out(who)) {
+      S.landed = true;
+      const p = this.player.position, d = Math.hypot(p.x - S.mark[0], p.z - S.mark[2]);
+      if (d < (F.body ?? 0.06) + (this.player.cfg?.radius ?? 0.03) && p.y < 2 * (F.chest ?? 0.17))
+        bus.emit('knockback', { targetId: PLAYER, dir: d > 1e-6 ? _away.set(p.x - S.mark[0], 0, p.z - S.mark[2]).divideScalar(d) : _away.set(0, 0, 1), force: F.shove ?? 0.5 });
+      this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6);
+      juice.feel('hit');
+    }
+  }
+  // after the model moves (a DJ out on the floor): the target and his spotlight go with him, he flinches
+  // when hit (the booth then can't be), and his partner in the booth turns his helmet to him
+  floorFollow(dt, beat) {
+    const M = this.arenaView.boss, S = this.solo, F = this.def.skills.floor || {}, out = this.outDj();
+    if (out) { M.rigs[out].body.getWorldPosition(this.holder.position); this.holder.position.y += F.chest ?? 0.17; this.r = F.r ?? 0.1; }
+    else { this.holder.position.set(...TARGET); this.r = BOOTH_R; }
+    if (S?.mark && beat !== null) {
+      const m = this.spots[S.who], h = this.spotHome[S.who];
+      if (out && beat >= S.at) { M.rigs[out].body.getWorldPosition(m.position); this.arenaView.root.worldToLocal(m.position); m.position.y = 0.02; }
+      else { const u = THREE.MathUtils.smoothstep(beat, S.at - 5, S.at - 4); m.position.set(h.x + (S.mark[0] - h.x) * u, h.y + (0.02 - h.y) * u, h.z + (S.mark[2] - h.z) * u); }
+    }
+    this.flinchT = Math.max(0, this.flinchT - dt * 6);
+    if (out && this.flinchT > 0) M.rigs[out].torso.rotation.x -= this.flinchT * LOOK.num('encore-floor-flinch', 0.3);
+    const W = this.watch;
+    if (out) { W.of = out; W.who = out === 'silver' ? 'gold' : 'silver'; }
+    W.w += ((out ? 1 : 0) - W.w) * Math.min(1, dt * 4);
+    if (W.who && W.w > 1e-3) {
+      const a = M.rigs[W.who], side = W.who === 'silver' ? -1 : 1;
+      a.head.getWorldPosition(_wa); M.rigs[W.of].body.getWorldPosition(_wb);
+      a.head.rotation.y += Math.max(-1.5, Math.min(1.5, Math.atan2(_wb.x - _wa.x, _wb.z - _wa.z) + side * 0.7)) * W.w;   // (as perform's look: 0 = down the floor)
+    }
   }
   spotOn(who, on) {
     const m = this.spots[who];
     m.visible = on > 0;
-    m.material.opacity = LOOK.num('encore-spotlight-opacity', 0.22) * on;
+    m.material.opacity = LOOK.num(this.solo?.mark ? 'encore-spotlight-floor-opacity' : 'encore-spotlight-opacity', 0.22) * on;   // (fainter on the floor: he is the target, seen through it)
   }
   // the solo over (its bow done, or cut short): spotlight off, his wing dark
   endSolo() {
     const S = this.solo;
     if (!S) return;
-    for (const d of DJS) this.spotOn(d, 0);
+    for (const d of DJS) { this.spotOn(d, 0); this.spots[d].position.copy(this.spotHome[d]); }
+    this.records.keep = null;
     if (S.lit) { this.arenaView.boss.setLighting(WING[S.who], 0, 0); this.floor.lit = true; }
     this.solo = null;
   }
-  // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind)
-  stopActs() {
+  // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind); a DJ
+  // out on the floor goes home in `hop` s on the clock (a trip out not yet begun is called off)
+  stopActs(hop = this.def.skills.floor?.hop ?? 0.4) {
+    for (const who of DJS) this.arenaView.boss.travel(who, 'home', { secs: hop });
     this.records.reset(); this.wall.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.restExhale = null; this.floor.held.silver = this.floor.held.gold = false;
     for (const who of DJS) this.arenaView.boss.perform(who, null);
   }
@@ -271,9 +339,11 @@ export class Encore {
     if (this.exposed) amount *= this.def.skills.solo?.exposed ?? 1.5;   // bowing: wide open
     this.hp -= amount;
     this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, 16, feedback);
-    this.hurtT = 1;                                                   // the booth flinches: its panels flash white, it jolts
+    const out = this.outDj();
+    if (out) this.flinchT = 1;                                        // a DJ on the floor was hit: he flinches (floorFollow)
+    else this.hurtT = 1;                                              // the booth flinches: its panels flash white, it jolts
     // and the nearer DJ (silver stands on the -x side) flinches, at most once a beat
-    if (this.beat !== null && Math.floor(this.beat) !== this.flinched) {
+    if (!out && this.beat !== null && Math.floor(this.beat) !== this.flinched) {
       this.flinched = Math.floor(this.beat);
       this.floor.react(this.player && this.player.position.x > this.center().x ? 'gold' : 'silver', 'flinch', this.beat + 0.15);
     }
@@ -283,8 +353,8 @@ export class Encore {
   // Half Health: the booth shorts out. Its set stops for the cut scene, then plays on, broken
   meltdown() {
     this.broken = true;
-    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.disco.visit(null); this.set = null; this.stopActs();
     const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
+    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.disco.visit(null); this.set = null; this.stopActs(short ? 1e-3 : this.def.skills.floor?.knock ?? 0.3);   // (knocked home as the cut opens)
     this.cut = { t: 0, length: LOOK.num(short ? 'encore-meltdown-calm-time' : 'encore-meltdown-time', short ? 1.2 : 3.4), next: 0, blown: false,
       // the shot: in front of the booth and off to one side, easing in
       from: new THREE.Vector3(c.x + 0.34, b.max.y * 0.75, b.max.z + 0.62), to: new THREE.Vector3(c.x + 0.18, b.max.y * 0.6, b.max.z + 0.42), look: c.clone().setY(b.max.y * 0.5) };
@@ -310,9 +380,9 @@ export class Encore {
   beaten() {
     if (this.falling || this.dead) return;
     this.hp = 0; this.state = 'falling';
-    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.set = null; this.stopActs();
-    this.field.visible = false;
     const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
+    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.set = null; this.stopActs(short ? 1e-3 : this.def.skills.floor?.knock ?? 0.3);
+    this.field.visible = false;
     const length = LOOK.num(short ? 'encore-defeat-calm-time' : 'encore-defeat-time', short ? 1.5 : 4.6);
     this.falling = { t: 0, length, next: 0, blown: false, ball: this.disco.hanger.visible ? { y: this.disco.hanger.position.y, v: 0, down: false } : null };
     // the shot: a wide view of the whole stage, drifting slowly back as it comes apart
@@ -391,6 +461,9 @@ export class Encore {
       if (this.broken && this.disco.stayFrom == null) this.disco.stay(Math.ceil(beat / 4) * 4);   // down from the next bar, for good
       this.disco.update(beat, player);
       this.records.update(beat, player, dt);
+      // a DJ standing on his mark pushes the jelly out of his body, as a standing record does (never hurts)
+      const O = this.solo, F = this.def.skills.floor || {};
+      if (this.outDj() && beat >= O.at && !(O.bowEnd !== null && beat >= O.bowEnd - (F.air ?? 2))) this.records.ring(O.mark[0], O.mark[2], F.body ?? 0.06, 2 * (F.chest ?? 0.17), player);
       this.pyro.update(beat, player, dt);
       this.wall.update(beat, player);
       this.shove.x += this.records.pushX; this.shove.z += this.records.pushZ;
@@ -406,7 +479,7 @@ export class Encore {
       if (this.restExhale != null && beat >= this.restExhale) { if (rest && beat < this.restExhale + 1) sfx.bowExhale(); this.restExhale = null; }
       this.restBow = rest;
       // the wave gestures leave a DJ alone while the Encore moves him: his solo (from his first wind-up) and bow, the breakdown's bow
-      for (const who of DJS) this.floor.held[who] = rest || ((this.solo?.who === who || this.solo?.who === 'duet') && beat >= this.solo.at - 4);
+      for (const who of DJS) this.floor.held[who] = rest || ((this.solo?.who === who || this.solo?.who === 'duet') && beat >= this.solo.at - (this.solo.mark ? 5 : 4));
       if (this.guardT > 0) { this.guardT = Math.max(0, this.guardT - dt); if (!this.guardT) this.opening = false; }   // warming up or rebooting: counts down while its set plays
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }
@@ -414,6 +487,7 @@ export class Encore {
     this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
     A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat), this.wall.swell);
     M.update(dt, !!this.fx.reducedMotion?.matches, this.dead || this.falling ? null : beat);
+    this.floorFollow(dt, this.dead || this.falling || this.cut ? null : beat);
     if (this.falling) this.fallDown(dt);
     // its panels: a white flash when a hit lands; broken, a red pulse on the beat between floor waves
     this.hurtT = Math.max(0, this.hurtT - dt * 6);
