@@ -3,6 +3,7 @@ import { STAT_INFO, cardText } from './stats.js';
 import { esc } from './leaderboard.js';
 import { sfx } from './sfx.js';
 import { icon } from './icons.js';
+import { Spin } from './spin-screen.js';
 
 // How hard a pick card wears its rarity (treasure-pick-screen plan, step 2): the whole
 // card washes and glows in the kit's rarity colour, harder the rarer it is — [inner glow %, background wash %].
@@ -16,14 +17,15 @@ const NUM = /(?<![\w.])[+×−]?\d+(?:[.,]\d+)*(?:\s?(?:%|cm|s|m)(?!\w))?/g;
 const hi = (text) => { let out = '', at = 0; for (const m of String(text).matchAll(NUM)) { out += esc(text.slice(at, m.index)) + `<b>${esc(m[0])}</b>`; at = m.index + m[0].length; } return out + esc(text.slice(at)); };
 // One pick card (the kit's .ui-card): its frame and label by rarity (the label says it, so colour is never
 // the only sign), tint, wash, the Legendary sheen and its deal-in delay (ms). A pick that isn't a rarity (an
-// Attack upgrade) wears mint. icon: an emoji; badges: HTML for the top corner (count, New!)
-const tierCard = ({ i, tier, icon: ic, name, body, badges = '', key = '', d }) => {
+// Attack upgrade) wears mint. icon: an emoji; badges: HTML for the top corner (count, New!); up: three of a
+// kind made it a rarity better (stats.js threeOfAKind), said beside its rarity
+const tierCard = ({ i, tier, icon: ic, name, body, badges = '', key = '', d, up = false }) => {
   const [tint, wash] = TIER_TINT[tier?.name] || [18, 0], rarity = TIERS.includes(tier?.name) ? tier.name.toLowerCase() : '';
   return `<button class="ui-card jf-card ui-enter${tier?.name === 'Legendary' ? ' jf-sheen' : ''}" data-i="${i}" data-rarity="${rarity}" style="--d:${calm() ? 0 : d}ms; --tint:${tint}%; --wash:${wash}%${rarity ? '' : '; --rarity:var(--ui-mint)'}">
-    <span class="ui-card-icon ic">${ic}</span>${tier ? `<span class="ui-card-rarity rar">${esc(tier.name)}</span>` : ''}<span class="ui-card-name">${name}</span>
+    <span class="ui-card-icon ic">${ic}</span>${tier ? `<span class="ui-card-rarity rar">${esc(tier.name)}${up ? ' <span class="jf-new jf-up">▲ Upgraded</span>' : ''}</span>` : ''}<span class="ui-card-name">${name}</span>
     <span class="ui-card-body">${body}</span><span class="jf-badges">${key ? `<span class="key" aria-hidden="true">${key}</span>` : ''}${badges}</span></button>`;
 };
-const BEAT = 300;     // a level-up's beat (ms) before the first card is dealt
+const BEAT = 300;     // a level-up's beat (ms) before the first card is dealt (when no spin plays)
 const COUNT = 0.7;    // an end screen's tally: seconds a number counts up
 const DEAL_MAX = 360; // a deal or a cascade of rows is over inside this many ms (the skill's staggers stay under 400)
 // A motion token from look.css (--ui-fast, --ui-stagger…) as a number of ms (read when a motion starts, never per frame)
@@ -66,6 +68,7 @@ const CSS = `
 .jf-badges { position: absolute; top: var(--ui-space-2); right: var(--ui-space-2); display: flex; gap: var(--ui-space-1); align-items: center; }
 .jf-badges .ui-card-count { position: static; }
 .jf-card .key { font: 700 var(--ui-size-label)/1 var(--ui-font-text); opacity: .55; }
+.jf-card .jf-up { margin-left: 4px; letter-spacing: 0; text-transform: none; white-space: nowrap; }
 .jf-card .jf-new { padding: 2px 8px; border-radius: var(--ui-radius-pill); background: var(--ui-gold); color: var(--ui-gold-ink); font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); }
 .jf-pick .jf-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; }
 /* the picked card swells while a glow layer (its rarity, pre-painted) fades in and out; the others drop away under a dark ember tint.
@@ -229,8 +232,12 @@ export class UI {
     this.modal.hidden = true;
     // A second thumb gets pointer events but no click while the joystick thumb stays down.
     this.modal.addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'touch' && !e.isPrimary && this.picking) this.modal.onclick?.(e);
+      if (e.pointerType === 'touch' && !e.isPrimary && this.picking) { if (this._spin) this._spin.tap(); else this.modal.onclick?.(e); }
     });
+    // while the reward spin plays, a tap or click anywhere lands the reels (or skips to the cards) and nothing else
+    this.modal.addEventListener('click', (e) => { if (this._spin) { e.stopImmediatePropagation(); this._spin.tap(); } }, true);
+    this.spinOn = true;    // the reward spin plays before level-up and chest cards (off in stories unless fresh({ spin: true }))
+    this._spin = null;
     parent.appendChild(this.modal);
     this.pop = document.createElement('div');
     this.pop.className = 'ui-toast jf-pop';
@@ -244,17 +251,20 @@ export class UI {
     addEventListener('keydown', (e) => {
       // an award's reveal takes Enter, Space and Escape first: Continue
       if (this.awardEl && ['Enter', 'Space', 'Escape'].includes(e.code)) { e.preventDefault(); this.awardEl.querySelector('[data-next]').click(); return; }
+      // the spin takes Space (lands the reels, then skips to the cards); number keys and R wait for the cards
+      if (!this.modal.hidden && this._spin) { if (e.code === 'Space') { e.preventDefault(); this._spin.tap(); } return; }
       if (!this.modal.hidden && this.keyHandler) this.keyHandler(e);
     });
   }
 
   get open() { return !this.modal.hidden; }
-  get picking() { return this.open && !!this.modal.querySelector('.jf-pick'); }
+  get picking() { return this.open && (!!this._spin || !!this.modal.querySelector('.jf-pick')); }
   get closing() { return this._outro > 0 && this._outroGen === this._gen; }
 
   close() {
     this._outro = 0;
     this._tally = null;
+    this._spin = null;
     this.award([]);
     this._gen++;
     this.modal.hidden = true;
@@ -277,29 +287,38 @@ export class UI {
 
   // cards: from rollCards(); stats: current stats; onPick(card); onReroll() -> new cards or null
   // to: where the won card's icon flies (the HUD's level badge, a DOMRect). The cards deal in after a
-  // beat (run.levelUp's ding) and leave like a treasure pick's (outro)
-  levelUp(level, cards, stats, rerolls, onPick, onReroll, to = null) {
+  // beat (run.levelUp's ding) and leave like a treasure pick's (outro).
+  // spin: { first, rollOne, odds, luck } (run.levelUp): the reward spin plays before the cards (first:
+  // not for cards a reload owes) and again on a reroll, the cards dealt the moment it hands over
+  levelUp(level, cards, stats, rerolls, onPick, onReroll, to = null, spin = null) {
     const gen = ++this._gen;
+    this._spin = null;
     let out = false;
     const render = (beat) => {
       const at = dealDelays(cards.map((c) => c.rarity?.name), beat);
       this.modal.innerHTML = `<div class="jf-level"><h2 class="ui-pop">Level ${level}!</h2><p class="sub">Choose an upgrade.</p>
         <div class="jf-cards jf-pick">${cards.map((c, i) => {
           const info = STAT_INFO[c.stat], [head, ...more] = cardText(c).split(' · ');   // (the Attacks card's "· 20% less damage each" goes under its name)
-          return tierCard({ i, tier: c.rarity, icon: info.icon, name: hi(head), body: [...more, `now ${info.fmt(stats[c.stat])}`].map(hi).join('<br>'), key: i + 1, d: at[i] });
+          return tierCard({ i, tier: c.rarity, icon: info.icon, name: hi(head), body: [...more, `now ${info.fmt(stats[c.stat])}`].map(hi).join('<br>'), key: i + 1, d: at[i], up: c.upgraded });
         }).join('')}</div>
         <div class="btns"><button class="ui-btn" data-act="reroll" ${rerolls > 0 ? '' : 'disabled'}>${icon('reroll')} Reroll (${rerolls}) <span class="jf-key">[R]</span></button></div></div>`;
       this.dealSound(at, cards.map((c) => c.rarity?.name));
     };
     const pick = (i) => { const c = cards[i]; if (!c || out) return; out = true; this.outro(gen, i, to); onPick(c); };
+    const spins = spin && this.spinOn;
+    const play = (lead) => this.spin({ ...spin, kind: 'levelup', title: `Level ${level}!`, offer: cards, lead, done: () => render(0),
+      cell: (c) => ({ icon: STAT_INFO[c.stat].icon, name: hi(cardText(c).split(' · ')[0]) }) });
     const reroll = () => {
       if (rerolls <= 0 || out) return;
       rerolls--;
       cards = onReroll();
-      render(0);
+      if (!spins) { render(0); return; }
+      this.modal.firstElementChild?.classList.add('ui-leave');   // the cards leave, then the spin plays with the new roll
+      play(tok('--ui-fast', 120));
     };
-    render(calm() ? 0 : BEAT);
     this.modal.hidden = false;
+    if (spins && spin.first) play(0);
+    else render(calm() ? 0 : BEAT);
     this.modal.onclick = (e) => {
       const b = e.target.closest('button');
       if (!b) return;
@@ -316,14 +335,20 @@ export class UI {
   // name, the big icon, the rarity written out, what it does, and a delta line when the
   // treasure grows (Lv 1 → Lv 2, ×1 → ×2)
   // slot(choice) -> { to: DOMRect, done?() } | null: where the won card's icon lands in the HUD (measured once, as it's picked), else the toast's spot
-  choose(title, sub, choices, onPick, slot = null) {
+  // spin: { kind, rollOne, odds, luck } (run.pickTreasure): the reward spin plays before the cards
+  choose(title, sub, choices, onPick, slot = null, spin = null) {
     const gen = ++this._gen;
-    const at = dealDelays(choices.map((c) => c.tier?.name));
-    this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
-      <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: at[i],
-        badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
+    this._spin = null;
+    const render = () => {
+      const at = dealDelays(choices.map((c) => c.tier?.name));
+      this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
+        <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: at[i],
+          up: c.upgraded, badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
+      this.dealSound(at, choices.map((c) => c.tier?.name));
+    };
     this.modal.hidden = false;
-    this.dealSound(at, choices.map((c) => c.tier?.name));
+    if (spin && this.spinOn) this.spin({ ...spin, title: bare(title), offer: choices, done: render, cell: (t) => ({ icon: t.icon, name: esc(t.name) }) });
+    else render();
     let out = false;
     const pick = (i) => {
       const c = choices[i];
@@ -335,6 +360,11 @@ export class UI {
     };
     this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
     this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
+  }
+
+  // The reward spin (spin-screen.js) in the modal; o.done draws the cards once it hands over
+  spin(o) {
+    this._spin = new Spin(this.modal, { calm: calm(), ...o, done: () => { this._spin = null; o.done(); } });
   }
 
   // A whoosh per card as it's dealt (`at`: when each is, ms), then a chord as big as the rarest card's rarity
@@ -361,6 +391,7 @@ export class UI {
   // Count down a pick outro, and run an end screen's tally; called every GAME.step from main.js.
   // Closes the modal when an outro ends — unless a newer modal has replaced this one meanwhile (gen check).
   tick(dt) {
+    this._spin?.tick(dt * 1000);
     if (this._outro > 0 && (this._outro -= dt) <= 0) {
       this._outro = 0;
       if (this._gen === this._outroGen) this.close();

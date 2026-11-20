@@ -163,12 +163,13 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip =
 // Three of a kind (Chan, Nov 20): when every offered card (3, or 4 with the Notebook) shares a
 // rarity, one at random goes up one: same stat, the next tier's amount, marked upgraded. Epic is
 // the top level-up tier, so three Epics stay. now: as rollCards. Draws nothing unless they match.
+// The upgraded card keeps the one it replaced (was), for the spin to land on first.
 export function threeOfAKind(cards, now = {}, rng = Math.random) {
   const ri = RARITY.findIndex((r) => r.id === cards[0]?.rarity.id);
   if (cards.length < 3 || ri >= RARITY.length - 1 || cards.some((c) => c.rarity.id !== RARITY[ri].id)) return cards;
   const i = Math.floor(rng() * cards.length), c = cards[i];
   const out = [...cards];
-  out[i] = { ...c, rarity: RARITY[ri + 1], amount: cardAmount(c.stat, cardDef(c.stat).amounts[ri + 1], now[c.stat] || 0), upgraded: true };
+  out[i] = { ...c, rarity: RARITY[ri + 1], amount: cardAmount(c.stat, cardDef(c.stat).amounts[ri + 1], now[c.stat] || 0), upgraded: true, was: c };
   return out;
 }
 
@@ -193,14 +194,15 @@ export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1, rng = Math
 
 // Three of a kind for Treasures: when every offered Treasure shares a rarity below Legendary, one
 // slot at random becomes a Treasure of the next rarity from pool (what the player could take now)
-// that isn't already offered, marked upgraded; none left, no change.
+// that isn't already offered, marked upgraded (was: the one it replaced); none left, no change.
 export function threeOfAKindTreasures(offer, pool, rng = Math.random) {
   const ti = TREASURE_TIER[offer[0]?.rarity];
   if (offer.length < 3 || ti >= TREASURE_RARITY.length - 1 || offer.some((t) => t.rarity !== offer[0].rarity)) return offer;
   const next = pool.filter((t) => TREASURE_TIER[t.rarity] === ti + 1 && !offer.some((o) => o.id === t.id));
   if (!next.length) return offer;
   const out = [...offer];
-  out[Math.floor(rng() * out.length)] = { ...next[Math.floor(rng() * next.length)], upgraded: true };
+  const i = Math.floor(rng() * out.length);
+  out[i] = { ...next[Math.floor(rng() * next.length)], upgraded: true, was: out[i] };
   return out;
 }
 

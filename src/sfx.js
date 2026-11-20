@@ -817,6 +817,12 @@ export const sfx = {
     [[0], [0, 7], [0, 4, 7, 12], [0, 4, 7, 12, 16, 19]][tier].forEach((s, i) => { const f = 784 * Math.pow(2, s / 12); tone('triangle', f, f, 0.25 + tier * 0.1, 0.04 + tier * 0.012, delay + i * 0.045); });
     if (tier === 3) noise(7000, 1, 0.6, 0.03, 'highpass', delay + 0.1);
   },
+  // the reward spin (spin-screen.js); silent until its sounds are made (task S3):
+  // the lever pulled; the reels' ticks, a list per reel of seconds from now when a cell crosses the
+  // payline (a new call replaces the last schedule, [] cancels it); a reel landing (tier 0 Common … 3 Legendary)
+  spinLever() {},
+  spinTick(reels) {},
+  spinStop(tier = 0, delay = 0) {},
   pick() { if (!ready()) return; if (sample('menu-pick')) return; tone('sine', 320, 140, 0.12, 0.16); noise(900, 1, 0.05, 0.06, 'lowpass'); },
   burn() { if (!ready()) return; noise(3200, 0.7, 0.38, 0.03, 'highpass', 0.06, 1200); },
   // a number counting up (k 0..1: how far along), then where it lands

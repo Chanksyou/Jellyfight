@@ -79,6 +79,15 @@
   --spin-hold-treasure: 450ms;
   --spin-hold-levelup: 300ms;
   --spin-rare-wait: 250ms;
+  /* the machine (src/spin-screen.js) */
+  --spin-cell: clamp(64px, calc(15.5vh + 14px), 112px);   /* a reel's row: 74 px on a phone held sideways, 112 on a desktop */
+  --spin-reel: 2.05;           /* a reel's width, in rows (2.05 rows wide) */
+  --spin-reel-four: 1.65;      /* ... when four cards are offered (the Notebook) */
+  --spin-lever-back: 480ms;    /* the lever springing back up once the reels roll */
+  --spin-skip: 150ms;          /* a tap lands every rolling reel within this */
+  --spin-upgrade: 600ms;       /* three of a kind: the chosen reel rolls again for this long */
+  --spin-upgrade-cells: 6;     /* ... past this many filler cells */
+  --spin-calm-hold: 600ms;     /* Reduce effects: the landed machine shows this long before the cards */
 }
 
 :root {

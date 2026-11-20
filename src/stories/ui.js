@@ -120,6 +120,19 @@ const over = () => document.getElementById('g-over');
 // the dev layout editor, opened from the pause screen's dev panel the way a person does
 const layoutOpen = () => { over().hidden = false; over().querySelector('[data-act="layout"]').click(); step(30); };
 const layoutClose = () => { G().layout.onDone(); over().hidden = true; };
+// open a pick with the reward spin on: `frames` into the roll and held there, or (landed) tapped to land and kept on the landed machine
+function spinOpen(open, frames, landed = false) {
+  const { menus } = G();
+  menus.spinOn = true;
+  open();
+  const sp = menus._spin;
+  sp.stay = true;
+  if (landed) { sp.tap(); step(20); return; }
+  step(frames);
+  sp.tick = () => true;   // its clock stops here, and every reel stands where that clock says
+  for (const a of document.getAnimations()) if (a.effect?.target?.closest?.('.jf-spin') && a.playState !== 'finished') { a.pause(); a.currentTime = sp.t; }
+}
+const spinClose = () => { const { menus } = G(); menus.close(); menus.spinOn = false; };
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   pause: { open() { over().hidden = false; }, close() { over().hidden = true; } },
@@ -132,6 +145,10 @@ export const SCREENS = {
   'type-pick': { open() { G().picker.open({ start: 'normal', onPlay() {}, onBack() {} }); }, close() { G().picker.close(); } },
   'level-up': { open() { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, close() { G().run.ui.close(); } },
   'treasure-pick': { open() { G().run.pickTreasure(); }, close() { G().run.ui.close(); } },
+  // the reward spin (spin-screen.js): rolling (its clock and reels held mid-roll, so a shot shows it) and landed
+  'treasure-spin': { open() { spinOpen(() => G().run.pickTreasure('A treasure!', 'Choose a treasure.', 'room'), 40); }, close: spinClose },
+  'level-up-spin': { open() { spinOpen(() => { const { run } = G(); Object.getPrototypeOf(run).levelUp.call(run); }, 30); }, close: spinClose },
+  'treasure-spin-landed': { open() { spinOpen(() => G().run.pickTreasure('A treasure!', 'Choose a treasure.', 'room'), 0, true); }, close: spinClose },
   book: { open() { G().run.showBook(() => {}); }, close() { G().run.ui.close(); } },
   achievements: { open() { G().run.showAchievements(() => {}); }, close() { G().run.ui.close(); } },
   leaderboard: { open() { G().run.showBoard(() => {}); }, close() { G().run.board.onChange = null; G().run.ui.close(); } },
