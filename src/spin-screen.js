@@ -1,8 +1,10 @@
 // The reward spin's machine (src/spin.js has its numbers): a pick's sign, the Luck panel, a reel per
 // offered card and a jelly on a lever. The roll is already made; the reels only show it. Each reel is
 // one strip moved by one transform animation (WAAPI) that runs off the main thread; the steps between
-// (a reel landing, the hold, the cards) run on the game's clock, from ui.tick, like a pick's outro, so
-// stories can step through it. Nothing runs per cell or per frame but a few comparisons.
+// (a reel landing, the hold, the cards) run from ui.tick on the game's clock, like a pick's outro, so
+// stories can step through it, but never fall behind the page's (the reels' own) clock: hit-stop, slow-mo
+// or a long frame slow the game's, and a reel would rest still showing streaks. Nothing runs per cell or
+// per frame but a few comparisons.
 //   new Spin(modal, { kind, title, offer, cell, rollOne, odds, luck, calm, lead, done })
 //   spin.tick(ms) -> false once it has handed over to the cards (done()); spin.tap() lands or skips
 // Reduce effects (calm): the machine fades in already landed, holds, and fades out.
@@ -129,6 +131,8 @@ const CSS = `
 .jf-spin .sp-lever .knob::after { right: 30%; }
 .jf-spin .sp-lever .tent { position: absolute; left: 10%; right: 10%; top: 88%; height: 12px; border-radius: 0 0 6px 6px; opacity: .8;
   background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ui-mint) 67%, transparent) 0 3px, transparent 3px 9px); }
+/* the touch controls would show round the cabinet's edges: gone while the machine is up */
+body:has(.jf-modal .jf-spin) #touch { visibility: hidden; }
 .jf-spin .sp-foot { margin: 0; min-height: 1.6em; font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink-dim); }
 `;
 let styled = false;
@@ -170,6 +174,7 @@ export class Spin {
     this.line$ = root.querySelector('.sp-sign p');
     this.foot$ = root.querySelector('.sp-foot');
     this.t = 0;
+    this.page0 = document.timeline.currentTime;
     if (calm) { this.reels = []; this.phase = 'hold'; this.holdEnd = ms('spin-calm-hold', 600); return; }
     // the lever drops, the reels set off as it bottoms out, and it springs back while they roll
     const lever = this.times.lever, back = ms('spin-lever-back', 480), A = this.A = arrive();
@@ -177,7 +182,7 @@ export class Spin {
     const pull = (down) => [{ transform: 'none', easing: css('--ui-ease-leave') || 'ease-in' }, { offset: lever / (lever + back), transform: down, easing: A.easing }, { transform: 'none' }];
     lv.querySelector('.rod').animate(pull('scaleY(-1)'), lever + back);
     lv.querySelector('.knob').animate(pull(`translateY(${drop}px)`), lever + back);
-    sfx.spinLever();
+    sfx.spinLever(lever / 1000);
     const H = this.H = root.querySelector('.sp-cell').getBoundingClientRect().height;
     const ticks = [];
     this.reels = [...root.querySelectorAll('.sp-reel')].map((el, i) => {
@@ -257,10 +262,11 @@ export class Spin {
     } else if (this.phase === 'hold') this.holdEnd = this.t;
   }
 
-  // ms of the game's clock; false once the cards are up
+  // ms of the game's clock (or more, to keep up with the page's); false once the cards are up
   tick(dt) {
     this.t += dt;
     if (this.phase === 'wait') { if (this.t >= 0) this.build(); return true; }
+    this.t = Math.max(this.t, (document.timeline.currentTime ?? 0) - (this.page0 ?? Infinity));   // (still while a story steps the game)
     for (const r of this.reels) {
       const fast = !r.landed && this.t >= r.fastAt && this.t < r.fastEnd;
       if (fast !== r.fast) { r.fast = fast; r.el.classList.toggle('fast', fast); }

@@ -262,13 +262,15 @@ export class UI {
   get open() { return !this.modal.hidden; }
   get picking() { return this.open && (!!this.spinning || !!this.modal.querySelector('.jf-pick')); }
   // the reward spin playing now, if a newer screen hasn't replaced it
-  get spinning() { if (this._spin && this._spinGen !== this._gen) this._spin = null; return this._spin; }
+  get spinning() { if (this._spin && this._spinGen !== this._gen) this.dropSpin(); return this._spin; }
+  // a spin closed or replaced before it handed over: its ticking stops with it
+  dropSpin() { if (this._spin) sfx.spinTick([]); this._spin = null; }
   get closing() { return this._outro > 0 && this._outroGen === this._gen; }
 
   close() {
     this._outro = 0;
     this._tally = null;
-    this._spin = null;
+    this.dropSpin();
     this._arm = 0;
     this.award([]);
     this._gen++;
@@ -297,7 +299,7 @@ export class UI {
   // not for cards a reload owes) and again on a reroll, the cards dealt the moment it hands over
   levelUp(level, cards, stats, rerolls, onPick, onReroll, to = null, spin = null) {
     const gen = ++this._gen;
-    this._spin = null;
+    this.dropSpin();
     this._arm = 0;
     let out = false;
     const render = (beat) => {
@@ -344,7 +346,7 @@ export class UI {
   // spin: { kind, rollOne, odds, luck } (run.pickTreasure): the reward spin plays before the cards
   choose(title, sub, choices, onPick, slot = null, spin = null) {
     const gen = ++this._gen;
-    this._spin = null;
+    this.dropSpin();
     this._arm = 0;
     const render = () => {
       const at = dealDelays(choices.map((c) => c.tier?.name));

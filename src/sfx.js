@@ -839,11 +839,11 @@ export const sfx = {
   // the reward spin (spin-screen.js): the lever pulled; the reels' ticks, a list per reel of seconds from
   // now when a cell crosses the payline (a new call replaces the last schedule, [] cancels it); a reel
   // landing (tier 0 Common … 3 Legendary)
-  spinLever() {
+  spinLever(down = 0.25) {                                 // down: s until the lever bottoms out (--spin-lever)
     if (!ready()) return;
     noise(500, 0.8, 0.12, 0.05, 'lowpass');                  // the grip
-    tone('triangle', 150, 70, 0.14, 0.12, 0.2);              // the clunk as it bottoms out (--spin-lever, 250 ms)
-    noise(1800, 1, 0.05, 0.05, 'bandpass', 0.2);
+    tone('triangle', 150, 70, 0.14, 0.12, down);             // the clunk as it bottoms out
+    noise(1800, 1, 0.05, 0.05, 'bandpass', down);
   },
   spinTick(reels) {
     stopTicker();

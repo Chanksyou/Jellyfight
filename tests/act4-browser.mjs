@@ -3,7 +3,7 @@
 // bugs, driven by the balance bot's movement. Not earned progression: compare before and after, never read as a human.
 import * as THREE from 'three';
 import { CONTENT } from '../src/content.js';
-import { rollCards, cardsNotFor, rollTreasures, treasureTier, applyCard, TREASURES, EVOLUTIONS, CHEST_WEIGHTS } from '../src/stats.js';
+import { applyCard, threeOfAKind, threeOfAKindTreasures, TREASURES, EVOLUTIONS } from '../src/stats.js';
 import { seededRandom } from '../src/story-random.mjs';
 import { fresh, step } from '../src/stories/kit.js';
 import { choose } from './balance-core.mjs';
@@ -15,17 +15,16 @@ const pickOne = (list, rnd) => list[Math.floor(rnd() * list.length)];
 // What a run that cleared acts 1 to 3 well holds (worker/index.js: the best real runs reached level 17 by the end of act 3): `levels` cards, `chests` Treasures (room and Elite chests alternate),
 // `legendaries` boss picks, `upgrades` Attack upgrades. Rolls and picks are seeded; picks follow the style's card weights.
 export function endOfAct3(seed, style, { levels = 16, chests = 12, legendaries = 3, upgrades = 4 } = {}) {
-  const { run } = G(), rnd = seededRandom(seed ^ 0x5eed), kind = run.attack?.kind, taken = { cards: {}, treasures: [], legendary: [], upgrades: [] };
-  const skip = cardsNotFor(kind);
+  const { run } = G(), rnd = seededRandom(seed ^ 0x5eed), taken = { cards: {}, treasures: [], legendary: [], upgrades: [] };
+  // the game's own rolls (run.js levelUp, pickTreasure), three of a kind included
   for (let i = 0; i < levels; i++) {
-    const cards = rollCards(run.stats, 3 + run.mods.cardChoices, run.mods.cardRarity, run.S.luck, run.S, skip);
+    const cards = threeOfAKind(run.rollLevelUp(), run.S);
     const c = cards[choose(cards, i % 2 ? 'close' : style, [], rnd)];
     applyCard(run.stats, c); taken.cards[c.stat] = (taken.cards[c.stat] || 0) + 1;
   }
   const can = (t, weights) => weights[t.rarity] > 0 && run.owned.count(t.id) < t.stack && (!t.needs || run.owned.has(t.needs)) && run.hasStat(t) && run.forAttack(t);
   for (let i = 0; i < chests; i++) {
-    const w = CHEST_WEIGHTS[i % 2 ? 'elite' : 'room'];
-    const offer = rollTreasures(TREASURES.filter((t) => can(t, w)), 3, run.S.luck, (t) => w[t.rarity] / treasureTier(t).weight);
+    const offer = threeOfAKindTreasures(run.rollChest(i % 2 ? 'elite' : 'room'), TREASURES.filter((t) => run.takeable(t)));
     if (!offer.length) continue;
     const t = pickOne(offer, rnd); run.owned.add(t.id); taken.treasures.push(t.id);
   }

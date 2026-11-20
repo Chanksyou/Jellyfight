@@ -1,0 +1,1 @@
+keeps the reward spin's reels landing on time on a slow phone or under hit-stop, silences its ticking when the machine closes mid-roll, times the lever's clunk to the lever, and hides the touch controls behind the machine.
