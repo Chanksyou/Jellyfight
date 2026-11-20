@@ -954,11 +954,11 @@ story('encore/a-record-lands-where-its-lane-locked-on-the-bar', {
 });
 
 // a jelly standing where the record is aimed; `act(J, b)` each frame (jump or step)
-function standUnderRecord(act) {
+function standUnderRecord(act, from = HAND) {
   const T = recordsRig();
   try {
     const J = realJelly(T, 0.1, 0.25);
-    T.rec.cast(8, recordOpts(() => [J.p.position.x, J.p.position.z]));
+    T.rec.cast(8, recordOpts(() => [J.p.position.x, J.p.position.z], { from }));
     let maxY = 0;
     playRecords(T, J, 3, 9.5, (b) => { act?.(J, b); maxY = Math.max(maxY, J.p.position.y); });
     J.ctl.move = { x: 0, y: 0 };
@@ -1034,17 +1034,18 @@ story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-16-beats', {
 });
 
 // the real fight on a song we play by hand: `beat` moves on at the track's tempo each frame
-function soloFight() {
-  const B = encoreFight({ hurt: false }), song = { beat: 0, quiet: () => false };
+function soloFight(fps = 60, opts = {}) {
+  const B = encoreFight({ hurt: false, ...opts }), song = { beat: 0, quiet: () => false };
   stub(B, 'song', { beat: () => song.beat, quiet: (b) => song.quiet(b), drop: () => false });
   // no waves or lasers, and no solo but the ones a story books (slot)
   const slot = B.slot.bind(B);
   stub(B.floor, 'cast', () => null); stub(B.lasers, 'cast', () => null); stub(B, 'slot', () => {});
-  const go = (to, each) => step(60 * 60, () => { song.beat += BPM / 60 * DT; each?.(); return song.beat >= to; });
+  const go = (to, each) => { for (let i = 0; i < fps * 60; i++) { G().GAME.step(1 / fps); song.beat += BPM / 60 / fps; if (each?.() || song.beat >= to) return; } };
+  step(2);                                                             // (its first frames: a DJ an earlier fight left out is home)
   return { B, song, go, slot };
 }
 fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
-  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ and four records thrown, each flung on the beat before a bar line (his wind-up leading to it) and landing on the bar line. Then he bows: the boss bar reads EXPOSED and hits do 1.5x, for 2 bars if a hit reached the jelly during his solo, 4 if none did; before and after, hits do 1x.',
+  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ (crouched to vault out to the floor 2 beats before it) and three records thrown from the second bar, each flung on the beat before a bar line (his wind-up leading to it) and landing on the bar line. Then he bows: the boss bar reads EXPOSED and hits do 1.5x, for 2 bars if a hit reached the jelly during his solo, 4 if none did; before and after, hits do 1x.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { hud } = G();
@@ -1052,7 +1053,7 @@ fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
     const run1 = (at, hurt) => {
       go(at - 6); slot('silver', at);
       const lands = B.records.casts.map((c) => c.land).join(), rig = B.arenaView.boss.rigs.silver;
-      go(at - 2.5); const throwing = rig.move != null && rig.at === at - 1;   // winding up to throw on the beat before the bar
+      go(at - 2.5); const throwing = rig.move != null && rig.at === at - 2;   // crouched to vault out, taking off 2 beats before the bar
       go(at + 2); const lit = B.spots.silver.visible && B.spots.silver.material.opacity > 0 && !B.spots.gold.visible && !!B.soloing(at + 2);
       if (hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
       const hp = () => B.hp, hit = () => { const was = hp(); B.damage(100); return Math.round(was - hp()); };
@@ -1064,7 +1065,7 @@ fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
       return { lands, throwing, lit, inSolo, bowed, bar, bowing, late, after, barAfter, solo: B.solo, spot: B.spots.silver.visible };
     };
     const hurt = run1(40, true), clean = run1(80, false);
-    const good = (r, at) => r.lands === `${at},${at + 4},${at + 8},${at + 12}` && r.throwing && r.lit && r.inSolo === 100 && r.bowed === 150 && r.bar && r.bowing && r.late === 150 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
+    const good = (r, at) => r.lands === `${at + 4},${at + 8},${at + 12}` && r.throwing && r.lit && r.inSolo === 100 && r.bowed === 150 && r.bar && r.bowing && r.late === 150 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
     return ok(good(hurt, 40) && good(clean, 80), { hurt, clean });
   },
 });
@@ -1194,6 +1195,7 @@ fight('a-dj-in-his-solo-or-bow-keeps-his-pose-over-wave-gestures', {
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), rigs = B.arenaView.boss.rigs, cast = (name, at, dj) => EncoreFloor.prototype.cast.call(B.floor, name, at, { dj });
+    stub(B, 'hurtPlayer', () => {});                                   // (no record may hurt: the gold DJ would pump his fist over his wave)
     go(30); slot('silver', 40);
     cast('ring', 46, 'silver'); cast('pincer', 46, 'gold');
     go(45.5); const throwing = rigs.silver.at === 47 && !!rigs.silver.move, goldWave = rigs.gold.at === 46 && !!rigs.gold.move;
@@ -1454,7 +1456,7 @@ function cueBeats(now) {
 const near = (list, want, tol = 0.07) => list.length === want.length && list.every(([b], i) => Math.abs(b - want[i]) < tol);
 
 fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
-  about: 'In a silver solo each record is scratched as it winds up (four beats before it lands), thrown on the beat before the bar and sticks on the bar line; each shatters when its four bars are up. The bow breathes out on its beat, and the crowd cheers only if no hit reached the jelly in the solo.',
+  about: 'In a silver solo (three records, from its second bar) each record is scratched as it winds up (four beats before it lands), thrown on the beat before the bar and sticks on the bar line; each shatters when its four bars are up. The bow breathes out on its beat, and the crowd cheers only if no hit reached the jelly in the solo.',
   setup() {},
   play() {
     const out = {};
@@ -1464,7 +1466,7 @@ fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
       go(34); slot('silver', 40);
       go(42); if (hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
       go(78);
-      out[hurt ? 'hurt' : 'clean'] = { cues, scratch: near(cues.recordScratch, [36, 40, 44, 48]), thrown: near(cues.recordThrow, [39, 43, 47, 51]), stuck: near(cues.recordStick, [40, 44, 48, 52]), shattered: near(cues.recordShatter, [56, 60, 64, 68]), breath: near(cues.bowExhale, [56]), cheer: cues.crowdCheer.length };
+      out[hurt ? 'hurt' : 'clean'] = { cues, scratch: near(cues.recordScratch, [40, 44, 48]), thrown: near(cues.recordThrow, [43, 47, 51]), stuck: near(cues.recordStick, [44, 48, 52]), shattered: near(cues.recordShatter, [60, 64, 68]), breath: near(cues.bowExhale, [56]), cheer: cues.crowdCheer.length };
     }
     const good = (r) => r.scratch && r.thrown && r.stuck && r.shattered && r.breath;
     const { clean, hurt } = out;
@@ -1662,5 +1664,265 @@ fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
       const again = new EncoreHints(); seen.remembered = again.take('bow') === null && again.take('cover') === null;
       return ok(seen.early === 0 && seen.bow === 1 && seen.bow2 === 1 && seen.coverEarly === 0 && seen.cover === 1 && seen.after.join() === '1,1,2' && seen.remembered, seen);
     } finally { had === null ? localStorage.removeItem(ENCORE_HINTS_KEY) : localStorage.setItem(ENCORE_HINTS_KEY, had); }
+  },
+});
+
+// ---- a solo on the floor (B2): the silver DJ vaults out to his mark (ENCORE.marks), is the Encore's
+// target there, pushes and never hurts, throws his records from the floor, and goes home
+const SPOT = () => ENCORE.marks.silver, FL = () => G().run.boss.def.skills.floor;
+const worldOf = (o) => o.getWorldPosition(V(0, 0, 0));
+const markAt = (B) => V(SPOT()[0], 0, SPOT()[1]).applyMatrix4(B.arenaView.root.matrixWorld);
+const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+for (const fps of [30, 60]) fight(`the-silver-dj-vaults-out-on-his-solo-and-home-in-his-bow-at-${fps}fps`, {
+  about: `At ${fps} fps, a silver solo booked on beat 40: the spotlight slides to his mark a beat after it is booked, he crouches and takes off 2 beats before the solo and lands on his mark on its first beat (within a frame), stands there through his solo and bow under his spotlight, and takes off 2 beats before his bow ends to land back in the booth, at rest, as it ends. The gold DJ stays in the booth.`,
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(fps), M = B.arenaView.boss, r = M.rigs.silver, home = worldOf(r.body), mark = markAt(B), db = BPM / 60 / fps + 1e-6;
+    stub(B, 'hurtPlayer', () => {});
+    go(33.9); slot('silver', 40);
+    let off = null, landed = null, spotEarly = null, still = 0, spotOn = 0, back = null, gold = false;
+    go(200, () => {
+      const b = B.beat, p = worldOf(r.body), out = M.out('silver');
+      gold ||= M.out('gold');
+      if (spotEarly === null && b >= 36.5) spotEarly = flat(worldOf(B.spots.silver), mark);
+      if (off === null && out) off = b;
+      if (landed === null && out && flat(p, mark) < 0.002 && Math.abs(p.y - mark.y) < 0.002) landed = b;
+      if (landed !== null && B.solo && b > 40.1 && b < B.solo.bowEnd - 2.05) { still = Math.max(still, flat(p, mark)); spotOn = Math.max(spotOn, B.spots.silver.visible ? flat(worldOf(B.spots.silver), p) : 1); }
+      if (landed !== null && back === null && !out) { back = { b, at: worldOf(r.body).distanceTo(home), bowEnd: B.solo?.bowEnd ?? null }; return true; }
+    });
+    const bowEnd = 56 + 16;                                            // (no hit reached the jelly: the long bow)
+    const res = { solo: B.solo && { ...B.solo, wall: undefined }, spotEarly: +spotEarly.toFixed(3), off: +(off - 38).toFixed(3), landed: +(landed - 40).toFixed(3), still, spotOn: +spotOn.toFixed(3), back: back && { b: +(back.b - bowEnd).toFixed(3), at: +back.at.toFixed(4) }, gold };
+    const u = off - 38, l = landed - 40, h = back && back.b - bowEnd;   // (on time: within a frame)
+    const checks = [spotEarly < 0.01, u >= -1e-6 && u < db, l >= -1e-6 && l < db, still < 1e-4, spotOn < 0.01, !!back && h >= -1e-6 && h < db, !!back && back.at < 0.001, !gold, !B.solo];
+    return ok(checks.every(Boolean), { ...res, checks });
+  },
+});
+
+fight('a-late-booked-floor-solo-still-lands-on-the-bar-line', {
+  about: 'A silver solo booked only a beat before it starts (a slot that came late) takes off at once and still lands on his mark on the solo\'s first beat.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), M = B.arenaView.boss, r = M.rigs.silver, mark = markAt(B);
+    stub(B, 'hurtPlayer', () => {});
+    go(39); slot('silver', 40);
+    let landed = null, off = null;
+    go(42, () => { const out = M.out('silver'); if (off === null && out) off = B.beat; if (landed === null && out && flat(worldOf(r.body), mark) < 0.002) landed = B.beat; });
+    return ok(off !== null && off < 39.1 && landed !== null && landed >= 40 - 1e-6 && landed < 40.05, { off, landed });
+  },
+});
+
+fight('no-dj-leaves-the-booth-while-its-force-field-is-up', {
+  about: 'While the Encore\'s force field is up (warming up, or rebooting after the short-out) a solo slot does not start, so no DJ leaves the booth; once it drops, the next slot does.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight();
+    B.guardT = 5;
+    go(10); const shielded = slot('silver', 16) === false && !B.solo;
+    go(20); const stayed = !B.arenaView.boss.out('silver');
+    B.guardT = 0; go(30); const after = slot('silver', 36) === true && !!B.solo;
+    return ok(shielded && stayed && after, { shielded, stayed, after });
+  },
+});
+
+fight('a-dj-on-the-floor-is-the-target-and-the-booth-cant-be-hit', {
+  about: 'From his take-off till he lands home, the Encore\'s one target is the silver DJ: it sits on his chest with his own radius, wherever he is (in the air too), so the jelly\'s attacks pick and hit him and the booth is out of reach. A hit does 1x in his solo (he flinches, the booth doesn\'t flash) and 1.5x in his bow; EXPOSED ends as he lands home, and the target is back in front of the booth.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), M = B.arenaView.boss, r = M.rigs.silver, F = FL(), booth = B.position.clone(), proxy = G().enemies.list.find((e) => e.proxy === B);
+    stub(B, 'hurtPlayer', () => {});
+    const hit = () => { const was = B.hp; B.damage(100); return Math.round(was - B.hp); };
+    go(33.9); slot('silver', 40);
+    let inAir = Infinity;
+    go(40, () => { if (M.out('silver')) inAir = Math.min(inAir, worldOf(r.body).add(V(0, F.chest, 0)).distanceTo(B.position)); });
+    go(44);
+    const chest = worldOf(r.body).add(V(0, F.chest, 0)), on = B.position.distanceTo(chest) < 1e-6 && B.r === F.r && proxy.pos === B.position && proxy.r === F.r && G().enemies.center(proxy).distanceTo(chest) < 1e-6;
+    const boothAway = booth.distanceTo(B.position) > B.r + 0.2;
+    B.hurtT = 0; const solo = hit(), flinch = B.flinchT > 0 && B.hurtT === 0;
+    go(57); const bow = hit(), exposed = B.exposed;
+    let home = null, lastExposed = null;
+    go(200, () => { if (B.exposed) lastExposed = B.beat; if (!M.out('silver')) { home = B.beat; return true; } });
+    go(home + 0.2); const after = hit(), back = B.position.distanceTo(booth) < 1e-6 && B.r === 0.14;
+    const res = { inAir: +inAir.toFixed(5), on, boothAway, solo, flinch, bow, exposed, home, lastExposed, after, back };
+    return ok(inAir < 1e-6 && on && boothAway && solo === 100 && flinch && bow === 150 && exposed && lastExposed < home && home - lastExposed < 0.1 && after === 100 && back, res);
+  },
+});
+
+fight('the-jellys-bubbles-reach-a-dj-on-the-floor-and-in-the-air', {
+  about: 'With its bubbles blowing, a jelly standing out on the floor hurts the silver DJ while he stands on his mark and while he is in the air vaulting (its bubbles find him wherever the target is), and nothing goes wrong as the target moves.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(60, { bubbles: true }), M = B.arenaView.boss, { player } = G();
+    stub(B, 'hurtPlayer', () => {}); stub(B.records, 'cast', () => null);
+    go(33.9); slot('silver', 40);
+    const hurt = { air: 0, floor: 0 };
+    let was = B.hp, bad = false;
+    go(200, () => {
+      player.position.set(-0.3, 0.01, 0.32); player.velocity?.set(0, 0, 0);    // (22 cm in front of his mark: in a bubble's range)
+      const out = M.out('silver'), d = was - B.hp; was = B.hp;
+      bad ||= !Number.isFinite(B.position.x + B.position.y + B.position.z);
+      if (out && d > 0) hurt[B.beat < 40 || (B.solo && B.beat >= B.solo.bowEnd - 2) ? 'air' : 'floor'] += d;
+      if (B.solo === null) return true;
+    });
+    return ok(hurt.floor > 0 && !bad, { hurt, bad, note: hurt.air > 0 ? 'hit in the air too' : 'not hit in the 2 beats of air' });
+  },
+});
+
+fight('a-dj-on-the-floor-blocks-the-jelly-and-never-hurts-it', {
+  about: 'A jelly set down against the silver DJ standing on his mark is pushed out of his body (never through it: no collider is added), and nothing of him hurts it; once he is home the spot is open.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { player, run } = G(), F = FL(), mark = markAt(B), pr = CONFIG.player.radius;
+    stub(B.records, 'cast', () => null);
+    let hurt = 0; const off = bus.on('damage_taken', (e) => { if (e.targetId === PLAYER) hurt += e.amount; });
+    try {
+      go(33.9); slot('silver', 40); go(44);
+      let nearest = Infinity;
+      for (let k = 0; k < 3; k++) {
+        player.position.set(mark.x + 0.02, 0.01, mark.z + 0.02); player.velocity?.set(0, 0, 0);
+        go(B.beat + 2, () => { if (B.beat > 0) nearest = Math.min(nearest, flat(player.position, mark)); });
+      }
+      const pushed = flat(player.position, mark) >= F.body + pr - 0.005;
+      go(200, () => !B.solo);
+      player.position.set(mark.x, 0.01, mark.z); player.velocity?.set(0, 0, 0); go(B.beat + 2);
+      const open = flat(player.position, mark) < 0.02;
+      return ok(pushed && hurt === 0 && open, { pushed, at: +flat(player.position, mark).toFixed(3), nearest: +nearest.toFixed(3), hurt, open, phase: run.phase });
+    } finally { off(); }
+  },
+});
+
+story('encore/a-jelly-pinned-between-a-dj-and-a-record-stays-a-small-push', {
+  about: 'A jelly caught between a standing record and a DJ on the floor, both pushing it, gets the same small push frame after frame (the push the records use, capped at a walk): it never runs away into a fling or a stalled collision (the bug fixed in #399).',
+  setup() {},
+  play() {
+    const T = recordsRig();
+    try {
+      T.rec.cast(8, recordOpts(() => [0, 0.2], { from: () => V(0, 0.45, -0.5) }));
+      playRecords(T, standing(0.5, 0.5), 3, 9);
+      const J = standing(0, 0.235);
+      let most = 0;
+      for (let b = 9; b <= 15; b += DT * BPM / 60) {
+        T.rec.update(b, J, DT); T.rec.ring(0, 0.3, 0.06, 0.34, J);
+        most = Math.max(most, Math.hypot(T.rec.pushX, T.rec.pushZ));
+      }
+      return ok(T.rec.casts[0]?.state === 'stand' && most > 0 && most < 0.1, { most: +most.toFixed(4) });
+    } finally { T.done(); }
+  },
+});
+
+fight('the-landing-shoves-a-jelly-on-the-mark-unhurt', {
+  about: 'A jelly standing on the silver DJ\'s mark as he lands is shoved off it on the landing beat, and takes no hit.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { player } = G(), mark = markAt(B), shoves = [];
+    stub(B.records, 'cast', () => null);
+    let hurt = 0;
+    const offs = [bus.on('damage_taken', (e) => { if (e.targetId === PLAYER) hurt += e.amount; }), bus.on('knockback', (e) => { if (e.targetId === PLAYER) shoves.push({ beat: B.beat, force: e.force }); })];
+    try {
+      go(33.9); slot('silver', 40);
+      go(39.5, () => { player.position.set(mark.x + 0.01, 0.01, mark.z + 0.01); player.velocity?.set(0, 0, 0); });
+      go(42);
+      const away = flat(player.position, mark);
+      return ok(shoves.length === 1 && shoves[0].beat >= 40 && shoves[0].beat < 40.05 && away > FL().body + CONFIG.player.radius && hurt === 0, { shoves, away: +away.toFixed(3), hurt });
+    } finally { offs.forEach((f) => f()); }
+  },
+});
+
+fight('records-fly-from-his-hand-on-the-floor-three-a-solo-never-near-him', {
+  about: 'On the floor the silver DJ throws three records, from his hand out there (not the booth), landing on the bar lines of bars 2 to 4 where their lanes locked; with the jelly hugging him, none lands within 17 cm of him (his body, a record and 6 cm), and each still lands on open floor.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { player } = G(), mark = markAt(B), F = FL(), keep = F.body + B.records.r + F.keep;
+    stub(B, 'hurtPlayer', () => {});
+    go(33.9); const n = (slot('silver', 40), B.records.casts.length);
+    const lands = [];
+    go(56, () => {
+      player.position.set(mark.x + 0.1, 0.01, mark.z + 0.03); player.velocity?.set(0, 0, 0);
+      for (const c of B.records.casts) if (c.state === 'stand' && !lands.includes(c)) lands.push(c);
+    });
+    const out = lands.map((c) => ({ land: c.land, from: +flat(c.start, mark).toFixed(3), d: +Math.hypot(c.to[0] - mark.x, c.to[1] - mark.z).toFixed(3) }));
+    const okAll = lands.length === 3 && out.every((o) => o.from < 0.15 && o.d >= keep - 1e-6) && out.map((o) => o.land).join() === '44,48,52';
+    // the keep-out on its own: no spot round him (or anywhere near) lands within it, or in the boss's space
+    let worst = Infinity;
+    for (let x = -0.6; x <= 0.6; x += 0.03) for (let z = -0.5; z <= 0.6; z += 0.03) {
+      const p = landing(x, z, 0.055, 0.06, [0, 0], [SPOT()[0], SPOT()[1], keep]);
+      worst = Math.min(worst, Math.hypot(p[0] - SPOT()[0], p[1] - SPOT()[1]));
+    }
+    return ok(n === 3 && okAll && worst >= keep - 1e-6 && Math.abs(keep - 0.175) < 1e-9, { n, out, keep, worst: +worst.toFixed(4) });
+  },
+});
+
+story('encore/from-the-floor-a-jump-does-not-dodge-a-record-a-step-does', {
+  about: 'Thrown from his hand on the floor (beside the jelly, not over the stage), a record still hits a jelly standing where its lane locked, through a full jump; stepping off the lane after it locks dodges it.',
+  setup() {},
+  play() {
+    const from = () => V(-0.3, 0.2, 0.1);
+    const stand = standUnderRecord(null, from);
+    const jump = standUnderRecord((J, b) => { if (b >= 6.6 && b < 6.6 + 0.04) J.ctl.jump = true; }, from);
+    const step = standUnderRecord((J, b) => { J.ctl.move = b >= 6.2 && b < 7.2 ? { x: 0, y: 1 } : { x: 0, y: 0 }; }, from);
+    return ok(stand.hits.length === 1 && jump.hits.length === 1 && jump.maxY > 0.12 && step.hits.length === 0, { stand, jump, step });
+  },
+});
+
+fight('the-short-out-defeat-or-a-rewind-bring-a-dj-on-the-floor-home', {
+  about: 'With the silver DJ out on the floor, the short-out and the last hit knock him back into the booth in the cut\'s first 0.3 s (at once with Reduce effects), and a song rewind hops him home in 0.4 s; each time the spotlight, the target and his push are gone from the floor at once, and his records\' keep-out with them.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const how of ['short-out', 'short-out calm', 'defeat', 'rewind']) {
+      const { B, song, go, slot } = soloFight(), M = B.arenaView.boss, r = M.rigs.silver, home = worldOf(r.body), rootAt = worldOf(M.root), mark = markAt(B), { player, fx } = G();   // (where he stands in the booth, as it shakes)
+      stub(B, 'hurtPlayer', () => {});
+      if (how === 'short-out calm') stub(fx, 'reducedMotion', { matches: true });
+      go(33.9); slot('silver', 40); go(45);
+      const wasOut = M.out('silver');
+      if (how.startsWith('short-out')) B.damage(B.hp - B.maxHp * 0.45);
+      else if (how === 'defeat') { B.broken = true; B.damage(B.hp + 1); }
+      else song.beat = 10;
+      let t = 0, at = null, booth, spot, keep;
+      for (let k = 0; k < 60 && at === null; k++) {
+        player.position.set(mark.x + 0.03, 0.01, mark.z); G().GAME.step(1 / 60); t += 1 / 60;
+        if (how === 'rewind') song.beat += BPM / 3600;
+        if (!k) { booth = B.position.distanceTo(V(0, 0.13, -0.17)) < 1e-6; spot = B.spots.silver.visible; keep = B.records.keep; }   // (from the first frame)
+        if (!M.out('silver')) at = t;
+      }
+      const push = !!B.update(0.001, player).push;
+      out[how] = { wasOut, booth, spot, keep: !!keep, at: at && +at.toFixed(3), rest: +worldOf(r.body).sub(worldOf(M.root)).distanceTo(home.clone().sub(rootAt)).toFixed(4), push, solo: !!B.solo };
+    }
+    const good = (o, most) => o.wasOut && o.booth && !o.spot && !o.keep && o.at !== null && o.at <= most && o.rest < 0.002 && !o.push && !o.solo;
+    return ok(good(out['short-out'], 0.32) && good(out['short-out calm'], 0.02) && good(out.defeat, 0.32) && good(out.rewind, 0.42), out);
+  },
+});
+
+fight('in-the-breakdown-a-dj-on-the-floor-bows-where-he-stands', {
+  about: 'If the song\'s breakdown comes while the silver DJ is out on the floor, he bows where he stands on his mark (the breakdown\'s bow, exposed), throws nothing in it, and still goes home as his own bow ends.',
+  setup() {},
+  play() {
+    const { B, song, go, slot } = soloFight(), M = B.arenaView.boss, r = M.rigs.silver, mark = markAt(B);
+    stub(B, 'hurtPlayer', () => {});
+    song.quiet = (b) => b >= 46 && b < 58;
+    go(33.9); slot('silver', 40);
+    go(49); const bowing = r.move != null && Math.abs(r.at - 47) < 0.05 && M.out('silver') && flat(worldOf(r.body), mark) < 1e-4 && B.exposed;
+    const lands = B.records.casts.map((c) => c.land).join();
+    let home = null; go(200, () => { if (!M.out('silver')) { home = B.beat; return true; } });
+    const bowEnd = 56 + 16;
+    return ok(bowing && lands === '44' && home >= bowEnd - 0.05 && home < bowEnd + 0.05, { bowing, move: r.at, lands, home });
+  },
+});
+
+fight('the-other-dj-watches-from-the-booth-and-pumps-his-fist-when-a-record-hits', {
+  about: 'While the silver DJ is out on the floor the gold DJ stays in the booth and turns his helmet to watch him (turned back after he is home), and pumps his fist when one of his partner\'s records hits the jelly.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), M = B.arenaView.boss, g = M.rigs.gold, s = M.rigs.silver, { player } = G();
+    // how far the gold DJ's helmet looks off his partner (radians, on the floor plane)
+    const off = () => { const h = worldOf(g.head), f = g.head.getWorldDirection(V(0, 0, 0)), to = worldOf(s.body).sub(h); return Math.abs(Math.atan2(f.x * to.z - f.z * to.x, f.x * to.x + f.z * to.z)); };
+    let pump = null;
+    stub(B.floor, 'react', function (dj, move, at) { if (dj === 'gold' && move === 'fist-pump') pump ??= B.beat; });
+    go(30); const before = off(), yaw0 = g.head.rotation.y;
+    slot('silver', 40);
+    go(43); const watching = off();
+    go(44.3, () => { player.position.set(...[B.records.casts[0]?.to[0] ?? 0, 0.01, B.records.casts[0]?.to[1] ?? 0.3]); player.velocity?.set(0, 0, 0); });
+    go(200, () => !B.solo); go(B.beat + 4);
+    const after = Math.abs(g.head.rotation.y - yaw0);
+    return ok(watching < 0.3 && watching < before && pump !== null && pump >= 44 && pump < 44.2 && after < 0.05 && !M.out('gold'), { before: +before.toFixed(3), watching: +watching.toFixed(3), pump, after: +after.toFixed(3) });
   },
 });
