@@ -1,0 +1,1 @@
+repaints Wind's card on the jelly type pick screen: soft ribbons of air circle the jelly (the near ones bend the bell and tentacles as they cross it), with dust and three small leaves riding the spiral and the tentacles streaming sideways in the breeze, instead of hard white arcs.
