@@ -301,7 +301,7 @@ story('spin/tap-lands-the-reels', {
 });
 
 story('spin/reroll-spins-again', {
-  about: 'A reroll sends the cards off and plays the short spin again with the new roll, which its reels land on before the new cards deal in.',
+  about: 'A tap in the first moment after the spin hands over picks nothing (it was meant to skip); then a reroll sends the cards off and plays the short spin again with the new roll, which its reels land on before the new cards deal in.',
   setup() { fresh({ spin: true }); },
   play() {
     const { run } = G();
@@ -310,13 +310,16 @@ story('spin/reroll-spins-again', {
     untilCards();
     const before = run.cardsOnOffer;
     document.querySelector('.jf-modal [data-act="reroll"]').click();
+    const early = run.cardsOnOffer === before;   // a tap straight after the hand-over (meant to skip) is ignored
+    step(20);
+    document.querySelector('.jf-modal [data-act="reroll"]').click();
     const leaving = !!document.querySelector('.jf-modal .jf-level.ui-leave') && !machine();
     step(10);
     const again = !!machine() && run.cardsOnOffer !== before;
     step(400, () => spinning()?.reels.every((r) => r.landed));
     const lines = paylines().every((l, i) => l.r === tierId(run.cardsOnOffer[i]));
     untilCards();
-    return ok(leaving && again && lines && shownCards().length === 3 && run.rerolls === 0, { leaving, again, lines });
+    return ok(early && leaving && again && lines && shownCards().length === 3 && run.rerolls === 0, { early, leaving, again, lines });
   },
 });
 

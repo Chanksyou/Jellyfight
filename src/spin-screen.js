@@ -203,6 +203,7 @@ export class Spin {
   // the Luck panel: the number, then each rarity's chance on one reel (highest first), with no Luck and with yours
   luck() {
     const { odds, luck = 0 } = this.o;
+    // (kind 'legendary': the boss reward's spin, wired in task S4)
     const rows = this.o.kind === 'legendary' ? '<p class="sp-boss">Boss reward: always Legendary</p>'
       : `<div class="sp-odds">${[...odds].reverse().map((r) => `<div class="sp-odd" style="--c:var(--ui-${r.id})"><span class="n">${r.name}</span>`
         + `<span class="v${r.now < r.was ? ' down' : ''}">${luck ? `${pct(r.was)} → ` : ''}<b>${pct(r.now)}</b></span>`
@@ -212,8 +213,8 @@ export class Spin {
 
   // the sign's line once every reel has landed: three of a kind, or what's on offer
   line() {
-    const n = this.o.offer.length, count = ['three', 'four', 'five'][n - 3] || String(n);
-    if (this.up < 0) return `Here are your ${count}.`;
+    const n = this.o.offer.length, count = ['one', 'two', 'three', 'four', 'five'][n - 1] || String(n);
+    if (this.up < 0) return n === 1 ? 'Here it is.' : `Here are your ${count}.`;
     const c = this.o.offer[this.up], was = NAME[tierOf(c.was)];
     return `${count[0].toUpperCase() + count.slice(1)} ${was}s! One becomes ${NAME[tierOf(c)]}.`;
   }

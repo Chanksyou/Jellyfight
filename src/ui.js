@@ -232,12 +232,14 @@ export class UI {
     this.modal.hidden = true;
     // A second thumb gets pointer events but no click while the joystick thumb stays down.
     this.modal.addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'touch' && !e.isPrimary && this.picking) { if (this._spin) this._spin.tap(); else this.modal.onclick?.(e); }
+      if (e.pointerType === 'touch' && !e.isPrimary && this.picking) { if (this.spinning) this.spinning.tap(); else if (!(this._arm > 0)) this.modal.onclick?.(e); }
     });
     // while the reward spin plays, a tap or click anywhere lands the reels (or skips to the cards) and nothing else
-    this.modal.addEventListener('click', (e) => { if (this._spin) { e.stopImmediatePropagation(); this._spin.tap(); } }, true);
+    // (and for a moment after it hands over, so a late tap meant to skip doesn't pick a card)
+    this.modal.addEventListener('click', (e) => { if (this.spinning || this._arm > 0) { e.stopImmediatePropagation(); this.spinning?.tap(); } }, true);
     this.spinOn = true;    // the reward spin plays before level-up and chest cards (off in stories unless fresh({ spin: true }))
     this._spin = null;
+    this._arm = 0;         // seconds the fresh cards ignore taps after a spin hands over
     parent.appendChild(this.modal);
     this.pop = document.createElement('div');
     this.pop.className = 'ui-toast jf-pop';
@@ -252,19 +254,22 @@ export class UI {
       // an award's reveal takes Enter, Space and Escape first: Continue
       if (this.awardEl && ['Enter', 'Space', 'Escape'].includes(e.code)) { e.preventDefault(); this.awardEl.querySelector('[data-next]').click(); return; }
       // the spin takes Space (lands the reels, then skips to the cards); number keys and R wait for the cards
-      if (!this.modal.hidden && this._spin) { if (e.code === 'Space') { e.preventDefault(); this._spin.tap(); } return; }
+      if (!this.modal.hidden && this.spinning) { if (e.code === 'Space') { e.preventDefault(); this.spinning.tap(); } return; }
       if (!this.modal.hidden && this.keyHandler) this.keyHandler(e);
     });
   }
 
   get open() { return !this.modal.hidden; }
-  get picking() { return this.open && (!!this._spin || !!this.modal.querySelector('.jf-pick')); }
+  get picking() { return this.open && (!!this.spinning || !!this.modal.querySelector('.jf-pick')); }
+  // the reward spin playing now, if a newer screen hasn't replaced it
+  get spinning() { if (this._spin && this._spinGen !== this._gen) this._spin = null; return this._spin; }
   get closing() { return this._outro > 0 && this._outroGen === this._gen; }
 
   close() {
     this._outro = 0;
     this._tally = null;
     this._spin = null;
+    this._arm = 0;
     this.award([]);
     this._gen++;
     this.modal.hidden = true;
@@ -293,6 +298,7 @@ export class UI {
   levelUp(level, cards, stats, rerolls, onPick, onReroll, to = null, spin = null) {
     const gen = ++this._gen;
     this._spin = null;
+    this._arm = 0;
     let out = false;
     const render = (beat) => {
       const at = dealDelays(cards.map((c) => c.rarity?.name), beat);
@@ -339,6 +345,7 @@ export class UI {
   choose(title, sub, choices, onPick, slot = null, spin = null) {
     const gen = ++this._gen;
     this._spin = null;
+    this._arm = 0;
     const render = () => {
       const at = dealDelays(choices.map((c) => c.tier?.name));
       this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
@@ -363,8 +370,11 @@ export class UI {
   }
 
   // The reward spin (spin-screen.js) in the modal; o.done draws the cards once it hands over
+  // (if the machine ever fails, the cards come straight up rather than leave the modal stuck)
   spin(o) {
-    this._spin = new Spin(this.modal, { calm: calm(), ...o, done: () => { this._spin = null; o.done(); } });
+    const done = () => { this._spin = null; this._arm = 0.25; o.done(); };
+    this._spinGen = this._gen;
+    try { this._spin = new Spin(this.modal, { calm: calm(), ...o, done }); } catch (e) { console.error(e); done(); }
   }
 
   // A whoosh per card as it's dealt (`at`: when each is, ms), then a chord as big as the rarest card's rarity
@@ -391,7 +401,9 @@ export class UI {
   // Count down a pick outro, and run an end screen's tally; called every GAME.step from main.js.
   // Closes the modal when an outro ends — unless a newer modal has replaced this one meanwhile (gen check).
   tick(dt) {
-    this._spin?.tick(dt * 1000);
+    if (this._arm > 0) this._arm -= dt;
+    const sp = this.spinning;
+    if (sp) try { sp.tick(dt * 1000); } catch (e) { console.error(e); if (this._spin === sp) sp.o.done(); }
     if (this._outro > 0 && (this._outro -= dt) <= 0) {
       this._outro = 0;
       if (this._gen === this._outroGen) this.close();
