@@ -1,7 +1,8 @@
 // The score (src/score.js): what each act pays, from what the jelly did in it, and the counts the run
 // keeps for it (run.js scoreFacts): the night's bugs, damage taken before the Shield, the boss's time.
 import { bus, PLAYER } from '../events.js';
-import { SCORE, actParts, actScore, MAX_SCORE } from '../score.js';
+import { SCORE, SEASON, actParts, actScore, MAX_SCORE } from '../score.js';
+import { STAGES } from '../stages.js';
 import { G, fresh, give, near, ok, setupFight, spawn, step, story, stub } from './kit.js';
 
 const PERFECT = { nightShare: 1, bossShare: 1, won: true, elites: 3, bugsOut: 40, bugsCleared: 40, damageTaken: 0, bossSeconds: 45 };
@@ -104,5 +105,26 @@ story('score/counts-survive-a-reload-and-reach-the-run-log', {
     const s = rows.at(-1)?.details.score;
     const logged = s && s.bugsOut === 12 && s.bugsCleared === 9 && s.damageTaken === 23.5 && s.bossSeconds === null && s.nightShare >= 0 && s.bossShare === 0 && !('won' in s);
     return ok(back && logged, { back, s });
+  },
+});
+
+story('score/the-worker-scores-the-run-log-the-same', {
+  about: 'What the Worker scores from the run log (each act\'s details.score, its Elites and its outcome, worker/index.js runFacts) is the score the game carries on to the next act, even after the act complete screen has been up a while; each logged act carries the season.',
+  setup: () => fresh({ elites: false, lash: false }),
+  play() {
+    const { run, menus } = G(), rows = [];
+    Object.assign(run, { bossWon: true, bossTime: 55.04, elitesBeaten: 2, bugsOut: 31, bugsCleared: 22, taken: 12.34, t: STAGES[0].duration, dev: false, logStarted: true });
+    stub(run, 'telemetryDisabled', false);
+    stub(run, 'board', { runLog: {}, saveRun: (row) => rows.push(row) });
+    let carry = null;
+    const real = run.carryOver.bind(run);
+    stub(run, 'carryOver', () => (carry = real()));
+    run.actComplete(STAGES[1]);
+    step(30);
+    run.recordRun('next-act');   // what On to act 2 logs before it goes
+    menus.close();
+    const row = rows.at(-1), d = row?.details || {};
+    const worker = actScore({ ...d.score, elites: d.elitesBeaten, won: row?.outcome === 'next-act' || row?.outcome === 'won' });
+    return ok(row && worker === carry.score && row.score === carry.score && d.season === SEASON, { worker, carried: carry?.score, logged: row?.score, season: d.season });
   },
 });
