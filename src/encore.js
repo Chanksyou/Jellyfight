@@ -162,6 +162,7 @@ export class Encore {
     const bars = this.def.skills.solo?.bars ?? 4;
     this.solo = { who: kind, at, end: at + bars * 4, bowEnd: null, clean: true, bowing: false, lit: false };
     SOLO_ATTACKS[kind].call(this, at, this.solo);
+    return true;
   }
   // who solos in the bar from beat `at` (the set list's question: the lasers rest, the other DJ plays a wave every 8 beats)
   // (a duet rests the floor a bar longer, through the wall's roll)
@@ -199,7 +200,7 @@ export class Encore {
   // the first duet record standing before its wall
   announce() {
     if (this.stage === 'last' && !this.toldLast) { this.toldLast = true; bus.emit('toast', { text: 'The last song! Waves come two at a time.', ms: 2800 }); }
-    const S = this.solo, id = this.exposed ? 'bow' : S?.who === 'duet' && this.records.casts.some((c) => c.state === 'stand') ? 'cover' : null, text = id && this.hints.take(id);
+    const S = this.solo, id = this.exposed && S?.bowing ? 'bow' : S?.who === 'duet' && this.records.casts.some((c) => c.state === 'stand') ? 'cover' : null, text = id && this.hints.take(id);
     if (text) bus.emit('toast', { text, ms: 3600 });
   }
   // where the jelly is ([x, z], one array reused)
