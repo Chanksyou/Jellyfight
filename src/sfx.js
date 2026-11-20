@@ -361,6 +361,17 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
   s.stop(t + dur + 0.02);
 }
 
+// the reward spin's one ticking voice (sfx.spinTick); a new schedule or a tap stops the last
+let ticker = null;
+const TICK_GAP = 0.03;
+function stopTicker() {
+  if (!ticker) return;
+  const { s, g } = ticker, t = now();
+  holdAt(g.gain, t); g.gain.linearRampToValueAtTime(0.0001, t + 0.01);
+  s.stop(t + 0.02);
+  ticker = null;
+}
+
 // debris: `n` tiny ticks scattered from `from` s to `from + spread` s (bits and drops pattering down)
 function patter(n, from, spread, vol = 0.04) {
   for (let k = 0; k < n; k++) noise(3000 + Math.random() * 3500, 3, 0.015, vol * (1 - k * 0.15), 'bandpass', from + Math.random() * spread);
@@ -825,12 +836,42 @@ export const sfx = {
     [[0], [0, 7], [0, 4, 7, 12], [0, 4, 7, 12, 16, 19]][tier].forEach((s, i) => { const f = 784 * Math.pow(2, s / 12); tone('triangle', f, f, 0.25 + tier * 0.1, 0.04 + tier * 0.012, delay + i * 0.045); });
     if (tier === 3) noise(7000, 1, 0.6, 0.03, 'highpass', delay + 0.1);
   },
-  // the reward spin (spin-screen.js); silent until its sounds are made (task S3):
-  // the lever pulled; the reels' ticks, a list per reel of seconds from now when a cell crosses the
-  // payline (a new call replaces the last schedule, [] cancels it); a reel landing (tier 0 Common … 3 Legendary)
-  spinLever() {},
-  spinTick(reels) {},
-  spinStop(tier = 0, delay = 0) {},
+  // the reward spin (spin-screen.js): the lever pulled; the reels' ticks, a list per reel of seconds from
+  // now when a cell crosses the payline (a new call replaces the last schedule, [] cancels it); a reel
+  // landing (tier 0 Common … 3 Legendary)
+  spinLever() {
+    if (!ready()) return;
+    noise(500, 0.8, 0.12, 0.05, 'lowpass');                  // the grip
+    tone('triangle', 150, 70, 0.14, 0.12, 0.2);              // the clunk as it bottoms out (--spin-lever, 250 ms)
+    noise(1800, 1, 0.05, 0.05, 'bandpass', 0.2);
+  },
+  spinTick(reels) {
+    stopTicker();
+    if (!ready()) return;
+    const times = reels.flat().sort((a, b) => a - b).filter((t, i, a) => !i || t - a[i - 1] >= TICK_GAP);   // a fast reel's cells blur into one buzz
+    if (!times.length) return;
+    const t0 = now(), s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf; s.loop = true;                      // one voice for the whole roll, a gain event per tick
+    f.type = 'bandpass'; f.Q.value = 3;
+    g.gain.value = 0.0001;
+    times.forEach((t, i) => {
+      f.frequency.setValueAtTime(2000 + 1500 * (i / times.length) * (i / times.length), t0 + t);   // brighter as the reel slows
+      g.gain.setValueAtTime(0.14 * loud, t0 + t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t + 0.022);
+    });
+    s.connect(f).connect(g).connect(sfxBus);
+    s.start(t0);
+    s.stop(t0 + times[times.length - 1] + 0.05);
+    ticker = { s, g };
+  },
+  spinStop(tier = 0, delay = 0) {
+    if (!ready()) return;
+    const f = 120 * Math.pow(2, tier * 3 / 12);              // a thunk, pitched up by rarity
+    tone('sine', f * 1.8, f, 0.16, 0.1, delay);
+    noise(900 + tier * 500, 1, 0.05, 0.06, 'bandpass', delay);
+    if (tier >= 2) tone('triangle', f * 8, f * 8, 0.18 + tier * 0.05, 0.025, delay + 0.03);
+    if (tier === 3) noise(7000, 1, 0.3, 0.02, 'highpass', delay + 0.04);
+  },
   pick() { if (!ready()) return; if (sample('menu-pick')) return; tone('sine', 320, 140, 0.12, 0.16); noise(900, 1, 0.05, 0.06, 'lowpass'); },
   burn() { if (!ready()) return; noise(3200, 0.7, 0.38, 0.03, 'highpass', 0.06, 1200); },
   // a number counting up (k 0..1: how far along), then where it lands
