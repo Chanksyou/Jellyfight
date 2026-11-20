@@ -1304,7 +1304,7 @@ story('encore/a-wall-cut-short-mid-warning-stops-its-riser', {
         let stopped = 0;
         stub(sfx, 'wallSwell', () => () => stopped++);
         playWall(T, standing(0.6, 0.6), 3, cut ? 19 : 27);
-        if (cut) T.wall.reset();
+        T.wall.reset();                                                   // (a rolled wall's riser has ended: nothing to stop)
         out[cut ? 'cut' : 'rolled'] = stopped;
       } finally { T.done(); }
     }

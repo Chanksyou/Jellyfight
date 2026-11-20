@@ -648,7 +648,7 @@ export const sfx = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * loud, t + d); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.08);
     o.connect(g).connect(sfxBus); o.start(t); o.stop(t + d + 0.1);
     // (cut short: a rewind or the short-out mid-Warning fades it out)
-    return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.05); try { o.stop(n + 0.06); } catch {} };
+    return () => { const n = now(); g.gain.cancelScheduledValues(n); g.gain.setTargetAtTime(0.0001, n, 0.015); try { o.stop(n + 0.1); } catch {} };
   },
   // a record taking the wall for the jelly: a crack and a drop
   wallShield() { if (!ready() || !gap('wallShield', 20)) return; const j = jitter(0.06); noise(5000 * j, 1, 0.12, 0.12, 'highpass'); tone('square', 1800 * j, 300 * j, 0.08, 0.06); tone('sine', 90 * j, 50 * j, 0.18, 0.1); },

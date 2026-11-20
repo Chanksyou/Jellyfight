@@ -402,7 +402,7 @@ export class Encore {
         for (const who of DJS) M.perform(who, 'bow', beat + 1, 1, Math.max(0, end - beat - 1 - this.bowLift));
         this.restExhale = beat + 1;   // and breathe out as they go down, as after a solo
       }
-      if (this.restExhale != null && beat >= this.restExhale) { this.restExhale = null; if (rest) sfx.bowExhale(); }
+      if (this.restExhale != null && beat >= this.restExhale) { if (rest && beat < this.restExhale + 1) sfx.bowExhale(); this.restExhale = null; }
       this.restBow = rest;
       // the wave gestures leave a DJ alone while the Encore moves him: his solo (from his first wind-up) and bow, the breakdown's bow
       for (const who of DJS) this.floor.held[who] = rest || ((this.solo?.who === who || this.solo?.who === 'duet') && beat >= this.solo.at - 4);
