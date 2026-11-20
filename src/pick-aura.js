@@ -21,9 +21,10 @@
 //      node tools/pick-shots.mjs --only=<type> and compare against the plan's row.
 
 import * as flames from './pick-auras/flames.js';
+import * as frost from './pick-auras/frost.js';
 import * as sparks from './pick-auras/sparks.js';
 
-export const SHADERS = { flames, sparks };
+export const SHADERS = { flames, sparks, frost };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -70,41 +71,6 @@ export const AURAS = {
       const [x, y, life] = riser(S, i, t, 0.22), r = S * (0.018 + 0.03 * rnd(i, 5)) * (0.6 + life * 0.6), fade = Math.min(1, life * 6, (1 - life) * 4) * a;
       ctx.strokeStyle = rgba(col, 0.9 * fade); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
       dot(ctx, x - r * 0.35, y - r * 0.35, r * 0.25, rgba('#ffffff', 0.8 * fade));
-    }
-  },
-
-  // Ice: frost growing in from the card's corners, snow drifting down past the jelly
-  frost(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.6);
-    ctx.lineCap = 'round';
-    for (let c = 0; c < 4; c++) {
-      const sx = c % 2 ? S : 0, sy = c < 2 ? 0 : S, dx = c % 2 ? -1 : 1, dy = c < 2 ? 1 : -1;
-      const shine = 0.75 + 0.25 * Math.sin(t * 1.6 + c * 1.9);
-      for (let b = 0; b < 3; b++) {
-        const ang = (b + 1) / 4 * Math.PI / 2, len = S * (0.2 + 0.07 * rnd(c * 3 + b, 7)) * (b === 1 ? 1.25 : 1);
-        const ux = Math.cos(ang) * dx, uy = Math.sin(ang) * dy;
-        ctx.strokeStyle = rgba('#eaf9ff', 0.8 * shine * a); ctx.lineWidth = S * 0.011;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + ux * len, sy + uy * len);
-        for (let k = 1; k <= 3; k++) {   // the side spikes
-          const px = sx + ux * len * k / 4, py = sy + uy * len * k / 4, s = len * 0.22 * (1 - k / 5);
-          ctx.moveTo(px, py); ctx.lineTo(px + (ux * 0.5 - uy * 0.85) * s, py + (uy * 0.5 + ux * 0.85) * s);
-          ctx.moveTo(px, py); ctx.lineTo(px + (ux * 0.5 + uy * 0.85) * s, py + (uy * 0.5 - ux * 0.85) * s);
-        }
-        ctx.stroke();
-      }
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, S * 0.32);
-      g.addColorStop(0, rgba(col, 0.5 * a)); g.addColorStop(1, rgba(col, 0));
-      ctx.fillStyle = g; ctx.fillRect(Math.min(sx, sx + dx * S * 0.32), Math.min(sy, sy + dy * S * 0.32), S * 0.32, S * 0.32);
-    }
-    ctx.lineWidth = S * 0.007;
-    for (let i = 0; i < 12; i++) {   // snowflakes: six little arms, turning as they fall
-      const life = fract(t * 0.12 * (0.8 + 0.4 * rnd(i, 1)) + rnd(i, 2)), side = i % 2 ? 1 : -1;
-      const x = S * (0.5 + side * (0.31 + 0.15 * rnd(i, 3))) + Math.sin(t * 1.3 + i) * S * 0.025, y = S * (life * 1.1 - 0.05);
-      const r = S * (0.014 + 0.012 * rnd(i, 4)), spin = t * 0.8 + i;
-      ctx.strokeStyle = rgba('#ffffff', 0.85 * Math.min(1, life * 8, (1 - life) * 8) * a);
-      ctx.beginPath();
-      for (let k = 0; k < 3; k++) { const q = spin + k * Math.PI / 3; ctx.moveTo(x - Math.cos(q) * r, y - Math.sin(q) * r); ctx.lineTo(x + Math.cos(q) * r, y + Math.sin(q) * r); }
-      ctx.stroke();
     }
   },
 
