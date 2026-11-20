@@ -412,19 +412,15 @@ story('spin/three-of-a-kind-rolls-one-reel-again', {
   },
 });
 
-story('spin/boss-reward-is-all-legendary', {
-  about: 'The Boss reward opens on the machine: every reel (and its filler) is Legendary, the panel says "Boss reward: always Legendary", the reels land on the three offered and the cards follow.',
+story('spin/boss-reward-has-no-spin', {
+  about: 'The Boss reward (and an Attack upgrade) opens straight on its cards: no machine.',
   setup() { fresh({ spin: true }); },
   play() {
     const { run } = G();
     run.pickLegendary('A Legendary treasure', 'Choose a treasure.', () => {});
-    const sp = spinning(), offer = sp?.o.offer || [];
-    const panel = machine()?.querySelector('.sp-boss')?.textContent;
-    const gold = [...document.querySelectorAll('.jf-spin .sp-cell')].every((c) => c.dataset.r === 'legendary');
-    step(400, () => sp.reels.every((r) => r.landed));
-    const lines = paylines().every((l, i) => l.r === 'legendary' && l.name === offer[i].name);
-    untilCards();
-    return ok(offer.length === 3 && panel === 'Boss reward: always Legendary' && gold && lines && shownCards().length === 3, { n: offer.length, panel, gold, lines });
+    const boss = !spinning() && !machine() && shownCards().length === 3;
+    G().menus.close();
+    return ok(boss, { boss });
   },
 });
 

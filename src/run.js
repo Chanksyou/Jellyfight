@@ -1423,14 +1423,11 @@ export class Run {
     const evos = EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e));
     const left = shuffle([...TREASURES.filter(can), ...evos]).slice(0, 3);
     if (!left.length) { then(); return; }
-    // the reward spin: all-gold reels, filler from everything the boss could have given
-    const pool = [...TREASURES.filter(can), ...evos].map((t) => ({ ...t, tier: treasureTier(t) }));
-    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then,
-      { kind: 'legendary', hint: this.spinHint(), rollOne: (rng) => [pool[Math.floor(rng() * pool.length)]], luck: this.S.luck, odds: tierOdds('legendary') });
+    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
 
   // a first run's one extra line on its first spin (first-run.js); null once told, or when no spin plays
-  spinHint() { return this.ui.spinOn ? this.firstRun.spinHint() : null; }
+  spinHint() { return this.ui.spinOn && !document.body.classList.contains('calm') ? this.firstRun.spinHint() : null; }
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
   hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy); }   // needs-chance: some effect of yours rolls a chance

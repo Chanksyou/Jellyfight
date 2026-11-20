@@ -312,7 +312,7 @@ export class UI {
     };
     const pick = (i) => { const c = cards[i]; if (!c || out) return; out = true; this.outro(gen, i, to); onPick(c); };
     const spins = spin && this.spinOn;
-    const play = (lead) => this.spin({ ...spin, kind: 'levelup', title: `Level ${level}!`, offer: cards, lead, done: () => render(0),
+    const play = (lead) => this.spin({ ...spin, hint: lead ? null : spin.hint, kind: 'levelup', title: `Level ${level}!`, offer: cards, lead, done: () => render(0),
       cell: (c) => ({ icon: STAT_INFO[c.stat].icon, name: hi(cardText(c).split(' · ')[0]) }) });
     const reroll = () => {
       if (rerolls <= 0 || out) return;
