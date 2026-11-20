@@ -31,7 +31,7 @@ export class AuraPainter {
     this.mats = {};     // kind -> its material
     this.built = {};    // kind -> its shader is built (false while it builds)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.Camera();
+    this.camera = new THREE.OrthographicCamera();   // (the quad ignores it; a plain Camera throws once on a reversed depth buffer)
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
     this.quad.frustumCulled = false;
     this.scene.add(this.quad);
