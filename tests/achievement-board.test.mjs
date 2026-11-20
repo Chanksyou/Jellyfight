@@ -44,7 +44,7 @@ const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { sco
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
-beforeEach(() => sqlite.exec('DELETE FROM player_names; DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries'));
+beforeEach(() => sqlite.exec('DELETE FROM player_names; DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries; DELETE FROM perf_reports'));
 after(() => sqlite.close());
 
 test('an existing summary database gains details without changing historical records', async () => {
@@ -75,6 +75,42 @@ test('run details retain Elite defeats, pickup order and fatal attribution with 
   assert.equal(read().pickups.length, 128);
   await save({ ...row, run: 'another-run-id', outcome: 'next-act' });
   assert.equal(JSON.parse(sqlite.prepare('SELECT details FROM run_summaries WHERE run_id = ?').get('another-run-id').details).killedBy, null);
+});
+
+test('run details keep frame numbers and Settings picks as clamped numbers and fixed words, and drop anything else', async () => {
+  clearRates();
+  const perf = { ms: 16.74, p95: 900, slow: 0.04871, n: 1200, minRatio: 1.125, tier: 'medium', cap: 30, dpr: 3, w: 844, h: 390, loadMs: 4200.6, lost: 1, ua: 'discard' };
+  const settings = { graphics: 'low', fps: 30, text: 'large', easy: 1, music: false, sound: true, calm: false, calmOs: true, name: 'discard' };
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'died', details: { perf, settings } }] });
+  const read = () => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries').get().details);
+  assert.deepEqual(read().perf, { ms: 16.7, p95: 128, slow: 0.049, n: 1200, minRatio: 1.125, tier: 'medium', cap: 30, dpr: 3, w: 844, h: 390, loadMs: 4201, lost: 1 });
+  assert.deepEqual(read().settings, { graphics: 'low', fps: 30, text: 'large', easy: true, music: false, sound: true, calm: false, calmOs: true });
+  clearRates();
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-abcdefgh', act: 1, revision: 2, outcome: 'died',
+    details: { perf: { tier: '<b>', ms: 'x', cap: 'y' }, settings: { graphics: 'ultra', fps: 144 } } }] });
+  assert.deepEqual(read().perf, { ms: null, p95: null, slow: null, n: 0, minRatio: null, tier: null, cap: 0, dpr: null, w: 0, h: 0, loadMs: 0, lost: 0 });
+  assert.equal(read().settings.graphics, null);
+  assert.equal(read().settings.fps, null);
+  clearRates();
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-zzzzzzzz', act: 1, revision: 1, outcome: 'died', details: { elitesBeaten: 1 } }] });
+  const older = JSON.parse(sqlite.prepare('SELECT details FROM run_summaries WHERE run_id = ?').get('run-zzzzzzzz').details);
+  assert.equal('perf' in older || 'settings' in older, false);   // a client from before sends none
+});
+
+test('the phone bench\'s results are kept in perf_reports: bounded, no player id, one per address every 30 seconds', async () => {
+  const post = (body) => worker.fetch(new Request('https://game.test/api/perf', { method: 'POST', headers: { 'cf-connecting-ip': 'phone-a', 'user-agent': 'U'.repeat(300) }, body: JSON.stringify(body) }), env).then(async r => ({ status: r.status, data: await r.json() }));
+  const bench = { env: { build: 'v1' }, moments: [{ name: 'quiet room', ms: 16.7 }] };
+  assert.deepEqual((await post({ build: 'v1', device: 'phone', bench })).data, { sent: true });
+  const row = sqlite.prepare('SELECT * FROM perf_reports').get();
+  assert.deepEqual({ ...row, at: 0, ua: row.ua.length }, { at: 0, build: 'v1', device: 'phone', ua: 200, json: JSON.stringify(bench) });
+  assert.equal((await post({ build: 'v1', bench })).status, 429);
+  clearRates();
+  assert.equal((await post({ bench: { pad: 'x'.repeat(9000) } })).status, 413);
+  assert.equal((await post({ bench: 'text' })).status, 400);
+  assert.equal((await post({})).status, 400);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM perf_reports').get().n, 1);
+  const get = await worker.fetch(new Request('https://game.test/api/perf'), env);
+  assert.equal(get.status, 405);
 });
 
 test('act summaries are idempotent, ordered, and final results survive late checkpoints', async () => {

@@ -57,6 +57,7 @@ import { bagHtml } from './treasure-bag.js';
 import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
+import { FieldPerf } from './field-perf.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -1159,6 +1160,7 @@ function endContinue() {
 // Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 export const ready = warmUp().then(() => {
+  field.loadMs = performance.now();   // since navigation start: how long until Play worked
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
   const then = pendingAction();
   if (then?.continue && continuing) {
@@ -1193,17 +1195,24 @@ function setFps(f) {
   governor.base = governor.target = 1000 / f;
   try { localStorage.setItem(FPS_STORE, String(f)); } catch {}
 }
+const field = new FieldPerf();
 function adapt(ms) {
   const c = governor.sample(ms);
   if (c?.scale) { renderer.setPixelRatio(c.scale); gfx.resize(); }
+  field.sample(ms, governor.base, governor.scale);
 }
+// what the run log sends with each act summary (run.js recordRun): frame numbers and the Settings picks, nothing else
+run.fieldNumbers = () => ({
+  perf: field.summary({ tier: gfx.quality, cap: pacer.fps || 0, dpr: Math.round(devicePixelRatio * 100) / 100, w: innerWidth, h: innerHeight, lost: gpu.restores }),
+  settings: { graphics: gfx.choice, fps: IS_TOUCH ? phoneFps : 0, text: textSize, easy: easyChosen(), music: musicOn, sound: !isMuted(), calm: juice.calm, calmOs: reducedMotion.matches },
+});
 function pacingReadout() {
   const g = governor, last = g.log[g.log.length - 1];
   return `${gfx.quality} | cap ${pacer.fps || 'none'} | aim ${(1000 / g.target).toFixed(0)} fps`
     + (lightSlots ? ` | lamps ${lightSlots.lit().length}/${lightSlots.lamps.length}` : '')
     + (last ? ` | last: ${last.why} ${last.scale}` : '');
 }
-window.pacing = { pacer, governor, lightSlots };
+window.pacing = { pacer, governor, lightSlots, field };
 
 // The graphics chip resetting (iOS backgrounding, out of GPU memory): pause, rebuild, resume
 const gpu = recoverGpu({ renderer, scene, camera, gfx, prepare: () => prepareGraphics(nextTask), pause: () => { if (document.pointerLockElement) document.exitPointerLock(); pause(); } });

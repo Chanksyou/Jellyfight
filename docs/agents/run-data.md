@@ -93,6 +93,35 @@ ORDER BY r.act, CAST(p.key AS INTEGER);
 Use `json_each(r.details, '$.elites')` with the first two fields of the same query for the Elite defeat timeline.
 These reads use the existing build or player/run indexes; no extra index or upload per pickup is needed.
 
+## Frame numbers and Settings from real play
+
+`details.perf` and `details.settings` ride with each act summary from builds after this change; older rows have neither (null means unknown).
+`src/field-perf.js` counts the frames the pixel-ratio governor judges (played, not paused, not behind a menu; intervals over 250 ms are hitches and not counted) in a fixed 64-bucket histogram of 2 ms steps, so the numbers are accurate to 2 ms.
+No `perf` is sent for an act with fewer than 30 counted frames, and dev runs send nothing.
+`perf` holds `ms` (median frame interval), `p95`, `slow` (share of frames over 1.5 times the cap's interval, 0 to 1), `n` (frames counted), `minRatio` (lowest pixel ratio the governor reached), `tier` (the graphics tier drawn), `cap` (frames a second the pacer allows, 0 for none), `dpr`, `w` and `h` (CSS pixels), `loadMs` (navigation start to Play enabled) and `lost` (graphics resets, `gpu-recovery.js`).
+`settings` holds the Settings picks as they were at the last save: `graphics` (the pick, which is `perf.tier` unless a rebuild is under way), `fps` (the phone's 30 or 60 pick, 0 on a desktop), `text`, `easy`, `music` and `sound` (true is on), `calm` (Reduce effects) and `calmOs` (the device asked for it).
+A new pick in the Settings sheet is one more field in `run.fieldNumbers` in `src/main.js` and in `settings()` in `worker/index.js`.
+The Worker keeps only these fields, numbers clamped and words from fixed lists.
+Frame times are what the browser reports, so a 60 Hz screen at a 30 cap shows 33 ms by design: read `ms` against `cap`.
+Browser-supplied and advisory, like the rest.
+
+Median frame time by build, act and device, phones only:
+
+```sql
+SELECT build, act, device, COUNT(*) AS acts,
+       ROUND(AVG(json_extract(details, '$.perf.ms')), 1) AS median_ms,
+       ROUND(AVG(json_extract(details, '$.perf.slow')), 3) AS slow_share
+FROM run_summaries
+WHERE json_extract(details, '$.perf.n') >= 300 AND finalized = 1
+GROUP BY build, act, device
+ORDER BY build DESC, act;
+```
+
+Split by `$.perf.tier` and `$.perf.cap` to compare graphics tiers.
+
+The phone bench's Send (`index.html?bench`) writes `perf_reports` (`at`, `build`, `device`, `ua` trimmed to 200 characters, `json` under 8 KB), with no player id, one per address every 30 seconds.
+Read it in the D1 console: `SELECT at, build, device, json_extract(json, '$.moments[0].ms') FROM perf_reports ORDER BY at DESC`.
+
 ## Capacity and history
 
 Check D1 Metrics → Row Metrics for actual reads/writes and storage; indexes and rate limiting add writes beyond the summary rows.

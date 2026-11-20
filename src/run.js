@@ -1958,14 +1958,14 @@ export class Run {
     }
     if (['died', 'won', 'ended', 'next-act'].includes(outcome)) this.logFinal = outcome;
     outcome = this.logFinal || outcome;
-    const B = this.boss, round = (n) => Math.round(n * 10) / 10;
+    const B = this.boss, round = (n) => Math.round(n * 10) / 10, field = this.fieldNumbers?.();
     const row = {
       run: this.logId, build: (typeof window !== 'undefined' && window.JF_BUILD) || '', act: this.stage.id, outcome,
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
       details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
-        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
+        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
     };

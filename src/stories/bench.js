@@ -49,3 +49,15 @@ story('bench/leaves-no-trace', {
   },
 });
 function litLamps() { let n = 0; G().APT.scene.traverse((o) => { if (o.isPointLight && o.visible) n++; }); return n; }
+
+story('bench/never-sends-from-a-story', {
+  phone: true,
+  about: 'A bench results card opened from a story URL has Copy results and Back but no Send button, so a test never fills the developer\'s results table.',
+  setup() {},
+  play() {
+    const el = showResults({ env: { build: 'v0', act: 1 }, moments: [{ name: 'quiet room', frames: 10, ms: 16.7 }] });
+    offs.push(() => el.remove());
+    const has = (k) => !!el.querySelector(`[data-bench=${k}]`);
+    return ok(has('copy') && has('back') && !has('send'), { copy: has('copy'), back: has('back'), send: has('send') });
+  },
+});
