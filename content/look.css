@@ -359,12 +359,32 @@
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
   /* the centre card's live picture (src/attack-preview.js): the jelly firing its attack at a bug */
   --preview-fps: 30;           /* frames a second it draws at most */
-  --preview-supersample: 1.5;  /* drawn this many times sharper than the card shows it, then scaled down (smooth edges) */
+  --preview-supersample: 1;    /* drawn this many times sharper than the card shows it (its edges are already smoothed: 4x MSAA) */
   --preview-respawn: 1.2;      /* seconds after the last roach dies before all three are back */
-  --preview-camera-distance: 0.6;   /* m, for roaches 21 cm off (closer in for the Tentacle jelly) */
+  --preview-camera-distance: 0.45;  /* m, for roaches 21 cm off (closer in for the Tentacle jelly) */
   --preview-camera-angle: 0.4; /* radians round from side-on toward the jelly's face */
   --preview-camera-up: 0.45;   /* radians it looks down */
-  --preview-floor: #2b6f8a;    /* the pool of light they stand in */
+  --preview-floor: #0b2a3a;    /* the glossy floor they stand on (fades into the water at its edges) */
+  /* its stage (src/pick-stage.js): the type's colour is --type-<id> */
+  --preview-bloom: 0.22;               /* glow round bright things on the stage (no bloom on Low graphics) */
+  --preview-bloom-threshold: 1.1;      /* how bright a thing must be to glow */
+  --preview-camera-lean: 0.6;          /* where the camera looks: 0 at the jelly, 1 at the middle of the roaches */
+  --preview-camera-drift: 0.06;        /* radians the camera drifts round its spot (none with Reduce effects) */
+  --preview-environment: 0.6;          /* how strongly the water is reflected (the bell's clear coat) */
+  --preview-key: 2.4;                  /* the soft key light, from above on the camera's left */
+  --preview-fill: 0.9;                 /* the dim fill, water-coloured from above */
+  --preview-rim: 2.5;                  /* the rim light from behind, in the type's colour */
+  --preview-attack-light: 0.002;       /* the attack's light at its brightest (flares at each shot and hit) */
+  --preview-attack-light-fade: 12;     /* how fast it fades after one */
+  --preview-floor-roughness: 0.62;     /* the floor's gloss (lower is shinier) */
+  --preview-floor-sheen: 0.25;         /* how much of the water the floor reflects */
+  --preview-floor-opacity: 0.7;
+  --preview-shadow: 0.6;               /* how dark the soft shadows under the jelly and roaches are */
+  --preview-shadow-jelly: 0.11;        /* m across, the jelly's shadow */
+  --preview-backdrop: 0.5;             /* how bright the water behind is */
+  --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
+  --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
+  --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
   /* Crowd limits: what a busy fight sheds first (phones) */
   --fx-hits-per-frame: 8;        /* hit effects with full sparks and ring in one frame; the rest keep just their flash */

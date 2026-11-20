@@ -28,6 +28,10 @@ export class Fx {
     this.numberClock = 0; this.numberSerial = 0;
     this.hitsThisFrame = 0; this.hitBudget = LOOK.num('fx-hits-per-frame', 8);
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    // The pick screen's centre card (attack-preview.js) is the only Fx that sets this. An effect may read
+    // it (as this.fx.showcase from Bubbles, Lash and their looks) to emit more or use a richer material
+    // there; in play it stays false and an effect keeps today's budget: no added draws, lights or programs.
+    this.showcase = false;
     this.numberLook = {
       cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
       hitWindow: LOOK.num('number-hit-window', 0.3),

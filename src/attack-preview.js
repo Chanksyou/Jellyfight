@@ -7,9 +7,15 @@
 // lighting the next, three tentacles at once); they die the game's way (feedback.js showKill) and
 // come back. No event reaches the game, no sound plays, no shake.
 //
+// It films the attack on a little stage (pick-stage.js: lights, reflections, floor, backdrop) into
+// its own sharp picture (half-float, smoothed edges), with the game's bloom and tone mapping
+// (graphics.js; no bloom on Low graphics). Its Fx is the one `showcase` Fx (fx.js): effects may
+// spend more here than in play.
+//
 // Phones first: one preview at a time (the centre card), built the first time it's asked for, drawn
-// by the game's own renderer into a corner of its canvas and copied straight to the card's canvas
-// (no second WebGL context, no pixel read back), at --preview-fps, only while the pick screen is open.
+// by the game's own renderer and copied straight to the card's canvas (no second WebGL context, no
+// pixel read back), at --preview-fps, only while the pick screen is open; its pictures are freed
+// when the screen closes.
 import * as THREE from 'three';
 import { CONTENT } from './content.js';
 import { CONFIG } from './config.js';
@@ -28,8 +34,11 @@ import { buildCharacter } from './character.js';
 import { Adornments } from './adornments.js';
 import { jellyStats } from './jelly-types.js';
 import { newMods } from './words.js';
+import { PickStage } from './pick-stage.js';
+import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
+const _at = new THREE.Vector3();
 const IDLE = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
 // where the three roaches stand: [metres from the jelly, radians round from straight ahead]. The
 // Tentacle jelly's all inside its 11 cm reach (its 3 tentacles take them all at once); a shot's
@@ -46,6 +55,7 @@ function onBug(P, type, p) {
   if (!bug || bug.dead) return;
   if (type === 'knockback' && p.dir) bug.push.addScaledVector(p.dir, Math.min(0.03, p.force || 0));
   if (type !== 'damage_taken') return;
+  P.stage.flash(P.enemies.center(bug, _at));   // the attack's light flares at the hit
   bug.flashT = LOOK.num('hit-flash', 0.07); bug.pop = 1;
   if (p.feedback?.element) bug.lastElement = p.feedback.element;
   if (p.feedback?.dir) bug.lastDir = p.feedback.dir;
@@ -66,8 +76,10 @@ function quietly(P, fn) {
 }
 
 export class AttackPreview {
-  constructor(renderer) {
+  // tier(): the graphics tier ('low' draws no bloom)
+  constructor(renderer, tier = () => 'medium') {
     this.renderer = renderer;
+    this.tier = tier;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'tp-live';
     this.canvas.hidden = true;
@@ -79,20 +91,7 @@ export class AttackPreview {
   // the scene, its lights, its own Fx, attack systems and the bug: made the first time
   setup() {
     const scene = new THREE.Scene();
-    // the jelly portraits' lights (jelly-portrait.js): the same shaders, already built
-    scene.add(new THREE.HemisphereLight('#b4dfed', '#254156', 2.2));
-    const key = new THREE.DirectionalLight('#b8e8f0', 2.5); key.position.set(-1, 2, 1.5);
-    const rim = new THREE.DirectionalLight('#a3f5d5', 2); rim.position.set(1, 0.5, -1);
-    scene.add(key, rim);
-    // a soft pool of light on the floor under them, fading into the water (no edge, no horizon)
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d'), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#0000');
-    g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({
-      color: LOOK.color('preview-floor', '#2b6f8a'), map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
-    scene.add(floor);
-    this.floor = floor;
+    const stage = new PickStage(scene, this.renderer);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.005, 5);
     const batch = new Batcher(scene);
     // the floor is the only thing to hit (a bubble that misses pops on it, as on a real floor)
@@ -112,16 +111,19 @@ export class AttackPreview {
       statusMore: () => 1,
       swatShots() {},   // (Badminton Racket: no Shots in a preview)
     };
-    const P = this.P = { scene, camera, batch, world, enemies, deadT: 0 };
+    const P = this.P = { scene, camera, batch, world, enemies, stage, deadT: 0 };
     quietly(P, () => {
       P.fx = new Fx(scene, camera);
+      P.fx.showcase = true;
       P.bubbles = new Bubbles(scene, enemies, P.fx, world);
       P.bubbles.grace = CONFIG.player.radius;
       P.lash = new Lash(scene, enemies, P.fx);
     });
-    P.bubbles.onBlow = () => P.avatar?.pulse?.(0.6);            // the bell squeezes as it blows (run.js)
-    P.bubbles.onElementRelease = () => P.avatar?.pulse?.(0.75);
-    P.lash.onLash = () => P.avatar?.pulse?.(0.3);
+    // the bell squeezes as it blows (run.js), and the attack's light flares at its mouth
+    const mouth = (k) => stage.flash(_at.copy(P.player.position).setY(H * 0.75), k);
+    P.bubbles.onBlow = () => { P.avatar?.pulse?.(0.6); mouth(0.6); };
+    P.bubbles.onElementRelease = () => { P.avatar?.pulse?.(0.75); mouth(1); };
+    P.lash.onLash = () => { P.avatar?.pulse?.(0.3); mouth(0.5); };
     P.lash.getRig = () => P.avatar?.tentacles || null;
   }
 
@@ -136,6 +138,7 @@ export class AttackPreview {
       if (id !== this.id || key !== this.lookKey) {
         this.clearJelly();
         this.id = id; this.lookKey = key;
+        P.stage.setType(LOOK.color(`type-${id}`, '#8fd9ff'));
         const avatar = P.avatar = buildCharacter(look, H);
         avatar.update?.(0, IDLE);
         P.scene.add(avatar.root);
@@ -150,7 +153,6 @@ export class AttackPreview {
         P.mods = newMods();
       }
       this.reset();
-      if (!this.built.has(id)) this.warm(id);
       this.on = true;
       return true;
     } catch (e) {
@@ -185,16 +187,23 @@ export class AttackPreview {
     const spots = SPOTS[P.attack.kind === 'tentacle' ? 'melee' : 'ranged'], mid = new THREE.Vector3();
     P.enemies.list = spots.map(([d, a], i) => this.roach(i, new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d)));
     for (const b of P.enemies.list) mid.add(b.home);
-    mid.divideScalar(spots.length + 1).setY(H * 0.3);                             // between the jelly and its roaches
+    mid.multiplyScalar(LOOK.num('preview-camera-lean', 0.6) / spots.length).setY(H * 0.3);   // between the jelly and its roaches, nearer the jelly
     P.deadT = 0;
-    this.floor.position.set(mid.x, 0, mid.z);
+    P.stage.place(mid);
     for (let i = 0; i < 20; i++) quietly(P, () => P.avatar.update?.(0.05, IDLE));   // its tentacles settle before the first frame
     // the camera in front and to the jelly's side, a little above: the jelly near and big, the roaches further off
-    const C = P.camera, d = LOOK.num('preview-camera-distance', 0.6) * Math.max(0.8, Math.max(...spots.map(([far]) => far)) / 0.21);   // closer in on a close fight
-    const yaw = LOOK.num('preview-camera-angle', 0.4), up = LOOK.num('preview-camera-up', 0.45);
-    C.position.set(mid.x - Math.sin(yaw) * Math.cos(up) * d, mid.y + Math.sin(up) * d, mid.z + Math.cos(yaw) * Math.cos(up) * d);
-    C.lookAt(mid);
+    this.view = { mid, d: LOOK.num('preview-camera-distance', 0.6) * Math.max(0.8, Math.max(...spots.map(([far]) => far)) / 0.21), t: 0 };   // closer in on a close fight
+    this.aim(0);
     this.wait = 0;
+  }
+
+  // the camera, drifting a few degrees round its spot (still with Reduce effects)
+  aim(dt) {
+    const V = this.view, C = this.P.camera, drift = juice.calm ? 0 : LOOK.num('preview-camera-drift', 0.06);
+    V.t += dt;
+    const yaw = LOOK.num('preview-camera-angle', 0.4) + drift * Math.sin(V.t * 0.17), up = LOOK.num('preview-camera-up', 0.45) + drift * 0.4 * Math.sin(V.t * 0.11 + 1);
+    C.position.set(V.mid.x - Math.sin(yaw) * Math.cos(up) * V.d, V.mid.y + Math.sin(up) * V.d, V.mid.z + Math.cos(yaw) * Math.cos(up) * V.d);
+    C.lookAt(V.mid);
   }
 
   clearJelly() {
@@ -212,6 +221,13 @@ export class AttackPreview {
     if (this.P) quietly(this.P, () => { this.P.bubbles.reset(); this.P.lash.reset(); });
   }
 
+  // the pick screen closed: free the stage's pictures on the GPU (they're made again on the next show)
+  release() {
+    this.hide();
+    this.film_?.rt.dispose();
+    this.film_?.bloom.down.forEach((t) => t.dispose());
+  }
+
   // A type's first showing: play a few seconds unseen so its shots, hits and deaths are all in the
   // scene, then build their shaders off the main thread where the browser can (compileAsync), and
   // only draw once they're ready: no stall on a phone as the first shot flies. The still portrait
@@ -221,8 +237,10 @@ export class AttackPreview {
     this.built.set(id, false);
     for (let i = 0; i < 75; i++) this.simulate(1 / 30);
     P.batch.sync();
-    const done = () => this.built.set(id, true);
-    Promise.resolve(this.renderer.compileAsync?.(P.scene, P.camera)).then(done, done);
+    const done = () => this.built.set(id, true), R = this.renderer, was = R.getRenderTarget();
+    // for the stage's own picture: a half-float target takes other shaders than the screen
+    R.setRenderTarget(this.film(this.canvas.width).rt);
+    try { Promise.resolve(R.compileAsync?.(P.scene, P.camera)).then(done, done); } finally { R.setRenderTarget(was); }
     this.reset();
   }
 
@@ -230,6 +248,10 @@ export class AttackPreview {
   // false if it can't draw (the pick screen then keeps its still portrait)
   step(dt) {
     if (!this.on) return false;
+    // the graphics chip was reset (gpu-recovery.js): the still portrait shows, and once it's back the
+    // shaders are built again before the next frame
+    if (this.renderer.getContext().isContextLost?.()) { this.built.clear(); this.canvas.hidden = true; return false; }
+    if (!this.built.has(this.id)) this.warm(this.id);
     if (!this.built.get(this.id)) return true;
     this.wait += dt;
     if (this.wait < 1 / LOOK.num('preview-fps', 30)) return true;
@@ -258,8 +280,10 @@ export class AttackPreview {
       const origin = new THREE.Vector3(feet.x, feet.y + H * 0.45, feet.z);
       if (A.kind === 'tentacle') P.lash.update(dt, origin, P.lashStats, P.mods.hits.tentacles, { nth: P.mods.nth, stingCount: P.mods.stingCount });
       else P.lash.animate(dt, origin);
+      P.stage.frame(dt, P);
       P.fx.update(dt);
     });
+    this.aim(dt);
     for (const bug of P.enemies.list) if (!bug.dead) this.roachFrame(bug, dt);
     // all three down: a beat to see the last one go, then they're back
     if (P.enemies.list.every((b) => b.dead) && (P.deadT += dt) >= LOOK.num('preview-respawn', 1.2)) this.reset();
@@ -282,24 +306,41 @@ export class AttackPreview {
     bug.anim?.(dt, bug);
   }
 
-  // draw into a corner of the game's canvas, copy that onto the card's canvas, put the renderer back
+  // the stage's picture `px` square: a half-float target with smoothed edges (4x MSAA), its bloom
+  // (graphics.js, half resolution), and the pass that adds the bloom and tone maps it for the screen
+  film(px) {
+    const F = this.film_ ||= (() => {
+      const bloom = new MipBloomPass(LOOK.num('preview-bloom', 0.22), LOOK.num('preview-bloom-threshold', 1.1));
+      const out = new BloomOutputPass(bloom);
+      out.renderToScreen = true;
+      return { rt: new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }), bloom, out };
+    })();
+    if (F.rt.width !== px) { F.rt.setSize(px, px); F.bloom.setSize(px, px); }
+    return F;
+  }
+
+  // film the stage into its picture, bloom it (not on Low), tone map it into a corner of the game's
+  // canvas, copy that onto the card's canvas, and put the renderer back
   draw() {
     const R = this.renderer, P = this.P, gl = R.domElement, size = this.canvas.width;
-    const ratio = R.getPixelRatio(), px = Math.min(gl.width, gl.height, Math.round(size * LOOK.num('preview-supersample', 1.5)));
+    const ratio = R.getPixelRatio(), px = Math.min(gl.width, gl.height, Math.round(size * LOOK.num('preview-supersample', 1)));
+    const F = this.film(px);
     P.batch.sync();
     // glows are sized in metres: pixels a metre at 1 m for this little view, not the screen's (vfx.js)
     P.fx.glow.mat.uniforms.uScale.value = px / (2 * Math.tan(THREE.MathUtils.degToRad(P.camera.fov) / 2));
+    F.bloom.enabled = this.tier() !== 'low';
     const was = { target: R.getRenderTarget(), vp: R.getViewport(new THREE.Vector4()), sc: R.getScissor(new THREE.Vector4()), test: R.getScissorTest(),
       color: R.getClearColor(new THREE.Color()), alpha: R.getClearAlpha(), exposure: R.toneMappingExposure };
     try {
-      R.setRenderTarget(null);
+      R.setClearColor(0x000000, 1);
+      R.toneMappingExposure = LOOK.num('portrait-exposure', was.exposure || 1);
+      R.setRenderTarget(F.rt);
+      R.render(P.scene, P.camera);
+      if (F.bloom.enabled) F.bloom.render(R, null, F.rt);
       R.setViewport(0, 0, px / ratio, px / ratio);
       R.setScissor(0, 0, px / ratio, px / ratio);
       R.setScissorTest(true);
-      R.setClearColor(LOOK.color('menu-water-deep', '#06162e'), 1);
-      R.toneMappingExposure = LOOK.num('portrait-exposure', was.exposure || 1);
-      R.clear();
-      R.render(P.scene, P.camera);
+      F.out.render(R, null, F.rt);
       this.ctx.drawImage(gl, 0, gl.height - px, px, px, 0, 0, size, size);   // the viewport is the canvas's bottom-left corner
     } finally {
       R.setRenderTarget(was.target); R.setViewport(was.vp); R.setScissor(was.sc); R.setScissorTest(was.test);

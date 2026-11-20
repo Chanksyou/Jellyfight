@@ -203,6 +203,7 @@ export class TypePicker {
     this.confirming = false;
     this.panel.play.classList.remove('tp-squeeze');
     this.stopLive();
+    this.live?.release();   // its pictures on the GPU
     this.drag = null;
     this.stage.classList.remove('drag');
   }

@@ -110,7 +110,7 @@ const FiniteShader = {
 // while it tone maps, so the image is written once.
 const LEVELS = 5;
 const GAIN = 2;   // the same --bloom draws about as much glow as UnrealBloomPass did (compared on screenshots)
-class MipBloomPass extends Pass {
+export class MipBloomPass extends Pass {
   constructor(strength, threshold = 1) {
     super();
     this.needsSwap = false;   // reads the image, writes only its own targets: the output pass adds them
@@ -198,7 +198,7 @@ const TONE = {
   [THREE.CineonToneMapping]: 'CineonToneMapping', [THREE.ACESFilmicToneMapping]: 'ACESFilmicToneMapping',
   [THREE.AgXToneMapping]: 'AgXToneMapping', [THREE.NeutralToneMapping]: 'NeutralToneMapping',
 };
-class BloomOutputPass extends Pass {
+export class BloomOutputPass extends Pass {
   constructor(bloom) {
     super();
     this.bloom = bloom;
