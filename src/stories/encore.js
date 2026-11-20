@@ -1923,8 +1923,9 @@ fight('the-other-dj-watches-from-the-booth-and-pumps-his-fist-when-a-record-hits
     go(43); const watching = off();
     go(44.3, () => { player.position.set(...[B.records.casts[0]?.to[0] ?? 0, 0.01, B.records.casts[0]?.to[1] ?? 0.3]); player.velocity?.set(0, 0, 0); });
     go(200, () => !B.solo); go(B.beat + 4);
-    const after = Math.abs(g.head.rotation.y - yaw0);
-    return ok(watching < 0.3 && watching < before && pump !== null && pump >= 44 && pump < 44.2 && after < 0.05 && !M.out('gold'), { before: +before.toFixed(3), watching: +watching.toFixed(3), pump, after: +after.toFixed(3) });
+    // (turned back: his look is gone; the helmet's idle sway, +-0.07 on the model's clock, is all that differs from before)
+    const after = Math.abs(g.head.rotation.y - yaw0), gone = B.watch.w < 0.01;
+    return ok(watching < 0.3 && watching < before && pump !== null && pump >= 44 && pump < 44.2 && gone && after < 0.15 && !M.out('gold'), { before: +before.toFixed(3), watching: +watching.toFixed(3), pump, gone: +B.watch.w.toFixed(4), after: +after.toFixed(3) });
   },
 });
 
