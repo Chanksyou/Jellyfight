@@ -1276,8 +1276,6 @@ story('encore/the-wall-has-a-swell-a-roll-and-a-crack-for-each-record', {
     } finally { T.done(); }
   },
 });
-  },
-});
 
 // ---- the feel pass (E7): what each Encore attack adds to its chain (docs/agents/attack-feel.md)
 // an fx that counts its impacts and splats, where they were
