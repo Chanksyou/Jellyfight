@@ -63,6 +63,7 @@ const SCHEMA = [
     score INTEGER NOT NULL, level INTEGER, kills INTEGER, time INTEGER, won INTEGER, acts INTEGER, clean INTEGER, build TEXT, at INTEGER NOT NULL, ip TEXT,
     PRIMARY KEY (season, id, jelly))`,
   'CREATE INDEX IF NOT EXISTS board_by_score ON board (season, jelly, score DESC)',
+  'CREATE INDEX IF NOT EXISTS board_by_player ON board (id, at)',   // renames, and achievement portraits' latest look
 ];
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
