@@ -431,7 +431,7 @@ export class Adornments {
   // Man o' War: a translucent sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;
-    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, depthWrite: false });
+    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
     const s = new THREE.Shape();
     s.moveTo(-1, 0); s.bezierCurveTo(-0.9, 0.9, -0.2, 1.2, 0.3, 0.9); s.bezierCurveTo(0.7, 0.7, 0.9, 0.5, 1, 0); s.lineTo(-1, 0);
     const sail = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), mat);
@@ -507,7 +507,7 @@ export class Adornments {
 
   // Upside-down Jelly: fronds on the floor round you that grow out while you're rooted
   make_fronds() {
-    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 1 });
+    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, emissiveIntensity: 1 });
     const leaf = new THREE.Shape();
     leaf.moveTo(0, 0); leaf.quadraticCurveTo(0.5, 0.4, 0, 1); leaf.quadraticCurveTo(-0.5, 0.4, 0, 0);
     const parts = [];
