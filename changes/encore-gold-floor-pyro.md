@@ -1,1 +1,0 @@
-the gold DJ now vaults out onto the floor for his solo, landing at the stage front inside his own flame lane, slams the floor as the first Warning shows, and raises an arm a beat before each set of flames to show which lanes burn next; he is the one to hit while he is out.
