@@ -23,6 +23,7 @@ import './stories/bug-collision.js';
 import './stories/bug-attack-motion.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
+import './stories/spin.js';
 import './stories/type-words.js';
 import './stories/treasure-feel.js';
 import './stories/treasure-feel-more.js';
