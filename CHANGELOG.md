@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v560 moves the Encore's duet, the Wall of sound, onto the floor: both DJs vault out of the booth together and land side by side at the stage front, the one target between them (the booth can't be hit meanwhile). The silver DJ throws his three records from there while the gold DJ points at each landing spot, both push the wall out as it rolls, then bow on their marks and vault home. The duet is a bar longer (its Warning is still 2 bars), no record lands by the DJs, and a duet that is called off sends them home with no bow.
+
 v559 the gold DJ now vaults out onto the floor for his solo, landing at the stage front inside his own flame lane, slams the floor as the first Warning shows, and raises an arm a beat before each set of flames to show which lanes burn next; he is the one to hit while he is out.
 
 v558 sends the silver DJ out of the booth for his solo: he vaults onto the floor two beats before it, lands on his mark on its first beat, throws three records from there (was four) and bows there, then vaults home as his bow ends. While he is out he is the one to hit (the booth can't be hurt), he pushes the jelly aside and never hurts it, and his partner watches from the booth and pumps his fist when a record lands on you. The short-out, the last hit and a song rewind send him straight home; no DJ leaves while the force field is up. The gold DJ's solo and the duet still play from the booth.
