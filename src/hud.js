@@ -173,7 +173,8 @@ body.touch #hud .hint { bottom: calc(env(safe-area-inset-bottom, 0px) + 124px); 
 export class Hud {
   constructor(plan) {
     this.plan = plan; // [[name, [[x, z], ...]], ...] for the rooms in this stage
-    bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText, exposed }) => this.setBoss(name, hp / maxHp, shielded, shieldText, exposed));
+    bus.on('boss_health', ({ name, hp, maxHp, shielded, shieldText, exposed, tag }) => this.setBoss(name, hp / maxHp, shielded, shieldText, exposed, tag));
+    bus.on('toast', ({ text, ms }) => this.toast(text, ms));   // a system's note (the Encore's)
     bus.on('xp_collected', ({ amount }) => this.pulseXp(amount));
     this.el = document.createElement('div');
     this.el.id = 'hud';
@@ -448,14 +449,14 @@ export class Hud {
   setStage(text) { this.set('stage', '.stage', () => text); }
 
   // shielded: the bar turns purple and says so (the Vacuum's lanternflies); exposed: it turns gold and
-  // says EXPOSED (the Encore bowing: hits do more)
-  setBoss(name, frac, shielded = false, shieldText = 'SHIELDED', exposed = false) {
+  // says so (the Encore bowing: hits do more); tag: a word after the name (the Encore's solo, bow, duet)
+  setBoss(name, frac, shielded = false, shieldText = 'SHIELDED', exposed = false, tag = null) {
     const b = this.$('.boss');
     b.hidden = name == null;
     if (name == null) return;
     b.classList.toggle('shield', shielded);
     b.classList.toggle('exposed', !shielded && !!exposed);
-    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : exposed ? `${name.toUpperCase()} · EXPOSED` : name.toUpperCase()));
+    this.set('bossName', '.boss .nm', () => (shielded ? `${name.toUpperCase()} · ${shieldText}` : tag ? `${name.toUpperCase()} · ${tag}` : name.toUpperCase()));
     this.$('.boss i').style.transform = `scaleX(${Math.max(0, frac)})`;
   }
 

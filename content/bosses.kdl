@@ -89,8 +89,9 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // `last` the last song; above `set2` it plays set 1 (after the warm-up behind its opening force field)
     stages set2=0.75 set3=0.5 last=0.25
     // its set list, in bars: a solo slot every `solo` bars from the end of the warm-up, and in set 2
-    // a disco ball visit every `disco` bars, halfway between them
-    set solo=16 disco=8
+    // a disco ball visit every `disco` bars, halfway between them; in the last song a slot every `last` bars
+    // (a solo and its bow take 8 at most) from 2 bars in: silver, gold, duet, round again
+    set solo=16 disco=8 last=10
     // a solo: `bars` long, then that DJ bows for `bow` bars (`clean` if no hit reached the jelly during
     // his solo), while hits on the Encore do `exposed` x (the song's breakdown bows both DJs, exposed too)
     solo bars=4 bow=2 clean=4 exposed=1.5
