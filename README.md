@@ -220,10 +220,17 @@ That's act 1; act 2 is the hallway and the bathroom (below).
 - **Treasure book:** the main menu's 📖 Treasure book keeps every Treasure and evolution you've picked and every Elite and boss you've beaten, across your runs in this browser (`src/collection.js`, localStorage `jellyrun.found`); unfound ones show as ?, and tapping a found one says what it does.
   A pick card for something you've never picked says **New!**, and the end screen lists the run's first finds.
   Dying also shows how close you came to the boss, your best, and your nearest golden unlock (`nextAward` in `src/cosmetics.js`), with Try again as the big button.
-- **Score and leaderboard:** every run ends with one combined score: 10 per bug cleared, +50 per golden elite bug, +300 per high-ground elite, 100 per level above 1, 150 per treasure, 2 per second survived before the boss (up to 520), up to 1,500 for damage dealt to the Vacuum, and +3,000 for beating it plus 20 for every second under 3 minutes (`Run.scoreParts` in `src/run.js`).
+- **Score and leaderboard:** every run ends with one score, earned act by act from the one table in `src/score.js`.
+  An act pays up to 2,000 for the share of its night you survived, up to 3,000 for the share of its Boss's Health you removed, 5,000 for beating the Boss, 500 for each high-ground Elite beaten (three at most), and up to 1,000 for the share of the bugs that came out during the night that you cleared.
+  An act you beat also pays up to 2,000 for Clean play, which shrinks with every point of damage you took (damage a Shield soaked still counts, and 100 points of it leaves none), and up to 1,000 for Boss pace, all of it for beating the Boss within a minute and none at three minutes.
+  Kills, Levels and Treasures add nothing, and the most a run can score is 62,000.
   The end screen asks for a name (empty = Guest; the last one you typed is remembered) and posts the score only when you press **📤 Submit score** (finishing act 1 doesn't post; the run's score goes up at its end).
   On the game's claude.ai page the score goes on a shared leaderboard (🏆 in the pause menu and on the end screen): one entry per player, their best run, top 10 shown (`src/leaderboard.js`, the artifact's `db`).
   Opening the board reads the table there and then and redraws as scores come in, so it never depends on the live feed having delivered; your own just-posted score always shows.
+  On the game's own site the Leaderboard opens on Champions: the best run with each jelly type this season, a Season chip, and a note of how many of the eight types you hold.
+  The All tab and one tab per jelly type show the top 10 of that board, each row saying whether the run was won or how far it got, and how many acts were cleared untouched.
+  Your own row always shows, with its real place when it's outside the top 10.
+  The end screen offers **📤 Submit score** when the run makes the top 10 of its own jelly type, so a second type's run isn't judged against your best run with another type.
   The end screen also has **🏠 Main menu** (from a later act it reloads into act 1's menu).
   Who can post: anyone signed in to claude.ai in the page owner's organization who opens it by link, or anyone shared in as Contributor or above.
   Each player writes only their own entry (the page's `db` rules: `scores` read `view`, write `owner`; `scores/{self}` write `interact`).
@@ -401,6 +408,7 @@ The Worker's old address, `jelly-fight.nycjfc.workers.dev`, sends players to jel
 The Worker serves the game's files from Cloudflare's CDN and answers `api/scores` (`worker/index.js`) from a D1 database called `jelly-fight-scores`, so anyone can post a score: signed in or not, any organization.
 On the game's own site, `src/leaderboard.js` uses that; on claude.ai it still uses the artifact's database.
 A score is only accepted when it is the last act of a run its player logged in `run_summaries` and that run looks playable (`checkRun` in `worker/index.js`: acts follow on and finished, believable levels, acts 1-3 lasting 250 s or more, no treasure past 5 copies), so a score typed into the browser's console no longer lands on its own.
+The Worker also rebuilds the score from those logged acts (`src/score.js`), so a posted score must match them, and it keeps each player's best run per season and jelly type in its `board` table.
 The death and win screens' beta bubble posts what a player types to `api/feedback`, kept in the same database's `feedback` table (only on the game's own site; there is no way to read it over the API).
 To read it, open Cloudflare's dashboard, Storage & Databases, D1, `jelly-fight-scores`, Console, and run `SELECT datetime(at / 1000, 'unixepoch') AS sent, text, build, act, won, score, device FROM feedback ORDER BY at DESC LIMIT 100;` (or the same query with `npx wrangler d1 execute jelly-fight-scores --remote --command "…"`).
 Actual play on the game's own site records compact balancing data in the private `run_summaries` table: one row per player/run/act, updated at the start, at the ending, and when leaving the tab, with no recurring gameplay uploads.

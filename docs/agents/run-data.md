@@ -124,6 +124,28 @@ Split by `$.perf.tier` and `$.perf.cap` to compare graphics tiers.
 The phone bench's Send (`index.html?bench`) writes `perf_reports` (`at`, `build`, `device`, `ua` trimmed to 200 characters, `json` under 8 KB), with no player id, one per address every 30 seconds.
 Read it in the D1 console: `SELECT at, build, device, json_extract(json, '$.moments[0].ms') FROM perf_reports ORDER BY at DESC`.
 
+## The score and the board
+
+Each act's `details` gains `score`: `bugsOut` (bugs that came out during the night, counted at spawn), `bugsCleared`, `damageTaken` (Health the act's hits would have taken before a Shield, until the Boss falls), `bossSeconds` (null without a boss fight), and the shares `nightShare` and `bossShare` (0 to 1).
+`details.season` is the season the act was played in.
+The Elites and the outcome come from `elitesBeaten` and the row's outcome, so these fields and `src/score.js` are all a score needs; the Worker refuses a posted score that doesn't rebuild to the same number (`unverified`).
+Changing what a field means needs a new name, since older rows keep their old meaning.
+
+The `board` table in D1 holds one row per season, player and jelly type: the player's best run of that type, with name, look, score, level, kills, time, `won`, `acts` (the act reached), `clean` (acts cleared without damage), build, time received and the IP hash.
+The `scores` table is no longer read or written, and nothing migrates from it.
+
+To take one player's entry off the board, preview it, then delete it, in the D1 console (`jelly-fight-scores`), using the current `SEASON` from `src/score.js` in place of `1`:
+
+```sql
+SELECT season, id, name, jelly, score, at FROM board
+WHERE name = 'PLAYER NAME' COLLATE NOCASE AND jelly = 'JELLY_ID';
+
+DELETE FROM board
+WHERE season = 1 AND name = 'PLAYER NAME' COLLATE NOCASE AND jelly = 'JELLY_ID';
+```
+
+This removes the board row only: the player's `run_summaries` stay, and their browser still holds its best, so their next submission of that type can put it back.
+
 ## Capacity and history
 
 Check D1 Metrics → Row Metrics for actual reads/writes and storage; indexes and rate limiting add writes beyond the summary rows.
