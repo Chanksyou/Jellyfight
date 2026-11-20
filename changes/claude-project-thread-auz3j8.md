@@ -1,0 +1,1 @@
+tidies the Encore after a whole-fight review: the wall's riser stops when its Warning is cut short, the breakdown's bow breathes out like a solo's, and a standing record's push can no longer feed on itself and freeze the game.

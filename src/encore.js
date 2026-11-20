@@ -249,7 +249,7 @@ export class Encore {
   }
   // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind)
   stopActs() {
-    this.records.reset(); this.wall.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.floor.held.silver = this.floor.held.gold = false;
+    this.records.reset(); this.wall.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.restExhale = null; this.floor.held.silver = this.floor.held.gold = false;
     for (const who of DJS) this.arenaView.boss.perform(who, null);
   }
 
@@ -400,7 +400,9 @@ export class Encore {
       if (rest && !this.restBow) {
         let end = beat; while (this.quiet(end) && end < beat + 64) end += 0.5;
         for (const who of DJS) M.perform(who, 'bow', beat + 1, 1, Math.max(0, end - beat - 1 - this.bowLift));
+        this.restExhale = beat + 1;   // and breathe out as they go down, as after a solo
       }
+      if (this.restExhale != null && beat >= this.restExhale) { this.restExhale = null; if (rest) sfx.bowExhale(); }
       this.restBow = rest;
       // the wave gestures leave a DJ alone while the Encore moves him: his solo (from his first wind-up) and bow, the breakdown's bow
       for (const who of DJS) this.floor.held[who] = rest || ((this.solo?.who === who || this.solo?.who === 'duet') && beat >= this.solo.at - 4);

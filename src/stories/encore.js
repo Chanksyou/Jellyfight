@@ -797,6 +797,22 @@ story('encore/a-standing-record-blocks-the-jelly-and-never-hurts', {
   },
 });
 
+story('encore/a-record-held-against-a-jelly-that-cannot-move-stays-a-small-push', {
+  about: 'A jelly that a standing record pushes but that doesn\'t move (held by the arena\'s side, a teleport, a long frame) gets the same small push frame after frame: it never feeds on itself into a fling or a stalled collision.',
+  setup() {},
+  play() {
+    const T = recordsRig();
+    try {
+      T.rec.cast(8, recordOpts(() => [0, 0.2], { from: () => V(0, 0.45, -0.5) }));
+      const J = standing(0, 0.23);
+      playRecords(T, standing(0.5, 0.5), 3, 9);
+      let most = 0;
+      playRecords(T, J, 9, 15, () => { most = Math.max(most, Math.hypot(T.rec.pushX, T.rec.pushZ)); });
+      return ok(T.rec.casts[0]?.state === 'stand' && most > 0 && most < 0.1, { most: +most.toFixed(4) });
+    } finally { T.done(); }
+  },
+});
+
 story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-8-beats', {
   about: 'In the 4 bars of a solo the set list casts no lasers, and only the other DJ plays a wave, one every 8 beats from a bar into it; before and after it the set plays as usual.',
   setup() {},
@@ -1274,6 +1290,36 @@ story('encore/the-wall-has-a-swell-a-roll-and-a-crack-for-each-record', {
       const roll = near(cues.encoreWall, [24]), want = frontBeat(0.1), cracks = cues.wallShield.length === 3 && cues.wallShield.every(([b]) => Math.abs(b - want) < 0.07);
       return ok(swell && roll && cracks, { swell: cues.wallSwell, roll: cues.encoreWall, cracks: cues.wallShield.map(([b]) => +b.toFixed(2)), want });
     } finally { T.done(); }
+  },
+});
+
+story('encore/a-wall-cut-short-mid-warning-stops-its-riser', {
+  about: 'The wall\'s riser stops as soon as its Warning is cut short (a song rewind, the short-out, the defeat all reset the wall), instead of playing out its 8 beats; one that runs to the roll ends by itself and is not stopped again.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const cut of [true, false]) {
+      const T = wallRig();
+      try {
+        let stopped = 0;
+        stub(sfx, 'wallSwell', () => () => stopped++);
+        playWall(T, standing(0.6, 0.6), 3, cut ? 19 : 27);
+        if (cut) T.wall.reset();
+        out[cut ? 'cut' : 'rolled'] = stopped;
+      } finally { T.done(); }
+    }
+    return ok(out.cut === 1 && out.rolled === 0, out);
+  },
+});
+
+fight('the-breakdown-bow-breathes-out-on-its-beat', {
+  about: 'When the song\'s breakdown bows both DJs, the bow breathes out once, on the beat they go down (a beat into the breakdown), as a solo\'s bow does.',
+  setup() {},
+  play() {
+    const { B, song, go } = soloFight(), cues = cueBeats(() => B.beat);
+    song.quiet = (b) => b >= 40 && b < 56;
+    go(60);
+    return ok(near(cues.bowExhale, [41]), { exhale: cues.bowExhale.map(([b]) => +b.toFixed(2)) });
   },
 });
 
