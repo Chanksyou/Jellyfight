@@ -5,6 +5,7 @@ import { CONTENT } from '../content.js';
 import { RARITY, TREASURES, CHEST_WEIGHTS, rollCards, cardAmount } from '../stats.js';
 import { tierOdds, buildStrips, spinCells, spinTimes } from '../spin.js';
 import { seededRandom } from '../story-random.mjs';
+import { FirstRun } from '../first-run.js';
 import { G, story, ok, fresh, stub, give, step } from './kit.js';
 
 const card = (stat, tier) => ({ stat, rarity: RARITY[tier], amount: CONTENT.levelups.cards[stat].amounts[tier] });
@@ -408,5 +409,37 @@ story('spin/three-of-a-kind-rolls-one-reel-again', {
     const badge = shownCards()[up]?.querySelector('.jf-up')?.textContent || '';
     return ok(up >= 0 && sign === 'Three Commons! One becomes Rare.' && rim.filter(Boolean).length === 1 && rim[up] && otherLines && rolling && line.r === 'rare' && tag && badge.includes('Upgraded'),
       { up, sign, rim, otherLines, rolling, line, tag, badge });
+  },
+});
+
+story('spin/boss-reward-has-no-spin', {
+  about: 'The Boss reward (and an Attack upgrade) opens straight on its cards: no machine.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    run.pickLegendary('A Legendary treasure', 'Choose a treasure.', () => {});
+    const boss = !spinning() && !machine() && shownCards().length === 3;
+    G().menus.close();
+    return ok(boss, { boss });
+  },
+});
+
+story('spin/first-run-says-how-to-stop', {
+  about: 'A first run\'s first spin says "Tap to stop the reels." on its sign, once; the next spin, and any spin of a later run, does not.',
+  setup() { fresh({ spin: true, firstRun: true }); },
+  play() {
+    const { run } = G(), line = () => machine()?.querySelector('.sp-sign p').textContent;
+    openLevelUp();
+    const first = line();
+    untilCards();
+    G().menus.close();
+    openLevelUp();
+    const second = line();
+    untilCards();
+    G().menus.close();
+    run.firstRun = new FirstRun(false);
+    openLevelUp();
+    const later = line();
+    return ok(first === 'Tap to stop the reels.' && second === 'The reels are rolling…' && later === 'The reels are rolling…', { first, second, later });
   },
 });

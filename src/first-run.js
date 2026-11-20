@@ -5,6 +5,7 @@
 //   - the run opens with one tip about how it's played: attacks are automatic, XP, the boss
 //   - the first hit shows one plain line about the Health bar, once
 //   - a few seconds in, one tip: hold jump to jump higher
+//   - the first reward spin says how to stop the reels, once
 //   - the minimap stays hidden until the first Treasure appears in the room, then stays
 //   - a first run is always the Normal jelly: the type pick screen is skipped (picksType)
 //
@@ -61,6 +62,14 @@ export class FirstRun {
     this.hitHintShown = !this.active;
     this.mapShown = !this.active;
     this.jumpTipShown = false;
+    this.spinHintShown = !this.active;
+  }
+
+  // the first reward spin: the line on how to stop it, once, or null
+  spinHint() {
+    if (this.spinHintShown) return null;
+    this.spinHintShown = true;
+    return 'Tap to stop the reels.';
   }
 
   // a Treasure just appeared in the room (scheduled, or left by an Elite): the minimap comes with it

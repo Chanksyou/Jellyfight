@@ -143,7 +143,7 @@ const style = () => {
 export class Spin {
   // host: the modal it draws into. o: { kind 'levelup'|'treasure'|'legendary', title, offer (the cards
   // as offered, three of a kind's upgrade included), cell(card) -> { icon, name (HTML) }, rollOne(rng)
-  // (one real roll, for the filler), odds (tierOdds), luck, calm, lead (ms the old cards take to leave
+  // (one real roll, for the filler), odds (tierOdds), luck, calm, hint (a first run's line for the sign), lead (ms the old cards take to leave
   // first: a reroll), seed (stories), done() (draw the cards) }
   constructor(host, o) {
     style();
@@ -160,7 +160,7 @@ export class Spin {
     this.strips = buildStrips(o.offer.map((c, i) => (i === this.up && !calm ? c.was : c)), o.rollOne, { cells: spinCells(this.kind), seed: o.seed });
     const coarse = matchMedia('(pointer: coarse)').matches, bulbs = '<i></i>'.repeat(15);
     this.host.innerHTML = `<div class="jf-spin ui-enter${o.offer.length > 3 ? ' four' : ''}" role="group" aria-label="${esc(o.title)}">
-      <div class="sp-sign"><span class="sp-bulbs">${bulbs}</span><h2>${esc(o.title)}</h2><p aria-live="polite">${calm ? this.line() : 'The reels are rolling…'}</p><span class="sp-bulbs low">${bulbs}</span></div>
+      <div class="sp-sign"><span class="sp-bulbs">${bulbs}</span><h2>${esc(o.title)}</h2><p aria-live="polite">${calm ? this.line() : esc(o.hint || 'The reels are rolling…')}</p><span class="sp-bulbs low">${bulbs}</span></div>
       <div class="sp-cab">${this.luck()}
         <div class="sp-reels">${this.strips.map((s, i) => `<div class="sp-reel${calm ? ' landed' : ''}${calm && i === this.up ? ' up' : ''}"><div class="sp-strip">${this.cells(s)}</div></div>`).join('')}<div class="sp-payline"></div>
           <i class="bub" style="left:31%;top:12%;width:9px;height:9px"></i><i class="bub" style="left:66%;top:80%;width:13px;height:13px"></i><i class="bub" style="left:5%;top:86%;width:7px;height:7px"></i></div>
@@ -203,7 +203,6 @@ export class Spin {
   // the Luck panel: the number, then each rarity's chance on one reel (highest first), with no Luck and with yours
   luck() {
     const { odds, luck = 0 } = this.o;
-    // (kind 'legendary': the boss reward's spin, wired in task S4)
     const rows = this.o.kind === 'legendary' ? '<p class="sp-boss">Boss reward: always Legendary</p>'
       : `<div class="sp-odds">${[...odds].reverse().map((r) => `<div class="sp-odd" style="--c:var(--ui-${r.id})"><span class="n">${r.name}</span>`
         + `<span class="v${r.now < r.was ? ' down' : ''}">${luck ? `${pct(r.was)} → ` : ''}<b>${pct(r.now)}</b></span>`
