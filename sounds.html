@@ -20,6 +20,7 @@
   <h1>Sounds</h1>
   <p>Every sound pack the game plays (assets/audio/packs.json, built by tools/sounds.mjs; rules in docs/agents/sound.md). For each role: the game's sound as it plays now (recorded), the synthesized sound it falls back to, and each take on its own at the role's volume. "Above 400 Hz" is the share of a take's energy above 400 Hz: hostile sounds should be bright, above 85%.</p>
   <div id="packs"><p>Loading…</p></div>
+  <section id="spin"><h2>Reward spin</h2><small>Synthesized only (no pack): the lever, the reels' ticks as a reel slows, and a reel landing on each rarity.</small><div></div></section>
   <p><a href="./index.html">Back to Jelly Run</a></p>
 </main>
 <script type="module">
@@ -76,6 +77,11 @@ for (const [name, P] of Object.entries(packs)) {
     sec.append(takes);
   }
   box.append(sec);
+}
+{
+  const row = document.querySelector('#spin div'), slow = [0, 0.06, 0.12, 0.2, 0.3, 0.42, 0.58, 0.78, 1.05];
+  const calls = { Lever: () => synth.sfx.spinLever(), 'Ticks (slowing)': () => synth.sfx.spinTick([slow]), 'Stop Common': () => synth.sfx.spinStop(0), 'Stop Rare': () => synth.sfx.spinStop(1), 'Stop Epic': () => synth.sfx.spinStop(2), 'Stop Legendary': () => synth.sfx.spinStop(3) };
+  for (const [label, run] of Object.entries(calls)) row.append(button(label, async () => { await audioCtx(); synthWhen(ctx.currentTime + 0.02); run(); }));
 }
 </script>
 </body>

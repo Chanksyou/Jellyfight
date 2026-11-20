@@ -285,3 +285,30 @@ story('sound/the-encore-moves-each-make-their-own-sound', {
     return ok(!silent.length, { made: made_, silent });
   },
 });
+
+story('sound/reward-spin-sounds', {
+  about: 'The reward spin sounds: the lever clunk, one ticking voice for the whole roll (a dense schedule is thinned and never one node per cell; [] silences it), and a reel thunk for every rarity, each audible.',
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx(), R = 16000, out = {};
+    const render = async (name, play) => {
+      const oc = new OfflineAudioContext(1, R * 2, R), { when } = S.preview(oc, oc.destination);
+      const make = oc.createBufferSource.bind(oc);
+      let sources = 0;
+      stub(oc, 'createBufferSource', () => { sources++; return make(); });
+      when(0.05); play(S.sfx);
+      const d = (await oc.startRendering()).getChannelData(0);
+      let peak = 0, late = 0, fast = 0;
+      for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); peak = Math.max(peak, a); if (i > R * 1.2) late = Math.max(late, a); if (i > R * 0.3 && i < R * 0.8) fast = Math.max(fast, a); }
+      out[name] = { peak: +peak.toFixed(3), sources, late: +late.toFixed(4), fast: +fast.toFixed(4) };
+    };
+    const dense = Array.from({ length: 200 }, (_, i) => 0.1 + i * 0.004), slow = [1.3, 1.5];
+    await render('lever', (s) => s.spinLever());
+    await render('ticks', (s) => s.spinTick([dense, slow]));
+    await render('cancelled', (s) => { s.spinTick([dense, slow]); s.spinTick([]); });
+    for (let t = 0; t < 4; t++) await render(`stop${t}`, (s) => s.spinStop(t));
+    const o = out;
+    return ok(o.lever.peak > 0.01 && o.ticks.peak > 0.01 && o.ticks.sources === 1 && o.ticks.late > 0.002 && o.ticks.fast > 0.005
+      && o.cancelled.peak < 0.002 && [0, 1, 2, 3].every((t) => o[`stop${t}`].peak > 0.01), out);
+  },
+});

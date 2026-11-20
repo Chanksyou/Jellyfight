@@ -41,7 +41,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v569';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v572';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -243,7 +243,7 @@ const creator = new Creator({
 });
 creator.mount(ui);
 // the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
-const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, room: LOOK.num('pick-portrait-room', 1.3) }), live: new AttackPreview(renderer) });
+const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, room: LOOK.num('pick-portrait-room', 1.3) }), live: new AttackPreview(renderer, () => gfx.quality) });
 picker.mount(ui);
 
 // --- World --------------------------------------------------------------------------
@@ -1249,7 +1249,7 @@ GAME.frame = (now) => {
   try {
     if (!covered && state.mode === 'play' && !run.paused) adapt(ms);
     GAME.step(dt);
-    GAME.render();
+    if (!picker.isOpen) GAME.render();   // the pick screen covers the whole game: only its own pictures draw
   } catch (e) {
     reportError(e, 'frame');
   }

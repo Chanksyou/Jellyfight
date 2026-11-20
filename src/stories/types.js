@@ -1,4 +1,5 @@
 // Stories: jelly types (content/jellies.kdl, src/jelly-types.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
+import * as THREE from 'three';
 import { CONTENT, compileJellies, compileMods, compileTreasures } from '../content.js';
 import { PLAYER } from '../events.js';
 import { juice } from '../juice.js';
@@ -427,6 +428,65 @@ story('types/pick-screen-centre-card-attacks', {
       key('ArrowLeft'); settle();
       const calm = !live.on && picker.liveFor === null;
       return ok(centreOnly && burned && stopped && lashed && quiet && calm, { centreOnly, fire, stopped, lash, quiet, hurt: hurt.length, calm });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-stage-films-through-bloom', {
+  about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
+  setup() {},
+  async play() {
+    const { picker, gfx, GAME } = G(), live = picker.live, R = live.renderer, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    const show = async (id) => {
+      picker.go(picker.ids.indexOf(id)); picker.pos = picker.target; picker.vel = 0;
+      settle();
+      while (!live.built.get(id)) await new Promise((r) => setTimeout(r, 50));   // shown, and its shaders built (a software renderer takes a while)
+      // what's on the stage once they're built, and the bloom and screen passes: the frame must use
+      // the shaders built for them, not build its own (a shot or a bit of a body appearing later can't count)
+      const F = live.film_, mats = new Set([F.bloom.bright, F.bloom.halve, F.bloom.widen, F.out.material]);
+      live.P.scene.traverse((o) => [].concat(o.material || []).forEach((m) => mats.add(m)));
+      const built = (m) => new Set(R.properties.get(m).programs?.values() || []), was = [...mats].map(built);
+      for (let i = 0; i < 20; i++) live.simulate(1 / 30);
+      live.draw();
+      return [...mats].filter((m, i) => shader(m) && !was[i].has(shader(m))).map((m) => m.type);   // the ones the frame had to build itself
+    };
+    const shader = (m) => R.properties.get(m).currentProgram;
+    const lights = () => live.P.scene.children.filter((o) => o.isLight).map((o) => o.type).join();
+    try {
+      pressPlay('fire');   // (fresh() takes back stubs: these come after it)
+      stub(picker, 'portrait', () => '');
+      stub(gfx, 'quality', 'medium');
+      live.built.clear();   // (an earlier story may have marked them built with compileAsync stubbed)
+      const builtSelf = await show('fire'), builtAhead = builtSelf.length === 0;
+      const F = live.film_, blooms = spy(F.bloom, 'render');
+      live.draw();
+      const medium = blooms.length === 1 && F.out.material.uniforms.bloomStrength.value > 0 && F.rt.texture.type === THREE.HalfFloatType && F.rt.samples === 4;
+      stub(gfx, 'quality', 'low');
+      live.draw();
+      const low = blooms.length === 1 && F.out.material.uniforms.bloomStrength.value === 0;
+      stub(gfx, 'quality', 'medium');
+      const fireLights = lights(), fireRim = live.P.stage.rim.color.getHexString();
+      // the stage's own lit floor and its other pieces keep their shaders whatever the type: a light
+      // added or taken away would build every lit shader again
+      const S = live.P.stage, own = [S.floor.material, S.shadows.material, S.back.material], kept = own.map(shader);
+      await show('ice'); await show('fire'); await show('ice');
+      const sameLights = lights() === fireLights && S.rim.color.getHexString() !== fireRim;
+      const noNewShaders = own.every((m, i) => shader(m) === kept[i] && !!kept[i]);
+      const drawn = spy(GAME, 'render');
+      GAME.frame(performance.now() + 5000);
+      const roomHidden = drawn.length === 0;
+      const freed = spy(F.rt, 'dispose');
+      picker.close();
+      GAME.frame(performance.now() + 10000);
+      const roomBack = drawn.length === 1 && freed.length === 1;
+      pressPlay('fire');
+      stub(picker, 'portrait', () => '');
+      stub(picker, 'calm', () => true);
+      settle();
+      const still = !live.on && picker.liveFor === null;
+      return ok(builtAhead && medium && low && sameLights && noNewShaders && roomHidden && roomBack && still,
+        { builtAhead, builtSelf, medium, low, lights: fireLights, sameLights, noNewShaders, roomHidden, roomBack, freed: freed.length, still });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
