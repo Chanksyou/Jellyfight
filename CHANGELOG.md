@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v564 keeps every regular bug's Health the same all act (no more 18% more each minute); act 4's Firefly now has 700 Health, Moth 1000 and Cicada 1200.
+
 v563 adds a phone bench at index.html?bench (and ?bench&act=3, ?bench&act=4, ?bench&act=4&scene=2): after one tap it plays the act's busiest moments in real frames, then the busiest again with bloom off, pixel ratio 1.0, lamps off, AO off and on Low, and shows this device's frame times, draw times, GPU time where the browser offers it and draw calls, with Copy results. A bench is not a run: it sends nothing and keeps nothing. tools/perf-phone.mjs now sets up the same moments from one shared table (src/bench-moments.js).
 
 v562 sets the Elites' and bosses' final Health: Act 2 Elites 800 each, the Vacuum 1200, the Great White One 8000, Act 3 Elites 1800 each and Act 4 Elites 3200 each.
