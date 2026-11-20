@@ -184,7 +184,7 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-board.jf-tabbed { display: flex; flex-direction: column; overflow: hidden; }
 .jf-board.jf-tabbed .jf-board-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .jf-board.jf-tabbed .btns { flex: none; }
-.jf-board .jf-sec { grid-column: 1 / -1; font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
+.jf-board .jf-sec { font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
 .jf-board-body.jf-fade { animation: ui-fade-in var(--ui-mid) var(--ui-ease-settle) both; }
 .jf-champs .jf-type-ic, .jf-past .jf-type-ic { font-style: normal; font-size: 1.3em; flex: none; width: 1.4em; text-align: center; }
 .jf-champs .jf-jelly, .jf-past .jf-jelly { width: var(--board-champion-jelly-size, 56px); height: var(--board-champion-jelly-size, 56px); }

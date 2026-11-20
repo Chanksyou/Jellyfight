@@ -271,7 +271,7 @@ export class Leaderboard {
         try {
           const r = await fetch(`${API}?season=${n}&tab=${tab}&me=${encodeURIComponent(this.id)}`, { cache: 'no-store' });
           const d = r.ok && await r.json();
-          return Array.isArray(d?.top) ? d.top : null;
+          return Array.isArray(d?.top) && d.season === n ? d.top : null;   // a Worker that ignores ?season= would answer this season's board
         } catch { return null; }
       };
       const [champions, all] = await Promise.all([get('champions'), get('all')]);
@@ -284,7 +284,7 @@ export class Leaderboard {
   pastView(n, data, { face, types }) {
     const name = (id) => types.find((t) => t.id === id)?.name || 'Jelly';
     if (data === undefined) return { note: 'Loading the leaderboard…', rows: [], cls: '' };
-    if (!data) return { note: 'Couldn\'t load this season. Tap its tab to try again.', rows: [], cls: '' };
+    if (!data) return { note: 'Couldn\'t load this season. Try again in a moment.', rows: [], cls: '' };
     const { who, pic, score } = this.lines(face, name, 'champions');
     const head = (t) => [`<b class="jf-sec">${t}</b>`, ''];
     const champs = types.map((t) => [t, data.champions.find((r) => r.jelly === t.id)]).filter(([, r]) => r)

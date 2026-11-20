@@ -560,6 +560,7 @@ test('a past season is read-only: its Champions, or the top 3 of All', async () 
   assert.deepEqual([champs.season, champs.mine, champs.top.map(r => [r.jelly, r.score])], [7, null, [['fire', 9000], ['normal', 5000]]]);
   const all = await read('all', 7);
   assert.deepEqual(all.top.map(r => r.name), ['O1', 'O5', 'O4']);   // top 3 only, each player's best row
+  assert.equal(all.mine, null);                                      // no place on a past board
   assert.equal(all.top[0].id, 'player-old1');                              // your own id, nobody else's
   assert.ok(all.top.slice(1).every(r => r.id === undefined));
   assert.equal((await read('fire', 7)).tab, 'all');                  // a type tab reads as all in a past season

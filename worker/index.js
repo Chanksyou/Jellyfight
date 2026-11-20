@@ -181,7 +181,7 @@ export async function top(db, me, tab = 'all', season = SEASON, now = SEASON) {
   const args = tab === 'champions' || tab === 'all' ? [season] : [season, tab];
   const [list, mine] = await db.batch([
     db.prepare(`${rows} ORDER BY score DESC, at ASC LIMIT ${tab === 'champions' ? 16 : past ? 3 : 10}`).bind(...args),
-    db.prepare(tab === 'champions' ? 'SELECT 1 WHERE 0' : placed(rows)).bind(...(tab === 'champions' ? [] : [...args, ...args, me])),
+    db.prepare(tab === 'champions' || past ? 'SELECT 1 WHERE 0' : placed(rows)).bind(...(tab === 'champions' || past ? [] : [...args, ...args, me])),
   ]);
   // only your own id comes back: an id is all it takes to post as that player
   return { season, tab, top: list.results.map((r) => shape({ ...r, id: r.id === me ? r.id : undefined })), mine: shape(mine.results[0]) || null };
