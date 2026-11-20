@@ -829,7 +829,7 @@ overlay.addEventListener('click', (e) => {
   sfx.tap();
   if (b.classList.contains('resume')) { const k = keptRun(); if (k) goToAct(k.act, k.carry, { continue: true }, k.scene); }
   else if (b.classList.contains('play') || b.classList.contains('pause-resume')) startRun();
-  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); syncSettings(); }
+  else if (b.dataset.q) { gfx.setQuality(b.dataset.q); field.reset(); syncSettings(); }
   else if (b.dataset.fps) { setFps(+b.dataset.fps); syncSettings(); }
   else if (b.dataset.sound) { unlockAudio(); setMuted(b.dataset.sound === 'off'); syncSettings(); }
   else if (b.dataset.music) {
@@ -1192,6 +1192,7 @@ gfx.resize();
 // the player's frame-rate pick (phones only): the governor now aims for it
 function setFps(f) {
   phoneFps = pacer.fps = f;
+  field.reset();
   governor.base = governor.target = 1000 / f;
   try { localStorage.setItem(FPS_STORE, String(f)); } catch {}
 }
@@ -1202,6 +1203,7 @@ function adapt(ms) {
   field.sample(ms, governor.base, governor.scale);
 }
 // what the run log sends with each act summary (run.js recordRun): frame numbers and the Settings picks, nothing else
+run.fieldReset = () => field.reset();
 run.fieldNumbers = () => ({
   perf: field.summary({ tier: gfx.quality, cap: pacer.fps || 0, dpr: Math.round(devicePixelRatio * 100) / 100, w: innerWidth, h: innerHeight, lost: gpu.restores }),
   settings: { graphics: gfx.choice, fps: IS_TOUCH ? phoneFps : 0, text: textSize, easy: easyChosen(), music: musicOn, sound: !isMuted(), calm: juice.calm, calmOs: reducedMotion.matches },

@@ -13,6 +13,9 @@ export class FieldPerf {
   }
 
   // one played frame: its interval, the governor's target interval and pixel ratio now
+  // a new run or a changed tier or cap starts the count over, so one row never mixes settings
+  reset() { this.hist.fill(0); this.n = this.over = 0; this.minRatio = Infinity; }
+
   sample(ms, target, ratio) {
     if (!(ms > 0) || ms > 250) return;   // a hitch or a pause coming back: not a frame time (the governor skips these too)
     this.hist[Math.min(BUCKETS - 1, (ms / BUCKET_MS) | 0)]++;

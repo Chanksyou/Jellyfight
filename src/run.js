@@ -559,7 +559,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
-    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun(this.logResumed ? 'in-progress' : 'started'); }   // an act picked up part way (a reload, a stage door) goes on
+    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.fieldReset?.(); this.recordRun(this.logResumed ? 'in-progress' : 'started'); }   // an act picked up part way (a reload, a stage door) goes on
     if ((this.keepT -= dt) <= 0) { this.keepT = 1; this.keepProgress(); }
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
@@ -1958,7 +1958,7 @@ export class Run {
     }
     if (['died', 'won', 'ended', 'next-act'].includes(outcome)) this.logFinal = outcome;
     outcome = this.logFinal || outcome;
-    const B = this.boss, round = (n) => Math.round(n * 10) / 10, field = this.fieldNumbers?.();
+    const B = this.boss, round = (n) => Math.round(n * 10) / 10, field = (() => { try { return this.fieldNumbers?.(); } catch { return null; } })();
     const row = {
       run: this.logId, build: (typeof window !== 'undefined' && window.JF_BUILD) || '', act: this.stage.id, outcome,
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',

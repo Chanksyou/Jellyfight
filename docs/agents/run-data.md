@@ -103,6 +103,8 @@ No `perf` is sent for an act with fewer than 30 counted frames, and dev runs sen
 A new pick in the Settings sheet is one more field in `run.fieldNumbers` in `src/main.js` and in `settings()` in `worker/index.js`.
 The Worker keeps only these fields, numbers clamped and words from fixed lists.
 Frame times are what the browser reports, so a 60 Hz screen at a 30 cap shows 33 ms by design: read `ms` against `cap`.
+The count starts over when a run starts and when the graphics tier or frame cap is changed, so a row covers one setting.
+`perf_reports` has no ceiling beyond the per-address limit: prune it by hand in the D1 console if it ever grows.
 Browser-supplied and advisory, like the rest.
 
 Median frame time by build, act and device, phones only:

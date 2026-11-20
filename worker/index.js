@@ -327,10 +327,12 @@ async function postFeedback(request, env) {
 
 const PERF_IP_MS = 30000, PERF_MAX = 8192;
 async function postPerf(request, env) {
-  let b;
-  try { b = await request.json(); } catch { return json({ sent: false, why: 'bad' }, 400); }
-  const text = JSON.stringify(b?.bench ?? null);
+  let b, raw;
+  try { raw = await request.text(); } catch { return json({ sent: false, why: 'bad' }, 400); }
+  if (new TextEncoder().encode(raw).length > PERF_MAX + 1024) return json({ sent: false, why: 'large' }, 413);   // before parsing
+  try { b = JSON.parse(raw); } catch { return json({ sent: false, why: 'bad' }, 400); }
   if (!b?.bench || typeof b.bench !== 'object' || Array.isArray(b.bench)) return json({ sent: false, why: 'bad' }, 400);
+  const text = JSON.stringify(b.bench);
   if (new TextEncoder().encode(text).length > PERF_MAX) return json({ sent: false, why: 'large' }, 413);
   const now = Date.now(), db = env.DB;
   const key = 'perf:ip:' + await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
