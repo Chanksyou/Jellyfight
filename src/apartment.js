@@ -3,6 +3,7 @@
 // materials and textures, plus door nodes a stage can swing open or shut.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { markMoved } from './static-batch.js';
 
 // The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
 // the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
@@ -182,7 +183,7 @@ function findDoors(apt, objects) {
     apt.doors[id] = {
       node: o,
       open: apt.meta.doors[id]?.open ?? 1.5,
-      set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); o.updateMatrixWorld(true); },
+      set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); markMoved(o); },
     };
   });
 }

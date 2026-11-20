@@ -116,6 +116,25 @@ export const spawn = (type, at, { still = false, hp } = {}) => {
   return e;
 };
 export const ok = (pass, info = {}) => ({ ok: !!pass, info });
+
+// The apartment holds still (static-batch.js freeze): a piece moved without markMoved keeps stale
+// matrices, drawn and solid where it was. The runner checks this after every story; it names the
+// first such piece (or its nearest named parent), or returns ''.
+const _still = new THREE.Matrix4();
+const sameMatrix = (a, b) => a.elements.every((v, i) => Math.abs(v - b.elements[i]) < 1e-5 * Math.max(1, Math.abs(v)));
+export function stillMismatch() {
+  const root = G().APT?.root;
+  if (!root?.userData.frozen) return '';
+  let bad = null;
+  root.traverse((o) => {
+    if (bad) return;
+    if (o.matrixAutoUpdate && !sameMatrix(_still.compose(o.position, o.quaternion, o.scale), o.matrix)) bad = o;
+    else if (!sameMatrix(o.parent ? _still.multiplyMatrices(o.parent.matrixWorld, o.matrix) : o.matrix, o.matrixWorld)) bad = o;
+  });
+  let named = bad;
+  while (named && !named.name) named = named.parent;
+  return bad ? named?.name || bad.type : '';
+}
 // spy on an attack's feedback for this story (after fresh()): every juice.feel step, where each
 // fx.impact and fx.splat went, and which sfx voices played
 export function feelSpy(fx = G().run.elites.fx) {
