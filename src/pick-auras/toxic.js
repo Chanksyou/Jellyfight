@@ -51,7 +51,7 @@ void bubbles(vec2 p, float t, float seed, float front, int n) {
     } else if (b.w < 1.0) {   // just popped: a thin ring flung out where it was
       float r0 = mix(0.016, 0.03, hash(vec2(i, seed + 4.0))) * (front > 0.5 ? 1.8 : 1.0) * 1.1;
       float d = abs(length(p - b.xy) - r0 * (1.0 + b.w * 1.4));
-      float a = atan(p.y - b.y, p.x - b.x);   // it tears into droplets as it spreads
+      float a = atan(p.y - b.y, p.x - b.x + 1e-5);   // it tears into droplets as it spreads
       ring_ = max(ring_, (1.0 - smoothstep(0.0, 0.005 + 0.005 * front, d)) * (1.0 - b.w) * cut(noise(vec2(a * 2.5, i)), 0.45 + 0.3 * b.w, 0.1));
     }
   }
@@ -84,7 +84,7 @@ void frontGoo(vec2 p, float t) {
   }
   // the pool along the bottom, slowly heaving
   blob(vec2(0.0, p.y), 0.022 + 0.022 * noise(vec2(p.x * 5.0 - t * 0.2, t * 0.3)));
-  bubbles(p, t, 21.0, 1.0, 8);
+  bubbles(p, t, 21.0, 1.0, uLayers > 2.0 ? 8 : 5);   // (fewer on Low)
 }
 
 // how a field of goo looks over c (what's behind it): a thick drop with a dark edge, light through
@@ -134,7 +134,7 @@ vec3 paint(vec2 uv) {
   c = mix(c, pale * 0.55, v.y * 0.3);
   // small dim bubbles far behind the jelly
   goo_ = 0.0; gf_ = vec2(0.0); ring_ = 0.0;
-  bubbles(uv, t * 0.8, 3.0, 0.0, 10);
+  bubbles(uv, t * 0.8, 3.0, 0.0, uLayers > 2.0 ? 10 : 6);
   c = shade(c, c, 1.0);
   c += pale * ring_ * 0.15;
   // the goo in front (worked out first: the jelly behind it is seen bent through it)
@@ -151,8 +151,11 @@ vec3 paint(vec2 uv) {
   jc += sick * 0.3 * j.x * smoothstep(0.75, 0.0, uv.y) * pulse * s;   // the glow from below, up the tentacles
   c = c * (1.0 - min(p.a, j.x)) + jc;
   // a few thin wisps drift in front, out at the sides
-  vec2 w = vapour(uv + vec2(0.37, 0.21), t * 1.3) * smoothstep(0.2, 0.4, abs(uv.x - 0.5)) * s;
-  c = mix(c, pale * 0.7, w.y * 0.45 + w.x * 0.15);
+  float out_ = smoothstep(0.2, 0.4, abs(uv.x - 0.5));
+  if (out_ > 0.0) {
+    vec2 w = vapour(uv + vec2(0.37, 0.21), t * 1.3) * out_ * s;
+    c = mix(c, pale * 0.7, w.y * 0.45 + w.x * 0.15);
+  }
   // what the front goo sees through itself: the water and jelly, bent
   vec2 at = uv + bentBy;
   vec4 pb = portrait(at);

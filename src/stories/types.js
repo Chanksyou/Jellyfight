@@ -652,7 +652,7 @@ story('types/pick-side-card-toxic', {
       // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
       const S = card.width, ctx = card.getContext('2d');
       const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
-      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = green(0.3, 0.12, 0.08, 0.08);
+      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
       return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
