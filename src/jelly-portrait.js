@@ -35,6 +35,23 @@ function toScreen(r, g, b, exposure, out, i) {
   out[i + 2] = srgb(clamp(-0.00327 * ar - 0.07276 * ag + 1.07602 * ab));
 }
 
+// the player's jelly in the portrait scene, `turn` radians round, the camera `room` times further
+// back than close up (the bell and the tops of its arms fill the picture at 1)
+function stand(look, turn, room) {
+  const { scene, camera } = kit;
+  const avatar = buildCharacter(look, 0.09);
+  const pose = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
+  avatar.update?.(0, pose);
+  avatar.root.rotation.y = -0.5 + turn;
+  scene.add(avatar.root);
+  const box = new THREE.Box3().setFromObject(avatar.root), mid = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+  const far = r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.62 * room;
+  camera.position.set(mid.x, mid.y + r * 0.35, mid.z + far);
+  camera.lookAt(mid);
+  avatar.depth = [far - r, far + r];   // how far the jelly's nearest and furthest points can be from the camera
+  return avatar;
+}
+
 // A data URL of `look`'s jelly, three-quarter on, in a disc of the menu's deep water (the board shows
 // it round); null if it can't be drawn. `turn` is how far round it is (radians; the pick screen draws
 // a few turns of the same jelly and fades between them), `room` how much further back the camera
@@ -46,14 +63,7 @@ export function jellyPortrait(renderer, look, { turn = 0, room = 1 } = {}) {
   try {
     kit ||= setup();
     const { scene, camera, target, canvas, ctx, pixels, image } = kit;
-    const avatar = buildCharacter(look, 0.09);
-    const pose = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
-    avatar.update?.(0, pose);
-    avatar.root.rotation.y = -0.5 + turn;
-    scene.add(avatar.root);
-    const box = new THREE.Box3().setFromObject(avatar.root), mid = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
-    camera.position.set(mid.x, mid.y + r * 0.35, mid.z + r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.62 * room);   // close: the bell and the tops of its arms fill the disc
-    camera.lookAt(mid);
+    const avatar = stand(look, turn, room);
     const was = renderer.getRenderTarget(), clear = renderer.getClearAlpha(), color = renderer.getClearColor(new THREE.Color());
     // the menu's deep water behind it (linear here: it's encoded back on the way out)
     renderer.setRenderTarget(target); renderer.setClearColor(new THREE.Color(LOOK.color('menu-water-deep', '#06162e')).convertSRGBToLinear(), 1);
@@ -72,4 +82,52 @@ export function jellyPortrait(renderer, look, { turn = 0, room = 1 } = {}) {
   } catch { url = null; }
   cache.set(id, url);
   return url;
+}
+
+// The pick screen's side cards (pick-aura.js) relight the jelly in a shader, so they take it as two
+// pictures kept on the GPU (never read back): `color`, the jelly lit as above on a see-through
+// background (linear, not tone mapped; premultiplied: its colour is already times its alpha), and
+// `jelly`, what it covers (r), its depth (g: 0 nearest .. 1 furthest) and its view-space normal's
+// xy (ba, 0-1). --pick-portrait-size px square. Kept while the look stays the same; free with freePortraitLayers().
+let layers = null;
+const MASK = new THREE.ShaderMaterial({
+  uniforms: { uNear: { value: 0 }, uFar: { value: 1 } },
+  vertexShader: /* glsl */`
+    varying vec3 vN; varying float vZ;
+    void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vZ = -mv.z; gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: /* glsl */`
+    uniform float uNear, uFar; varying vec3 vN; varying float vZ;
+    void main() { vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0); gl_FragColor = vec4(1.0, clamp((vZ - uNear) / (uFar - uNear), 0.0, 1.0), n.xy * 0.5 + 0.5); }`,
+  side: THREE.DoubleSide, blending: THREE.NoBlending,
+});
+export function portraitLayers(renderer, look, { room = 1 } = {}) {
+  const id = JSON.stringify([normalizeLook(look), room]);
+  if (layers?.id === id) return layers;
+  freePortraitLayers();
+  kit ||= setup();
+  const { scene, camera } = kit, size = LOOK.num('pick-portrait-size', 512);
+  const make = () => new THREE.WebGLRenderTarget(size, size, { type: THREE.HalfFloatType, samples: 4 });
+  const L = { id, color: make(), jelly: make() };
+  const avatar = stand(look, 0, room);
+  const was = renderer.getRenderTarget(), clear = renderer.getClearAlpha(), color = renderer.getClearColor(new THREE.Color());
+  const glows = [];   // sprites and additive glows light the picture but cover nothing
+  scene.traverse((o) => { if (o.visible && (o.isSprite || o.isPoints || o.isLine || o.material?.blending === THREE.AdditiveBlending)) glows.push(o); });
+  try {
+    renderer.setClearColor(0x000000, 0);
+    renderer.setRenderTarget(L.color); renderer.clear(); renderer.render(scene, camera);
+    for (const o of glows) o.visible = false;
+    [MASK.uniforms.uNear.value, MASK.uniforms.uFar.value] = avatar.depth;
+    scene.overrideMaterial = MASK;
+    renderer.setRenderTarget(L.jelly); renderer.clear(); renderer.render(scene, camera);
+  } finally {
+    scene.overrideMaterial = null;
+    for (const o of glows) o.visible = true;
+    renderer.setRenderTarget(was); renderer.setClearColor(color, clear);
+    scene.remove(avatar.root); avatar.dispose?.();
+  }
+  return (layers = L);
+}
+export function freePortraitLayers() {
+  layers?.color.dispose(); layers?.jelly.dispose();
+  layers = null;
 }
