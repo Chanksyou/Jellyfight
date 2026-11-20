@@ -1413,7 +1413,7 @@ story('encore/the-duet-rests-the-floor-and-comes-only-below-half', {
 });
 
 fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
-  about: 'Below half Health a duet slot plays the Wall of sound on the floor: both DJs lit, both out on the floor for its first bar, then the silver DJ throws three records that land a bar apart on the bar lines of bars 2 to 4, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the 8-beat Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls on the bar line as the 5th bar ends (both DJs push it out on that beat) and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED for 2 bars (hits do 1.5x), and everything is gone after.',
+  about: 'Below half Health a duet slot plays the Wall of sound on the floor: both DJs lit, both out on the floor for its first bar, then the silver DJ throws three records that land a bar apart on the bar lines of bars 2 to 4, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the 8-beat Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls on the bar line as the 5th bar ends (both DJs push it out on that beat, hits still 1x and the boss bar still DUET) and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED from the bow to its end (hits do 1.5x), and everything is gone after.',
   setup() {},
   play() {
     const out = {};
@@ -1434,14 +1434,14 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
       p.x = open[0]; p.z = open[1];                                        // out in the open, far from every strip
       const hp = () => B.hp, hit = () => { const was = hp(); B.damage(100); return Math.round(was - hp()); };
       go(59.8); const before = hit();
-      go(60.2); const push = M.rigs.silver.at === 60 && M.rigs.gold.at === 60, rolling = hit();   // (EXPOSED from the roll, as in the booth)
+      go(60.2); const push = M.rigs.silver.at === 60 && M.rigs.gold.at === 60, rolling = hit(), pushTag = B.tag;   // (pushing the wall out is not a bow: EXPOSED from the bow)
       go(62.2);
       const bowed = M.rigs.silver.at === 62 && M.rigs.gold.at === 62 && B.exposed && hit() === 150;
       const wallHit = hurt.filter((h) => h.wall);
       go(67.8); const late = hit();
       go(68.3); const after = hit(), clear = !B.solo && !B.records.casts.length && !B.wall.w && !B.spots.silver.visible && !B.disco.quiet(68.3) && !M.out('silver') && !M.out('gold');
-      out[k] = { ok: before === 100 && rolling === 150 && lands === '44,48,52' && warn === 8 && bar && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && push && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 60 && wallHit[0].beat < 62 && bowed && late === 150 && after === 100 && clear,
-        before, rolling, lands, warn, bar, lit, apart, standing, hands, disco, push, wallHit, bowed, late, after, clear };
+      out[k] = { ok: before === 100 && rolling === 100 && pushTag === 'DUET' && lands === '44,48,52' && warn === 8 && bar && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && push && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 60 && wallHit[0].beat < 62 && bowed && late === 150 && after === 100 && clear,
+        before, rolling, pushTag, lands, warn, bar, lit, apart, standing, hands, disco, push, wallHit, bowed, late, after, clear };
     }
     return ok(Object.values(out).every((r) => r.ok), out);
   },
@@ -1502,6 +1502,18 @@ fight('a-dj-vaulting-out-and-home-has-its-sounds-on-the-beat', {
         whoosh: cues.vaultWhoosh.map(([b]) => +b.toFixed(2)), thud: cues.landThud.map(([b]) => +b.toFixed(2)), rise: cues.crowdRise, shove: cues.wallShove.map(([b]) => +b.toFixed(2)) };
     }
     return ok(out.silver.ok && out.duet.ok, out);
+  },
+});
+
+fight('a-dj-booked-late-has-a-crowd-rise-only-as-long-as-his-air', {
+  about: 'A floor solo booked late (a beat before it starts, as after a jump in time) takes off at once: its whoosh and crowd rise play on booking, the rise only as long as the air he has left (a beat), so it never runs on past his landing thud.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
+    stub(B, 'hurtPlayer', () => {});
+    go(39); slot('silver', 40); go(42);
+    const rise = cues.crowdRise[0], beats = rise ? rise[1] * BPM / 60 : null;
+    return ok(near(cues.vaultWhoosh, [39]) && near(cues.crowdRise, [39]) && Math.abs(beats - 1) < 0.05 && near(cues.landThud, [40]), { whoosh: cues.vaultWhoosh, rise: cues.crowdRise, beats, thud: cues.landThud });
   },
 });
 
