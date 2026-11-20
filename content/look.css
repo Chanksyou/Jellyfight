@@ -403,6 +403,7 @@
   --preview-shadow-jelly: 0.11;        /* m across, the jelly's shadow */
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
+  --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -1034,12 +1035,15 @@
   --ember-spark-size: 0.0022;     /* its radius at the start, meters */
   --frost-tip: #e4f8ff;           /* Ice jelly: the frost crystal on each tentacle tip */
   --frost-tip-size: 1.9;          /* its size, in tentacle widths */
+  --frost-tip-glow: #3aa8ff;      /* its cold inner glow (the facets catch the light over it) */
+  --frost-tip-glow-strength: 0.9;
   --frost-mist: #cfeeff;          /* cold mist sinking off the tips */
   --frost-mists: 12;              /* at most this many at once */
   --frost-mist-every: 0.08;       /* seconds between puffs */
   --frost-mist-life: 1;           /* seconds a puff lasts */
   --frost-mist-sink: 0.05;        /* meters it sinks in that time */
   --frost-mist-size: 0.0038;      /* its radius, meters */
+  --frost-mist-core: 0.4;         /* the solid core of a puff, as a share of that (the rest is soft glow) */
   --ice-shard-streak: 0.0016;     /* the Shatter Shards upgrade: width of the streak to each bug */
   --barbed-tentacle-thickness: 1.8; /* Tentacle jelly: its tentacles this many times as thick */
   --barbed-tentacle-length: 1.35; /* and this many times as long */

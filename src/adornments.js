@@ -171,7 +171,8 @@ export class Adornments {
   // Ice jelly: a frost crystal on every tentacle tip, and cold mist drifting off the tips and sinking to the floor
   make_frost() {
     const group = new THREE.Group();
-    const tipMat = glowMat('frost-tip', '#e4f8ff', { emissiveIntensity: 1.6, flatShading: true });
+    // (a cold inner glow under a clear, glossy body, so each facet catches the light rather than glowing flat white)
+    const tipMat = glowMat('frost-tip', '#e4f8ff', { emissive: new THREE.Color(LOOK.color('frost-tip-glow', '#3aa8ff')), emissiveIntensity: LOOK.num('frost-tip-glow-strength', 0.9), roughness: 0.08, metalness: 0.3, flatShading: true });
     const mistMat = new THREE.MeshBasicMaterial({ color: LOOK.color('frost-mist', '#cfeeff'), toneMapped: false });
     const crystal = new THREE.OctahedronGeometry(1, 0).scale(0.55, 1.5, 0.55), ball = new THREE.SphereGeometry(1, 8, 6);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(crystal, tipMat); group.add(m); return m; });
@@ -203,7 +204,7 @@ export class Adornments {
         if (u >= 1 || !on) { m.visible = false; continue; }
         m.position.x += m.userData.dx * dt; m.position.z += m.userData.dz * dt;
         m.position.y = Math.max(floor, m.position.y - sink / life * dt);
-        m.scale.setScalar(size * (0.6 + u * 0.8));
+        m.scale.setScalar(size * LOOK.num('frost-mist-core', 0.4) * (0.6 + u * 0.8));   // a small core: the soft glow round it is the mist
         G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
       }
     } };

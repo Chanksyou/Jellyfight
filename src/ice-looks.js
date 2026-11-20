@@ -9,23 +9,44 @@ import { LOOK } from './look.js';
 const SHARDS = 160, FLOWERS = 24;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _c = new THREE.Color();
 
-// a six-armed frost crystal, drawn once, white on clear (tinted per flower)
+// a six-armed frost crystal, drawn once, white on clear (tinted per flower): a faceted hexagonal plate
+// in the middle and six dendrite arms, each a ridge lit on one side and dim on the other, branching at
+// the ice's own 60 degrees and branching again, on a soft cold glow (one canvas, so it costs nothing)
 function frostTexture() {
-  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
-  const g = c.getContext('2d');
-  g.translate(S / 2, S / 2); g.strokeStyle = '#fff'; g.lineCap = 'round';
-  const glow = g.createRadialGradient(0, 0, 0, 0, 0, S / 2);
-  glow.addColorStop(0, 'rgba(255,255,255,0.55)'); glow.addColorStop(0.35, 'rgba(255,255,255,0.12)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = glow; g.fillRect(-S / 2, -S / 2, S, S);
-  for (let a = 0; a < 6; a++) {
-    g.save(); g.rotate(a * Math.PI / 3);
-    g.lineWidth = 3.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -S * 0.46); g.stroke();
-    g.lineWidth = 2;
-    for (const [at, len] of [[0.16, 0.12], [0.27, 0.1], [0.37, 0.07]]) {   // the branches, shorter toward the tip
-      g.beginPath(); g.moveTo(0, -S * at); g.lineTo(-S * len, -S * (at + len * 0.9)); g.moveTo(0, -S * at); g.lineTo(S * len, -S * (at + len * 0.9)); g.stroke();
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), R = S * 0.47;
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // one arm along -y, `len` long, `w` wide at its root; it branches `depth` more times
+  const arm = (len, w, depth) => {
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.moveTo(-w, 0); g.lineTo(0, -len); g.lineTo(0, 0); g.fill();   // the lit face
+    g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.moveTo(w, 0); g.lineTo(0, -len); g.lineTo(0, 0); g.fill();    // the dim face
+    if (!depth) return;
+    const n = depth > 1 ? 4 : 2;
+    for (let i = 0; i < n; i++) {
+      const at = 0.22 + (i / n) * 0.66 + rnd() * 0.05, l = len * (1 - at) * (0.45 + rnd() * 0.2);
+      for (const side of [-1, 1]) {
+        g.save(); g.translate(0, -len * at); g.rotate(side * Math.PI / 3);
+        arm(l, w * (1 - at) * 0.9, depth - 1);
+        g.restore();
+      }
     }
-    g.restore();
-  }
+  };
+  const draw = () => {
+    for (let a = 0; a < 6; a++) { g.save(); g.rotate(a * Math.PI / 3); arm(R, S * 0.04, 2); g.restore(); }
+    // the plate: six facets, alternately lit and dim
+    for (let a = 0; a < 6; a++) {
+      const p = (k) => [Math.cos(k * Math.PI / 3 + Math.PI / 6) * S * 0.08, Math.sin(k * Math.PI / 3 + Math.PI / 6) * S * 0.08];
+      g.fillStyle = `rgba(255,255,255,${a % 2 ? 0.55 : 0.9})`;
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(...p(a)); g.lineTo(...p(a + 1)); g.fill();
+    }
+  };
+  g.translate(S / 2, S / 2);
+  const glow = g.createRadialGradient(0, 0, 0, 0, 0, S / 2);
+  glow.addColorStop(0, 'rgba(255,255,255,0.4)'); glow.addColorStop(0.3, 'rgba(255,255,255,0.08)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = glow; g.fillRect(-S / 2, -S / 2, S, S);
+  g.save(); g.filter = 'blur(5px)'; g.globalAlpha = 0.6; draw(); g.restore();   // a soft halo round the crystal (where the browser can blur)
+  seed = 7; draw();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
@@ -36,7 +57,7 @@ export class IceLooks {
     const geo = new THREE.OctahedronGeometry(1, 0); geo.scale(0.45, 1.6, 0.45);
     this.shards = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({
       color: LOOK.color('ice-shard', '#cfefff'), emissive: LOOK.color('ice-shard-glow', '#3aa8ff'), emissiveIntensity: 0.9,
-      roughness: 0.05, metalness: 0.35, flatShading: true, transparent: true, opacity: 0.92,
+      roughness: 0.05, metalness: 0.35, flatShading: true,   // solid (not see-through or added on), so they stay ice under bloom
     }), SHARDS);
     this.shards.name = 'Ice shards'; this.shards.frustumCulled = false; this.shards.userData.noCollide = true;
     this.list = Array.from({ length: SHARDS }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), spin: new THREE.Vector3(), rot: new THREE.Euler(), size: 0, t: 0, life: 0, floor: 0 }));

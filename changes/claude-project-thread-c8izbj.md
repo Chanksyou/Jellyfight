@@ -1,0 +1,1 @@
+gives the Ice jelly's attack more bite on the pick screen: its frost flower on the floor is now a shaded crystal instead of a line drawing, its shards stay solid ice, a Chilled roach glints with rime and breathes cold, the tip crystals catch the light and the water behind turns a cold blue.
