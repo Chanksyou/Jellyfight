@@ -1,1 +1,0 @@
-redraws the Ice jelly's pick card: real frost grows across the card's glass from the corners and glints as the light moves, snow falls at three depths, cold mist sinks off the bell and the jelly takes a pale icy rim, replacing the drawn-on corner flakes.
