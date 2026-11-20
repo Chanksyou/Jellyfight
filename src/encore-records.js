@@ -19,6 +19,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { juice } from './juice.js';
 
 const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2, BOSS = ENCORE.bossSpace;
+// the most of a frame's move the push takes as the jelly's own walk (m: well over a boosted walk at 30 fps)
+const WALK = 0.05;
 const RECORDS = 6, WARNINGS = 2, UP = new THREE.Vector3(0, 1, 0);
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
 
@@ -116,6 +118,10 @@ export class EncoreRecords {
     const p = player?.position;
     this.walkX = p && this.px != null ? p.x - this.px - this.pushX : 0; this.walkZ = p && this.px != null ? p.z - this.pz - this.pushZ : 0;
     this.px = p?.x ?? null; this.pz = p?.z ?? null;
+    // (a move that isn't a walk, a teleport or a long frame, counts as at most WALK: past it the push
+    // would feed on itself frame on frame until it flings the jelly or stalls the collision)
+    const walk = Math.hypot(this.walkX, this.walkZ);
+    if (walk > WALK) { this.walkX *= WALK / walk; this.walkZ *= WALK / walk; }
     this.beat = beat; this.pushX = this.pushZ = 0;
     const R = this.r, pr = player?.cfg?.radius ?? 0.03;
     let dropped = false;

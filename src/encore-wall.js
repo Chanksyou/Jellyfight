@@ -79,7 +79,7 @@ export class EncoreWall {
       this.swell = u;
       for (let i = 0; i < w.shields.length; i++) this.safe[i].visible = w.shields[i].c.slot.cast === w.shields[i].c;   // (gone if its record is)
       if (beat >= w.rollAt) {
-        w.state = 'roll';
+        w.state = 'roll'; this.riser = null;   // (its riser ends as the wall rolls)
         this.band.visible = this.slab.visible = false; for (const m of this.safe) m.visible = false;
         if (!skip) { this.fx.impact(_p.set(0, 0.1, LIP), this.color, 0.06, 18); juice.feel('impact-big'); sfx.encoreWall(); }
       }
@@ -116,7 +116,7 @@ export class EncoreWall {
     }
     if (!w.shields.length) { w.state = 'off'; this.swell = 0; return; }
     w.state = 'warn';
-    if (!skip) sfx.wallSwell((w.rollAt - w.warnAt) * 60 / TRACKS.encore.bpm);
+    if (!skip) this.riser = sfx.wallSwell((w.rollAt - w.warnAt) * 60 / TRACKS.encore.bpm);
     this.band.visible = this.slab.visible = true;
     this.slab.scale.set(2 * HALF, w.height, Z1 - Z0);
     this.band.material.progress = this.slab.material.progress = 0;
@@ -143,6 +143,7 @@ export class EncoreWall {
   // nothing booked, nothing shown (its end, a song rewind, the short-out, its defeat)
   reset() {
     this.w = null; this.swell = 0;
+    this.riser?.(); this.riser = null;   // a Warning cut short stops its riser
     this.band.visible = this.slab.visible = false; for (const m of this.safe) m.visible = false;
     for (let i = 0; i < COLS * 2; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
     this.mesh.instanceMatrix.needsUpdate = true;
