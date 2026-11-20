@@ -1364,7 +1364,7 @@ export class Run {
       this.resume();
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect(),
     // the reward spin (spin-screen.js): not for cards a reload owes; its filler is real rolls on its own dice
-    { first: !owed, rollOne: (rng) => this.rollLevelUp(1, rng), luck: this.S.luck, odds: tierOdds('levelup', { luck: this.S.luck, bonus: this.mods.cardRarity }) });
+    { first: !owed, hint: !owed && this.spinHint(), rollOne: (rng) => this.rollLevelUp(1, rng), luck: this.S.luck, odds: tierOdds('levelup', { luck: this.S.luck, bonus: this.mods.cardRarity }) });
   }
 
   // The level-up roll: n cards as a level-up offers them (rng: the reward spin's own dice for its
@@ -1413,7 +1413,7 @@ export class Run {
       return { ...t, tier: treasureTier(t), text, delta };
     });
     const pool = TREASURES.filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0 && this.takeable(t));   // what the chest could hold (the Luck panel's odds)
-    this.offer(title, sub, left, undefined, { kind: 'treasure', rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
+    this.offer(title, sub, left, undefined, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
   }
 
   // The Boss reward: a Legendary pick of three from the Legendary treasures you can take, the
@@ -1423,8 +1423,14 @@ export class Run {
     const evos = EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e));
     const left = shuffle([...TREASURES.filter(can), ...evos]).slice(0, 3);
     if (!left.length) { then(); return; }
-    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
+    // the reward spin: all-gold reels, filler from everything the boss could have given
+    const pool = [...TREASURES.filter(can), ...evos].map((t) => ({ ...t, tier: treasureTier(t) }));
+    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then,
+      { kind: 'legendary', hint: this.spinHint(), rollOne: (rng) => [pool[Math.floor(rng() * pool.length)]], luck: this.S.luck, odds: tierOdds('legendary') });
   }
+
+  // a first run's one extra line on its first spin (first-run.js); null once told, or when no spin plays
+  spinHint() { return this.ui.spinOn ? this.firstRun.spinHint() : null; }
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
   hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy); }   // needs-chance: some effect of yours rolls a chance

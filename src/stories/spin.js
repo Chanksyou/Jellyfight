@@ -5,6 +5,7 @@ import { CONTENT } from '../content.js';
 import { RARITY, TREASURES, CHEST_WEIGHTS, rollCards, cardAmount } from '../stats.js';
 import { tierOdds, buildStrips, spinCells, spinTimes } from '../spin.js';
 import { seededRandom } from '../story-random.mjs';
+import { FirstRun } from '../first-run.js';
 import { G, story, ok, fresh, stub, give, step } from './kit.js';
 
 const card = (stat, tier) => ({ stat, rarity: RARITY[tier], amount: CONTENT.levelups.cards[stat].amounts[tier] });
@@ -408,5 +409,41 @@ story('spin/three-of-a-kind-rolls-one-reel-again', {
     const badge = shownCards()[up]?.querySelector('.jf-up')?.textContent || '';
     return ok(up >= 0 && sign === 'Three Commons! One becomes Rare.' && rim.filter(Boolean).length === 1 && rim[up] && otherLines && rolling && line.r === 'rare' && tag && badge.includes('Upgraded'),
       { up, sign, rim, otherLines, rolling, line, tag, badge });
+  },
+});
+
+story('spin/boss-reward-is-all-legendary', {
+  about: 'The Boss reward opens on the machine: every reel (and its filler) is Legendary, the panel says "Boss reward: always Legendary", the reels land on the three offered and the cards follow.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run } = G();
+    run.pickLegendary('A Legendary treasure', 'Choose a treasure.', () => {});
+    const sp = spinning(), offer = sp?.o.offer || [];
+    const panel = machine()?.querySelector('.sp-boss')?.textContent;
+    const gold = [...document.querySelectorAll('.jf-spin .sp-cell')].every((c) => c.dataset.r === 'legendary');
+    step(400, () => sp.reels.every((r) => r.landed));
+    const lines = paylines().every((l, i) => l.r === 'legendary' && l.name === offer[i].name);
+    untilCards();
+    return ok(offer.length === 3 && panel === 'Boss reward: always Legendary' && gold && lines && shownCards().length === 3, { n: offer.length, panel, gold, lines });
+  },
+});
+
+story('spin/first-run-says-how-to-stop', {
+  about: 'A first run\'s first spin says "Tap to stop the reels." on its sign, once; the next spin, and any spin of a later run, does not.',
+  setup() { fresh({ spin: true, firstRun: true }); },
+  play() {
+    const { run } = G(), line = () => machine()?.querySelector('.sp-sign p').textContent;
+    openLevelUp();
+    const first = line();
+    untilCards();
+    G().menus.close();
+    openLevelUp();
+    const second = line();
+    untilCards();
+    G().menus.close();
+    run.firstRun = new FirstRun(false);
+    openLevelUp();
+    const later = line();
+    return ok(first === 'Tap to stop the reels.' && second === 'The reels are rolling…' && later === 'The reels are rolling…', { first, second, later });
   },
 });
