@@ -2,8 +2,10 @@
 import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import worker from '../worker/index.js';
+import worker, { checkRun, WAVES } from '../worker/index.js';
+import { readFileSync } from 'node:fs';
 import { ACHIEVEMENTS } from '../src/achievements.js';
+import { SEASON, actScore } from '../src/score.js';
 
 const sqlite = new DatabaseSync(':memory:');
 let rateBarrier = null;
@@ -35,16 +37,35 @@ const request = async (path, body) => {
   }), env);
   return { status: response.status, data: await response.json() };
 };
-// a score backed by a logged run: one act, finished with that score (the Worker checks it: checkRun)
-const logAct = (id, run, act, outcome, extra = {}) => sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
+// a score backed by a logged run: acts finished with those scores (the Worker checks them: checkRun) and, in each
+// act's details, score facts that add up to what the act earned (the Worker scores the run itself: src/score.js)
+function factsFor(points, won, time = 300) {
+  const f = won ? { nightShare: 0, bossShare: 1, bugsOut: 100, bugsCleared: 0, damageTaken: 100, bossSeconds: Math.max(10, Math.min(180, time)) }
+    : { nightShare: 0, bossShare: 0, bugsOut: 100, bugsCleared: 0, damageTaken: 0, bossSeconds: null };
+  let r = points - actScore({ ...f, won, elites: 0 }), elites = Math.max(0, Math.min(3, Math.floor(r / 500)));
+  r -= elites * 500;
+  const night = Math.max(0, Math.min(2000, Math.floor(r / 20) * 20)); f.nightShare = night / 2000; r -= night;
+  if (won) { const c = Math.max(0, Math.min(2000, Math.floor(r / 20) * 20)); f.damageTaken = 100 - c / 20; r -= c; }
+  else { const b = Math.max(0, Math.min(3000, Math.floor(r / 30) * 30)); f.bossShare = b / 3000; r -= b; }
+  f.bugsCleared = r / 10;
+  if (actScore({ ...f, won, elites }) !== points || !Number.isInteger(f.bugsCleared) || f.bugsCleared > 100) throw new Error(`no act earns ${points}${won ? ' cleared' : ''}`);
+  return { facts: f, elites };
+}
+const logAct = (id, run, act, outcome, extra = {}) => {
+  const before = sqlite.prepare('SELECT score FROM run_summaries WHERE player_id = ? AND run_id = ? AND act = ?').get(id, run, act - 1)?.score ?? 0;
+  const time = extra.time ?? 300, score = extra.score ?? 0;
+  const made = extra.facts ? { facts: extra.facts, elites: 0 } : factsFor(score - before, outcome === 'next-act' || outcome === 'won', time);
+  const details = JSON.stringify({ season: SEASON, elitesBeaten: made.elites, ...(extra.details ? JSON.parse(extra.details) : {}), score: made.facts });
+  sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
   (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures, details, boss_left)
   VALUES (?, ?, ?, 1, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, run, act, outcome === 'in-progress' ? 0 : 1, outcome,
-  extra.score ?? 0, extra.time ?? 300, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]), extra.details ?? null, extra.bossLeft ?? null);
-const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { score: body.score }); return request('/api/scores', { run: 'run-' + body.id, ...body }); };
+  score, time, extra.level ?? 10, JSON.stringify(extra.treasures ?? [['candle', 1]]), extra.raw ?? details, extra.bossLeft ?? null);
+};
+const postScore = (body) => { logAct(body.id, 'run-' + body.id, 1, 'died', { score: body.score }); return request('/api/scores', { run: 'run-' + body.id, season: SEASON, ...body }); };
 const submit = (id, achievements, name = id) => request('/api/achievements', { id, name, achievements });
 const clearRates = () => sqlite.exec('DELETE FROM posts');
 await request('/api/achievements');
-beforeEach(() => sqlite.exec('DELETE FROM player_names; DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries; DELETE FROM perf_reports'));
+beforeEach(() => sqlite.exec('DELETE FROM player_names; DELETE FROM achievement_unlocks; DELETE FROM achievement_players; DELETE FROM posts; DELETE FROM scores; DELETE FROM feedback; DELETE FROM runs; DELETE FROM run_summaries; DELETE FROM perf_reports; DELETE FROM board'));
 after(() => sqlite.close());
 
 test('an existing summary database gains details without changing historical records', async () => {
@@ -109,6 +130,10 @@ test('run details keep each act\'s score facts as clamped numbers, and an older 
   clearRates();
   await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-scoreold', act: 1, revision: 1, outcome: 'died', details: { elitesBeaten: 1 } }] });
   assert.equal('score' in read('run-scoreold'), false);
+  assert.equal('season' in read('run-scoreold'), false);   // an older client sends no season
+  clearRates();
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-season', act: 1, revision: 1, outcome: 'died', details: { season: SEASON } }] });
+  assert.equal(read('run-season').season, SEASON);
 });
 
 test('the phone bench\'s results are kept in perf_reports: bounded, no player id, one per address every 30 seconds', async () => {
@@ -199,7 +224,7 @@ test('achievement portraits persist a sanitized look without needing a score and
   const expected = { body: 'moon', color: '#12abcd', top: 'crown', name: 'x'.repeat(24) };
   assert.deepEqual(first.data.mine.look, expected);
   assert.deepEqual(first.data.top[0].look, expected);
-  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 0);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM board').get().n, 0);
   clearRates(); await send({});
   assert.deepEqual((await request('/api/achievements?me=player-one')).data.mine.look, expected);
   clearRates(); await send({ look: { body: 'nettle', color: '#abcdef' } });
@@ -290,18 +315,18 @@ test('names are unique across scores and achievements, including case and spaces
   const clash = await postScore({ id: 'player-two', name: 'sea jelly', score: 700 });
   assert.equal(clash.status, 409); assert.equal(clash.data.why, 'taken');
   assert.equal((await submit('player-three', ['perfect-boss'], 'SEA JELLY')).data.why, 'taken');
-  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM board').get().n, 1);
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM achievement_unlocks').get().n, 0);
 });
 
 test('renaming preserves the run and achievement dates and frees the old name', async () => {
   await postScore({ id: 'player-one', name: 'Original', score: 500, look: { body: 'moon' } });
   await submit('player-one', ['perfect-boss'], 'Original');
-  const before = { ...sqlite.prepare('SELECT * FROM scores').get() };
+  const before = { ...sqlite.prepare('SELECT * FROM board').get() };
   const earned = sqlite.prepare('SELECT at FROM achievement_unlocks').get().at;
   const result = await request('/api/name', { id: 'player-one', name: ' New   Name ' });
   assert.equal(result.data.renamed, true); assert.equal(result.data.name, 'New Name');
-  assert.deepEqual({ ...sqlite.prepare('SELECT * FROM scores').get() }, { ...before, name: 'New Name' });
+  assert.deepEqual({ ...sqlite.prepare('SELECT * FROM board').get() }, { ...before, name: 'New Name' });
   assert.equal(sqlite.prepare('SELECT name FROM achievement_players').get().name, 'New Name');
   assert.equal(sqlite.prepare('SELECT at FROM achievement_unlocks').get().at, earned);
   clearRates();
@@ -310,7 +335,7 @@ test('renaming preserves the run and achievement dates and frees the old name', 
   assert.equal((await postScore({ id: 'player-two', name: 'Original', score: 200 })).data.posted, true);
   clearRates();
   assert.equal((await request('/api/name', { id: 'player-one', name: 'original' })).data.why, 'taken');
-  assert.equal(sqlite.prepare('SELECT name FROM scores WHERE id = ?').get('player-one').name, 'New Name');
+  assert.equal(sqlite.prepare('SELECT name FROM board WHERE id = ?').get('player-one').name, 'New Name');
 });
 
 test('rename rejects unknown players, blank names, malformed requests and rapid repeat changes', async () => {
@@ -325,7 +350,7 @@ test('simultaneous name claims have one winner and do not partially save the los
   const results = await Promise.all(['player-one', 'player-two'].map(id => postScore({ id, name: 'Same Jelly', score: 500 })));
   assert.equal(results.filter(r => r.data.posted).length, 1);
   assert.equal(results.filter(r => r.data.why === 'taken').length, 1);
-  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM scores').get().n, 1);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM board').get().n, 1);
 });
 
 test('migration keeps earliest saved name, reserves existing numbered names, and is idempotent', async () => {
@@ -348,79 +373,170 @@ test('migration keeps earliest saved name, reserves existing numbered names, and
 });
 
 test('a score must be the last act of a run its player logged, and the run must look playable', async () => {
-  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score }); };
+  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, season: SEASON }); };
   assert.equal((await post(undefined, 500)).data.why, 'unverified');            // no run named
   assert.equal((await post('run-missing', 500)).data.why, 'pending');           // its log hasn't arrived
   logAct('player-one', 'run-good', 1, 'next-act', { score: 12000, level: 13 });
   assert.equal((await post('run-good', 12000)).data.why, 'pending');            // still going
-  logAct('player-one', 'run-good', 2, 'died', { score: 20000, level: 16, time: 90 });
+  logAct('player-one', 'run-good', 2, 'died', { score: 19000, level: 16, time: 90 });
   assert.equal((await post('run-good', 60000)).data.why, 'unverified');         // not the score it logged
-  assert.equal((await post('run-good', 20000)).data.posted, true);
+  assert.equal((await post('run-good', 19000)).data.posted, true);
   logAct('player-one', 'run-skip', 1, 'next-act', { score: 10000 });             // act 2 missing
-  logAct('player-one', 'run-skip', 3, 'died', { score: 30000 });
-  assert.equal((await post('run-skip', 30000)).data.why, 'unverified');
-  logAct('player-one', 'run-open', 1, 'in-progress', { score: 10000 });          // act 1 never finished
-  logAct('player-one', 'run-open', 2, 'died', { score: 30000 });
-  assert.equal((await post('run-open', 30000)).data.why, 'unverified');
-  logAct('player-one', 'run-level', 1, 'died', { score: 30000, level: 30 });     // level 30 in act 1
-  assert.equal((await post('run-level', 30000)).data.why, 'unverified');
-  logAct('player-one', 'run-stack', 1, 'died', { score: 30000, treasures: [['penSpring', 10]] });
-  assert.equal((await post('run-stack', 30000)).data.why, 'unverified');
+  logAct('player-one', 'run-skip', 3, 'died', { score: 16000, facts: {} });
+  assert.equal((await post('run-skip', 16000)).data.why, 'unverified');
+  logAct('player-one', 'run-open', 1, 'in-progress', { score: 5000 });          // act 1 never finished
+  logAct('player-one', 'run-open', 2, 'died', { score: 11000 });
+  assert.equal((await post('run-open', 11000)).data.why, 'unverified');
+  logAct('player-one', 'run-level', 1, 'died', { score: 7000, level: 30 });     // level 30 in act 1
+  assert.equal((await post('run-level', 7000)).data.why, 'unverified');
+  logAct('player-one', 'run-stack', 1, 'died', { score: 7000, treasures: [['penSpring', 10]] });
+  assert.equal((await post('run-stack', 7000)).data.why, 'unverified');
   logAct('player-one', 'run-rush', 1, 'next-act', { score: 10000, time: 40 });   // cleared act 1 in 40 s
-  logAct('player-one', 'run-rush', 2, 'died', { score: 30000 });
-  assert.equal((await post('run-rush', 30000)).data.why, 'unverified');
-  assert.equal(sqlite.prepare('SELECT score FROM scores').get().score, 20000);
+  logAct('player-one', 'run-rush', 2, 'died', { score: 16000 });
+  assert.equal((await post('run-rush', 16000)).data.why, 'unverified');
+  assert.equal(sqlite.prepare('SELECT score FROM board').get().score, 19000);
 });
 
 test('act 4 has a night before its arena: a win or an Encore fight takes 170 s, and its levels go higher', async () => {
-  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score }); };
-  const upTo3 = (run) => [1, 2, 3].forEach((act) => logAct('player-one', run, act, 'next-act', { score: act * 1000, level: 10 + act }));
-  upTo3('run-won4'); logAct('player-one', 'run-won4', 4, 'won', { score: 9000, level: 31, time: 260 });       // the night, then the Encore beaten
-  assert.equal((await post('run-won4', 9000)).data.posted, true);
-  upTo3('run-quick'); logAct('player-one', 'run-quick', 4, 'won', { score: 9000, level: 20, time: 90 });    // won act 4 without its night
-  assert.equal((await post('run-quick', 9000)).data.why, 'unverified');
-  upTo3('run-arena'); logAct('player-one', 'run-arena', 4, 'died', { score: 9000, level: 20, time: 120, bossLeft: 60 });   // in the arena too soon
-  assert.equal((await post('run-arena', 9000)).data.why, 'unverified');
-  upTo3('run-room4'); logAct('player-one', 'run-room4', 4, 'died', { score: 9500, level: 20, time: 60 });     // dried out in the room: no rule on time
-  assert.equal((await post('run-room4', 9500)).data.posted, true);
-  upTo3('run-high4'); logAct('player-one', 'run-high4', 4, 'won', { score: 9000, level: 33, time: 300 });    // past act 4's level cap
-  assert.equal((await post('run-high4', 9000)).data.why, 'unverified');
+  const post = (run, score) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, season: SEASON }); };
+  const upTo3 = (run) => [1, 2, 3].forEach((act) => logAct('player-one', run, act, 'next-act', { score: act * 10000, level: 10 + act }));
+  upTo3('run-won4'); logAct('player-one', 'run-won4', 4, 'won', { score: 40000, level: 31, time: 260 });       // the night, then the Encore beaten
+  assert.equal((await post('run-won4', 40000)).data.posted, true);
+  upTo3('run-quick'); logAct('player-one', 'run-quick', 4, 'won', { score: 40000, level: 20, time: 90 });    // won act 4 without its night
+  assert.equal((await post('run-quick', 40000)).data.why, 'unverified');
+  upTo3('run-arena'); logAct('player-one', 'run-arena', 4, 'died', { score: 36000, level: 20, time: 120, bossLeft: 60 });   // in the arena too soon
+  assert.equal((await post('run-arena', 36000)).data.why, 'unverified');
+  upTo3('run-room4'); logAct('player-one', 'run-room4', 4, 'died', { score: 36500, level: 20, time: 60 });     // dried out in the room: no rule on time
+  assert.equal((await post('run-room4', 36500)).data.why, 'lower');                // verified, but below the win above
+  upTo3('run-high4'); logAct('player-one', 'run-high4', 4, 'won', { score: 40000, level: 33, time: 300 });    // past act 4's level cap
+  assert.equal((await post('run-high4', 40000)).data.why, 'unverified');
 });
 
 test('a score names the jelly type its run was logged as, and a missing type is Normal', async () => {
-  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly }); };
-  logAct('player-one', 'run-older', 1, 'died', { score: 1000 });                                   // an older client: no details, no type
+  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly, season: SEASON }); };
+  logAct('player-one', 'run-older', 1, 'died', { score: 1000 });                                   // no jelly type logged or posted: Normal
   assert.deepEqual((await post('run-older', 1000)).data, { posted: true });
-  logAct('player-one', 'run-fire', 1, 'next-act', { score: 2000, details: JSON.stringify({ jelly: 'fire' }) });
-  logAct('player-one', 'run-fire', 2, 'died', { score: 3000, details: JSON.stringify({ jelly: 'fire' }) });
-  assert.equal((await post('run-fire', 3000)).data.why, 'unverified');                          // posted as Normal
-  assert.equal((await post('run-fire', 3000, 'ice')).data.why, 'unverified');                   // posted as another type
-  assert.equal((await post('run-fire', 3000, 'fire')).data.posted, true);
-  logAct('player-one', 'run-swap', 1, 'next-act', { score: 4000, details: JSON.stringify({ jelly: 'fire' }) });
-  logAct('player-one', 'run-swap', 2, 'died', { score: 5000, details: JSON.stringify({ jelly: 'ice' }) });   // changed type mid-run
-  assert.equal((await post('run-swap', 5000, 'ice')).data.why, 'unverified');
+  logAct('player-one', 'run-fire', 1, 'next-act', { score: 10000, details: JSON.stringify({ jelly: 'fire' }) });
+  logAct('player-one', 'run-fire', 2, 'died', { score: 15000, details: JSON.stringify({ jelly: 'fire' }) });
+  assert.equal((await post('run-fire', 15000)).data.why, 'unverified');                          // posted as Normal
+  assert.equal((await post('run-fire', 15000, 'ice')).data.why, 'unverified');                   // posted as another type
+  assert.equal((await post('run-fire', 15000, 'fire')).data.posted, true);
+  logAct('player-one', 'run-swap', 1, 'next-act', { score: 10000, details: JSON.stringify({ jelly: 'fire' }) });
+  logAct('player-one', 'run-swap', 2, 'died', { score: 15000, details: JSON.stringify({ jelly: 'ice' }) });   // changed type mid-run
+  assert.equal((await post('run-swap', 15000, 'ice')).data.why, 'unverified');
 });
 
 test('a jelly type run with up to 3 Attack upgrades and several former evolutions posts, and the board shows its type', async () => {
-  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly }); };
+  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly, season: SEASON }); };
   const typed = (upgrades) => JSON.stringify({ jelly: 'fire', upgrades });
   sqlite.prepare('UPDATE run_summaries SET evolutions = ?').run('[]');
-  logAct('player-one', 'run-many', 1, 'next-act', { score: 2000, details: typed(['slowBurn']) });
-  logAct('player-one', 'run-many', 2, 'next-act', { score: 3000, details: typed(['slowBurn', 'fireBreath']) });
-  logAct('player-one', 'run-many', 3, 'next-act', { score: 4000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });   // a fourth upgrade
-  logAct('player-one', 'run-many', 4, 'died', { score: 5000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });
-  assert.equal((await post('run-many', 5000, 'fire')).data.why, 'unverified');
-  logAct('player-one', 'run-fire', 1, 'next-act', { score: 2000, treasures: [['candle', 1]], details: typed(['slowBurn']) });
-  logAct('player-one', 'run-fire', 2, 'next-act', { score: 3000, details: typed(['slowBurn', 'fireBreath']) });
-  logAct('player-one', 'run-fire', 3, 'died', { score: 4000, details: typed(['slowBurn', 'fireBreath', 'a']) });
+  logAct('player-one', 'run-many', 1, 'next-act', { score: 10000, details: typed(['slowBurn']) });
+  logAct('player-one', 'run-many', 2, 'next-act', { score: 20000, details: typed(['slowBurn', 'fireBreath']) });
+  logAct('player-one', 'run-many', 3, 'next-act', { score: 30000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });   // a fourth upgrade
+  logAct('player-one', 'run-many', 4, 'died', { score: 35000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });
+  assert.equal((await post('run-many', 35000, 'fire')).data.why, 'unverified');
+  logAct('player-one', 'run-fire', 1, 'next-act', { score: 10000, treasures: [['candle', 1]], details: typed(['slowBurn']) });
+  logAct('player-one', 'run-fire', 2, 'next-act', { score: 20000, details: typed(['slowBurn', 'fireBreath']) });
+  logAct('player-one', 'run-fire', 3, 'died', { score: 25000, details: typed(['slowBurn', 'fireBreath', 'a']) });
   sqlite.prepare("UPDATE run_summaries SET evolutions = ? WHERE run_id = 'run-fire'").run('["moon","lion","box"]');   // three former evolutions as Legendaries
-  assert.equal((await post('run-fire', 4000, 'fire')).data.posted, true);
+  assert.equal((await post('run-fire', 25000, 'fire')).data.posted, true);
   const { data } = await request('/api/scores?me=player-one');
   assert.equal(data.top[0].jelly, 'fire');
   assert.equal(data.mine.jelly, 'fire');
   const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
   await save({ run: 'run-upgrades', act: 1, revision: 1, outcome: 'died', details: { jelly: 'ice', upgrades: ['frostbite', '<bad>', 7] } });
   assert.deepEqual(JSON.parse(sqlite.prepare("SELECT details FROM run_summaries WHERE run_id = 'run-upgrades'").get().details).upgrades, ['frostbite', 'bad', '7']);
+});
+
+// One logged act as checkRun reads it: `points` this act earned (facts made by factsFor), changed by `facts` / `details`
+const act = (n, outcome, score, points, { facts = {}, details = {}, time = 300 } = {}) => {
+  const made = factsFor(points, outcome === 'next-act' || outcome === 'won', time);
+  return { act: n, outcome, finalized: 1, score, time, level: 10, treasures: '[]', boss_left: null,
+    details: JSON.stringify({ season: SEASON, elitesBeaten: made.elites, ...details, score: { ...made.facts, ...facts } }) };
+};
+
+test('the Worker scores a run itself from its logged acts, and refuses one whose facts say another score', async () => {
+  const run = [act(1, 'next-act', 12000, 12000), act(2, 'died', 19000, 7000)];
+  assert.equal(checkRun(run, 19000), null);
+  const off = [run[0], act(2, 'died', 19000, 7000, { facts: { bugsCleared: 0 } })];        // the facts earn 1,000 less than it logged
+  assert.equal(checkRun(off, 19000), 'unverified');
+  assert.equal(checkRun([act(2, 'died', 7000, 7000)], 7000), 'unverified');                  // not logged from act 1
+  assert.equal(checkRun([{ ...run[0], details: JSON.stringify({ season: SEASON }) }], 12000), 'pending');
+  const older = { ...run[0], outcome: 'died', details: JSON.stringify({ season: SEASON, jelly: 'normal' }) };   // no score facts: an older client
+  assert.equal(checkRun([older], 12000), 'unverified');
+});
+
+test('a run from another season, or a post without the season, is unverified', async () => {
+  assert.equal(checkRun([act(1, 'died', 7000, 7000)], 7000, 'normal', SEASON + 1), 'unverified');
+  assert.equal(checkRun([act(1, 'died', 7000, 7000)], 7000, 'normal', null), 'unverified');
+  assert.equal(checkRun([act(1, 'died', 7000, 7000, { details: { season: SEASON - 1 } })], 7000), 'unverified');
+  logAct('player-one', 'run-noseason', 1, 'died', { score: 7000 });
+  assert.equal((await request('/api/scores', { id: 'player-one', name: 'Jelly', run: 'run-noseason', score: 7000 })).data.why, 'unverified');
+});
+
+test('checkRun refuses score facts no real act can have', async () => {
+  const one = (outcome, points, o) => checkRun([act(1, outcome, points, points, o)], points);
+  assert.equal(one('died', 7000), null);
+  assert.equal(one('died', 7000, { facts: { bugsOut: 40, bugsCleared: 41 } }), 'unverified');            // cleared more than came out
+  assert.equal(one('died', 7000, { facts: { bugsOut: 100000, bugsCleared: 100000 } }), 'unverified');    // more than the waves could send
+  assert.equal(one('won', 12000, { facts: { bossSeconds: 9 } }), 'unverified');                     // a boss beaten in 9 s
+  assert.equal(one('won', 12000, { facts: { bossSeconds: null } }), 'unverified');                  // a boss beaten with no fight
+  assert.equal(one('died', 7000, { facts: { bossSeconds: 400 } }), 'unverified');                        // a fight longer than the act
+  assert.equal(one('died', 7000, { details: { elitesBeaten: 4 } }), 'unverified');                       // 3 Elites an act at most
+  assert.equal(one('died', 7000, { facts: { damageTaken: -1 } }), 'unverified');
+  assert.equal(one('died', 7000, { facts: { damageTaken: null } }), 'unverified');
+  assert.equal(one('died', 7000, { facts: { nightShare: 1.5 } }), 'unverified');
+  assert.equal(one('died', 7000, { facts: { bossShare: null } }), 'unverified');
+});
+
+test('the bugs-out ceiling uses the spawn rate in content/waves.kdl', () => {
+  const [, rate, grow] = readFileSync(new URL('../content/waves.kdl', import.meta.url), 'utf8').match(/^\s*rate ([\d.]+) grow=([\d.]+)/m);
+  assert.deepEqual(WAVES, { rate: +rate, grow: +grow });
+});
+
+test('the board keeps a best run per player and jelly type this season, with the act reached and acts cleared untouched', async () => {
+  const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly, season: SEASON }); };
+  const typed = (jelly) => JSON.stringify({ jelly });
+  logAct('player-one', 'run-normal1', 1, 'next-act', { score: 14000, details: typed('normal'),                  // cleared with no damage
+    facts: { nightShare: 1, bossShare: 1, bugsOut: 100, bugsCleared: 100, damageTaken: 0, bossSeconds: 60 } });
+  logAct('player-one', 'run-normal1', 2, 'died', { score: 20000, details: typed('normal') });   // and took no damage dying: not cleared, so it doesn't count
+  assert.equal((await post('run-normal1', 20000, 'normal')).data.posted, true);
+  logAct('player-one', 'run-fire1', 1, 'died', { score: 5000, details: typed('fire') });                     // lower, but another type: its own row
+  assert.equal((await post('run-fire1', 5000, 'fire')).data.posted, true);
+  logAct('player-one', 'run-fire2', 1, 'died', { score: 4000, details: typed('fire') });
+  assert.equal((await post('run-fire2', 4000, 'fire')).data.why, 'lower');
+  const rows = sqlite.prepare('SELECT season, jelly, score, acts, clean, won FROM board ORDER BY score DESC').all().map(r => ({ ...r }));
+  assert.deepEqual(rows, [{ season: SEASON, jelly: 'normal', score: 20000, acts: 2, clean: 1, won: 0 }, { season: SEASON, jelly: 'fire', score: 5000, acts: 1, clean: 0, won: 0 }]);
+  await request('/api/name', { id: 'player-one', name: 'Renamed' });
+  assert.deepEqual(sqlite.prepare('SELECT DISTINCT name FROM board').all().map(r => r.name), ['Renamed']);
+});
+
+test('board tabs: champions, all and a jelly type, each with your own row and its real place', async () => {
+  const add = sqlite.prepare('INSERT INTO board (season, id, jelly, name, score, won, acts, clean, at) VALUES (?, ?, ?, ?, ?, 0, 1, 0, ?)');
+  for (let i = 1; i <= 12; i++) add.run(SEASON, 'player-' + String(i).padStart(2, '0'), 'normal', 'N' + i, 1000 * i, i);
+  add.run(SEASON, 'player-01', 'fire', 'N1', 50000, 1);      // player 1's best is a Fire run
+  add.run(SEASON, 'player-02', 'fire', 'N2', 50000, 0);      // the same score, earlier: first
+  add.run(SEASON, 'player-03', 'ice', 'N3', 2000, 5);
+  add.run(SEASON - 1, 'player-04', 'wind', 'Old', 60000, 5); // another season: never shown
+  const tab = async (t, me = 'player-01') => (await request(`/api/scores?${t ? 'tab=' + t + '&' : ''}me=${me}`)).data;
+  const all = await tab('all');
+  assert.equal(all.season, SEASON); assert.equal(all.tab, 'all');
+  assert.deepEqual(all.top.map(r => [r.name, r.jelly, r.score]).slice(0, 4), [['N2', 'fire', 50000], ['N1', 'fire', 50000], ['N12', 'normal', 12000], ['N11', 'normal', 11000]]);
+  assert.equal(all.top.length, 10);
+  assert.ok(all.top.every(r => r.name === 'N1' ? r.id === 'player-01' : !('id' in r)));    // only your own id comes back
+  assert.deepEqual([all.mine.jelly, all.mine.score, all.mine.place], ['fire', 50000, 2]);
+  assert.deepEqual(await tab(''), all);                                                   // no tab: all
+  const normal = await tab('normal', 'player-03');
+  assert.deepEqual(normal.top.map(r => r.score), [12000, 11000, 10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000]);
+  assert.deepEqual([normal.mine.score, normal.mine.place, normal.mine.id], [3000, 10, 'player-03']);
+  const low = await tab('normal', 'player-01');
+  assert.deepEqual([low.mine.score, low.mine.place], [1000, 12]);                          // outside the top 10: still there, with its place
+  const champs = await tab('champions');
+  assert.deepEqual(champs.top.map(r => [r.jelly, r.name]), [['fire', 'N2'], ['normal', 'N12'], ['ice', 'N3']]);
+  assert.equal(champs.mine, null);
+  assert.deepEqual((await tab('glitter')).top, []);                                        // a type nobody has played yet
+  assert.equal((await tab('wind')).top.length, 0);
+  assert.deepEqual(Object.keys(all.top[0]).sort(), ['acts', 'at', 'body', 'clean', 'jelly', 'kills', 'level', 'look', 'name', 'score', 'time', 'won']);
 });
 
 test('the dev password is checked against the secret, slowly, and never opens without one', async () => {
