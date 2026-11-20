@@ -30,7 +30,7 @@ export const STAGE2 = {
   // `toughness` the regular bugs' health (they toughen further with the hour), `eliteHp` and
   // `bossHp` the elites' and the Clog's, `power` every hit you take (run.js)
   toughness: 2,
-  eliteHp: 1.8,
+  eliteHp: 2,                         // the Soap Dispenser's, the Wall Clock's and the Cream Whipper's Health: 400 x 2 = 800
   bossHp: 1.6,
   power: 1.5,
   // a little fewer bugs than act 1's waves (spawn rate and how many at once), each dropping a

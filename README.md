@@ -230,7 +230,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   Then the boss comes: grab what treasures you can before it does (every act; `duration` in each stage file).
 - **Act 2: the hallway and the bathroom.**
   Beat the Vacuum and grow, and the end screen offers **On to act 2 →**: the page reloads straight into the hallway, no main menu (just "Act 2" while it loads; a phone starts on its own, desktop takes one click to lock the mouse), with everything the run had (level, stats, treasures, score so far, which also goes on the leaderboard).
-  You're much stronger by now, so act 2 pushes back: bugs have 2x health (and still toughen with the hour), the elites 1.8x, the Clog 1.6x, and every hit you take does 1.5x (`toughness`, `eliteHp`, `bossHp`, `power` in `src/stage2.js`).
+  You're much stronger by now, so act 2 pushes back: bugs have 2x health (and still toughen with the hour), the elites 2x, the Clog 1.6x, and every hit you take does 1.5x (`toughness`, `eliteHp`, `bossHp`, `power` in `src/stage2.js`).
   It also sends a little fewer bugs (0.85x the spawn rate and how many at once, `bugs`) and each drops a little more XP (1.2x, `xpMult`).
   Its waves are four bugs, joining in turn: **house flies** from the start, **spiders** from 0:30, **millipedes** from 1:15 and **ladybugs** from 2:00.
   Five vents fling you onto the vanity, the toilet lid, the sideboard, the bench and the recycling bin, and treasures turn up in 14 spots across both rooms (bath mat, rugs, vanity, inside the sink, toilet lid, the hall runner, the sideboard, the bench…).
