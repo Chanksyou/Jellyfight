@@ -48,7 +48,7 @@ export class AuraPainter {
     return new THREE.ShaderMaterial({
       uniforms: {
         uPortrait: { value: null }, uJelly: { value: null }, uTime: { value: 0 }, uStrength: { value: 1 }, uLayers: { value: 4 },
-        uColor: { value: new THREE.Color() }, uRamp: { value: ramp },
+        uColor: { value: new THREE.Color() }, uRamp: { value: ramp }, uTint: { value: (K.TINT ? LOOK.list(K.TINT, K.TINT_FALLBACK) : ['#ffffff', '#ffffff']).map(lin) },
         uWater: { value: lin(LOOK.color('menu-water-deep', '#06162e')) }, uWaterHigh: { value: lin(LOOK.color('menu-water-shallow', '#175c70')).lerp(lin(LOOK.color('menu-water-deep', '#06162e')), 0.85) },
       },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',

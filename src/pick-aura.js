@@ -24,8 +24,9 @@ import * as bubbles from './pick-auras/bubbles.js';
 import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
 import * as sparks from './pick-auras/sparks.js';
+import * as gust from './pick-auras/gust.js';
 
-export const SHADERS = { flames, sparks, frost, bubbles };
+export const SHADERS = { flames, sparks, frost, gust, bubbles };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -75,22 +76,6 @@ export const AURAS = {
       ctx.fillStyle = rgba(col, 0.35 * fade); ctx.strokeStyle = rgba(col, 0.95 * fade);
       ctx.beginPath(); ctx.arc(x, y, pop ? r * (1 + (life - 0.88) * 6) : r, 0, TAU); pop ? ctx.stroke() : (ctx.fill(), ctx.stroke());
       if (!pop) dot(ctx, x - r * 0.3, y - r * 0.35, r * 0.22, rgba('#eaffdc', 0.8 * fade));
-    }
-  },
-
-  // Wind: streaks of air sweeping round the jelly, thick at the head and thinning to nothing
-  gust(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.45);
-    ctx.lineCap = 'round';
-    for (let s = 0; s < 6; s++) {
-      const head = t * (2.4 + 0.5 * rnd(s, 1)) + s * TAU / 6, len = 1.1 + 0.5 * rnd(s, 2), out = 0.96 + 0.16 * rnd(s, 3);
-      const tilt = (s % 2 ? 0.08 : -0.08);
-      for (let k = 0; k < 10; k++) {
-        const a0 = head - len * k / 10, a1 = head - len * (k + 1) / 10, f = 1 - k / 10;
-        const [x0, y0] = ring(S, a0, out + tilt * Math.sin(a0)), [x1, y1] = ring(S, a1, out + tilt * Math.sin(a1));
-        ctx.strokeStyle = rgba(k < 3 ? '#ffffff' : col, (0.4 + 0.6 * f) * a); ctx.lineWidth = S * 0.028 * f + 1;
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      }
     }
   },
 

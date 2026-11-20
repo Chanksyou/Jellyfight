@@ -523,10 +523,10 @@ story('types/pick-side-cards-show-their-element', {
   play() {
     const { picker } = G(), back = asPlayer(true);
     try {
-      // a card whose neighbours are both still drawn in 2D (the shader kinds have their own stories)
+      // a card with a neighbour still drawn in 2D (the shader kinds have their own stories)
       const flat = (k) => k >= 0 && k < picker.ids.length && !SHADERS[CONTENT.jellies[picker.ids[k]].aura];
-      const centre = picker.ids.find((id, k) => flat(k - 1) && flat(k + 1));
-      if (!centre) return ok(false, { why: 'no card has two 2D neighbours left: retire this story for the shader stories' });
+      const centre = picker.ids.find((id, k) => flat(k - 1) || flat(k + 1));
+      if (!centre) return ok(false, { why: 'no card has a 2D neighbour left: retire this story for the shader stories' });
       pressPlay(centre);
       stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
       stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
@@ -539,7 +539,7 @@ story('types/pick-side-cards-show-their-element', {
       const distinct = kinds.every(Boolean) && new Set(kinds).size === kinds.length;
       // a canvas's lit pixels (anything drawn on its transparent field)
       const lit = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let k = 3; k < d.length; k += 4) n += d[k] > 8; return n / (d.length / 4); };
-      const i = picker.index, side = [i - 1, i + 1].map((k) => picker.auras[k]);
+      const i = picker.index, side = [i - 1, i + 1].filter(flat).map((k) => picker.auras[k]);
       const drawn = side.every((c) => c.width > 0 && lit(c) > 0.02);
       const hash = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let k = 0; k < d.length; k += 97) h = (h * 31 + d[k]) | 0; return h; };
       const before = hash(side[0]); tick(4);
@@ -606,6 +606,30 @@ story('types/pick-side-card-frost', {
       const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
       const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
       return ok(lit && corners > open + 40, { lit, corners: Math.round(corners), open: Math.round(open) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-gust', {
+  about: 'Wind\'s card (aura="gust", pick-auras/gust.js) is painted by its shader, with no 2D drawing left: soft ribbons of air, dust and leaves round the jelly, which stays lit in the middle and dark in the corners.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('wind');
+      stub(picker, 'live', null);   // no live centre card: the Wind card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const wind = picker.auras[picker.ids.indexOf('wind')];
+      for (let i = 0; i < 400 && !wind.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = wind.classList.contains('lit') && P.built.gust === true && P.has('gust') && !AURAS.gust;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: the jelly's middle is lit, the corners dark water)
+      const S = wind.width, ctx = wind.getContext('2d');
+      const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
+      const middle = lum(0.46, 0.4), corners = Math.max(lum(0, 0.92), lum(0.92, 0.92));
+      return ok(lit && middle > corners + 20, { lit, middle: Math.round(middle), corners: Math.round(corners) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
