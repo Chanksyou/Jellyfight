@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v566 opens every level-up and Treasure chest on a slot machine: a reel per card rolls past real rolls and lands on your offer, the Luck panel shows each rarity's odds without and with your Luck, a jelly lever pulls itself, and three of a kind rolls one reel again onto its upgraded card (marked Upgraded on the pick card too). Tap, click or Space lands the reels, then skips to the cards; Reduce effects shows the landed machine and fades.
+
 v565 sends each played act's frame numbers (median and slowest-5% frame, share of slow frames, lowest pixel ratio, graphics tier, frame cap, screen size, load time, graphics resets) and the player's Settings picks with the run summaries already sent, and adds a Send button to the phone bench; frame times and screen size only, nothing typed, no location.
 
 v564 keeps every regular bug's Health the same all act (no more 18% more each minute); act 4's Firefly now has 700 Health, Moth 1000 and Cicada 1200.
