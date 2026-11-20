@@ -174,7 +174,7 @@ export class EncoreDisco {
     // the ball: drops over the beat before, hangs for the show, rises away over the beat and a half after
     const down = u === null ? 0 : u < 0 ? 1 + u : u <= len ? 1 : Math.max(0, 1 - (u - len) / 1.5);
     this.hanger.visible = down > 0.001;
-    const hang = this.stayFrom != null ? this.stayHang : this.hang;
+    const hang = at !== null && at === this.stayFrom ? this.stayHang : this.hang;   // (a visit still down when the Encore breaks keeps its own height)
     const y = this.top + (hang - this.top) * (1 - (1 - down) ** 3);
     this.hanger.position.set(CENTER[0], y, CENTER[1]);
     this.rod.scale.set(1, Math.max(0.01, this.top + 0.4 - y), 1);

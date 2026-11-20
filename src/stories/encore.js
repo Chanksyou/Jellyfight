@@ -2252,8 +2252,8 @@ function djsInFrame() {
         // the disco ball, down for good in set 3 (look.css --encore-disco-stay-hang), hangs clear above both their heads
         const D = B.disco, c = D.hanger.getWorldPosition(V(0, 0, 0)), up = V(0, 1, 0).applyQuaternion(APT.camera.quaternion);
         const ball = px(c.addScaledVector(up, -D.r * D.hanger.getWorldScale(V(0, 0, 0)).y))[1], heads = Math.min(...['silver', 'gold'].map((w) => out[`${moment} ${w}`].head[1]));
-        out[`${moment} ball`] = { bottom: ball, heads, down: D.hanger.visible && D.stayFrom != null };
-        if (!(D.hanger.visible && D.stayFrom != null && ball < heads - 4)) bad.push(`${moment} ball`);
+        out[`${moment} ball`] = { bottom: ball, heads, y: +D.hanger.position.y.toFixed(3) };
+        if (!(D.hanger.visible && Math.abs(D.hanger.position.y - D.stayHang) < 1e-3 && ball < heads - 6)) bad.push(`${moment} ball`);
       }
       const arena = new Set(B.arenaView.root.children);
       for (const m of tpc._fades.keys()) if (arena.has(m)) faded.add(`${moment}: ${m.name}`);
