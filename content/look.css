@@ -694,7 +694,7 @@
   --encore-pyro-lane: 0.24;      /* m: one of the gold DJ's six flame lanes (the floor is 1.44 m across; encore-pyro.js) */
   --encore-pyro-warning: 0.6;    /* a lane's floor strip, and the volume over it */
   --encore-pyro-volume: 0.3;
-  --encore-pyro-warning-early: 0.15; /* of those, how much a lane's Warning shows as it starts, brightening as it fills: with two sets warning, the one firing next stands out */
+  --encore-pyro-warning-early: 0.4; /* of those, how much a lane's Warning shows as it starts, brightening as it fills: with two sets warning, the one firing next stands out */
   --encore-flame-opacity: 0.8;   /* the flames bursting (his gold, white-hot at the foot) */
   --encore-scorch: #1a1410;      /* the soot left where they stood: dark, never the hostile gold */
   --encore-scorch-opacity: 0.55;

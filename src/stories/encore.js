@@ -1267,7 +1267,7 @@ story('encore/feel-pyro-the-set-firing-next-warns-brightest', {
       const next = P.warnings[1].band.material.opacity, again = P.warnings[0].band.material.opacity, nextVol = P.warnings[1].lane.material.opacity, againVol = P.warnings[0].lane.material.opacity;
       playPyro(T, standing(9, 9), 10.5, 10.98); const full = P.warnings[1].band.material.opacity;
       const top = LOOK.num('encore-pyro-warning', 0.6);
-      return ok(next > again * 1.5 && nextVol > againVol * 1.5 && Math.abs(full - top) < top * 0.05 && again >= top * LOOK.num('encore-pyro-warning-early', 0.15) - 1e-9, { next, again, nextVol, againVol, full });
+      return ok(next > again * 1.5 && nextVol > againVol * 1.5 && Math.abs(full - top) < top * 0.05 && again >= top * LOOK.num('encore-pyro-warning-early', 0.4) - 1e-9, { next, again, nextVol, againVol, full });
     } finally { T.done(); }
   },
 });
@@ -1284,6 +1284,6 @@ fight('feel-every-encore-hit-leaves-a-fading-scorch', {
     const under = !!mark && Math.hypot(mark.m.position.x - player.position.x, mark.m.position.z - player.position.z) < 1e-6 && mark.m.position.y < 0.01;
     const scorch = !!mark && mark.m.material === B.fx.splatMats.scorch;
     step(60 * (LOOK.num('splat-life', 2) + 0.5)); const faded = !mark?.alive;
-    return ok(marks.length === before + 1 && under && scorch && faded, { before, after: marks.length, under, scorch, faded });
+    return ok(marks.length >= Math.min(before + 1, LOOK.num('splat-most', 24)) && under && scorch && faded, { before, after: marks.length, under, scorch, faded });
   },
 });

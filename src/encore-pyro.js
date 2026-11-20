@@ -44,7 +44,7 @@ export class EncorePyro {
     this.w = LOOK.num('encore-pyro-lane', 0.24);
     this.lanes = Math.max(2, Math.round((HALF * 2) / this.w));
     this.warnGlow = LOOK.num('encore-pyro-warning', 0.6); this.laneGlow = LOOK.num('encore-pyro-volume', 0.3);
-    this.warnEarly = LOOK.num('encore-pyro-warning-early', 0.15);   // of that, how much a Warning shows as it starts: the set firing next reads brightest
+    this.warnEarly = LOOK.num('encore-pyro-warning-early', 0.4);   // of that, how much a Warning shows as it starts: the set firing next reads brightest
     this.beat = null; this.casts = [];
     // when each lane's flames last burst (beats; null: none), for the flames and the scorch under them
     this.burnAt = new Array(this.lanes).fill(null); this.base = new Array(this.lanes).fill(0);   // (base: the soot already there when a lane burns again)
