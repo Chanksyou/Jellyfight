@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v563 adds a phone bench at index.html?bench (and ?bench&act=3, ?bench&act=4, ?bench&act=4&scene=2): after one tap it plays the act's busiest moments in real frames, then the busiest again with bloom off, pixel ratio 1.0, lamps off, AO off and on Low, and shows this device's frame times, draw times, GPU time where the browser offers it and draw calls, with Copy results. A bench is not a run: it sends nothing and keeps nothing. tools/perf-phone.mjs now sets up the same moments from one shared table (src/bench-moments.js).
+
 v562 sets the Elites' and bosses' final Health: Act 2 Elites 800 each, the Vacuum 1200, the Great White One 8000, Act 3 Elites 1800 each and Act 4 Elites 3200 each.
 
 v561 three of a kind: when every level-up card or chest Treasure on offer shares a rarity, one of them goes up a rarity (three Commons make a Rare, three Rares an Epic, three Epic Treasures a Legendary; three Epic level-up cards stay Epic). Adds the reward spin's reels and odds behind the scenes, nothing on screen yet.
