@@ -1286,8 +1286,8 @@ story('encore/a-jump-does-not-clear-the-flames-a-step-does', {
   },
 });
 
-fight('a-gold-solo-cranks-then-burns-lane-sets-on-the-beat', {
-  about: 'A gold solo: the spotlight on the gold DJ, his fader crank in the first bar as the first Warning shows (two beats before the first set), then a set of lanes every beat for 3 bars (12 sets, odd then even), each a hit on the beat for 4 Health; no hit shows before it; then the bow and EXPOSED as for any solo. A short-out mid-solo clears the Warnings, flames and scorch.',
+fight('a-gold-solo-slams-then-burns-lane-sets-on-the-beat', {
+  about: 'A gold solo: the spotlight on the gold DJ, his floor slam in the first bar as the first Warning shows (two beats before the first set, then he conducts the first set a beat ahead), then a set of lanes every beat for 3 bars (12 sets, odd then even), each a hit on the beat for 4 Health; no hit shows before it; then the bow and EXPOSED as for any solo. A short-out mid-solo clears the Warnings, flames and scorch.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), P = B.pyro, hits = [], rigs = B.arenaView.boss.rigs;
@@ -1297,7 +1297,7 @@ fight('a-gold-solo-cranks-then-burns-lane-sets-on-the-beat', {
     stub(B, 'hurtPlayer', (dmg) => hits.push({ dmg, beat: B.beat }));
     const p = window.player.position; p.set(P.laneX(0), 0, LIP + 0.2);
     go(40.9); const quiet = !P.warnings.some((w) => w.band.visible);
-    go(42.6); const warn = [0, 2, 4].every((l) => P.warnings[l].band.visible && P.warnings[l].lane.visible) && ![1, 3, 5].some((l) => P.warnings[l].band.visible) && rigs.gold.at === 42 && B.spots.gold.visible && !B.spots.silver.visible;
+    go(42.6); const warn = [0, 2, 4].every((l) => P.warnings[l].band.visible && P.warnings[l].lane.visible) && ![1, 3, 5].some((l) => P.warnings[l].band.visible) && rigs.gold.at === 43 && B.spots.gold.visible && !B.spots.silver.visible;
     go(44.4); const burst = [0, 2, 4].every((l) => P.burnAt[l] === 44);
     go(47.5);
     const beats = hits.map((h) => h.beat);
@@ -1475,7 +1475,7 @@ fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
 });
 
 fight('the-golds-crank-and-flames-have-their-sounds-on-the-beat', {
-  about: 'In a gold solo the fader crank sounds once, on its beat in the first bar (two beats before the first set), then a flame jet sounds on each of the 12 sets, on the beat it fires.',
+  about: 'In a gold solo the floor slam sounds once (for now as the fader crank does: B6 gives it its own sound), on its beat in the first bar (two beats before the first set), then a flame jet sounds on each of the 12 sets, on the beat it fires.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
@@ -1924,5 +1924,111 @@ fight('the-other-dj-watches-from-the-booth-and-pumps-his-fist-when-a-record-hits
     go(200, () => !B.solo); go(B.beat + 4);
     const after = Math.abs(g.head.rotation.y - yaw0);
     return ok(watching < 0.3 && watching < before && pump !== null && pump >= 44 && pump < 44.2 && after < 0.05 && !M.out('gold'), { before: +before.toFixed(3), watching: +watching.toFixed(3), pump, after: +after.toFixed(3) });
+  },
+});
+
+// ---- the gold DJ's Pyro on the floor (B3): he vaults to ENCORE.marks.gold (the stage front, inside lane 4),
+// slams the floor as the first Warning shows, conducts each set of flames a beat ahead with the arm for its
+// lanes, and stands in his own flames untouched; encore-pyro.js is as it was
+const GOLDAT = () => ENCORE.marks.gold, goldMark = (B) => V(GOLDAT()[0], 0, GOLDAT()[1]).applyMatrix4(B.arenaView.root.matrixWorld);
+for (const fps of [30, 60]) fight(`the-gold-dj-vaults-to-lane-4-and-stands-in-his-flames-unhurt-at-${fps}fps`, {
+  about: `At ${fps} fps, a gold solo booked on beat 40: the gold DJ lands on his mark (the stage front, inside the 24 cm lane 4) on beat 40 within a frame and stays on it, under his spotlight, while all 12 sets burst (lane 4 included); the flames neither hurt nor move him, he is still the Encore's target (on his chest), the silver DJ stays in the booth, and he lands back in the booth as his bow ends.`,
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(fps), M = B.arenaView.boss, g = M.rigs.gold, mark = goldMark(B), db = BPM / 60 / fps + 1e-6;
+    stub(B, 'hurtPlayer', () => {}); G().player.position.set(-0.6, 0, 0.5);
+    go(33.9); slot('gold', 40);
+    const lane4 = B.pyro.laneX(4), inLane = Math.abs(GOLDAT()[0] - lane4) < B.pyro.w / 2 - 0.05 && GOLDAT()[1] > -0.12;   // (his body stays inside the lane, in front of the lip)
+    let landed = null, still = 0, spot = 0, lane4Burst = 0, target = 0, silver = false, back = null, hp = B.hp, hpLost = 0;
+    go(200, () => {
+      const b = B.beat, p = worldOf(g.body);
+      silver ||= M.out('silver');
+      if (landed === null && M.out('gold') && flat(p, mark) < 0.002 && Math.abs(p.y - mark.y) < 0.002) landed = b;
+      if (landed !== null && B.solo && b > 40.1 && b < B.solo.bowEnd - 2.05) {
+        still = Math.max(still, flat(p, mark)); spot = Math.max(spot, B.spots.gold.visible ? flat(worldOf(B.spots.gold), p) : 1);
+        if (B.pyro.burnAt[4] !== null) lane4Burst++;
+        target = Math.max(target, B.position.distanceTo(p.add(V(0, FL().chest, 0))));
+      }
+      hpLost += Math.max(0, hp - B.hp); hp = B.hp;
+      if (landed !== null && !M.out('gold')) { back = b; return true; }
+    });
+    const bowEnd = 56 + 16, l = landed - 40, h = back - bowEnd;
+    const res = { inLane, landed: +l.toFixed(3), still, spot: +spot.toFixed(3), lane4Burst, target, silver, back: back && +h.toFixed(3), hpLost };
+    const checks = [inLane, l >= -1e-6 && l < db, still < 1e-4, spot < 0.01, lane4Burst > 10, target < 1e-6, !silver, h >= -1e-6 && h < db, hpLost === 0, !B.solo];
+    return ok(checks.every(Boolean), { ...res, checks });
+  },
+});
+
+for (const fps of [30, 60]) fight(`the-gold-dj-slams-then-conducts-each-set-with-its-arm-at-${fps}fps`, {
+  about: `At ${fps} fps, a gold solo booked on beat 40: he slams the floor on beat 42 (as the first Warning shows), then a beat before each of the 12 sets (accents on beats 43 to 54) he conducts it: the outer arm for the sets of lanes 0 2 4, the inner arm for lanes 1 3 5, only that arm raised on the accent; he conducts nothing in his bow.`,
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(fps), g = B.arenaView.boss.rigs.gold;
+    stub(B, 'hurtPlayer', () => {}); G().player.position.set(-0.6, 0, 0.5);
+    go(33.9); slot('gold', 40);
+    const sets = B.pyro.casts.map((c) => c.lanes.join()), got = [];
+    go(42.15); const slam = g.move != null && g.at === 42;
+    for (let k = 0; k < 12; k++) {
+      const accent = 43 + k, arm = k % 2 ? 'inner' : 'outer', lanes = sets[k];
+      go(accent - 0.2); const before = { at: g.at, arm: g.arm, lanes: B.pyro.casts.find((c) => c.fire === accent + 1)?.lanes.join() };
+      go(accent + 0.04); const up = (a) => g[a].rotation.x < -0.8, down = (a) => g[a].rotation.x > -0.6, other = arm === 'outer' ? 'inner' : 'outer';
+      got.push({ k, before, r: [g.outer.rotation.x, g.inner.rotation.x], ok: before.at === accent && before.arm === arm && before.lanes === lanes && up(arm) && down(other) });
+    }
+    go(57); const bowed = g.move != null && g.at === 56;   // (the bow, not a conduct)
+    return ok(slam && got.every((x) => x.ok) && bowed, { slam, bad: got.filter((x) => !x.ok), bowed, at: g.at });
+  },
+});
+
+fight('the-gold-solo-books-the-same-flame-sets-it-always-did', {
+  about: 'A gold solo books 12 sets of Pyro, one on each beat from 4 beats after the solo starts: lanes 0 2 4 on the first and every other set, lanes 1 3 5 on the rest, each 4 Health, 35 cm tall, 48 cm out, with a 2 beat Warning, a half-beat burn and 8 beats of scorch (the numbers of before the DJ left the booth: src/encore-pyro.js did not change).',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(); stub(B, 'hurtPlayer', () => {});
+    go(34); slot('gold', 40);
+    const got = B.pyro.casts.map((c) => `${c.fire}:${c.lanes.join('')}:${c.dmg}:${c.height}:${c.reach}:${c.fire - c.warnAt}:${c.burn}:${c.scorch}`);
+    const want = Array.from({ length: 12 }, (_, k) => `${44 + k}:${k % 2 ? '135' : '024'}:4:0.35:0.48:2:0.5:8`);
+    return ok(got.join() === want.join(), { got, want });
+  },
+});
+
+fight('a-jelly-on-the-row-in-front-of-the-gold-dj-steps-between-lanes-through-every-set', {
+  about: 'A jelly stepping a beat at a time between the pockets the flames leave (x 0.15 for the sets of lanes 0 2 4, x 0.32 for the others) along the row just in front of the gold DJ on his mark (the pocket at x 0.32 is 12 cm from him, outside his body) is never hit by one of the 12 sets and never pushed by him: he does not block the step between two lanes.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), { player } = G(), z = GOLDAT()[1] + 0.12, pocket = (k) => (k % 2 ? 0.32 : 0.15);
+    let hurt = 0, pushed = 0, set = null;
+    stub(B, 'hurtPlayer', () => { hurt++; });
+    go(33.9); slot('gold', 40);
+    go(200, () => {
+      const b = B.beat;
+      if (set) pushed = Math.max(pushed, Math.abs(player.position.x - set[0]) + Math.abs(player.position.z - set[1]));   // (where the game left it, against where it was put)
+      if (b >= 40.5 && b < 57) {                           // (set k fires on beat 44 + k: be in its pocket then, stepping across over the beat before)
+        const n = Math.max(0, Math.floor(b - 44) + 1), u = Math.min(1, Math.max(0, (b - (44 + n - 0.95)) / 0.9)), from = pocket(Math.max(0, n - 1));
+        set = [from + (pocket(n) - from) * u, z];
+        player.position.set(set[0], 0.01, z); player.velocity?.set(0, 0, 0);
+      }
+      return b >= 57;
+    });
+    return ok(hurt === 0 && pushed < 1e-9 && B.pyro.casts.length === 0, { hurt, pushed });
+  },
+});
+
+fight('the-gold-dj-goes-home-when-the-encore-shorts-out-mid-solo', {
+  about: 'If the Encore shorts out in the middle of a gold solo (flames bursting, Warnings up), the gold DJ is knocked back into the booth within a third of a second (at once with Reduce effects), the flames and Warnings are gone, and the target is back in front of the booth.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const calm of [false, true]) {
+      const { B, go, slot } = soloFight(), M = B.arenaView.boss, { fx } = G();
+      if (calm) stub(fx, 'reducedMotion', { matches: true });
+      stub(B, 'hurtPlayer', () => {}); G().player.position.set(-0.6, 0, 0.5);
+      go(33.9); slot('gold', 40); go(47.2);
+      const was = M.out('gold') && B.pyro.burnAt.some((t) => t !== null);
+      B.damage(B.hp - B.maxHp * 0.45);
+      let t = 0; while (t < 0.5 && M.out('gold')) { G().GAME.step(1 / 60); t += 1 / 60; }
+      out[calm ? 'calm' : 'normal'] = { was, at: +t.toFixed(3), cleared: !B.pyro.casts.length && B.pyro.burnAt.every((x) => x === null) && !B.pyro.warnings.some((w) => w.band.visible), booth: B.position.distanceTo(V(0, 0.13, -0.17)) < 1e-6, solo: !!B.solo };
+    }
+    const good = (o, most) => o.was && o.at <= most && o.cleared && o.booth && !o.solo;
+    return ok(good(out.normal, 0.32) && good(out.calm, 0.02), out);
   },
 });
