@@ -23,8 +23,9 @@
 import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
 import * as sparks from './pick-auras/sparks.js';
+import * as sting from './pick-auras/sting.js';
 
-export const SHADERS = { flames, sparks, frost };
+export const SHADERS = { flames, sparks, frost, sting };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -116,22 +117,6 @@ export const AURAS = {
       for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, d = k % 2 ? r * 0.22 : r; ctx.lineTo(x + Math.cos(q) * d, y + Math.sin(q) * d); }
       ctx.closePath(); ctx.fill();
       dot(ctx, x, y, r * 0.18, rgba('#ffffff', wink * a));
-    }
-  },
-
-  // Tentacle: sting crescents flashing in the reach all round the jelly
-  sting(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.6);
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 6; i++) {
-      const period = 1.1, age = fract(t / period + i / 6), n = Math.floor(t / period + i / 6);
-      if (age > 0.5) continue;
-      const f = 1 - age / 0.5, angle = TAU * rnd(n * 7 + i, 50);
-      const [x, y] = ring(S, angle, 0.98), r = S * (0.1 + 0.05 * rnd(n + i, 51)) * (1 + age * 0.5);
-      ctx.strokeStyle = rgba(col, 0.7 * f * a); ctx.lineWidth = S * 0.05 * f;
-      ctx.beginPath(); ctx.arc(x, y, r, angle + Math.PI - 1, angle + Math.PI + 1); ctx.stroke();
-      ctx.strokeStyle = rgba('#ffffff', 0.95 * f * a); ctx.lineWidth = S * 0.016 * f;
-      ctx.beginPath(); ctx.arc(x, y, r, angle + Math.PI - 0.8, angle + Math.PI + 0.8); ctx.stroke();
     }
   },
 };
