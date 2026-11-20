@@ -649,7 +649,7 @@ export const sfx = {
     o.connect(g).connect(sfxBus); o.start(t); o.stop(t + d + 0.1);
   },
   // a record taking the wall for the jelly: a crack and a drop
-  wallShield() { if (!ready() || !gap('wallShield', 80)) return; const j = jitter(0.06); noise(5000 * j, 1, 0.12, 0.12, 'highpass'); tone('square', 1800 * j, 300 * j, 0.08, 0.06); tone('sine', 90 * j, 50 * j, 0.18, 0.1); },
+  wallShield() { if (!ready() || !gap('wallShield', 20)) return; const j = jitter(0.06); noise(5000 * j, 1, 0.12, 0.12, 'highpass'); tone('square', 1800 * j, 300 * j, 0.08, 0.06); tone('sine', 90 * j, 50 * j, 0.18, 0.1); },
   // a DJ bowing: a long breath out
   bowExhale() { if (!ready() || !gap('bowExhale', 300)) return; noise(1800, 0.7, 0.55, 0.05, 'bandpass', 0, 600); tone('sine', 200, 140, 0.4, 0.015); },
   // the crowd cheering a clean solo: a swell of noise with claps through it

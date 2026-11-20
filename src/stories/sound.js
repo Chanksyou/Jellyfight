@@ -269,7 +269,7 @@ story('sound/effects-sit-a-fifth-quieter-than-the-music', {
 });
 
 story('sound/the-encore-moves-each-make-their-own-sound', {
-  about: 'Each synthesized cue of the Encore\'s new moves (record scratch, throw, stick and shatter, fader crank, flame jet, wall swell and crack, bow exhale, crowd cheer) makes sound, and none of them is another cue\'s call: each plays its own nodes with the audio running.',
+  about: 'Each synthesized cue of the Encore\'s new moves (record scratch, throw, stick and shatter, fader crank, flame jet, wall swell and crack, bow exhale, crowd cheer) makes sound, with the audio running.',
   setup() { setupFight(); },
   async play() {
     const S = await freshSfx();
