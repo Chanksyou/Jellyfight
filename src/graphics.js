@@ -110,7 +110,7 @@ const FiniteShader = {
 // while it tone maps, so the image is written once.
 const LEVELS = 5;
 const GAIN = 2;   // the same --bloom draws about as much glow as UnrealBloomPass did (compared on screenshots)
-class MipBloomPass extends Pass {
+export class MipBloomPass extends Pass {
   constructor(strength, threshold = 1) {
     super();
     this.needsSwap = false;   // reads the image, writes only its own targets: the output pass adds them
@@ -198,7 +198,7 @@ const TONE = {
   [THREE.CineonToneMapping]: 'CineonToneMapping', [THREE.ACESFilmicToneMapping]: 'ACESFilmicToneMapping',
   [THREE.AgXToneMapping]: 'AgXToneMapping', [THREE.NeutralToneMapping]: 'NeutralToneMapping',
 };
-class BloomOutputPass extends Pass {
+export class BloomOutputPass extends Pass {
   constructor(bloom) {
     super();
     this.bloom = bloom;
@@ -233,16 +233,19 @@ class BloomOutputPass extends Pass {
     u.tBloom.value = b.texture;
     u.bloomStrength.value = b.enabled ? b.strength : 0;
     u.toneMappingExposure.value = renderer.toneMappingExposure;
-    const key = renderer.outputColorSpace + '|' + renderer.toneMapping;
-    if (key !== this.key) {
-      this.key = key;
-      const d = this.material.defines = {};
-      if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) d.SRGB_TRANSFER = '';
-      if (TONE[renderer.toneMapping]) d.TONE = TONE[renderer.toneMapping];
-      this.material.needsUpdate = true;
-    }
+    this.prepare(renderer);
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);
+  }
+  // its shader's defines for the renderer's tone mapping and output (also so its shader can be built ahead)
+  prepare(renderer) {
+    const key = renderer.outputColorSpace + '|' + renderer.toneMapping;
+    if (key === this.key) return;
+    this.key = key;
+    const d = this.material.defines = {};
+    if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) d.SRGB_TRANSFER = '';
+    if (TONE[renderer.toneMapping]) d.TONE = TONE[renderer.toneMapping];
+    this.material.needsUpdate = true;
   }
   dispose() { this.material.dispose(); this.quad.dispose(); }
 }
