@@ -2229,7 +2229,7 @@ fight('the-gold-dj-goes-home-when-the-encore-shorts-out-mid-solo', {
 // to feet below the boss bar, at every moment a DJ is out: silver's solo and bow, gold's, and the duet's
 // Warning and bow. The fight view stands back past the arena's invisible fence: nothing in the arena fades
 function djsInFrame() {
-  const out = {}, bad = [], { APT, tpc, player } = G(), M = () => B.arenaView.boss;
+  const out = {}, bad = [], faded = new Set(), { APT, tpc, player } = G(), M = () => B.arenaView.boss;
   let B = null;
   for (const kind of ['silver', 'gold', 'duet']) {
     const f = soloFight(30); B = f.B;
@@ -2248,15 +2248,15 @@ function djsInFrame() {
         out[`${moment} ${who}`] = { head: h, feet, bar: Math.round(top) };
         if (!seen) bad.push(`${moment} ${who}`);
       }
+      const arena = new Set(B.arenaView.root.children);
+      for (const m of tpc._fades.keys()) if (arena.has(m)) faded.add(`${moment}: ${m.name}`);
     };
     f.go(34, hold); f.slot(kind, 40);
     if (kind === 'duet') { f.go(B.solo.wall.warnAt + 0.5, hold); look('duet Warning'); }
     else { f.go(46, hold); look(`${kind} solo`); }
     f.go(80, () => { hold(); return B.exposed; }); f.go(f.song.beat + 1, hold); look(`${kind} bow`);
   }
-  const arena = new Set(B.arenaView.root.children);
-  const faded = [...tpc._fades.keys()].filter((m) => arena.has(m)).map((m) => m.name);
-  return ok(!bad.length && !faded.length && tpc.fightK > 0.99, { bad, faded, k: +tpc.fightK.toFixed(2), ...out });
+  return ok(!bad.length && !faded.size && tpc.fightK > 0.99, { bad, faded: [...faded], k: +tpc.fightK.toFixed(2), ...out });
 }
 fight('the-fight-view-shows-each-dj-on-the-floor-head-to-feet', {
   about: 'In the Encore\'s own fight view (look.css --encore-camera-*), with the jelly 0.42 m out from the stage facing it, each DJ on the floor is on screen head to feet, below the boss bar: silver in his solo and bow, gold in his, and both in the duet\'s Warning and bow. The view stands back past the arena\'s invisible fence and nothing in the arena fades (a faded fence used to take the floor tiles and records with it).',
