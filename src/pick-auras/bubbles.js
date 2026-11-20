@@ -86,10 +86,10 @@ vec3 paint(vec2 uv) {
   vec2 off; float cover; vec3 add;
   // mid bubbles, in front of the jelly
   bubbles(uv, t, 6.0, 0.5, 0.32, 0.17, 4.0, 0.8, off, cover, add);
-  if (cover > 0.0) c = mix(c, scene(uv + off, t, s) * 1.04 + cold * 0.07, cover) + add * s;
+  if (cover > 0.0) c = mix(c, scene(uv + off, t, s) * 1.04 + cold * 0.07, cover * s) + add * s;
   // a few big near ones: the jelly seen through them
-  bubbles(uv, t, 3.2, 0.6, 0.42, 0.3, 9.0, 1.0, off, cover, add);
-  if (cover > 0.0) c = mix(c, scene(uv + off, t, s) * 1.04 + cold * 0.07, cover) + add * s;
+  bubbles(uv, t, 3.2, 0.6, 0.38, 0.3, 9.0, 1.0, off, cover, add);
+  if (cover > 0.0) c = mix(c, scene(uv + off, t, s) * 1.04 + cold * 0.07, cover * s) + add * s;
   return c;
 }
 `;

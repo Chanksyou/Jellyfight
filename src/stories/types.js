@@ -560,24 +560,24 @@ story('types/pick-side-card-shader', {
     let t = picker.last;
     const tick = (n = 1) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
     try {
-      pressPlay('fire');
-      stub(picker, 'live', null);   // no live centre card: the Fire card shows its element in the centre
+      pressPlay('ice');
+      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
       stub(picker, 'calm', () => false);
       stub(gfx, 'quality', 'medium');
       const card = (id) => picker.auras[picker.ids.indexOf(id)];
-      const fire = card('fire'), storm = card('lightning');
+      const fire = card('ice'), storm = card('lightning');
       const flatId = [picker.index - 1, picker.index + 1].map((k) => picker.ids[k]).find((id) => id && !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a neighbour still drawn in 2D (while any is)
       // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader;
       // Lightning (the next card) comes alive beside it
       for (let i = 0; i < 400 && !(fire.classList.contains('lit') && storm.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = fire.classList.contains('lit') && P.built.flames === true && storm.classList.contains('lit') && P.built.sparks === true;
+      const lit = fire.classList.contains('lit') && P.built.frost === true && storm.classList.contains('lit') && P.built.sparks === true;
       const draws = spy(P, 'draw'), flat = bolt ? spy(bolt, 'getContext') : [];
       picker.auraAt = -1; tick();
-      const shader = draws.some(([c, kind]) => c === fire && kind === 'flames') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
+      const shader = draws.some(([c, kind]) => c === fire && kind === 'frost') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
       const twoD = !bolt || (flat.length > 0 && !bolt.classList.contains('lit'));
-      const medium = P.mats.flames.uniforms.uLayers.value;
+      const medium = P.mats.frost.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
-      const low = P.mats.flames.uniforms.uLayers.value;
+      const low = P.mats.frost.uniforms.uLayers.value;
       const R = P.renderer, textures = R.info.memory.textures;
       picker.close();
       const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
