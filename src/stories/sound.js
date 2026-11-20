@@ -267,3 +267,21 @@ story('sound/effects-sit-a-fifth-quieter-than-the-music', {
     return ok(Math.abs(level - 0.8) < 1e-6 && toBus > 0 && toMaster === 0 && Math.abs(masterGain - 0.55) < 1e-6 && muted === 0, { level, toBus, toMaster, masterGain, muted });
   },
 });
+
+story('sound/the-encore-moves-each-make-their-own-sound', {
+  about: 'Each synthesized cue of the Encore\'s new moves (record scratch, throw, stick and shatter, fader crank, flame jet, wall swell and crack, bow exhale, crowd cheer) makes sound, and none of them is another cue\'s call: each plays its own nodes with the audio running.',
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx();
+    const oc = new OfflineAudioContext(1, 48000, 48000), dest = oc.createGain();
+    dest.connect(oc.destination);
+    const { when } = S.preview(oc, dest);
+    let made = 0;
+    for (const k of ['createOscillator', 'createBufferSource']) { const real = oc[k].bind(oc); oc[k] = () => { made++; return real(); }; }
+    const cues = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'faderCrank', 'flameJet', 'wallSwell', 'wallShield', 'bowExhale', 'crowdCheer'], made_ = {};
+    let t = 0;
+    for (const c of cues) { when(t += 0.5); made = 0; S.sfx[c](); made_[c] = made; }
+    const silent = cues.filter((c) => !made_[c]);
+    return ok(!silent.length, { made: made_, silent });
+  },
+});

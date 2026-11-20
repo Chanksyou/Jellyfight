@@ -15,6 +15,7 @@ import { TeleMaterial, VolumeMaterial, volumeGeometry } from './vfx.js';
 import { ENCORE } from './stage4.js';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
+import { TRACKS } from './song-track.js';
 
 const HALF = (ENCORE.tiles * ENCORE.tileSize) / 2, BOSS = ENCORE.bossSpace, LIP = BOSS.center[2] + BOSS.depth / 2;
 const COLS = 36, SAFE = 3, Z0 = -HALF, Z1 = HALF;
@@ -87,7 +88,7 @@ export class EncoreWall {
       const was = w.front, front = (w.front = this.frontAt(w, beat));
       this.swell = 1 - (beat - w.rollAt) / w.roll;
       // a record taking the wall: a white shimmer fading on the strip it spared (its own shatter is encore-records.js's)
-      for (const s of w.shields) if (!s.took && front >= s.z) { s.took = true; if (!skip) this.fx.splat?.(_p.set(s.x, 0.002, s.z + s.len / 2), LOOK.color('safe-spot', '#ffffff'), w.safe / 2, 'dust'); }
+      for (const s of w.shields) if (!s.took && front >= s.z) { s.took = true; if (!skip) sfx.wallShield(); if (!skip) this.fx.splat?.(_p.set(s.x, 0.002, s.z + s.len / 2), LOOK.color('safe-spot', '#ffffff'), w.safe / 2, 'dust'); }
       // the hit, as the front passes the jelly: anywhere in the floor, at any height, unless sheltered
       if (!w.hit && player && !skip) {
         const p = player.position;
@@ -115,6 +116,7 @@ export class EncoreWall {
     }
     if (!w.shields.length) { w.state = 'off'; this.swell = 0; return; }
     w.state = 'warn';
+    sfx.wallSwell((w.rollAt - w.warnAt) * 60 / TRACKS.encore.bpm);
     this.band.visible = this.slab.visible = true;
     this.slab.scale.set(2 * HALF, w.height, Z1 - Z0);
     this.band.material.progress = this.slab.material.progress = 0;

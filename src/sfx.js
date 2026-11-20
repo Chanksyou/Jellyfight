@@ -627,6 +627,33 @@ export const sfx = {
   encoreDisco() { if (!ready() || !gap('encoreDisco', 120)) return; const j = jitter(0.06); for (let k = 0; k < 4; k++) tone('triangle', (1800 + k * 420) * j, (1700 + k * 400) * j, 0.22, 0.018, k * 0.012); noise(3200 * j, 0.9, 0.08, 0.05, 'bandpass'); tone('square', 180 * j, 70 * j, 0.09, 0.05); },
   // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it
   encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
+  // the Encore's new moves (act 4), all synthesized and kept low under the recording
+  // the silver DJ scratching a record as he winds up: two quick strokes, back and forth
+  recordScratch() { if (!ready() || !gap('recordScratch', 150)) return; const j = jitter(0.08); tone('sawtooth', 180 * j, 520 * j, 0.09, 0.04); tone('sawtooth', 520 * j, 200 * j, 0.1, 0.04, 0.09); noise(2400 * j, 3, 0.2, 0.04, 'bandpass', 0, 900); },
+  // a record leaving his hand: a thin spinning whoosh
+  recordThrow() { if (!ready() || !gap('recordThrow', 120)) return; const j = jitter(0.1); noise(3200 * j, 1.6, 0.22, 0.035, 'bandpass', 0, 1100 * j); tone('triangle', 900 * j, 420 * j, 0.12, 0.02); },
+  // a record landing on its edge and sticking: a hard knock over a low thud
+  recordStick() { if (!ready() || !gap('recordStick', 80)) return; const j = jitter(0.06); tone('square', 320 * j, 110 * j, 0.06, 0.06); noise(4200 * j, 1, 0.05, 0.06, 'highpass'); tone('sine', 140 * j, 70 * j, 0.12, 0.08); },
+  // a record breaking: bright shards pattering down
+  recordShatter() { if (!ready() || !gap('recordShatter', 60)) return; const j = jitter(0.06); noise(6500 * j, 1, 0.26, 0.18, 'highpass'); tone('triangle', 3000 * j, 900 * j, 0.14, 0.05); patter(6, 0.03, 0.25, 0.03); },
+  // the gold DJ cranking his fader: a rising ratchet of clicks
+  faderCrank() { if (!ready() || !gap('faderCrank', 300)) return; const j = jitter(0.05); tone('sawtooth', 90 * j, 260 * j, 0.5, 0.04); for (let k = 0; k < 6; k++) noise(3500 * j, 4, 0.02, 0.05, 'bandpass', k * 0.07); },
+  // a flame jet along its lanes: a roar with a crackle
+  flameJet() { if (!ready() || !gap('flameJet', 120)) return; const j = jitter(0.08); noise(1400 * j, 0.8, 0.45, 0.07, 'bandpass', 0, 500); noise(400, 0.7, 0.4, 0.09, 'lowpass'); patter(5, 0.05, 0.3, 0.03); },
+  // the Wall of sound's Warning filling: a sub riser over `dur` s, dropping away as the wall goes
+  wallSwell(dur = 2) {
+    if (!ready() || !gap('wallSwell', 300)) return;
+    const t = now(), d = Math.min(6, Math.max(0.5, dur)), o = ctx.createOscillator(), g = ctx.createGain(), k = pitch();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(55 * k, t); o.frequency.exponentialRampToValueAtTime(220 * k, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * loud, t + d); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.08);
+    o.connect(g).connect(sfxBus); o.start(t); o.stop(t + d + 0.1);
+  },
+  // a record taking the wall for the jelly: a crack and a drop
+  wallShield() { if (!ready() || !gap('wallShield', 80)) return; const j = jitter(0.06); noise(5000 * j, 1, 0.12, 0.12, 'highpass'); tone('square', 1800 * j, 300 * j, 0.08, 0.06); tone('sine', 90 * j, 50 * j, 0.18, 0.1); },
+  // a DJ bowing: a long breath out
+  bowExhale() { if (!ready() || !gap('bowExhale', 300)) return; noise(1800, 0.7, 0.55, 0.05, 'bandpass', 0, 600); tone('sine', 200, 140, 0.4, 0.015); },
+  // the crowd cheering a clean solo: a swell of noise with claps through it
+  crowdCheer() { if (!ready() || !gap('crowdCheer', 800)) return; noise(1400, 0.6, 1.2, 0.07, 'bandpass', 0, 2200); patter(20, 0.1, 1, 0.025); tone('sine', 500, 800, 0.5, 0.015, 0.1); },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; if (sample('bubble-hit', { ...EVERYDAY, rate: 0.92 + rng() * 0.16 })) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
   // a critical hit: a bright metallic shing over the thud, a falling glint after it

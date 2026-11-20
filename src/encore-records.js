@@ -121,9 +121,10 @@ export class EncoreRecords {
     let dropped = false;
     for (const c of this.casts) {
       if (c.state === 'wind' || c.state === 'fly') this.warnStep(c, beat, player);
+      if (c.state === 'wind' && !c.scratched && beat >= c.warnAt) { c.scratched = true; if (!skip) sfx.recordScratch(); }
       if (c.state === 'wind' && beat >= c.release) {
         c.state = 'fly';
-        if (!skip) { this.fx.impact(c.start, this.color, 0.02, 8); sfx.whiz?.(); }
+        if (!skip) { this.fx.impact(c.start, this.color, 0.02, 8); sfx.recordThrow(); }
         c.orb = this.fx.orb(this.color, 0.006);
       }
       if (c.state === 'fly') {
@@ -140,7 +141,7 @@ export class EncoreRecords {
           c.state = 'stand'; this.fx.free(c.orb); c.orb = null;
           this.freeWarning(c);
           _p.set(c.to[0], 0.01, c.to[1]);
-          if (!skip) { this.fx.impact(_p, this.color, 0.03, 12); juice.feel('hit'); sfx.pinStick?.(); }
+          if (!skip) { this.fx.impact(_p, this.color, 0.03, 12); juice.feel('hit'); sfx.recordStick(); }
         }
       }
       if (c.state === 'stand') {
@@ -214,7 +215,7 @@ export class EncoreRecords {
     if (show) {
       _p.set(c.to[0], this.r, c.to[1]);
       this.fx.ice?.shatter(_p, LOOK.num('encore-record-shards', 16), this.r * 0.35, 0.5, 0);
-      this.fx.impact(_p, '#ffffff', 0.02, 6); sfx.shatter?.();
+      this.fx.impact(_p, '#ffffff', 0.02, 6); sfx.recordShatter();
     }
     this.drop(c);
   }

@@ -200,6 +200,7 @@ export class Encore {
     for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4) M.perform('silver', 'throw', c.release); break; }   // his next throw (asked again each frame: it plays on)
     // his fader crank, as the first Warning shows (held to his bow: his lanes burn under it)
     if (S.who === 'gold' && !S.bowing) M.perform('gold', 'crank', S.at + 2, 1, Math.max(0, S.end - 1 - (S.at + 2)));
+    if (S.who === 'gold' && !S.cranked && beat >= S.at + 2) { S.cranked = true; if (beat < S.at + 3) sfx.faderCrank(); }
     // the duet: both DJs throw their hands up as the wall's Warning fills, held till they bow
     if (S.warnAt != null && !S.bowing && beat >= S.warnAt) for (const d of DJS) M.perform(d, 'hands-up', S.warnAt + 1, 1, Math.max(0, S.end - S.warnAt - 3.5));
     // his bow, a beat before his solo ends: the long one if no hit reached the jelly till then (a duet's is its own)
@@ -208,6 +209,7 @@ export class Encore {
       S.bowing = true; S.bowEnd = S.end + bow;
       for (const d of who) M.perform(d, 'bow', S.end, 1, Math.max(0, bow - this.bowLift));
     }
+    if (S.bowing && !S.exhaled && beat >= S.end) { S.exhaled = true; if (beat < S.end + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
     // the spotlight and his wing come up over the beat before his solo and go down over the beat after
     S.on = beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
     for (const d of who) this.spotOn(d, S.on);
