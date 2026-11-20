@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { original } from './lite-materials.js';
 
 // Orbit camera that follows the player from a fixed angle and distance (look.css --camera-tilt,
 // --camera-distance): it never tilts or snaps on its own, because a view that moves under you
@@ -41,7 +42,8 @@ const sizeOf = (m) => {
 const LAMBERT = ['color', 'map', 'lightMap', 'lightMapIntensity', 'aoMap', 'aoMapIntensity', 'emissive', 'emissiveMap', 'emissiveIntensity',
   'bumpMap', 'bumpScale', 'normalMap', 'normalMapType', 'normalScale', 'displacementMap', 'displacementScale', 'displacementBias',
   'alphaMap', 'wireframe', 'flatShading', 'fog'];
-const faded = (mat) => {
+const faded = (from) => {
+  const mat = original(from);   // Low's plain copy fades as its original does: the same see-through shader on every tier
   let c;
   if (mat.isMeshStandardMaterial) {
     c = THREE.Material.prototype.copy.call(new THREE.MeshLambertMaterial(), mat);

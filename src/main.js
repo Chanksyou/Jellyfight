@@ -9,6 +9,7 @@ import { Graphics, CHOICES } from './graphics.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
 import { EXPERIMENTS } from './experiments.js';
+import { setLite, liteOn } from './lite-materials.js';
 import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { TestKit } from './test-kit.js';
@@ -1040,6 +1041,9 @@ async function warmUp() {
 // Switching between them in the pause menu prepares the other set then (retier), from the scene
 // and the shelf of what warmUp showed.
 async function prepareGraphics(progress) {
+  const lite = gfx.quality === 'low' || EXPERIMENTS.lite === 1;   // Low's plain materials (lite-materials.js)
+  if (lite !== liteOn()) tpc.unfadeAll();   // a fade puts back the material it took, from the other set
+  setLite(lite, { scene, shelf, apartment: APT.root, batches: statics.batches });
   const programs = new Set(), was = renderer.getRenderTarget(), layers = camera.layers.mask;
   try {
     camera.layers.enable(0);   // as uploadAll draws it: the home portrait may have isolated its own layer

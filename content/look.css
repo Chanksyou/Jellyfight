@@ -1144,6 +1144,7 @@
   --min-pixel-ratio: 1;        /* the governor never draws blurrier than this */
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
   --desktop-lights: 0;
+  --lite-fill: 1.6;            /* Low graphics: the spotlights are off, the room's fill light is this many times brighter (lite-materials.js) */
   --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
   --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
   --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
