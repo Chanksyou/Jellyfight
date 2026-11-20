@@ -13,51 +13,14 @@
 // phone's. A phone's frame rate needs the game's own Diagnostics readout on the device.
 import fs from 'node:fs';
 import { start, openGame } from '../tests/lib.mjs';
+import { PAGES, MOMENTS } from '../src/bench-moments.js';
 
 const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
 const TIERS = arg('tiers', 'medium,low').split(','), ONLY = arg('only', '').split(',').filter(Boolean), JSON_OUT = arg('json', '');
 const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4);
 
-// the runs tests/run.mjs carries into later acts
-const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
-const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
-const PAGES = {
-  act1: {},
-  act3: { act: { act: 3, carry: CARRY3 } },
-  night4: { act: { act: 4, carry: CARRY4 } },
-  arena: { act: { act: 4, scene: 2, carry: CARRY4 } },
-};
-
-// Each moment runs in the page with the story kit (src/stories/kit.js as K). It sets the moment up,
-// and returns nothing; the frames after it are measured. Bugs are held at 14 (act 3's most at once).
-const crowd = (kinds) => `(() => { const n = 14; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, r = 0.25 + (i % 3) * 0.1; K.spawn(${JSON.stringify(kinds)}[i % ${kinds.length}], K.near(Math.cos(a) * r, Math.sin(a) * r), { hp: 1e6 }); } })()`;
-const immortal = `K.stub(run, 'hurt', () => {}); run.health = 1e6;`;
-const MOMENTS = {
-  act1: {
-    'bugs + Controller': `K.startController(0); ${immortal} ${crowd(['roach', 'ants', 'mosquito', 'lanternfly'])}; const e = run.elites.list.find((x) => x.kind === 'controller'); e.hp = e.maxHp * 0.5;`,
-    'Vacuum fight': `K.startVacuum('spin'); ${immortal}`,
-  },
-  act3: {
-    'bugs + Alligator angry': `K.startCroc(0, { angry: true }); ${immortal} ${crowd(['dragonfly', 'mantis', 'beetle'])}`,
-    'shark fight': `K.sharkFight(); ${immortal}`,
-  },
-  night4: {
-    'three bugs + 12 Firefly pools': `K.fresh({ elites: false, bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); ${immortal} ${crowd(['firefly', 'moth', 'cicada'])};
-      const P = player.position, L = { flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12 };
-      for (let i = 0; i < 12; i++) { const to = P.clone().add(new THREE.Vector3(-0.3 + (i % 4) * 0.2, 0, -0.3 + Math.floor(i / 4) * 0.2)); enemies.glowPools.throw(to.clone().setY(to.y + 0.15), to, L, -1, 'firefly'); }
-      K.step(90);`,
-    'Singing Bowl angry': `K.startBowl(0, { angry: true }); ${immortal}`,
-    'Mushroom Pillow angry': `K.startPillow(0, { angry: true }); ${immortal}`,
-    'Headphones angry': `K.startHeadphones(0, { angry: true, hold: true }); ${immortal}`,
-    'bass wave + sun': `K.fresh({ bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); ${immortal} run.t = 150; K.step(2); K.stub(run, 'song', null); run.beat = run.bass.next - 3.5;`,
-    'stage door opens': `K.fresh({ bubbles: false, lash: false }); ${immortal} K.stub(NAV, 'reload', () => {}); run.t = run.duration - 1; K.tp(1.9, 0.05, 4.2, 0);`,
-  },
-  arena: {
-    'Encore disco': `K.encoreFight({ beat: 126 }); ${immortal}`,
-    'Encore drop (two waves + lasers)': `K.encoreFight({ beat: 96 }); ${immortal}`,
-  },
-};
-
+// The moments, and the pages they play in, are shared with the phone bench (src/bench-moments.js): each
+// sets its moment up in the page with the story kit; the frames after it are measured.
 async function measure(env, pageKey, tier) {
   const { page } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, ...PAGES[pageKey], seed: 1 });
   // the tier is a stored choice (graphics.js); switching rebuilds behind the menu, so store it and reload
@@ -67,17 +30,17 @@ async function measure(env, pageKey, tier) {
   await page.evaluate(async () => { APT.renderer.setAnimationLoop(null); await (window.gfx.ready || Promise.resolve()); });
   const cdp = await page.context().newCDPSession(page);
   const base = await page.evaluate(async () => {
-    window.K = await import('/src/stories/kit.js'); window.NAV = (await import('/src/stages.js')).nav;
+    window.K = await import('/src/stories/kit.js'); window.NAV = (await import('/src/stages.js')).nav; window.BM = await import('/src/bench-moments.js');
     const lights = []; APT.scene.traverse((o) => { if (o.isLight) lights.push(o.type); });
     return { tier: gfx.quality, programs: APT.renderer.info.programs.length, lights: lights.length, pointLights: lights.filter((t) => t === 'PointLight').length, phone: matchMedia('(pointer: coarse)').matches };
   });
   const out = { page: pageKey, tier, ...base, moments: {} };
-  for (const [name, setup] of Object.entries(MOMENTS[pageKey])) {
-    const pre = await page.evaluate((src) => {
-      const G = window; new Function('K', 'run', 'player', 'enemies', 'THREE', 'G', 'NAV', src)(K, run, player, enemies, THREE, G, NAV);
+  for (const name of Object.keys(MOMENTS[pageKey])) {
+    const pre = await page.evaluate(([p, n]) => {
+      BM.MOMENTS[p][n]({ K, G: window, nav: NAV });
       K.step(30); GAME.render();
       return APT.renderer.info.programs.length;
-    }, setup);
+    }, [pageKey, name]);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
     await cdp.send('HeapProfiler.enable');
     await cdp.send('HeapProfiler.collectGarbage');
