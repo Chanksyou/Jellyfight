@@ -72,7 +72,7 @@ vec3 frost(vec2 uv, float t) {
   vec2 w = uv + (vec2(noise(uv * 6.0), noise(uv * 6.0 + 5.2)) - 0.5) * 0.06;
   vec4 g1 = grains(w * 4.0);
   float a = angle(g1.xy), big = lattice(w, 9.0, a, 10.0, hash(g1.xy) * 30.0);
-  big = mix(lattice(w, 9.0, angle(g1.zw), 10.0, hash(g1.zw) * 30.0), big, 0.5 + 0.5 * smoothstep(0.0, 0.12, seam_));
+  if (seam_ < 0.12) big = mix(lattice(w, 9.0, angle(g1.zw), 10.0, hash(g1.zw) * 30.0), big, 0.5 + 0.5 * smoothstep(0.0, 0.12, seam_));
   float med = lattice(w, 21.0, a + 0.5, 12.0, 11.0);
   float fine = lattice(w, 46.0, a + 0.2, 8.0, 23.0);
   float lines = max(big * tips, max(med * 0.75 * mid, fine * 0.5 * body));
@@ -107,7 +107,7 @@ vec3 paint(vec2 uv) {
   // the frost, seen first so the jelly behind it can be blurred by it
   vec3 fr = frost(uv, t) * s;
   // the jelly, seen through frosted glass where frost covers it (bent and softened)
-  vec2 at = bend(uv, (vec2(noise(uv * 60.0), noise(uv * 60.0 + 9.0)) - 0.5) * 0.02 * fr.x);
+  vec2 at = fr.x > 0.0 ? bend(uv, (vec2(noise(uv * 60.0), noise(uv * 60.0 + 9.0)) - 0.5) * 0.02 * fr.x) : uv;
   vec4 p = portrait(at);
   vec4 j = jelly(at);
   c = c * (1.0 - min(p.a, j.x)) + p.rgb;
@@ -130,7 +130,7 @@ vec3 paint(vec2 uv) {
   // mid snow, crisp and small, in front
   c = mix(c, pale * 1.1, snow(uv, t * 1.1, 14.0, 1.2, 0.09, 0.35, 5.0, 0.3) * 0.8 * s);
   // the frost on the glass: a frosted body that blurs and pales what's behind, crystal lines, glints
-  float grainy = 0.75 + 0.5 * fbm(uv * 48.0, 3);
+  float grainy = fr.x > 0.0 ? 0.75 + 0.5 * fbm(uv * 48.0, 3) : 1.0;
   c = mix(c, mix(cold, pale, 0.7) * 0.8, fr.x * 0.32 * grainy);
   c = mix(c, mix(pale, uRamp[0], 0.5) * 1.15, min(fr.y, 1.0) * 0.9);
   c += uRamp[0] * fr.z * 4.0;

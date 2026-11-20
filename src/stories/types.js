@@ -569,7 +569,7 @@ story('types/pick-side-card-frost', {
       for (let i = 0; i < 400 && !ice.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost') && !AURAS.frost;
       picker.auraAt = -1; tick();
-      // (one look at the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
+      // (a few small reads of the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
       const S = ice.width, ctx = ice.getContext('2d');
       const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
       const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
