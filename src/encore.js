@@ -114,11 +114,11 @@ export class Encore {
     const A = this.arenaView;
     // each hit lands with a flash and sparks at the jelly in that attack's colour
     this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`), c?.dj) });
-    this.lasers = new EncoreLasers(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-laser')) });
-    this.disco = new EncoreDisco(A, { onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-disco')), quiet: (b) => this.quiet(b) || this.walling(b) });
+    this.lasers = new EncoreLasers(A, { fx, onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-laser')) });
+    this.disco = new EncoreDisco(A, { fx, onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-disco')), quiet: (b) => this.quiet(b) || this.walling(b) });
     this.shove = { x: 0, z: 0 };
     this.contact = new EncoreContact(scene, A.shockSolids, { onShock: (dmg, point) => {
-      this.hurtPlayer(dmg);
+      this.hurtPlayer(dmg); sfx.zap?.();
       const away = new THREE.Vector3().subVectors(this.player.position, point).setY(0);
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
@@ -260,6 +260,8 @@ export class Encore {
     if (dj && this.beat !== null) this.floor.react(dj, 'fist-pump', Math.ceil(this.beat));
     bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: 'boss' });
     if (color && this.player) this.fx.impact(_hit.copy(this.player.position).setY(this.player.position.y + 0.03), color, 0.03, 10);
+    // and leaves a scorch on the floor under it, harmless and fading (the hit's aftermath)
+    if (this.player) this.fx.splat(_hit.copy(this.player.position).setY(0), LOOK.color('encore-scorch', '#1a1410'), LOOK.num('encore-hit-scorch', 0.035), 'scorch');
   }
 
   damage(amount, color = '#fff', feedback = {}) {

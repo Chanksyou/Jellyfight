@@ -694,9 +694,11 @@
   --encore-pyro-lane: 0.24;      /* m: one of the gold DJ's six flame lanes (the floor is 1.44 m across; encore-pyro.js) */
   --encore-pyro-warning: 0.6;    /* a lane's floor strip, and the volume over it */
   --encore-pyro-volume: 0.3;
+  --encore-pyro-warning-early: 0.4; /* of those, how much a lane's Warning shows as it starts, brightening as it fills: with two sets warning, the one firing next stands out */
   --encore-flame-opacity: 0.8;   /* the flames bursting (his gold, white-hot at the foot) */
   --encore-scorch: #1a1410;      /* the soot left where they stood: dark, never the hostile gold */
   --encore-scorch-opacity: 0.55;
+  --encore-hit-scorch: 0.035;    /* m: the scorch any Encore hit leaves on the floor under the jelly (fades as splats do) */
   --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
   --encore-spotlight-opacity: 0.22;
   --encore-spotlight-radius: 0.09; /* m: its pool on the booth */
@@ -750,6 +752,7 @@
   --encore-disco-spot: 0.028;    /* m: a spot's radius on the floor */
   --encore-disco-spin: 0.35;     /* radians the ball turns a beat while it wheels */
   --encore-disco-beam: 0.35;     /* its beams' opacity */
+  --encore-disco-strike: 0.2;    /* beats its spots blaze hot and swell as they strike */
   --encore-disco-rings: 26;      /* rings of mirror tiles on the ball (about 900 tiles) */
   --hostile-encore-laser: #39ff14; /* the Encore's club lasers: laser green */
   --encore-laser-height: 0.35;   /* m: the emitters on the corner posts (the plane's apex) */
