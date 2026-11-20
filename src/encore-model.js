@@ -6,15 +6,17 @@ import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import { LOOK } from './look.js';
 import { coil, snap, settle, heavy } from './attack-motion.js';
 
-// The DJs' moves (perform). A move is two poses, its wind-up and its accent, each ten angles in
+// The DJs' moves (perform). A move is two poses, its wind-up and its accent, each twelve angles in
 // radians, offsets from the rest pose: torso pitch (+ bows forward) and turn (+ towards the centre),
 // helmet pitch and turn, then the outer arm's and the inner arm's x (- raises it forward and up), y
-// (+ swings it outwards) and z (+ tips it outwards); each DJ mirrors them. Its timing, in beats:
+// (+ swings it outwards) and z (+ tips it outwards), then the outer and inner leg's pitch (- swings it
+// forward and up; legs show only off the booth); each DJ mirrors them. A list shorter than twelve
+// reads the rest as 0. Its timing, in beats:
 // lead (it starts this long before the accent), strike (the swing from wind-up to accent), sustain
 // (the accent held), release (the way back) and spin (radians: the outer arm circles once a beat
 // through the wind-up). All in content/look.css as --encore-dance-<move>, -<move>-wind, -<move>-hit.
-export const MOVES=['circle','sweep','point','clap','throw','crank','hands-up','fist-pump','flinch','bow'];
-const J=10,YAW=[1,3,5,8];
+export const MOVES=['circle','sweep','point','clap','throw','crank','hands-up','fist-pump','flinch','bow','vault','land','slam','conduct','push'];
+const J=12,YAW=[1,3,5,8];
 let MOVE=null,K=null;
 function moves(){
   if(MOVE)return MOVE;
@@ -85,7 +87,7 @@ export function buildEncoreBoss(){
   const cylinder=geo(new THREE.CylinderGeometry(1,1,1,12));
   const disc=geo(new THREE.CylinderGeometry(1,1,1,24));
   const rod=geo(new THREE.CylinderGeometry(1,1,1,6));
-  const up=new THREE.Vector3(0,1,0),tmp=new THREE.Object3D();
+  const up=new THREE.Vector3(0,1,0),tmp=new THREE.Object3D(),_to=new THREE.Vector3();
   function put(g,m,at,scale=[1,1,1],rot=[0,0,0],parent=root){
     tmp.position.fromArray(at);tmp.scale.fromArray(scale);tmp.rotation.set(...rot);tmp.updateMatrix();
     const copy=g.clone().applyMatrix4(tmp.matrix);let byMat=groups.get(parent);if(!byMat){byMat=new Map();groups.set(parent,byMat);}if(!byMat.has(m))byMat.set(m,[]);byMat.get(m).push(copy);
@@ -187,11 +189,16 @@ export function buildEncoreBoss(){
     const body=new THREE.Group();body.name=side<0?'Silver performer':'Gold performer';body.position.set(side*.083,0,-.075);body.rotation.y=-side*.18;root.add(body);
     const torso=new THREE.Group();torso.name='Torso';torso.position.y=.16;torso.rotation.order='YXZ';body.add(torso);
     const fig=new THREE.Group();fig.position.y=-.16;torso.add(fig);
-    const rig={side,body,torso,head:null,outer:null,inner:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null,look:null};rigs.push(rig);
+    const rig={side,body,torso,head:null,outer:null,inner:null,outerLeg:null,innerLeg:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null,look:null,arm:'outer',
+      rest:body.position.clone(),restYaw:body.rotation.y,out:false,trip:null,yaw:0,facing:null};rigs.push(rig);
+    // Two legs, each its own part pivoting at the hip (two materials: they show only off the booth;
+    // in it they stand hidden in the pyramid, as they always have)
     for(const x of [-.017,.017]){
-      put(box,visor,[x,.011,.009],[.025,.019,.048],[0,0,0],fig);put(box,steel,[x,.004,.01],[.026,.004,.049],[0,0,0],fig);
-      bar([x,.025,0],[x*.85,.09,-.005],.012,suit,fig);bar([x*.85,.09,-.005],[x*.8,.156,0],.014,suit,fig);
-      path([[x-.009,.032,.01],[x-.009,.088,.008],[x-.009,.145,.012]],.00055,seam,fig);
+      const hip=[x*.8,.156,0],leg=new THREE.Group(),at=p=>[p[0]-hip[0],p[1]-hip[1],p[2]-hip[2]],outer=Math.sign(x)===side;
+      leg.name=outer?'Outer leg':'Inner leg';leg.position.fromArray(hip);leg.visible=false;body.add(leg);rig[outer?'outerLeg':'innerLeg']=leg;
+      put(box,visor,at([x,.011,.009]),[.025,.019,.048],[0,0,0],leg);put(box,visor,at([x,.004,.01]),[.026,.004,.049],[0,0,0],leg);
+      bar(at([x,.025,0]),at([x*.85,.09,-.005]),.012,suit,leg);bar(at([x*.85,.09,-.005]),[0,0,0],.014,suit,leg);
+      path([[x-.009,.032,.01],[x-.009,.088,.008],[x-.009,.145,.012]].map(at),.00055,suit,leg);
     }
     put(ball,suit,[0,.161,0],[.033,.025,.022],[0,0,0],fig);
     put(box,visor,[0,.165,.018],[.055,.009,.005],[0,0,0],fig);put(box,steel,[0,.165,.021],[.008,.007,.002],[0,0,0],fig);
@@ -287,6 +294,35 @@ export function buildEncoreBoss(){
   // pumps it, down on every beat; dance(who, null) lets it ease back to the decks.
   const rigOf=who=>rigs.find(r=>r.side===(who==='silver'?-1:who==='gold'?1:0));
   const raised=LOOK.num('encore-dance-raise',1.35),pump=LOOK.num('encore-dance-pump',.32);
+  const vaultHeight=LOOK.num('encore-vault-height',.26),turnRate=LOOK.num('encore-turn-rate',6);
+  // Off the booth (travel): a DJ's body leaves the booth's group for the arena's (the booth's parent),
+  // so the booth's beat pump, hit squash and shudder no longer move him; home puts him back at rest.
+  const homeAt=(r,out)=>out.copy(r.rest).applyQuaternion(root.quaternion).add(root.position);
+  const homeYaw=r=>r.restYaw+root.rotation.y;
+  function leave(r){if(r.out)return;homeAt(r,r.body.position);r.yaw=homeYaw(r);r.body.rotation.y=r.yaw;root.parent.add(r.body);r.out=true;r.outerLeg.visible=r.innerLeg.visible=true;}
+  function home(r){r.trip=null;r.facing=null;if(!r.out)return;root.add(r.body);r.body.position.copy(r.rest);r.body.rotation.y=r.restYaw;r.out=false;r.outerLeg.visible=r.innerLeg.visible=false;}
+  const turnTo=(r,yaw,dt)=>{const d=Math.atan2(Math.sin(yaw-r.yaw),Math.cos(yaw-r.yaw)),c=turnRate*dt;r.yaw+=Math.max(-c,Math.min(c,d));};
+  // each frame: where a travelling DJ is (u 0..1 along his arc, by the beat or the clock), and his facing
+  function fly(r,dt,beat){
+    const T=r.trip,b=r.body.position;
+    let moving=false;
+    if(T&&!T.done){
+      const u=T.secs?(time-T.t0)/T.secs:beat===null?null:(beat-T.t0)/(T.t1-T.t0);   // (no beat: he waits where he is)
+      if(u!==null&&u<0&&T.set){home(r);return;}   // the song rewound past his take-off: back in the booth
+      if(u!==null&&u>=0){
+        moving=true;
+        if(!r.out)leave(r);
+        if(!T.set){T.set=true;T.from.copy(b);}   // he takes off from wherever he stands
+        if(T.home)homeAt(r,T.to);
+        const k=Math.min(1,u);b.lerpVectors(T.from,T.to,k);b.y+=4*T.h*k*(1-k);
+        const dx=T.to.x-T.from.x,dz=T.to.z-T.from.z,end=T.home?homeYaw(r):r.facing?Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z):null;
+        turnTo(r,k<.5||end===null?(Math.hypot(dx,dz)>.01?Math.atan2(dx,dz):r.yaw):end,dt);   // faces the way he goes, then where he lands facing
+        if(u>=1){if(T.home)home(r);else T.done=true;}   // (kept, so asking again for it changes nothing)
+      }
+    }
+    if(!moving&&r.out&&r.facing)turnTo(r,Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z),dt);
+    if(r.out)r.body.rotation.y=r.yaw;
+  }
   moves();
   return {root,collisionGeometry,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands,arms:rigs.map(r=>r.outer),
     rigs:{silver:rigOf('silver'),gold:rigOf('gold')},
@@ -296,11 +332,34 @@ export function buildEncoreBoss(){
     // accent holds (a bow); look (radians, 0 = straight down the floor, + towards +x) turns his
     // helmet to face that way as the move takes over (the arc's gap). perform(who, null) eases back. The pose is a function of the beat (update);
     // asking for the same move on the same beat again changes nothing, and a song rewind drops it.
-    perform(who,move,beat0,dir=1,sustain,look=null){
+    // arm 'inner' plays the move with his other arm (a conduct for the far lanes); dir still only mirrors turns.
+    perform(who,move,beat0,dir=1,sustain,look=null,arm='outer'){
       const r=rigOf(who);if(!r||(move!==null&&(!MOVES.includes(move)||!Number.isFinite(beat0))))return false;
-      if(move&&r.move===MOVE[move]&&r.at===beat0)return true;   // asked again (each frame): it plays on
-      r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;r.look=Number.isFinite(look)?look:null;return true;
+      if(move&&r.move===MOVE[move]&&r.at===beat0&&r.arm===(arm==='inner'?'inner':'outer'))return true;   // asked again (each frame): it plays on
+      r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;r.look=Number.isFinite(look)?look:null;r.arm=arm==='inner'?'inner':'outer';return true;
     },
+    // travel(who, to, takeOff, land, height): he leaves where he stands on beat takeOff and lands on beat
+    // land at `to` ([x, y, z] in the arena, the booth's parent; or 'home', back in the booth at rest), in
+    // an arc `height` m over the straight line (--encore-vault-height), a function of the beat. On the
+    // clock instead: travel(who, to, {secs, height}) (a knock-back, a rewind's hop home). Asking again for
+    // the same trip changes nothing. Off the booth he faces the way he goes, then face()'s point.
+    travel(who,to,takeOff,land,height=vaultHeight){
+      const r=rigOf(who),clock=takeOff!==null&&typeof takeOff==='object',goHome=to==='home';
+      if(!r||!root.parent||(!goHome&&!(Array.isArray(to)&&to.length===3&&to.every(Number.isFinite))))return false;
+      if(clock){height=takeOff.height??vaultHeight;if(!(takeOff.secs>0))return false;}
+      else if(!Number.isFinite(takeOff)||!Number.isFinite(land)||land<=takeOff)return false;
+      const T=r.trip;
+      const same=T&&T.home===goHome&&(goHome||T.to.equals(_to.fromArray(to)));
+      if(same&&(clock?T.secs===takeOff.secs:!T.secs&&T.t0===takeOff&&T.t1===land))return true;   // asked again (each frame)
+      if(goHome&&!r.out){r.trip=null;return true;}   // he is home already (a trip out not yet begun is called off)
+      r.trip={home:goHome,to:goHome?new THREE.Vector3():new THREE.Vector3().fromArray(to),from:new THREE.Vector3(),set:false,h:Number.isFinite(height)?height:vaultHeight,
+        t0:clock?time:takeOff,t1:clock?null:land,secs:clock?takeOff.secs:0};
+      return true;
+    },
+    // face(who, [x, z]): off the booth, he turns to that point (--encore-turn-rate, radians a second); null: holds his facing
+    face(who,point){const r=rigOf(who);if(!r||(point!==null&&!(Array.isArray(point)&&point.length===2&&point.every(Number.isFinite))))return false;r.facing=point?(r.facing||[0,0]):null;if(point){r.facing[0]=point[0];r.facing[1]=point[1];}return true;},
+    // is he off the booth (travelling or standing on the floor)?
+    out(who){return !!rigOf(who)?.out;},
     // each frame; beat: the song's (null: no move plays, each eases back)
     update(dt,quiet=false,beat=null){time+=dt;
       for(const r of rigs){
@@ -309,6 +368,7 @@ export function buildEncoreBoss(){
         if(r.move&&beat!==null&&r.fadeAt!==null&&beat<r.fadeAt)r.move=null;   // the song rewound: the move is gone
         if(r.move&&beat!==null){
           w=shape(r.move,beat-r.at,quiet,r.dir,r.sustain,now);
+          if(r.arm==='inner')for(let i=4;i<7;i++){const t=now[i];now[i]=now[i+3];now[i+3]=t;}   // the other arm plays it
           if(r.fadeAt===null)r.fadeAt=beat;
           const f=Math.min(1,Math.max(0,(beat-r.fadeAt)/K.blend));   // from whatever it was doing
           if(f<1){for(let i=0;i<J;i++)now[i]=r.was[i]+(now[i]-r.was[i])*f;w=r.from+(w-r.from)*f;}
@@ -322,6 +382,8 @@ export function buildEncoreBoss(){
         if(r.look!==null)head.rotation.y+=Math.max(-1.5,Math.min(1.5,r.look+side*.7))*w;   // faces it (the body already turns -side*.18, the helmet -side*.52)
         outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4];outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
         inner.rotation.x=now[7];inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
+        r.outerLeg.rotation.x=now[10];r.innerLeg.rotation.x=now[11];
+        fly(r,dt,beat);
       }},
-    dispose(){root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
+    dispose(){for(const r of rigs)home(r);root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }
