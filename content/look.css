@@ -801,6 +801,7 @@
   --encore-disco-light: #fff4e2; /* its spots while they wheel round: warm white, harmless */
   --encore-disco-radius: 0.12;   /* m: the ball (24 cm across, about three jellies tall) */
   --encore-disco-hang: 0.5;      /* m: its centre when it's down */
+  --encore-disco-stay-hang: 0.64; /* m: its centre when it's down for good (set 3): high enough that, in the fight view, it clears the duet pair's heads */
   --encore-disco-spot: 0.028;    /* m: a spot's radius on the floor */
   --encore-disco-spin: 0.35;     /* radians the ball turns a beat while it wheels */
   --encore-disco-beam: 0.35;     /* its beams' opacity */
