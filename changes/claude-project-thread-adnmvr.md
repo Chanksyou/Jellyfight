@@ -1,0 +1,1 @@
+three of a kind: when every level-up card or chest Treasure on offer shares a rarity, one of them goes up a rarity (three Commons make a Rare, three Rares an Epic, three Epic Treasures a Legendary; three Epic level-up cards stay Epic). Adds the reward spin's reels and odds behind the scenes, nothing on screen yet.

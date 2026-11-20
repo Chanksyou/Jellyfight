@@ -67,6 +67,19 @@
   --ui-ease-out: var(--ui-ease-leave);
 }
 @media (pointer: coarse) { :root { --ui-stagger: 40ms; } }
+/* the reward spin (src/spin.js): filler cells per reel, the lever, when each reel stops after the
+   lever (a 4th reel keeps the last step), the hold before the cards, and the extra wait on a reel
+   landing Epic or Legendary (it and every reel after it) */
+:root {
+  --spin-cells-treasure: 16;
+  --spin-cells-levelup: 10;
+  --spin-lever: 250ms;
+  --spin-stops-treasure: 900ms 1250ms 1600ms;
+  --spin-stops-levelup: 500ms 700ms 900ms;
+  --spin-hold-treasure: 450ms;
+  --spin-hold-levelup: 300ms;
+  --spin-rare-wait: 250ms;
+}
 
 :root {
   --portrait-resolution: 256;
