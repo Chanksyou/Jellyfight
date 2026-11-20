@@ -478,10 +478,11 @@ story('types/pick-stage-fire', {
         tails = Math.max(tails, (looks.pools.fire || []).concat(P.bubbles.list.map((b) => b.m)).filter((m) => m?.userData.tail?.visible).length);
       }
       const boils = looks.parts.fire.slice(0, 3).every(([, m]) => m.customProgramCacheKey?.().startsWith('fireChurn'));
-      P.bubbles.reset(); live.simulate(1 / 30);
-      const gone = !looks.burnFlames || looks.burnFlames.on.size === 0;
+      P.bubbles.reset();
+      const tailsLeft = (looks.pools.fire || []).filter((m) => m.userData.tail?.visible).length;
+      const gone = (!looks.burnFlames || looks.burnFlames.on.size === 0) && tailsLeft === 0;
       const play = G().run.bubbles.looks, plain = !play.fx.showcase && play.parts.fire.every(([, m]) => !m.onBeforeCompile || m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) && !play.burnFlames;
-      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, boils, gone, plain });
+      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, tailsLeft, boils, gone, plain });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

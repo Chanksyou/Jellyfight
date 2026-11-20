@@ -91,7 +91,6 @@ export function fly(fx, F, at, tail, dir, r, tick) {
   glow.hold(at, F.edge, r * 5.5, 0.22);
   if (!tick) return;
   for (let k = 0; k < 3; k++) {
-    _p.copy(tail).addScaledVector(dir, -r * k * 0.8).add(_v.set((Math.random() - 0.5) * r, (Math.random() - 0.5) * r, (Math.random() - 0.5) * r));
     _v.copy(dir).multiplyScalar(-0.06).add(_p.set(0, 0.03, 0));
     glow.emit(_p.copy(tail).addScaledVector(dir, -r * k * 0.8), k ? F.edge : F.flame, r * (2.4 - k * 0.5), r * 0.3, F.life * 1.6, 0.5, _v, -0.1);
   }
@@ -180,4 +179,6 @@ export class BurnFlames {
       U.uFade.value = 0.8 * Math.min(1, (f.age + 0.05) * 5, f.t * 3);
     }
   }
+
+  clear() { for (const m of this.on.values()) { m.visible = false; this.free.push(m); } this.on.clear(); }
 }

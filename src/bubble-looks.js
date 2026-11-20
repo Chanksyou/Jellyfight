@@ -464,7 +464,7 @@ export class BubbleLooks {
       if (this.arcN + 2 <= this.arcMax) { this.arcPos.set([P[i - 1].x, P[i - 1].y, P[i - 1].z, P[i].x, P[i].y, P[i].z], this.arcN * 3); this.arcN += 2; }
     }
   }
-  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const c of this.clouds || []) c.visible = false; }
+  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const c of this.clouds || []) c.visible = false; this.burnFlames?.clear(); }
 
   // The Glitter jelly's burst (types on, bubbles.js glitterBurst): its flakes fill the sphere of the
   // hit, `r` round `pos`, roughly (glitter-looks.js cloud), so a flying bug inside reads as hit, with
