@@ -7,9 +7,11 @@
 //   bossShare    0..1 of the boss's Health removed
 //   won          the act's boss is beaten
 //   elites       high-ground Elites beaten
-//   bugsOut      bugs that came out during the night (counted at spawn; boss-fight summons are not counted)
+//   bugsOut      bugs that came out during the night, counted at spawn: waves, Nests, split-off children and
+//                Elite summons all count; the boss fight's summons don't (on either side)
 //   bugsCleared  of those, the ones the jelly cleared (the same night-only rule)
-//   damageTaken  Health the act's hits would have taken with no Shield (each damage-over-time tick counts)
+//   damageTaken  Health the act's hits would have taken with no Shield, until the boss falls (each damage-over-time
+//                tick counts; a Treasure's own Health drain, Bloody Fangs, is a price you chose and doesn't)
 //   bossSeconds  how long the boss fight took
 export const SCORE = {
   night: 2000,          // Night survived: all of it for the whole night

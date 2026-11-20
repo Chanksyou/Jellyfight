@@ -1026,7 +1026,7 @@ export class Run {
   hurt(amount, silent = false, from = null, contact = false, knock = false, at = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
-    if (amount > 0) this.taken += amount;   // before the Shield takes its share (score: Clean play)
+    if (amount > 0 && !this.bossWon) this.taken += amount;   // before the Shield takes its share, until the boss falls (score: Clean play)
     amount = this.shield.absorb(amount, silent);
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
