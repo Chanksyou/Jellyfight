@@ -1220,6 +1220,74 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
   },
 });
 
+// ---- the feel pass (E7): what each Encore attack adds to its chain (docs/agents/attack-feel.md)
+// an fx that counts its impacts and splats, where they were
+const countingFx = () => { const fx = { ...fakeFx(), impacts: [], splats: [] }; fx.impact = (p, c) => fx.impacts.push({ p: p.clone(), c }); fx.splat = (p, c, r, mark) => fx.splats.push({ p: p.clone(), r, mark }); return fx; };
+
+story('encore/feel-a-laser-flashes-its-emitter-as-it-fires', {
+  about: 'A club laser\'s release is marked at its emitter: on the beat it fires, a flash in laser green at its corner post (where the plane starts), once, the frame its sound plays; nothing flashes there during its Warning.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), arena = buildAct4(scene), fx = countingFx(), lasers = new EncoreLasers(arena, { fx });
+    try {
+      lasers.cast(4, { corner: 2, on: [0, 0.3], side: 1 });
+      const at = []; for (let b = 1; b <= 6; b += 1 / 30) { const n = fx.impacts.length; lasers.update(b, null); if (fx.impacts.length > n) at.push(+b.toFixed(3)); }
+      const [cx, cz] = CORNERS[2], p = fx.impacts[0]?.p;
+      const atPost = !!p && Math.abs(p.x - cx) < 1e-6 && Math.abs(p.z - cz) < 1e-6 && Math.abs(p.y - LOOK.num('encore-laser-height', 0.35)) < 1e-6;
+      return ok(at.length === 1 && at[0] >= 4 && at[0] < 4 + 1 / 30 + 1e-6 && atPost, { at, p });
+    } finally { lasers.dispose(); arena.dispose(); }
+  },
+});
+
+story('encore/feel-disco-spots-blaze-as-they-strike-and-the-ball-flares', {
+  about: 'As the disco ball\'s spots strike (the end of each 4 beats) they blaze brighter and bigger than while they flashed, in the hot magenta, for --encore-disco-strike beats, and the ball flares once with them, the last strike of a visit included (its spots stay that long past the show); then they wheel on in warm white.',
+  setup() {},
+  play() {
+    const scene = new THREE.Scene(), arena = buildAct4(scene), fx = countingFx(), D = new EncoreDisco(arena, { fx });
+    try {
+      D.visit(128);
+      const c = new THREE.Color(), m = new THREE.Matrix4(), size = () => { D.spots.getMatrixAt(0, m); return new THREE.Vector3().setFromMatrixScale(m).x; };
+      const look = (b) => { roll(D, D.beat ?? 126, b); D.spots.getColorAt(0, c); return { lum: c.r + c.g + c.b, size: size(), on: D.spots.visible }; };
+      const flashing = look(131.9), blaze = look(132.1), wheel = look(132.6), last = look(136.1), gone = look(136.5);
+      const flares = fx.impacts.length, hot = new THREE.Color(LOOK.color('hostile-encore-disco', '#ff2fd2'));
+      const blazes = blaze.lum > flashing.lum && blaze.size > flashing.size && blaze.lum > wheel.lum * 1.5 && last.on && last.size > wheel.size && !gone.on;
+      return ok(blazes && flares === 2 && fx.impacts.every((i) => i.c.equals(hot)), { flashing, blaze, wheel, last, gone, flares });
+    } finally { D.dispose(); arena.dispose(); }
+  },
+});
+
+story('encore/feel-pyro-the-set-firing-next-warns-brightest', {
+  about: 'With two of the gold DJ\'s flame sets warning at once (a set a beat, each warning 2 beats), the lanes firing next show brighter than the lanes that just fired and warn again, so the six Warnings never read as one wall of gold; each still fills to full as its lanes fire.',
+  setup() {},
+  play() {
+    const T = pyroRig();
+    try {
+      const P = T.pyro;
+      for (let k = 0; k < 4; k++) P.cast(10 + k, { lanes: SETS[k % 2 ? 'even' : 'odd'] });
+      playPyro(T, standing(9, 9), 7, 10.5);                             // odd lanes just fired at 10 and warn again for 12; even fire at 11
+      const next = P.warnings[1].band.material.opacity, again = P.warnings[0].band.material.opacity, nextVol = P.warnings[1].lane.material.opacity, againVol = P.warnings[0].lane.material.opacity;
+      playPyro(T, standing(9, 9), 10.5, 10.98); const full = P.warnings[1].band.material.opacity;
+      const top = LOOK.num('encore-pyro-warning', 0.6);
+      return ok(next > again * 1.5 && nextVol > againVol * 1.5 && Math.abs(full - top) < top * 0.05 && again >= top * LOOK.num('encore-pyro-warning-early', 0.4) - 1e-9, { next, again, nextVol, againVol, full });
+    } finally { T.done(); }
+  },
+});
+
+fight('feel-every-encore-hit-leaves-a-fading-scorch', {
+  about: 'Every Encore hit on the jelly (a floor wave, a laser, a disco strike, the stage edge\'s shock...) leaves a scorch mark on the floor under it, harmless, fading as splats do; the stage edge\'s shock crackles.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false }), { player } = G();
+    step(10);
+    const before = B.fx.splats.filter((s) => s.alive).length;
+    B.hurtPlayer(4, '#39ff14');
+    const marks = B.fx.splats.filter((s) => s.alive), mark = marks.at(-1);
+    const under = !!mark && Math.hypot(mark.m.position.x - player.position.x, mark.m.position.z - player.position.z) < 1e-6 && mark.m.position.y < 0.01;
+    const scorch = !!mark && mark.m.material === B.fx.splatMats.scorch;
+    step(60 * (LOOK.num('splat-life', 2) + 0.5)); const faded = !mark?.alive;
+    return ok(marks.length >= Math.min(before + 1, LOOK.num('splat-most', 24)) && under && scorch && faded, { before, after: marks.length, under, scorch, faded });
+  },
+});
 
 // ---- the last song (25% Health): its set, its toast, the boss bar's words, the first-time hints
 story('encore/the-last-song-doubles-every-wave-and-books-a-slot-every-10-bars', {

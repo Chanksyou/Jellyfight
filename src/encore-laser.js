@@ -49,8 +49,8 @@ function laserMaterial(color) {
 
 export class EncoreLasers {
   // arena: buildAct4's; onHit(dmg, laser): the jelly was hit
-  constructor(arena, { onHit = () => {} } = {}) {
-    this.arena = arena; this.onHit = onHit;
+  constructor(arena, { onHit = () => {}, fx = null } = {}) {
+    this.arena = arena; this.onHit = onHit; this.fx = fx;
     this.color = LOOK.color('hostile-encore-laser', '#39ff14');
     this.height = LOOK.num('encore-laser-height', 0.35);
     this.beat = null;
@@ -151,7 +151,8 @@ export class EncoreLasers {
         plane.material.uniforms.uOn.value = on; plane.material.uniforms.uTime.value = beat;
         lit = Math.max(lit, on);
       }
-      if (u >= 0 && !c.fired) { c.fired = true; if (!skip) sfx.encoreLaser?.(); }
+      // it fires: a flash at its emitter on the same frame as the sound (its release, and the emitter's kick)
+      if (u >= 0 && !c.fired) { c.fired = true; if (!skip) { sfx.encoreLaser?.(); const [cx, cz] = CORNERS[c.corner]; this.fx?.impact(_a.set(cx, this.height, cz), this.color, 0.02, 6); } }
       // the hit: anywhere in the plane while it fires (once a laser)
       if (!skip && !c.hit && player && u >= 0 && u < fire && this.touches(c, s, player)) { c.hit = true; this.onHit(c.dmg, c); }
     }

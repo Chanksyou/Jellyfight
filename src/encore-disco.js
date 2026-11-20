@@ -85,15 +85,16 @@ function twinkle(pts, turn, beat) {
 export class EncoreDisco {
   // arena: buildAct4's; onHit(dmg): the jelly was struck; quiet(beat): the song's breakdown;
   // random: where the spots scatter
-  constructor(arena, { onHit = () => {}, quiet = () => false, random = Math.random } = {}) {
-    Object.assign(this, { arena, onHit, quiet, random });
+  constructor(arena, { onHit = () => {}, quiet = () => false, random = Math.random, fx = null } = {}) {
+    Object.assign(this, { arena, onHit, quiet, random, fx });
+    this.flare = LOOK.num('encore-disco-strike', 0.2);         // beats the spots blaze white-hot as they strike
     this.r = LOOK.num('encore-disco-radius', 0.12);
     this.hang = LOOK.num('encore-disco-hang', 0.5);          // the ball's centre when it's down
     this.top = 1.4;                                           // up out of sight
     this.spotR = LOOK.num('encore-disco-spot', 0.028);
     this.white = new THREE.Color(LOOK.color('encore-disco-light', '#fff4e2'));
     this.hot = new THREE.Color(LOOK.color('hostile-encore-disco', '#ff2fd2'));
-    this.beat = null; this.show = null; this.struck = -1; this.visitAt = null;
+    this.beat = null; this.show = null; this.struck = -1; this.lit = -1; this.visitAt = null;
     this.root = new THREE.Group(); this.root.name = 'Encore disco ball'; arena.root.add(this.root);
     // the ball: rings of small square mirror tiles, each a flat facet reflecting the club's lights,
     // over dark grout, turning; a few star glints twinkle on it
@@ -158,7 +159,7 @@ export class EncoreDisco {
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
     const at = this.showAt(beat), u = at === null ? null : beat - at;
-    if (at !== this.show) { this.show = at; this.struck = -1; if (at !== null) this.scatter(); }
+    if (at !== this.show) { this.show = at; this.struck = this.lit = -1; if (at !== null) this.scatter(); }
     // Recovery enters on a full cycle, skipping strikes whose warnings were never shown.
     if (this.resumeAt != null) {
       if (u !== null) this.struck = Math.max(-1, Math.floor(u / DISCO.cycle) - 1);
@@ -175,15 +176,18 @@ export class EncoreDisco {
     const y = this.top + (this.hang - this.top) * (1 - (1 - down) ** 3);
     this.hanger.position.set(CENTER[0], y, CENTER[1]);
     this.rod.scale.set(1, Math.max(0.01, this.top + 0.4 - y), 1);
-    const playing = u !== null && u >= 0 && u < len && !(this.stayFrom != null && this.quiet(beat));
+    // (a visit's spots stay a moment past its last strike, to show it)
+    const playing = u !== null && u >= 0 && u < len + this.flare && !(this.stayFrom != null && this.quiet(beat));
     if (playing) this.ball.rotation.y = -this.turn(u);
     if (this.hanger.visible) twinkle(this.glints, this.ball.rotation.y, beat);
     this.spots.visible = this.beams.visible = playing;
     if (!playing) return;
     // the spots: soft white while they wheel; stopped, they flash fast between white and the hot colour
     const k = u % DISCO.cycle, stopped = k >= DISCO.move, t = this.turn(u);
-    const flash = stopped && Math.floor(k * 8) % 2 === 0, bright = stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6);
-    const size = this.spotR * (stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
+    // just struck (the strike's release, where each spot landed): hot and swelling for `flare` beats
+    const struck = u >= DISCO.cycle && k < this.flare && this.lit === Math.floor(u / DISCO.cycle) - 1;
+    const flash = struck || (stopped && Math.floor(k * 8) % 2 === 0), bright = struck ? 1.6 : stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6);
+    const size = this.spotR * (struck ? 1.35 : stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
     for (let i = 0; i < DISCO.spots; i++) {
       const p = this.spot(i, t);
       if (!p) { _m.makeScale(0, 0, 0); this.spots.setMatrixAt(i, _m); this.beams.setMatrixAt(i, _m); continue; }
@@ -192,7 +196,7 @@ export class EncoreDisco {
       // its beam, from the ball to the spot
       const dir = _s.copy(p).sub(ball), len = dir.length();
       this.beams.setMatrixAt(i, _m.compose(ball, _q.setFromUnitVectors(UP, dir.divideScalar(len)), _s.set(0.0018, len, 0.0018)));
-      this.beams.setColorAt(i, _c.copy(flash ? this.hot : this.white).multiplyScalar(stopped ? 0.9 : 0.5));
+      this.beams.setColorAt(i, _c.copy(flash ? this.hot : this.white).multiplyScalar(struck ? 1.4 : stopped ? 0.9 : 0.5));
     }
     for (const m of [this.spots, this.beams]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
   }
@@ -201,7 +205,9 @@ export class EncoreDisco {
   strike(c, player, skip) {
     this.struck = c;
     if (skip) return;
+    this.lit = c;
     sfx.encoreDisco?.();
+    if (this.hanger.visible) this.fx?.impact(this.hanger.position, this.hot, 0.05, 12);   // the ball flares as it strikes
     if (!player) return;
     const p = player.position, r = player.cfg?.radius ?? 0.03, t = this.turn(c * DISCO.cycle + DISCO.move), q = new THREE.Vector3();
     for (let i = 0; i < DISCO.spots; i++) if (this.spot(i, t, q) && Math.hypot(q.x - p.x, q.z - p.z) < this.spotR + r * 0.6) { this.onHit(DISCO_DMG, { name: 'disco' }); return; }
