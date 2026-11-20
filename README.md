@@ -228,9 +228,9 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   On the game's claude.ai page the score goes on a shared leaderboard (🏆 in the pause menu and on the end screen): one entry per player, their best run, top 10 shown (`src/leaderboard.js`, the artifact's `db`).
   Opening the board reads the table there and then and redraws as scores come in, so it never depends on the live feed having delivered; your own just-posted score always shows.
   On the game's own site the Leaderboard opens on Champions: the best run with each jelly type this season, a Season chip, and a note of how many of the eight types you hold.
-  The All tab and one tab per jelly type show the top 10 of that board, each row saying whether the run was won or how far it got, and how many acts were cleared untouched.
+  The All tab and one tab per jelly type show the top 10 of that board, each row saying whether the run was won or how far it got, and, when a run cleared any acts untouched, how many.
   Your own row always shows, with its real place when it's outside the top 10.
-  The end screen offers **📤 Submit score** when the run makes the top 10 of its own jelly type, so a second type's run isn't judged against your best run with another type.
+  The end screen offers **📤 Submit score** when the run beats your best run of its own jelly type and makes that type's top 10, so a second type's run isn't judged against your best run with another type.
   The end screen also has **🏠 Main menu** (from a later act it reloads into act 1's menu).
   Who can post: anyone signed in to claude.ai in the page owner's organization who opens it by link, or anyone shared in as Contributor or above.
   Each player writes only their own entry (the page's `db` rules: `scores` read `view`, write `owner`; `scores/{self}` write `interact`).

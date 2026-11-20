@@ -86,7 +86,7 @@ A score part for a cleared act: all of it for beating the Boss within a minute, 
 The board's period: each season keeps its own boards, and runs are posted to the current one. The owner decides when a season ends.
 
 **Champion**:
-A player's best run with one jelly type in the current season. The Champions tab lists one for each jelly type.
+The player whose run is the best with one jelly type in the current season. The Champions tab lists one for each jelly type.
 
 ### Things the jelly meets
 

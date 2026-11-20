@@ -131,8 +131,8 @@ Each act's `details` gains `score`: `bugsOut` (bugs that came out during the nig
 The Elites and the outcome come from `elitesBeaten` and the row's outcome, so these fields and `src/score.js` are all a score needs; the Worker refuses a posted score that doesn't rebuild to the same number (`unverified`).
 Changing what a field means needs a new name, since older rows keep their old meaning.
 
-The `board` table in D1 holds one row per season, player and jelly type: the player's best run of that type, with name, look, score, level, kills, time, `won`, `acts` (the act reached), `clean` (acts cleared without damage), build, time received and the IP hash.
-The `scores` table is no longer read or written, and nothing migrates from it.
+The `board` table in D1 holds one row per season, player and jelly type: the player's best run of that type, with `name`, `body` (the player's description), `look`, `score`, `level`, `kills`, `time`, `won`, `acts` (the act reached), `clean` (acts cleared without damage), `build`, `at` (time received) and `ip` (the salted hash).
+The board no longer reads the `scores` table, which only remains for renames (`syncName`) and the name migration (`migrateNames` in `worker/index.js`); nothing copies its rows into `board`.
 
 To take one player's entry off the board, preview it, then delete it, in the D1 console (`jelly-fight-scores`), using the current `SEASON` from `src/score.js` in place of `1`:
 
