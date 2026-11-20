@@ -2,6 +2,14 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v588 repaints the Fire Jelly's card on the type pick screen: one rolling fire with torn tips and loose licks instead of separate spikes, and its warm light now falls on the jelly's bell and tentacles.
+
+v587 gives the leaderboard tabs: Champions (the best run with each jelly type, and how many you hold), All, and a board for each jelly type, with a Season chip, a second line saying Won or the act reached and acts untouched, and your own row pinned with its real place when you are outside the top 10. Submit score is now offered when a run makes its own jelly type's top 10, so a second type's run is no longer held back by your best run with another.
+
+v586 makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.
+
+v585 repaints Wind's card on the jelly type pick screen: soft ribbons of air circle the jelly (the near ones bend the bell and tentacles as they cross it), with dust and three small leaves riding the spiral and the tentacles streaming sideways in the breeze, instead of hard white arcs.
+
 v584 adds experiment links for phone measuring (?lights=3|4|6 sets the lamp slots, ?rt, ?msaa and ?lite are ready for later tasks); the bench shows which are on. Nothing changes without them.
 
 v583 gives the Ice jelly's attack more bite: in play and on the pick screen its frost flower on the floor is now a shaded crystal instead of a line drawing, its shards are solid ice, its tentacle tip crystals catch the light and its cold mist is softer; on the pick screen a Chilled roach glints with rime and breathes cold and the water behind turns a cold blue.

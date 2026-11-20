@@ -4,6 +4,7 @@ import { story, G, fresh, ok, step, offs } from './kit.js';
 import { icon, ICON_NAMES } from '../icons.js';
 import { juice } from '../juice.js';
 import * as benchMod from '../bench.js';
+import { fixture, fakeWorker, webBoard } from './board.js';
 
 // --- every piece of the kit on one sheet (index.html?story=ui/kit)
 export function kitSheet() {
@@ -133,6 +134,14 @@ function spinOpen(open, frames, landed = false) {
   sp.tick = () => true;   // its clock stops here, and every reel stands where that clock says
   for (const a of document.getAnimations()) if (a.effect?.target?.closest?.('.jf-spin') && a.playState !== 'finished') { a.pause(); a.currentTime = sp.t; }
 }
+// the leaderboard on the game's own site: its tabs (Champions; a jelly type's board with your row pinned below the top 10)
+let boardWorker = null;
+const boardOpen = (tab, pin = false) => {
+  const { run } = G(), boards = fixture();
+  if (pin) boards.ice = { ...boards.ice, top: Array.from({ length: 10 }, (_, i) => ({ ...boards.ice.top[i % 5], name: 'Jelly ' + i, at: i, id: undefined, score: 57000 - i * 900 })), mine: { ...boards.ice.mine, score: 9100, won: false, acts: 2, clean: 0, place: 14 } };
+  boardWorker = fakeWorker(boards); run.realBoard = run.board; run.board = webBoard(boards); run.showBoard(() => {}, tab);
+};
+const boardClose = () => { const { run } = G(); run.board.onChange = null; run.ui.close(); run.board = run.realBoard; boardWorker?.restore(); };
 const spinClose = () => { const { menus } = G(); menus.close(); menus.spinOn = false; };
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
@@ -153,6 +162,8 @@ export const SCREENS = {
   book: { open() { G().run.showBook(() => {}); }, close() { G().run.ui.close(); } },
   achievements: { open() { G().run.showAchievements(() => {}); }, close() { G().run.ui.close(); } },
   leaderboard: { open() { G().run.showBoard(() => {}); }, close() { G().run.board.onChange = null; G().run.ui.close(); } },
+  'leaderboard-champions': { open() { boardOpen('champions'); }, close: boardClose },
+  'leaderboard-type': { open() { boardOpen('ice', true); }, close: boardClose },
   'change-look': { open() { over().hidden = false; over().querySelector('[data-act="creator"]').click(); }, close() { document.querySelector('#creator [data-act="done"]').click(); over().hidden = true; } },
   'act-complete': { open() { const { run } = G(); run.devRun(); run.actComplete({ id: 2, subtitle: 'the bathroom' }); }, close() { G().run.ui.close(); } },
   death: { open() { const { run } = G(); run.devRun(); run.phase = 'dead'; run.driedOut.begin(); run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); }, close() { G().run.ui.close(); G().run.start(); } },

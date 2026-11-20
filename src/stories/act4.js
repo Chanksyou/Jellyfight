@@ -238,7 +238,7 @@ act4('a-score-off-the-top-10-is-not-entered', {
   async play() {
     fresh({ hurt: false });
     const { run, menus } = G(), modal = () => document.querySelector('.jf-modal');
-    stub(run, 'board', { status: 'online', mine: null, keepBest: () => false, qualifies: () => false, cutoff: () => 99999, post: () => Promise.resolve({ posted: true }) });
+    stub(run, 'board', { status: 'online', mine: null, mineOf: () => null, keepBest: () => false, qualifies: () => false, cutoff: () => 99999, post: () => Promise.resolve({ posted: true }) });
     run.endRun('🏆 You won!', 'won', 'Play again');
     const low = modal()?.innerText || '', lowEntry = !!modal()?.querySelector('input[name="player"]'), lowSubmit = /Submit score/.test(low);
     menus.close();

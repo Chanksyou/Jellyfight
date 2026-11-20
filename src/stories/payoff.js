@@ -347,7 +347,7 @@ phone('death-screen-fits-a-phone-and-reads-on-the-sand', {
     const { run, menus } = G();
     return withEmpty([FEATS_KEY, PEARLS_KEY], () => {
       stub(run, 'jellyFace', null);
-      stub(run, 'board', { status: 'online', web: false, mine: null, localBest: null, keepBest: () => true, qualifies: () => false, cutoff: () => 1e6, note: () => '' });
+      stub(run, 'board', { status: 'online', web: false, mine: null, mineOf: () => null, localBest: null, keepBest: () => true, qualifies: () => false, cutoff: () => 1e6, note: () => '' });
       run.t = 200; run.phase = 'dead';
       run.driedOut.begin();
       run.endRun('You dried out', 'Back to a polyp.', 'Try again');
