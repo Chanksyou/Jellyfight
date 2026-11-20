@@ -433,24 +433,27 @@ story('types/pick-screen-centre-card-attacks', {
 });
 
 story('types/pick-stage-films-through-bloom', {
-  about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
+  about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
   async play() {
     const { picker, gfx, GAME } = G(), live = picker.live, R = live.renderer, back = asPlayer(true);
     const settle = () => picker.tick(picker.last + 16);
     const show = async (id) => {
       picker.go(picker.ids.indexOf(id)); picker.pos = picker.target; picker.vel = 0;
-      settle(); await Promise.resolve(); await Promise.resolve();   // shown, and its shaders "built" (compileAsync is stubbed)
+      settle();
+      while (!live.built.get(id)) await new Promise((r) => setTimeout(r, 50));   // shown, and its shaders built (a software renderer takes a while)
       for (let i = 0; i < 20; i++) live.simulate(1 / 30);
-      live.draw();   // (the first draw builds the shaders here: a software renderer takes a while)
+      const before = R.info.programs.length;
+      live.draw();
+      return R.info.programs.length - before;   // shaders the frame had to build itself
     };
     const lights = () => live.P.scene.children.filter((o) => o.isLight).map((o) => o.type).join();
     try {
       pressPlay('fire');   // (fresh() takes back stubs: these come after it)
       stub(picker, 'portrait', () => '');
-      stub(R, 'compileAsync', () => Promise.resolve());
       stub(gfx, 'quality', 'medium');
-      await show('fire');
+      live.built.clear();   // (an earlier story may have marked them built with compileAsync stubbed)
+      const builtAhead = await show('fire') === 0;
       const F = live.film_, blooms = spy(F.bloom, 'render');
       live.draw();
       const medium = blooms.length === 1 && F.out.material.uniforms.bloomStrength.value > 0 && F.rt.texture.type === THREE.HalfFloatType && F.rt.samples === 4;
@@ -476,8 +479,8 @@ story('types/pick-stage-films-through-bloom', {
       stub(picker, 'calm', () => true);
       settle();
       const still = !live.on && picker.liveFor === null;
-      return ok(medium && low && sameLights && noNewShaders && roomHidden && roomBack && still,
-        { medium, low, lights: fireLights, sameLights, programs: [programs, R.info.programs.length], roomHidden, roomBack, freed: freed.length, still });
+      return ok(builtAhead && medium && low && sameLights && noNewShaders && roomHidden && roomBack && still,
+        { builtAhead, medium, low, lights: fireLights, sameLights, programs: [programs, R.info.programs.length], roomHidden, roomBack, freed: freed.length, still });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

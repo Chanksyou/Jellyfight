@@ -35,7 +35,7 @@ function waterEnvironment(renderer) {
   const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.6), new THREE.MeshBasicMaterial({ color: new THREE.Color('#eaf9ff').multiplyScalar(2) }));
   panel.position.set(-2.2, 2.4, 2.6); panel.lookAt(0, 0, 0);
   es.add(sky, panel);
-  const env = pm.fromScene(es, 0.02).texture;
+  const env = pm.fromScene(es, 0.02);
   pm.dispose();
   es.traverse((o) => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose(); });
   return env;
@@ -85,7 +85,8 @@ const _p = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quatern
 
 export class PickStage {
   constructor(scene, renderer) {
-    scene.environment = waterEnvironment(renderer);
+    this.scene = scene;
+    this.reflect(renderer);
     scene.environmentIntensity = LOOK.num('preview-environment', 0.6);
     // a fixed set of lights for the stage's whole life: changing type changes their colours only
     const fill = new THREE.HemisphereLight(LOOK.color('menu-water-glow', '#70ddc7'), LOOK.color('menu-water-deep', '#06162e'), LOOK.num('preview-fill', 0.9));
@@ -112,6 +113,15 @@ export class PickStage {
     this.mid = new THREE.Vector3();
     this.t = 0; this.k = 0;
   }
+
+  // what the bell reflects, drawn on the GPU: made again after the screen has freed it (unreflect) or
+  // the graphics chip was reset (it's a picture drawn once, which a reset loses)
+  reflect(renderer) {
+    this.unreflect();
+    this.env = waterEnvironment(renderer);
+    this.scene.environment = this.env.texture;
+  }
+  unreflect() { this.env?.dispose(); this.env = null; }
 
   // the type's colour: the rim, the attack's light, the water low behind and the specks
   setType(color) {

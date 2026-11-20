@@ -39,6 +39,7 @@ import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
 const _at = new THREE.Vector3();
+const QUAD = new THREE.PlaneGeometry(2, 2);   // (stands in for the passes' own quads while their shaders are built)
 const IDLE = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
 // where the three roaches stand: [metres from the jelly, radians round from straight ahead]. The
 // Tentacle jelly's all inside its 11 cm reach (its 3 tentacles take them all at once); a shot's
@@ -226,6 +227,7 @@ export class AttackPreview {
     this.hide();
     this.film_?.rt.dispose();
     this.film_?.bloom.down.forEach((t) => t.dispose());
+    this.P?.stage.unreflect();
   }
 
   // A type's first showing: play a few seconds unseen so its shots, hits and deaths are all in the
@@ -233,31 +235,43 @@ export class AttackPreview {
   // only draw once they're ready: no stall on a phone as the first shot flies. The still portrait
   // shows until then.
   warm(id) {
-    const P = this.P;
+    const P = this.P, R = this.renderer, was = R.getRenderTarget(), F = this.film(this.canvas.width);
     this.built.set(id, false);
-    for (let i = 0; i < 75; i++) this.simulate(1 / 30);
-    P.batch.sync();
-    const done = () => this.built.set(id, true), R = this.renderer, was = R.getRenderTarget();
-    // for the stage's own picture: a half-float target takes other shaders than the screen
-    R.setRenderTarget(this.film(this.canvas.width).rt);
-    try { Promise.resolve(R.compileAsync?.(P.scene, P.camera)).then(done, done); } finally { R.setRenderTarget(was); }
+    const quads = (mats) => { const s = new THREE.Scene(); for (const m of mats) s.add(new THREE.Mesh(QUAD, m)); return s; };
+    F.out.prepare(R);
+    const builds = [];
+    // the scene and the bloom for the stage's own picture (a half-float target takes other shaders
+    // than the screen): every half second of the fight (shots, hits, bodies flying apart come and go)
+    // and again fresh (by then the first roaches have died and left the scene); then the pass that
+    // puts it on the screen
+    const scene = (...more) => {
+      P.batch.sync();
+      try { R.setRenderTarget(F.rt); builds.push(R.compileAsync?.(P.scene, P.camera), ...more.map((s) => R.compileAsync?.(s, P.camera))); } finally { R.setRenderTarget(was); }
+    };
+    scene(quads([F.bloom.bright, F.bloom.halve, F.bloom.widen]));
+    for (let i = 1; i <= 75; i++) { this.simulate(1 / 30); if (i % 15 === 0) scene(); }
     this.reset();
+    scene();
+    try { R.setRenderTarget(null); builds.push(R.compileAsync?.(quads([F.out.material]), P.camera)); } finally { R.setRenderTarget(was); }
+    const done = () => this.built.set(id, true);
+    Promise.all(builds).then(done, done);
   }
 
   // One frame of the preview (dt: seconds since the last call). It draws at --preview-fps at most;
   // false if it can't draw (the pick screen then keeps its still portrait)
   step(dt) {
     if (!this.on) return false;
-    // the graphics chip was reset (gpu-recovery.js): the still portrait shows, and once it's back the
-    // shaders are built again before the next frame
-    if (this.renderer.getContext().isContextLost?.()) { this.built.clear(); this.canvas.hidden = true; return false; }
-    if (!this.built.has(this.id)) this.warm(this.id);
-    if (!this.built.get(this.id)) return true;
-    this.wait += dt;
-    if (this.wait < 1 / LOOK.num('preview-fps', 30)) return true;
-    const t = Math.min(0.05, this.wait);
-    this.wait = 0;
     try {
+      // the graphics chip was reset (gpu-recovery.js): the still portrait shows, and once it's back the
+      // reflections are drawn and the shaders built again before the next frame
+      if (this.renderer.getContext().isContextLost?.()) { this.built.clear(); this.P.stage.unreflect(); this.canvas.hidden = true; return false; }
+      if (!this.P.stage.env) this.P.stage.reflect(this.renderer);
+      if (!this.built.has(this.id)) this.warm(this.id);
+      if (!this.built.get(this.id)) return true;
+      this.wait += dt;
+      if (this.wait < 1 / LOOK.num('preview-fps', 30)) return true;
+      const t = Math.min(0.05, this.wait);
+      this.wait = 0;
       this.simulate(t);
       this.draw();
       this.canvas.hidden = false;
