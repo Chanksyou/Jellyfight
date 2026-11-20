@@ -30,7 +30,8 @@ story('engine/field-numbers-ride-the-summary', {
     stub(pacing.pacer, 'due', () => true);
     Object.assign(pacing.field, new FieldPerf());
     step(2);
-    const base = performance.now() + 1e6, frame = (now) => GAME.frame(base + now);
+    // synthetic frame times in the past: a time ahead of now would give the next real frame a huge negative dt and break the music
+    const base = performance.now() - 1e5, frame = (now) => GAME.frame(base + now);
     for (let i = 0; i < 10; i++) frame(i * 16);
     run.recordRun('in-progress');
     const tooFew = rows.at(-1).details.perf == null;
