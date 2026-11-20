@@ -24,6 +24,16 @@ A pool on top of Health that takes damage first, shown as its own bar at the end
 **Level**:
 The jelly's rank within a run; each new Level offers a choice of cards that raise its stats.
 
+**Luck**:
+The jelly's chance to be offered rarer cards and Treasures. A Spin's Luck panel shows the odds for each rarity, before and after Luck.
+
+**Spin**:
+The slot machine that plays before a level-up's cards or a Treasure pick: its reels land on the cards you're offered, and tapping stops them early. Boss rewards and Attack upgrades don't spin.
+_Avoid_: Roulette, lottery
+
+**Reel**:
+One column of a Spin, one for each card offered (four with the Notebook).
+
 **Attack damage**:
 How hard each of the jelly's attacks hits.
 _Avoid_: Pop damage, Bubble damage
@@ -70,7 +80,7 @@ An item the jelly keeps for the rest of the run, chosen from a pick of three. Tr
 _Avoid_: Gift, golden gift, lost things, item, chest (the chest is just how a treasure looks before it's picked)
 
 **Rarity**:
-How special a Treasure is: Common, Rare, Epic or Legendary. Legendary treasures change a rule of the game and are always one of a kind.
+How special a Treasure is: Common, Rare, Epic or Legendary. Legendary treasures change a rule of the game and are always one of a kind. Three of the same rarity on one Spin upgrades one of them a rarity, except three Epic level-up cards and Legendary Treasures, which stay as they are.
 
 **Stacking**:
 Taking the same Treasure again. A treasure with levels goes up a level; one without adds its effect again, up to 5 copies, unless it changes a rule.
