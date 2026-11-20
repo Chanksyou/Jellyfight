@@ -117,7 +117,8 @@ story('payoff/picked-treasure-flies-to-its-row-slot', {
     const id = [...run.owned].find((t) => !was.has(t)), slot = row.querySelector(`[data-id="${id}"]`);
     const empty = slot?.classList.contains('jf-landing') && getComputedStyle(slot).opacity === '0';
     anim?.finish();
-    await wait(60);
+    const landing = () => slot?.isConnected && slot.classList.contains('jf-landing');
+    for (let i = 0; i < 40 && landing(); i++) await wait(25);   // (its finish event comes with the next frame, later on a busy runner)
     const landed = !slot?.isConnected || (!slot.classList.contains('jf-landing') && slot.classList.contains('pop'));
     const gone = !document.querySelector('.jf-flyer');
     step(50);

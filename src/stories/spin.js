@@ -7,6 +7,8 @@ import { tierOdds, buildStrips, spinCells, spinTimes } from '../spin.js';
 import { seededRandom } from '../story-random.mjs';
 import { FirstRun } from '../first-run.js';
 import { G, story, ok, fresh, stub, give, step } from './kit.js';
+import { sfx } from '../sfx.js';
+import { LOOK } from '../look.js';
 
 const card = (stat, tier) => ({ stat, rarity: RARITY[tier], amount: CONTENT.levelups.cards[stat].amounts[tier] });
 const treasuresOf = (rarity, n) => TREASURES.filter((t) => t.rarity === rarity && G().run.takeable(t)).slice(0, n);
@@ -441,5 +443,56 @@ story('spin/first-run-says-how-to-stop', {
     openLevelUp();
     const later = line();
     return ok(first === 'Tap to stop the reels.' && second === 'The reels are rolling…' && later === 'The reels are rolling…', { first, second, later });
+  },
+});
+
+story('spin/reels-keep-to-the-page-clock', {
+  about: 'The reels roll on the page\'s clock, so the machine never falls behind them: with the game\'s clock held back (hit-stop, slow-mo or long frames on a slow phone), every reel still lands, with no streaks left on it, once its roll has played out.',
+  setup() { fresh({ spin: true }); },
+  async play() {
+    openLevelUp();
+    step(1);
+    const D = spinning().times.lever + Math.max(...spinning().times.stops);
+    await new Promise((r) => setTimeout(r, D + 300));   // the page's time passes; the game's barely moves
+    step(1);
+    const sp = spinning(), landed = !!sp && sp.reels.every((r) => r.landed), streaks = document.querySelectorAll('.jf-spin .sp-reel.fast').length;
+    return ok(landed && !streaks && sp.phase !== 'roll', { landed, streaks, phase: sp?.phase, t: Math.round(sp?.t) });
+  },
+});
+
+story('spin/sounds-follow-the-machine', {
+  about: 'The lever\'s clunk lands as the lever bottoms out (--spin-lever), and a spin closed or replaced mid-roll silences its ticking rather than leave it running over the next screen.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const { run, menus } = G(), ticks = [], levers = [];
+    stub(sfx, 'spinTick', (reels) => ticks.push(reels.length));
+    stub(sfx, 'spinLever', (down) => levers.push(down));
+    openLevelUp();
+    step(5);
+    const lever = Math.abs(levers[0] - LOOK.num('spin-lever', 250) / 1000) < 1e-6;
+    menus.close();
+    const closed = ticks.at(-1) === 0;
+    openLevelUp();
+    step(5);
+    run.pickTreasure('A treasure!', 'Choose a treasure.', 'room');   // a chest over a rolling level-up: its own ticks replace the old ones
+    const replaced = ticks.at(-2) === 0 && ticks.at(-1) > 0;
+    return ok(lever && closed && replaced, { levers, ticks, lever, closed, replaced });
+  },
+});
+
+story('spin/touch-controls-hide-under-the-machine', {
+  phone: true,
+  about: 'On a phone the touch controls (stick, jump) would show round the machine\'s edges: they are hidden while it is up, and back, dimmed as before, once the cards are dealt.',
+  setup() { fresh({ spin: true }); },
+  play() {
+    const pad = document.getElementById('touch'), shown = () => !!pad && !pad.hidden && getComputedStyle(pad).visibility === 'visible';
+    step(5);
+    const before = shown();
+    openLevelUp();
+    step(5);
+    const during = shown();
+    untilCards();
+    const after = shown();
+    return ok(before && !during && after, { before, during, after });
   },
 });
