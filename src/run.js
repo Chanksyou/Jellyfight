@@ -48,6 +48,7 @@ import { endStyles, stamp, dressEnd } from './end-screen.js';
 import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements } from './achievements.js';
 import { balanceChanges } from './balance-editor.js';
 import { loadLayout } from './layout.js';
+import { actParts } from './score.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
@@ -198,7 +199,9 @@ export class Run {
       v.addScaledVector(dir, force);
       if (launch) { v.y = Math.max(v.y, launch); this.player.grounded = false; }
     });
-    bus.on('enemy_killed', (k) => { if (!k.silent) this.onKill(k); });
+    // the score's Bugs cleared (score.js): bugs that came out during the night, and which of those the jelly cleared
+    bus.on('enemy_spawned', ({ targetId }) => { if (this.phase === 'explore') { this.bugsOut++; this.outIds.add(targetId); } });
+    bus.on('enemy_killed', (k) => { if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
     bus.on('damage_taken', (d) => {
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
@@ -331,8 +334,10 @@ export class Run {
     this.owned = new Owned();
     this.kills = 0;
     this.featKills = 0;               // of those, already added to the lifetime totals (cosmetics.js)
-    this.eliteBugs = 0;               // golden elite bugs cleared (score)
     this.elitesBeaten = 0;            // high-ground elites beaten (score)
+    this.bugsOut = 0; this.bugsCleared = 0; this.outIds = new Set();   // this act's night bugs, and the ones cleared (score)
+    this.taken = 0;                   // Health this act's hits would have taken with no Shield (score: Clean play)
+    this.bossTime = null;             // how long this act's boss fight took (score: Boss pace)
     this.bossStartT = null;
     this.bossWon = false;
     this.bossDeadT = false;           // a death left over from a restarted run would keep this boss from ending
@@ -464,7 +469,7 @@ export class Run {
     return {
       scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
-      kills: this.kills, eliteBugs: this.eliteBugs, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt,
+      kills: this.kills, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt, bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, taken: this.taken,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
       treasureTimesLeft: this.treasureTimesLeft, bonusTreasureAt: [...this.bonusTreasureAt], recentTreasureSpots: this.recentTreasureSpots,
       chests: this.roomTreasures.filter((c) => c.active && c.opening === null)
@@ -475,7 +480,7 @@ export class Run {
   resumeAct(M) {
     this.t = M.t;
     Object.assign(this, {
-      kills: M.kills, featKills: M.kills, eliteBugs: M.eliteBugs, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt,
+      kills: M.kills, featKills: M.kills, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt, bugsOut: M.bugsOut || 0, bugsCleared: M.bugsCleared || 0, taken: M.taken || 0,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
       pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
@@ -1021,6 +1026,7 @@ export class Run {
   hurt(amount, silent = false, from = null, contact = false, knock = false, at = null) {
     if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
     if (this.phase === 'dead') return;
+    if (amount > 0 && !this.bossWon) this.taken += amount;   // before the Shield takes its share, until the boss falls (score: Clean play)
     amount = this.shield.absorb(amount, silent);
     if (amount <= 0) return;
     if (this.devGod) amount = Math.max(0, Math.min(amount, this.health - 1));   // dev test kit: can't die (hits still land, for treasures that react to them)
@@ -1230,7 +1236,6 @@ export class Run {
       if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
-      this.eliteBugs++;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite cleared! It left a treasure.', 1800);
     }
@@ -1836,22 +1841,26 @@ export class Run {
   }
 
   // ------------------------------------------------------------ score
-  // One number for the whole run (the leaderboard ranks by it), from its parts
+  // One number for the whole run (the leaderboard ranks by it): the earlier acts' total, then this
+  // act's parts (score.js), each with its label
+  scoreFacts() {
+    const B = this.boss, round = (n, k = 100) => Math.round(n * k) / k;
+    return {
+      nightShare: round(Math.min(1, this.t / STAGES[this.stage.id - 1].duration)),   // the act's night (in act 4's arena, the room's)
+      bossShare: round(B ? 1 - Math.max(0, B.hp) / B.maxHp : 0), won: this.bossWon, elites: this.elitesBeaten,
+      bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, damageTaken: round(this.taken, 10), bossSeconds: this.bossTime == null ? null : round(this.bossTime, 10),
+    };
+  }
   scoreParts() {
-    const treasures = [...this.owned].reduce((n, id) => n + this.owned.count(id), 0);
-    const B = this.boss, bossDamage = B ? 1 - Math.max(0, B.hp) / B.maxHp : 0;
-    const parts = [
-      ...(this.carry ? [['Earlier acts', this.carry.score]] : []),
-      ['Bugs cleared', this.kills * 10],
-      ['Elite bugs', this.eliteBugs * 50],
-      ['Elites beaten', this.elitesBeaten * 300],
-      ['Levels', (this.level - 1) * 100],
-      ['Treasures', treasures * 150],
-      ['Survival', Math.round(Math.min(this.t, STAGES[this.stage.id - 1].duration) * 2)],   // the act's night (in act 4's arena, the room's)
-      [`${this.stage.boss.name} damage`, Math.round(bossDamage * 1500)],
-    ];
-    if (this.bossWon) parts.push([`${this.stage.boss.name} beaten`, 3000 + Math.round(Math.max(0, 180 - (this.bossTime || 180)) * 20)]);
-    return parts;
+    const boss = this.stage.boss.name;
+    const label = { night: 'Night survived', bossDamage: `${boss} damage`, bossBeaten: `${boss} beaten`, elites: 'Elites beaten', bugs: 'Bugs cleared', clean: 'Clean play', pace: 'Boss pace' };
+    return [...(this.carry ? [['Earlier acts', this.carry.score]] : []), ...actParts(this.scoreFacts()).map(([k, v]) => [label[k], v])];
+  }
+  // a short line on the two parts that need one, the first time an end screen shows them
+  scoreHint(parts) {
+    if (!parts.some(([k, v]) => v && (k === 'Clean play' || k === 'Boss pace'))) return '';
+    try { if (localStorage.getItem(SCORE_HINT_KEY)) return ''; localStorage.setItem(SCORE_HINT_KEY, '1'); } catch {}
+    return 'Clean play: the less Health you lose (Shield hits count too), the more it pays. Boss pace: beat the boss within a minute for all of it.';
   }
 
   score() { return this.scoreParts().reduce((n, [, v]) => n + v, 0); }
@@ -1884,7 +1893,7 @@ export class Run {
       ...(next ? [[`${icon('lock')} Next unlock`, `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
-    const hint = dead && this.stage.id <= 2 ? deathHint(!!this.attack) : '';
+    const hint = dead && this.stage.id <= 2 ? deathHint(!!this.attack) : parts ? this.scoreHint(this.scoreParts()) : '';   // or, on a win, what Clean play and Boss pace are
     const finds = this.newFinds.length ? [[`${icon('book')} New in your book`, `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
     let last = null;
@@ -1973,7 +1982,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
@@ -2054,7 +2063,7 @@ export class Run {
     endStyles();
     this.ui.message(`${stamp()} Act ${this.stage.id} complete`, `Next: ${next.subtitle}`,
       [['Score so far', `<span class="jf-score">${counter(score, '', this.carry?.score || 0)}</span>`], ...this.scoreParts().filter(([, v]) => v).map(([k, v]) => [k, counter(v, '+')])],
-      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }], 'jf-end');   // straight into it, no main menu
+      [{ label: `On to act ${next.id} →`, go: true, onClick: () => { this.flushFeats(); this.recordRun('next-act'); if (!this.dev) keepRun(next.id, carry); goToAct(next.id, carry, { continue: true }); } }], 'jf-end', this.scoreHint(this.scoreParts()));   // straight into it, no main menu
     dressEnd(this.ui.modal, this);   // time, Level and bugs; the Treasures taken
     sfx.stamp();
   }
@@ -2237,6 +2246,7 @@ export class Run {
 
 // The name you put on the leaderboard, kept in this browser for next time ('' = Guest)
 const NAME_KEY = 'jellyrun.name';
+const SCORE_HINT_KEY = 'jellyrun.scoreHint';   // the end screen has explained Clean play and Boss pace
 // A number an end screen counts up (ui.js tally): from `from`, written with `pre` in front
 const counter = (n, pre = '', from = 0) => `<span class="jf-count" data-n="${n}" data-pre="${pre}" data-from="${from}">${pre}${n.toLocaleString()}</span>`;
 function savedName() { try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; } }

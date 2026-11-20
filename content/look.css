@@ -71,14 +71,14 @@
    lever (a 4th reel keeps the last step), the hold before the cards, and the extra wait on a reel
    landing Epic or Legendary (it and every reel after it) */
 :root {
-  --spin-cells-treasure: 16;
-  --spin-cells-levelup: 10;
+  --spin-cells-treasure: 19;
+  --spin-cells-levelup: 12;
   --spin-lever: 250ms;
-  --spin-stops-treasure: 900ms 1250ms 1600ms;
-  --spin-stops-levelup: 500ms 700ms 900ms;
-  --spin-hold-treasure: 450ms;
-  --spin-hold-levelup: 300ms;
-  --spin-rare-wait: 250ms;
+  --spin-stops-treasure: 1800ms 2500ms 3200ms;
+  --spin-stops-levelup: 1000ms 1400ms 1800ms;
+  --spin-hold-treasure: 900ms;
+  --spin-hold-levelup: 600ms;
+  --spin-rare-wait: 500ms;
   /* the machine (src/spin-screen.js) */
   --spin-cell: clamp(64px, calc(15.5vh + 14px), 112px);   /* a reel's row: 74 px on a phone held sideways, 112 on a desktop */
   --spin-reel: 2.05;           /* a reel's width, in rows (2.05 rows wide) */
@@ -116,6 +116,12 @@
   --shark-camera-tilt-phone: 0.95;
   --shark-camera-ahead-phone: 0.3;
   --shark-camera-air-room-phone: 0.3; /* how far a phone pulls back while the shark leaps, per m of leap height */
+  --encore-camera-distance: 1;       /* the Encore's fight view (encore.js): back, flatter and aimed ahead, so a DJ on the floor shows head to feet */
+  --encore-camera-tilt: 0.85;        /* was the player's own 1.05: at that steep angle his head was above the top of the screen */
+  --encore-camera-ahead: 0.3;        /* m it aims past the jelly, toward the stage */
+  --encore-camera-distance-phone: 1;
+  --encore-camera-tilt-phone: 0.65;  /* flatter on a short phone screen, his head below the boss bar */
+  --encore-camera-ahead-phone: 0.42;
   /* the camera keeps inside the walls, floors and ceilings by dollying in along the same view (src/camera.js) */
   --camera-clear-margin: 0.04;   /* m between the lens and a wall: the near plane plus the biggest combat shake */
   --camera-clear-min: 0.16;      /* m: closest it dollies in, even with the jelly's back to a wall */
@@ -368,6 +374,7 @@
   /* the side cards' elements drawn in shaders (src/pick-auras/<kind>.js): each kind's colour ramp, white hot to its deep edge */
   --aura-flames-ramp: #fff6dc #ffc85a #ff6a1f #8a1a0a;
   --aura-frost-ramp: #ffffff #dcf6ff #86d3f4 #245f92;
+  --aura-sparks-ramp: #ffffff #fff3a6 #ffd23c #5a46c8;   /* Lightning: white core, yellow glow, the afterimage's violet */
   --pick-portrait-room: 1.3;   /* how far back a card's portrait stands from the jelly (1: as close as the leaderboard's), leaving room round it for the element */
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
   /* the centre card's live picture (src/attack-preview.js): the jelly firing its attack at a bug */
@@ -796,6 +803,7 @@
   --encore-disco-light: #fff4e2; /* its spots while they wheel round: warm white, harmless */
   --encore-disco-radius: 0.12;   /* m: the ball (24 cm across, about three jellies tall) */
   --encore-disco-hang: 0.5;      /* m: its centre when it's down */
+  --encore-disco-stay-hang: 0.64; /* m: its centre when it's down for good (set 3): high enough that, in the fight view, it clears the duet pair's heads */
   --encore-disco-spot: 0.028;    /* m: a spot's radius on the floor */
   --encore-disco-spin: 0.35;     /* radians the ball turns a beat while it wheels */
   --encore-disco-beam: 0.35;     /* its beams' opacity */

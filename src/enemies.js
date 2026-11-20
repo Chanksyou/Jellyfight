@@ -383,6 +383,7 @@ export class Enemies {
     for (const w of T.words) w.init?.(e);
     this.list.push(e);
     this.byId.set(e.id, e);
+    bus.emit('enemy_spawned', { targetId: e.id, type });
     return e;
   }
 

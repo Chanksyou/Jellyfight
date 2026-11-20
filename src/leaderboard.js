@@ -10,7 +10,7 @@
 export const BEST_KEY = 'jellyrun.best';   // also read by first-run.js: a saved best means a returning player
 import { RunLog } from './run-log.js';
 import { icon } from './icons.js';
-const MAX_SCORE = 60000;   // a sanity cap: no real run comes close
+import { MAX_SCORE } from './score.js';   // the most a run can score
 const PLAYER_KEY = 'jellyrun.player';
 const API = 'api/scores';  // relative: works wherever the game is served from
 const PENDING_WAIT = 4000;  // ms between tries while the run log's last act is still on its way

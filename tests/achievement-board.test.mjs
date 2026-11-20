@@ -97,6 +97,20 @@ test('run details keep frame numbers and Settings picks as clamped numbers and f
   assert.equal('perf' in older || 'settings' in older, false);   // a client from before sends none
 });
 
+test('run details keep each act\'s score facts as clamped numbers, and an older client sends none', async () => {
+  clearRates();
+  const score = { bugsOut: 120.4, bugsCleared: 999999, damageTaken: 42.36, bossSeconds: 71.04, nightShare: 1.4, bossShare: -2, won: true };
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-scoreabc', act: 1, revision: 1, outcome: 'next-act', details: { score } }] });
+  const read = (run) => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries WHERE run_id = ?').get(run).details);
+  assert.deepEqual(read('run-scoreabc').score, { bugsOut: 120, bugsCleared: 100000, damageTaken: 42.4, bossSeconds: 71, nightShare: 1, bossShare: 0 });
+  clearRates();
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-scorexyz', act: 1, revision: 1, outcome: 'died', details: { score: { bossSeconds: null, damageTaken: 'x' } } }] });
+  assert.deepEqual(read('run-scorexyz').score, { bugsOut: 0, bugsCleared: 0, damageTaken: null, bossSeconds: null, nightShare: null, bossShare: null });
+  clearRates();
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-scoreold', act: 1, revision: 1, outcome: 'died', details: { elitesBeaten: 1 } }] });
+  assert.equal('score' in read('run-scoreold'), false);
+});
+
 test('the phone bench\'s results are kept in perf_reports: bounded, no player id, one per address every 30 seconds', async () => {
   const post = (body) => worker.fetch(new Request('https://game.test/api/perf', { method: 'POST', headers: { 'cf-connecting-ip': 'phone-a', 'user-agent': 'U'.repeat(300) }, body: JSON.stringify(body) }), env).then(async r => ({ status: r.status, data: await r.json() }));
   const bench = { env: { build: 'v1' }, moments: [{ name: 'quiet room', ms: 16.7 }] };
