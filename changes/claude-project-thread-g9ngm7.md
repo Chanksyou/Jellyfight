@@ -1,1 +1,0 @@
-adds a one-time hint the first time a DJ lands on the floor ("A DJ on the floor is the one to hit. The booth can't be hurt until he is back."), and notes in the glossary that Solo and Bow happen on the floor.
