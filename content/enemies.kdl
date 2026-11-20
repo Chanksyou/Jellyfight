@@ -105,7 +105,7 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 // wide loops, then climbs over you while a circle fills under it (it follows you, then locks) and
 // drops straight down it for 5: step off the circle, a jump won't clear it. Where it lands it leaves
 // a puff of black smoke that hides what's behind it for about a second.
-enemy "moth" name="Moth" hp=110 r=0.045 dmg=2 xp=15 model="moth" {
+enemy "moth" name="Moth" hp=1000 r=0.045 dmg=2 xp=15 model="moth" {
     death-motion "flutter"
     attack-motion "pounce" tier="mid"
     hover 0.25 above=0.2 speed=0.5 circle=1.8
@@ -118,7 +118,7 @@ enemy "moth" name="Moth" hp=110 r=0.045 dmg=2 xp=15 model="moth" {
 // to you, lifts it, lamp lit, and lobs a blob of glow in a slow high arc at where you are: a circle
 // and dome fill where it will land. It splashes there and stays as a glowing pool for 10 s that
 // drains your Health while you stand in it (jump it); pools from several fireflies add up.
-enemy "firefly" name="Firefly" hp=60 r=0.036 dmg=2 xp=12 model="firefly" {
+enemy "firefly" name="Firefly" hp=700 r=0.036 dmg=2 xp=12 model="firefly" {
     death-motion "flutter"
     attack-motion "throw" tier="light"
     hover 0.25 above=0.4 speed=0.4 circle=0.35 bob=0.1 pause=0.3
@@ -167,7 +167,7 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 // mound trails after you for 5 beats of the song (fast: 3 m/s), then locks, and a circle and dome fill over the spot
 // for one beat; on the beat it bursts up there (a Blast: it hurts and tosses you). Step off the circle,
 // or jump clear of the dome. Then it stands dazed for a moment: that's when to hit it.
-enemy "cicada" name="Cicada" hp=190 r=0.058 dmg=1 xp=12 model="cicada" {
+enemy "cicada" name="Cicada" hp=1200 r=0.058 dmg=1 xp=12 model="cicada" {
     death-motion "flutter"
     attack-motion "pounce" tier="heavy"
     chase 0.13

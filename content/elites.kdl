@@ -25,18 +25,18 @@ elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
     boil dmg=3 reach=0.5 safe=0.08 away=0.2 flight=0.6 fill=1.6   // lid lands at least away= m from you, a safe circle of safe= m round it; steam over reach= m round the Kettle once fill= tempo s are up
 }
 
-elite "soap" name="The Soap Dispenser" icon="🧼" hp=500 aggro=1.2 angry=0.75 {
+elite "soap" name="The Soap Dispenser" icon="🧼" hp=400 aggro=1.2 angry=0.75 {
     trap dmg=4 count=1 angryCount=2 radius=0.04 hp=20 speed=0.15 life=6 hold=1.4 carry=0.1   // big bubbles drifting after you at speed= m/s; hp= to pop; caught, held hold= s, carried carry= m/s toward it
     ring dmg=3 rings=3 angryRings=5
 }
 
-elite "clock" name="The Wall Clock" icon="🕰️" hp=450 aggro=0.75 angry=0.65 {
+elite "clock" name="The Wall Clock" icon="🕰️" hp=400 aggro=0.75 angry=0.65 {
     sweep dmg=4
     wreath dmg=4
     hour dmg=4 rounds=3 warn=1.0   // Telling the time: rounds= times its hands point at the bench, a wedge under each, striking after warn= tempo s
 }
 
-elite "whipper" name="The Cream Whipper" icon="🍦" hp=450 aggro=1.25 angry=0.65 {
+elite "whipper" name="The Cream Whipper" icon="🍦" hp=400 aggro=1.25 angry=0.65 {
     balloon dmg=4 count=2 angryCount=3 fuse=4 muffle=5
     piping dmg=3 slow=2 pipe=3.5 angryPipe=5 stay=4 angryStay=6 wake=0.8 height=0.04 sag=0.6   // s are real s: it pipes along your path for pipe= s, wake= s behind you; the bead (height= m) stays stay= s, then sags sag= s
 }

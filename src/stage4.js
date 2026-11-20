@@ -93,9 +93,9 @@ export const STAGE4 = {
   clock: [360, 480],                  // in-game minutes after midnight: 6:00 AM -> 8:00 AM
   sky: 'dawn',                        // the look: content/look.css --dawn-* (blue hour at 6:00 warming to gold by 8:00; main.js)
   music: 'sunrise',                   // "Sunrise Set" (music.js)
-  // as tough as the arena (the act's numbers); `bugs` is how many come at once: act 3's 0.7 left this room's
-  // bugs costing a third of act 3's Health a second, 1 brings 43% more of them (a 12 bug pack: 1 Health a second for act 4's, 3 for act 3's; the spawn rate and the most alive at once both rise with it)
-  toughness: 3.5,
+  // regular bugs' Health is exactly what content/enemies.kdl says (Firefly 700, Moth 1000, Cicada 1200), so no multiplier here; `bugs` is how many come at once: act 3's 0.7 left this room's
+  // bugs costing a third of act 3's Health a second, 1 brings 43% more of them (the spawn rate and the most alive at once both rise with it)
+  toughness: 1,
   power: 2,
   bugs: 1,
   xpMult: 1.6,
@@ -113,7 +113,7 @@ export const STAGE4 = {
   treasures: { at: [15, 65, 115], stay: 22 },   // three in the 3 minute night
   // the opening acts (elites.js): the Singing Bowl, the Mushroom Pillow and the Headphones
   elites: ELITES4,
-  eliteHp: 1.8,                       // 800 x 1.8 = 1440: act 4's Elites take about as long to beat as act 3's (800 x 2.4 = 1920), the same level 17 build at 2.8 took 1.6x as long (a level 17 build, 3 seeds, 2 jelly types)
+  eliteHp: 4,                         // 800 x 4 = 3200: each of act 4's Elites (the Singing Bowl, the Mushroom Pillow, the Headphones)
 
   // The sun (sunrise.js): its line runs straight across the room in x and creeps from the window
   // wall (z `from`) to `to` over the night (`duration`), then stays. All of the room on the window

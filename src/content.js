@@ -78,17 +78,16 @@ function attackPhases(children) {
   return any ? A : null;
 }
 
-// spawning { rate … cap … toughen … }  and  bug "id" weight= from= act=
+// spawning { rate … cap … }  and  bug "id" weight= from= act=
 export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
-  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, toughen: 0, bugs: [] };
+  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, bugs: [] };
   for (const n of nodes) {
     const where = `${file}:${n.line}`;
     if (n.name === 'spawning') {
       for (const s of n.children) {
         if (s.name === 'rate') { w.rate = s.args[0]; w.grow = s.props.grow ?? 0; }
         else if (s.name === 'cap') { w.cap = s.args[0]; w.capEvery = s.props.every ?? Infinity; w.capMax = s.props.max ?? w.cap; }
-        else if (s.name === 'toughen') w.toughen = s.args[0];
-        else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap, toughen)`);
+        else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap)`);
       }
     } else if (n.name === 'bug') {
       const id = n.args[0];

@@ -1,11 +1,10 @@
 // How the night fills with bugs (run.js spawnWaves). Times are seconds into the act; `act` is
 // which act a bug comes out in (1 if left out). Which bugs exist and how they behave:
-// content/enemies.kdl. An act's own toughness (src/stage*.js) multiplies its bugs' health.
+// content/enemies.kdl. An act's own toughness (src/stage*.js) multiplies its bugs' health, and stays the same all act.
 
 spawning {
     rate 0.22 grow=0.0022       // bugs per second at midnight, and how much faster each second after
     cap 6 every=15 max=20       // most alive at once: 6, one more every 15 s, never more than 20
-    toughen 0.18                // each minute into the night, new bugs have 18% more health
 }
 
 bug "roach" weight=1                // cockroaches from the start

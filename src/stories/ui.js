@@ -3,6 +3,7 @@
 import { story, G, fresh, ok, step, offs } from './kit.js';
 import { icon, ICON_NAMES } from '../icons.js';
 import { juice } from '../juice.js';
+import * as benchMod from '../bench.js';
 
 // --- every piece of the kit on one sheet (index.html?story=ui/kit)
 export function kitSheet() {
@@ -140,6 +141,10 @@ export const SCREENS = {
   death: { open() { const { run } = G(); run.devRun(); run.phase = 'dead'; run.driedOut.begin(); run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); }, close() { G().run.ui.close(); G().run.start(); } },
   win: { open() { const { run } = G(); run.devRun(); run.phase = 'won'; run.endRun('Run complete', '', 'Play again from act 1', { parts: true }); }, close() { G().run.ui.close(); } },
   'win-sea': { open() { const { run } = G(); run.devRun(); run.victory.begin(() => {}); step(120); }, close() { G().run.victory.cancel(); } },
+  'bench-start': { open() { benchMod.offer(); }, close() { document.querySelector('.jf-bench')?.remove(); } },
+  'bench-results': { open() { benchMod.showResults({ env: { build: 'v1', act: 1, tier: 'medium', screen: '844x390', dpr: 3, raf: { fps: 60 }, gpuTime: 'not offered' },
+    moments: [{ name: 'bugs + Controller', frames: 400, ms: 16.7, p95: 33.4, over33: 0.05, over50: 0.01, stepMs: 4.2, renderMs: 6.1, gpuMs: null, draws: 230 }, { name: 'bugs + Controller, Low', skipped: true }] }); },
+    close() { document.querySelector('.jf-bench')?.remove(); } },
   'turn-sideways': { phone: true, open() { const { upright } = G(); upright.test = true; upright.update(); }, close() { const { upright } = G(); upright.test = null; upright.update(); over().hidden = true; } },
 };
 // a short, stable name for an element: its tag and classes, under its parent's

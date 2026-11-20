@@ -40,7 +40,7 @@ import { StaticBatches } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v560';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v564';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -362,7 +362,7 @@ wireFeedback(fx, targetId => {
 // The leaderboard (leaderboard.js): runs post their score when they end; the pause menu shows it
 const board = new Leaderboard();
 run.board = board;
-run.telemetryDisabled = new URLSearchParams(location.search).has('story') || new URLSearchParams(location.search).has('stories');
+run.telemetryDisabled = ['story', 'stories', 'bench'].some((k) => new URLSearchParams(location.search).has(k));
 addEventListener('online', () => { void board.runLog?.flush(); });
 const bag = overlay.querySelector('.g-bag');
 // the end-of-run screen's 🏠 Main menu: back to act 1's menu (a later act reloads into act 1)
@@ -870,6 +870,7 @@ function toggleLamps() {
   scene.traverse((o) => { if (o.isPointLight && (lightSlots ? o.userData.slot : o.userData.lamp)) o.visible = lampsOn; });
   return lampsOn;
 }
+GAME.toggleLamps = toggleLamps;   // the phone bench's lamps-off replay (bench.js)
 const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
@@ -1170,6 +1171,7 @@ export const ready = warmUp().then(() => {
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
   if (then?.boss) { const pick = run.bossChoices().find((p) => p.name === then.boss); if (pick) run.startBossFight(pick); }
   if (then?.layout) openLayout();   // the layout editor's act buttons reload into the act with it open
+  if (storyParams.has('bench')) { import('./bench.js').then((B) => B.offer()); return; }   // index.html?bench: the phone bench
   if (!storyParams.has('story') && !storyParams.has('stories')) return;
   import('./stories.js').then((S) => (storyParams.has('story') ? S.mount(storyParams.get('story')) : S.list()));
 });
