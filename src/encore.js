@@ -223,10 +223,11 @@ export class Encore {
     return S && b !== null && b >= S.at && b < S.end ? (S.who === 'duet' ? 'DUET' : `${S.who.toUpperCase()} DJ SOLO`) : null;
   }
   // its first-time lines: the last song (a toast each fight), and the hints (once ever): the first bow,
-  // the first duet record standing before its wall
+  // the first DJ landing on the floor, the first duet record standing before its wall
   announce() {
     if (this.stage === 'last' && !this.toldLast) { this.toldLast = true; bus.emit('toast', { text: 'The last song! Waves come two at a time.', ms: 2800 }); }
-    const S = this.solo, id = this.exposed && S?.bowing ? 'bow' : S?.who === 'duet' && this.records.casts.some((c) => c.state === 'stand') ? 'cover' : null, text = id && this.hints.take(id);
+    const S = this.solo, b = this.beat;
+    const id = this.exposed && S?.bowing ? 'bow' : S?.mark && b !== null && b >= S.at && this.outDj() && !this.hints.seen.has('floor') ? 'floor' : S?.who === 'duet' && this.records.casts.some((c) => c.state === 'stand') ? 'cover' : null, text = id && this.hints.take(id);
     if (text) bus.emit('toast', { text, ms: 3600 });
   }
   // where the jelly is ([x, z], one array reused)

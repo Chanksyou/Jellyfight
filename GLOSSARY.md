@@ -137,10 +137,10 @@ A low wave the Soundbar sends across act 4's room every 16 bars of the song, fro
 What opens on the media console when act 4's countdown runs out, in place of a boss arriving. Landing on it takes the run through to the Encore's concert arena.
 
 **Solo**:
-A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the gold DJ, or both in the duet) plays his attack under a spotlight while the lasers rest.
+A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the gold DJ, or both in the duet) plays his attack under a spotlight while the lasers rest. He plays it on the floor, out of the booth.
 
 **Bow**:
-What a DJ does when his Solo ends: 2 bars, or 4 if nothing hit the jelly during it. The Encore is Exposed while he bows.
+What a DJ does when his Solo ends: 2 bars, or 4 if nothing hit the jelly during it. The Encore is Exposed while he bows. He bows on the floor, then goes home to the booth.
 
 **Exposed**:
 The Encore's state while a DJ bows, and in the song's breakdown: hits on it do 1.5x. The boss bar turns gold and says so.

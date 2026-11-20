@@ -1649,7 +1649,7 @@ fight('the-boss-bar-names-the-solo-the-duet-and-the-bow', {
 });
 
 fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
-  about: 'The first time a DJ bows, a toast says the Encore is exposed and hits do 1.5x; the first time a duet record stands before its wall, one says to get behind it. Each shows once, never again in the fight or after it (it is remembered across runs).',
+  about: 'The first time a DJ lands on the floor, a toast says he is the one to hit and the booth can\'t be hurt until he is back; the first time a DJ bows, a toast says the Encore is exposed and hits do 1.5x; the first time a duet record stands before its wall, one says to get behind it. Each shows once, never again in the fight or after it (it is remembered across runs).',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { hud } = G(), toasts = [], had = localStorage.getItem(ENCORE_HINTS_KEY);
@@ -1657,14 +1657,14 @@ fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
       localStorage.removeItem(ENCORE_HINTS_KEY); B.hints = new EncoreHints();
       stub(hud, 'toast', (t) => toasts.push(t)); stub(B, 'hurtPlayer', () => {}); B.hp = B.maxHp * 0.4; B.broken = true;
       const n = (id) => toasts.filter((t) => t === ENCORE_HINTS[id]).length, seen = {};
-      go(34); slot('silver', 40); go(55); seen.early = n('bow') + n('cover');
+      go(34); slot('silver', 40); go(39); seen.beforeLand = n('floor'); go(55); seen.early = n('bow') + n('cover'); seen.floor = n('floor');
       go(60); seen.bow = n('bow');
       go(74); slot('silver', 80); go(100); seen.bow2 = n('bow');
       go(114); slot('duet', 120); go(119); seen.coverEarly = n('cover');
       go(126); seen.cover = n('cover');
-      go(150); seen.after = [n('bow'), n('cover'), toasts.length];
-      const again = new EncoreHints(); seen.remembered = again.take('bow') === null && again.take('cover') === null;
-      return ok(seen.early === 0 && seen.bow === 1 && seen.bow2 === 1 && seen.coverEarly === 0 && seen.cover === 1 && seen.after.join() === '1,1,2' && seen.remembered, seen);
+      go(150); seen.after = [n('floor'), n('bow'), n('cover'), toasts.length];
+      const again = new EncoreHints(); seen.remembered = again.take('bow') === null && again.take('cover') === null && again.take('floor') === null;
+      return ok(seen.beforeLand === 0 && seen.floor === 1 && seen.early === 0 && seen.bow === 1 && seen.bow2 === 1 && seen.coverEarly === 0 && seen.cover === 1 && seen.after.join() === '1,1,1,3' && seen.remembered, seen);
     } finally { had === null ? localStorage.removeItem(ENCORE_HINTS_KEY) : localStorage.setItem(ENCORE_HINTS_KEY, had); }
   },
 });
