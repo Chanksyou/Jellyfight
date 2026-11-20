@@ -39,7 +39,7 @@ import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
 const _at = new THREE.Vector3();
-const QUAD = new THREE.PlaneGeometry(2, 2);   // (stands in for the passes' own quads while their shaders are built)
+const QUAD = new THREE.PlaneGeometry(2, 2).deleteAttribute('normal');   // (stands in for the passes' own quads while their shaders are built: no normals, as theirs)
 const IDLE = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
 // where the three roaches stand: [metres from the jelly, radians round from straight ahead]. The
 // Tentacle jelly's all inside its 11 cm reach (its 3 tentacles take them all at once); a shot's
