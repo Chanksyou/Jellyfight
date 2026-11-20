@@ -90,11 +90,12 @@ export class FirstRun {
 }
 
 // The Encore's first-time lines (encore.js), once each for good, whatever the run: the first bow, and the
-// first duet record standing before its wall. `take(id)` gives the line the first time, then null.
+// first duet record standing before its wall, the first DJ landing on the floor. `take(id)` gives the line the first time, then null.
 export const ENCORE_HINTS_KEY = 'jellyrun.encoreHints';
 export const ENCORE_HINTS = {
   bow: 'A DJ bowing leaves the Encore EXPOSED: hits do 1.5x.',
   cover: 'Get behind a record: its white strip is safe from the wall.',
+  floor: "A DJ on the floor is the one to hit. The booth can't be hurt until he is back.",
 };
 export class EncoreHints {
   constructor() {
