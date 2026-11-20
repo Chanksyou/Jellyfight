@@ -1,0 +1,1 @@
+gives the Encore's DJs legs and a rig to leave the booth with (a vault there and back on the beat, landing, slam, conduct with either arm, push), ready for their solos on the floor; nothing changes in play yet.

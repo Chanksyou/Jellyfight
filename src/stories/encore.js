@@ -595,14 +595,14 @@ fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
 // ---- the DJ rig (encore-model.js): parts, moves on the beat
 const rigBeat = (fps) => TRACKS.encore.bpm / 60 / fps;
 // each move's pose space: how far along its swing (wind-up to accent) the pose is now
-const along = (m, now) => { let p = 0; for (let i = 0; i < 10; i++) p += now[i] * (m.A[i] - m.W[i]); return p; };
+const along = (m, now) => { let p = 0; for (let i = 0; i < now.length; i++) p += now[i] * ((m.A[i] || 0) - (m.W[i] || 0)); return p; };
 function moveDefs() {
   const n = (k) => LOOK.list('encore-dance-' + k, []).map(Number);
   return Object.fromEntries(MOVES.map((m) => { const t = n(m); return [m, { lead: t[0], strike: t[1], sustain: t[2], release: t[3], W: n(m + '-wind'), A: n(m + '-hit') }]; }));
 }
 
 story('encore/dj-rig-rest-pose-and-draws-unchanged', {
-  about: 'Split into torso, two arms and helmet, the DJs at rest stand exactly as before (main v545, encore-rig-rest.json): each performer, helmet, glove and outer arm within 1 mm, drawn with the same number of meshes and materials.',
+  about: 'Split into torso, two arms, two legs and helmet, the DJs at rest stand exactly as before (main v545, encore-rig-rest.json): each performer, helmet, glove and outer arm within 1 mm, drawn with the same number of meshes and materials (the legs, hidden in the booth, draw nothing).',
   setup() {},
   async play() {
     const was = await (await fetch('src/stories/encore-rig-rest.json')).json(), boss = buildEncoreBoss();
@@ -614,15 +614,15 @@ story('encore/dj-rig-rest-pose-and-draws-unchanged', {
       let worst = 0;
       for (const k of Object.keys(now)) now[k].forEach((v, i) => v.forEach((x, j) => { worst = Math.max(worst, Math.abs(x - was[k][i][j])); }));
       let meshes = 0; const mats = new Set();
-      boss.root.traverse((o) => { if (o.isMesh) { meshes++; mats.add(o.material); } });
-      const parts = ['silver', 'gold'].every((who) => { const r = boss.rigs[who]; return r.torso && r.head && r.outer && r.inner && r.outer !== r.inner; });
+      boss.root.traverseVisible((o) => { if (o.isMesh) { meshes++; mats.add(o.material); } });
+      const parts = ['silver', 'gold'].every((who) => { const r = boss.rigs[who]; return r.torso && r.head && r.outer && r.inner && r.outer !== r.inner && r.outerLeg && r.innerLeg && !r.outerLeg.visible && !r.innerLeg.visible; });
       return ok(worst < 0.001 && meshes === was.meshes && mats.size === was.materials && parts, { worst, meshes, materials: mats.size, was: [was.meshes, was.materials], parts });
     } finally { boss.dispose(); }
   },
 });
 
 story('encore/dj-rig-every-move-lands-its-accent-on-its-beat', {
-  about: 'Each DJ move (four wave gestures, record throw, fader crank, hands up, fist pump, flinch, bow) asked for on beat 8 (asked again every frame, too) swings furthest at beat 8, within a frame, at 30 and at 60 fps, for each DJ; it moves his torso, helmet or arms on the way, and he is back at rest when it ends.',
+  about: 'Each DJ move (four wave gestures, record throw, fader crank, hands up, fist pump, flinch, bow; off the booth: vault, land, slam, conduct, push) asked for on beat 8 (asked again every frame, too) swings furthest at beat 8, within a frame, at 30 and at 60 fps, for each DJ; it moves his torso, helmet or arms on the way, and he is back at rest when it ends.',
   setup() {},
   play() {
     const defs = moveDefs(), out = {};
@@ -637,10 +637,10 @@ story('encore/dj-rig-every-move-lands-its-accent-on-its-beat', {
           boss.update(1 / fps, false, b);
           const p = along(m, r.now);
           if (p > best) { best = p; bestAt = b; }
-          moved = Math.max(moved, Math.abs(r.torso.rotation.x), Math.abs(r.outer.rotation.x), Math.abs(r.inner.rotation.x), Math.abs(r.outer.rotation.y), Math.abs(r.head.rotation.x));
+          moved = Math.max(moved, Math.abs(r.torso.rotation.x), Math.abs(r.outer.rotation.x), Math.abs(r.inner.rotation.x), Math.abs(r.outer.rotation.y), Math.abs(r.head.rotation.x), Math.abs(r.outerLeg.rotation.x));
         }
         boss.update(1 / fps, true, end + 2);
-        const back = Array.from(r.now).every((v) => Math.abs(v) < 1e-6) && r.torso.rotation.x === 0 && r.outer.rotation.x === 0 && r.inner.rotation.x === 0;
+        const back = Array.from(r.now).every((v) => Math.abs(v) < 1e-6) && r.torso.rotation.x === 0 && r.outer.rotation.x === 0 && r.inner.rotation.x === 0 && r.outerLeg.rotation.x === 0 && r.innerLeg.rotation.x === 0;
         out[`${who}-${move}@${fps}`] = { ok: Math.abs(bestAt - 8) <= db + 1e-9 && moved > 0.1 && back, at: +bestAt.toFixed(3), moved: +moved.toFixed(2), back };
       } finally { boss.dispose(); }
     }
@@ -717,6 +717,160 @@ story('encore/dj-rig-a-song-rewind-drops-a-move', {
       for (let b = 2; b < 23; b += db) { boss.update(1 / 60, true, b); replayed = Math.max(replayed, Math.abs(r.outer.rotation.x)); }
       return ok(mid < -0.3 && eased && replayed < 1e-3 && !r.move, { mid, eased, replayed });
     } finally { boss.dispose(); }
+  },
+});
+
+// ---- the DJ rig off the booth (B1): legs, travel(), face(), the other arm
+// a booth on its riser in a stand-in arena (travel moves a DJ into the booth's parent)
+function rigStage() {
+  const arena = new THREE.Group(), boss = buildEncoreBoss();
+  boss.root.position.set(0, 0.07, -0.43); arena.add(boss.root); arena.updateMatrixWorld(true);
+  return { arena, boss, done() { boss.dispose(); } };
+}
+const worldAt = (o) => { o.updateWorldMatrix(true, false); return o.getWorldPosition(V(0, 0, 0)); };
+const MARK = [-0.3, 0, 0.1];
+
+for (const fps of [30, 60]) story(`encore/dj-rig-a-vault-lands-on-its-beat-at-${fps}fps`, {
+  about: `At ${fps} fps, a DJ asked to travel to a mark from beat 10 to beat 12 stays in the booth till beat 10, rises well over the decks between (highest half way, by the vault height), and stands on the mark at beat 12 within a frame, his legs shown only once he is off the booth; asked again every frame it is the same trip. Then a trip home on beats 20 to 22 puts him back in the booth at rest (within 1 mm), legs hidden again.`,
+  setup() {},
+  play() {
+    const T = rigStage(), M = T.boss, r = M.rigs.silver, db = rigBeat(fps), out = {};
+    try {
+      const home = worldAt(r.body), h = LOOK.num('encore-vault-height', 0.26);
+      let waited = true, peak = -1, peakAt = null, landedAt = null, legsInBooth = false;
+      for (let b = 8; b <= 13; b += db) {
+        M.travel('silver', MARK, 10, 12);   // asked every frame
+        M.update(1 / fps, true, b);
+        const p = worldAt(r.body);
+        if (b < 10) { waited &&= p.distanceTo(home) < 1e-6 && !M.out('silver'); legsInBooth ||= r.outerLeg.visible; }
+        if (b >= 10 && b < 12) { const line = home.y + (MARK[1] - home.y) * (b - 10) / 2; if (p.y - line > peak) { peak = p.y - line; peakAt = b; } }
+        if (landedAt === null && p.distanceTo(V(...MARK)) < 1e-6) landedAt = b;
+      }
+      out.out = { waited, legsInBooth, peak: +peak.toFixed(3), peakAt: +peakAt.toFixed(2), landedAt: +landedAt?.toFixed(3), legs: r.outerLeg.visible && r.innerLeg.visible };
+      const outOk = waited && !legsInBooth && Math.abs(peak - h) < 0.01 && Math.abs(peakAt - 11) <= db && Math.abs(landedAt - 12) <= db + 1e-9 && out.out.legs && M.out('silver');
+      for (let b = 13; b <= 23; b += db) { M.travel('silver', 'home', 20, 22); M.update(1 / fps, true, b); }
+      const back = worldAt(r.body).distanceTo(home), homeOk = back < 0.001 && !M.out('silver') && !r.outerLeg.visible && r.body.parent === M.root && Math.abs(r.body.rotation.y - r.restYaw) < 1e-9;
+      out.home = { back, legs: r.outerLeg.visible, parent: r.body.parent === M.root };
+      return ok(outOk && homeOk, out);
+    } finally { T.done(); }
+  },
+});
+
+story('encore/dj-rig-the-booth-pump-does-not-move-a-dj-on-the-floor', {
+  about: 'While the booth pumps on the beat, squashes when hit and shudders (its group scaled, moved and tipped, as encore.js does), a DJ standing on the floor does not move at all, while the DJ still in the booth rides it as he always has.',
+  setup() {},
+  play() {
+    const T = rigStage(), M = T.boss, db = rigBeat(60), home = M.root.position.clone();
+    try {
+      for (let b = 0; b <= 3; b += db) { M.travel('gold', [0.36, 0, -0.06], 0.5, 2.5); M.update(1 / 60, true, b); }
+      const stand = worldAt(M.rigs.gold.body), still = worldAt(M.rigs.silver.body);
+      let floor = 0, booth = 0;
+      for (let k = 0; k < 60; k++) {
+        const kick = Math.exp(-(k % 30) / 5);
+        M.root.position.copy(home).add(V((Math.random() - 0.5) * 0.01, -0.012 * kick, 0)); M.root.rotation.z = 0.04 * kick;
+        M.root.scale.set(1 + kick * 0.008, 1 - kick * 0.03, 1 + kick * 0.008);
+        M.update(1 / 60, true, 3 + k * db);
+        floor = Math.max(floor, worldAt(M.rigs.gold.body).distanceTo(stand));
+        booth = Math.max(booth, worldAt(M.rigs.silver.body).distanceTo(still));
+      }
+      return ok(floor < 1e-9 && booth > 0.002 && M.out('gold') && !M.out('silver'), { floor, booth: +booth.toFixed(4) });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/dj-rig-a-clock-hop-home-and-a-knock-back', {
+  about: 'On the clock (no beat needed: the short-out\'s knock-back, a rewind\'s hop home), a DJ on the floor asked to travel home in 0.4 s is back in the booth at rest in 0.4 s (within a frame) and not before; a beat trip asked while he is home already changes nothing.',
+  setup() {},
+  play() {
+    const T = rigStage(), M = T.boss, r = M.rigs.silver, db = rigBeat(60);
+    try {
+      const home = worldAt(r.body);
+      for (let b = 0; b <= 3; b += db) { M.travel('silver', MARK, 0.5, 2.5); M.update(1 / 60, true, b); }
+      M.travel('silver', 'home', { secs: 0.4 });
+      let t = 0, at = null;
+      for (let k = 0; k < 40; k++) { M.update(1 / 60, true, null); t += 1 / 60; if (!M.out('silver')) at ??= t; }
+      const back = worldAt(r.body).distanceTo(home), again = M.travel('silver', 'home', 30, 32);
+      M.update(1 / 60, true, 31); const stays = !M.out('silver') && worldAt(r.body).distanceTo(home) < 1e-6;
+      return ok(at !== null && Math.abs(at - 0.4) <= 1 / 60 + 1e-9 && back < 0.001 && again && stays, { at, back, stays });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/dj-rig-on-the-floor-he-faces-the-way-he-goes-then-the-jelly', {
+  about: 'Off the booth a DJ turns to face the way he travels and, once landed, the point face() gives him (the jelly), never faster than --encore-turn-rate a second; face(null) holds his facing.',
+  setup() {},
+  play() {
+    const T = rigStage(), M = T.boss, r = M.rigs.gold, db = rigBeat(60), rate = LOOK.num('encore-turn-rate', 6);
+    try {
+      let fastest = 0, prev = null, midway = null;
+      const to = [0.36, 0, -0.06];
+      M.face('gold', [0, 0.48]);
+      for (let b = 0; b <= 8; b += db) {
+        M.travel('gold', to, 0.5, 2.5); M.update(1 / 60, true, b);
+        if (M.out('gold')) { if (prev !== null) fastest = Math.max(fastest, Math.abs(Math.atan2(Math.sin(r.body.rotation.y - prev), Math.cos(r.body.rotation.y - prev))) * 60); prev = r.body.rotation.y; }
+        if (Math.abs(b - 1.4) < db / 2) midway = r.body.rotation.y;
+      }
+      const p = worldAt(r.body), want = Math.atan2(0 - p.x, 0.48 - p.z), going = Math.atan2(to[0] - 0.083, to[2] + 0.505);
+      const faces = Math.abs(Math.atan2(Math.sin(r.body.rotation.y - want), Math.cos(r.body.rotation.y - want))) < 0.01;
+      M.face('gold', null); const held = r.body.rotation.y; M.update(1 / 60, true, 9); const holds = r.body.rotation.y === held;
+      return ok(faces && fastest <= rate + 1e-6 && Math.abs(midway - going) < 0.35 && holds, { faces, fastest: +fastest.toFixed(2), midway: +midway.toFixed(2), going: +going.toFixed(2), holds });
+    } finally { T.done(); }
+  },
+});
+
+story('encore/dj-rig-conduct-plays-with-either-arm', {
+  about: 'A conduct asked for with his outer arm raises only that arm on its accent; asked for with his inner arm, the inner arm makes exactly the same gesture and the outer one stays down; the helmet and torso play the same either way.',
+  setup() {},
+  play() {
+    const pose = (arm) => {
+      const boss = buildEncoreBoss(), r = boss.rigs.gold;
+      try {
+        boss.perform('gold', 'conduct', 4, 1, undefined, null, arm);
+        for (let b = 2; b <= 4 + 1e-9; b += rigBeat(60)) boss.update(1 / 60, true, b);
+        boss.update(0, true, 4);
+        return { outer: r.outer.rotation.toArray().slice(0, 3), inner: r.inner.rotation.toArray().slice(0, 3), torso: r.torso.rotation.x, head: r.head.rotation.x };
+      } finally { boss.dispose(); }
+    };
+    const o = pose('outer'), i = pose('inner'), near = (a, b) => a.every((v, k) => Math.abs(v + 0 - b[k]) < 1e-6);
+    // the inner arm's y and z turn the other way (each arm's own outwards), so compare x and the sizes
+    const same = Math.abs(o.outer[0] - i.inner[0]) < 1e-6 && Math.abs(Math.abs(o.outer[1]) - Math.abs(i.inner[1])) < 1e-6 && Math.abs(Math.abs(o.outer[2]) - Math.abs(i.inner[2])) < 1e-6;
+    const rest = Math.abs(o.inner[0]) < 1e-6 && Math.abs(i.outer[0]) < 1e-6;
+    return ok(o.outer[0] < -1 && same && rest && o.torso === i.torso && o.head === i.head && !near(o.outer, i.outer), { o, i });
+  },
+});
+
+fight('dj-rig-each-dj-vaults-to-a-point-and-back', {
+  about: 'In the real fight (open it live to watch: each DJ in turn crouches, vaults over his decks onto the floor on the beat, lands, conducts, slams and pushes, then vaults home), every trip lands on its beat and each DJ is back in the booth at rest; the legs and moves build no new shader, and on the floor he does not ride the booth\'s beat pump.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false }), M = B.arenaView.boss, { APT, GAME } = G();
+    GAME.compile();
+    const programs = APT.renderer.info.programs.length, res = {};
+    for (const [who, to] of [['silver', [-0.3, 0, 0.1]], ['gold', [0.36, 0, -0.06]]]) {
+      B.floor.held[who] = true;
+      const r = M.rigs[who], home = r.body.getWorldPosition(V(0, 0, 0)), b0 = Math.ceil(B.beat) + 2, T = b0 + 2, L = T + 2, back = L + 8;
+      let landed = null, still = 0, spot = null, homeAt = null;
+      step(60 * 12, () => {
+        const b = B.beat;
+        if (b < L - 0.3) { M.perform(who, 'vault', T, 1, 1.5); M.travel(who, to, T, L); }
+        else if (b < L + 2) M.perform(who, 'land', L);
+        else if (b < L + 3.5) M.perform(who, 'conduct', L + 3, 1, undefined, null, who === 'gold' ? 'inner' : 'outer');
+        else if (b < L + 5) M.perform(who, 'slam', L + 5);
+        else if (b < back - 0.3) M.perform(who, 'push', L + 6.5);
+        else { M.perform(who, 'vault', back); M.travel(who, 'home', back, back + 2); }
+        const p = r.body.getWorldPosition(V(0, 0, 0));
+        if (landed === null && M.out(who) && b >= L) { landed = b; spot = p.clone(); }
+        if (landed !== null && b > L + 0.1 && b < back) still = Math.max(still, p.distanceTo(spot));
+        if (b >= back && !M.out(who) && homeAt === null) { homeAt = b; return true; }
+      });
+      step(30);
+      const at = r.body.getWorldPosition(V(0, 0, 0)).distanceTo(home);
+      B.floor.held[who] = false; M.perform(who, null);
+      res[who] = { ok: landed !== null && landed - L < 0.1 && spot.distanceTo(V(to[0], to[1], to[2]).applyMatrix4(B.arenaView.root.matrixWorld)) < 0.002 && still < 1e-6 && homeAt !== null && homeAt - (back + 2) < 0.1 && at < 0.002, landed: landed && +(landed - L).toFixed(3), still, homeAt: homeAt && +(homeAt - back - 2).toFixed(3), at: +at.toFixed(4) };
+    }
+    G().batcher?.sync?.(); GAME.compile();
+    const newShaders = APT.renderer.info.programs.length - programs;
+    return ok(res.silver.ok && res.gold.ok && newShaders === 0, { ...res, newShaders });
   },
 });
 
