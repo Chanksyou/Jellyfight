@@ -610,6 +610,33 @@ story('types/pick-side-card-frost', {
   },
 });
 
+story('types/pick-side-card-glitter', {
+  about: 'Glitter\'s card (aura="glitter", pick-auras/glitter.js) is painted by its shader, with no 2D drawing left, and moves: out-of-focus lights, falling flakes that flash and winking stars glitter all over the card.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('glitter');
+      stub(picker, 'live', null);   // no live centre card: the Glitter card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('glitter')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.glitter === true && P.has('glitter') && !AURAS.glitter;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas: some pixel bright over the open water, the card changing from frame to frame)
+      const S = card.width, ctx = card.getContext('2d');
+      const grab = () => ctx.getImageData(0, 0, S, Math.floor(S * 0.4)).data;
+      const bright = (d) => { let n = 0; for (let k = 0; k < d.length; k += 4) n += d[k] + d[k + 1] + d[k + 2] > 600; return n; };
+      const a = grab(); picker.auraAt = -1; tick(); tick(); tick(); tick(); tick(); tick();
+      const b = grab();
+      let moved = 0; for (let k = 0; k < a.length; k += 16) moved += Math.abs(a[k] - b[k]) > 30;
+      return ok(lit && bright(a) > 20 && moved > 50, { lit, bright: bright(a), moved });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-side-card-shader-holds-still-calm', {
   about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
   setup() {},

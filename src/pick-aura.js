@@ -22,9 +22,10 @@
 
 import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
+import * as glitter from './pick-auras/glitter.js';
 import * as sparks from './pick-auras/sparks.js';
 
-export const SHADERS = { flames, sparks, frost };
+export const SHADERS = { flames, sparks, frost, glitter };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -101,21 +102,6 @@ export const AURAS = {
         ctx.strokeStyle = rgba(k < 3 ? '#ffffff' : col, (0.4 + 0.6 * f) * a); ctx.lineWidth = S * 0.028 * f + 1;
         ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
       }
-    }
-  },
-
-  // Glitter: rainbow stars winking on and off round the jelly
-  glitter(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.55);
-    for (let i = 0; i < 22; i++) {
-      const wink = Math.max(0, Math.sin(t * (2.4 + rnd(i, 1)) + i * 1.9));
-      if (!wink) continue;
-      const [x, y] = ring(S, TAU * rnd(i, 2), 0.88 + 0.3 * rnd(i, 3)), r = S * (0.03 + 0.045 * rnd(i, 4)) * wink;
-      ctx.fillStyle = `hsla(${(i * 47 + t * 60) % 360},100%,78%,${(0.95 * wink * a).toFixed(3)})`;
-      ctx.beginPath();   // a four-point star
-      for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, d = k % 2 ? r * 0.22 : r; ctx.lineTo(x + Math.cos(q) * d, y + Math.sin(q) * d); }
-      ctx.closePath(); ctx.fill();
-      dot(ctx, x, y, r * 0.18, rgba('#ffffff', wink * a));
     }
   },
 
