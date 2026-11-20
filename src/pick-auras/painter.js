@@ -20,6 +20,8 @@ export class AuraPainter {
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
     this.quad.frustumCulled = false;
     this.scene.add(this.quad);
+    // a graphics chip reset (gpu-recovery.js) loses what was drawn on it: draw the jelly again and rebuild
+    renderer.domElement.addEventListener?.('webglcontextrestored', () => this.release(true));
   }
 
   has(kind) { return !!SHADERS[kind]; }
@@ -81,8 +83,8 @@ export class AuraPainter {
   }
 
   // the pick screen closed (or the chip was reset): free the jelly's pictures; the shaders stay built
-  release() {
+  release(lost = this.renderer.getContext().isContextLost?.()) {
     freePortraitLayers();
-    if (this.renderer.getContext().isContextLost?.()) { for (const m of Object.values(this.mats)) m?.dispose(); this.mats = {}; }
+    if (lost) { for (const m of Object.values(this.mats)) m?.dispose(); this.mats = {}; this.built = {}; }
   }
 }

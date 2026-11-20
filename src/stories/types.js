@@ -485,10 +485,10 @@ story('types/pick-side-card-shader', {
       const medium = P.mats.flames.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
       const low = P.mats.flames.uniforms.uLayers.value;
-      const L = P.mats.flames.uniforms.uPortrait.value, freed = spy(P, 'release');
+      const R = P.renderer, textures = R.info.memory.textures;
       picker.close();
-      const gone = freed.length === 1 && P.mats.flames.uniforms.uPortrait.value === L;   // (the material keeps its last picture; the target behind it is freed)
-      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built.flames, shader, twoD, layers: [medium, low], freed: freed.length });
+      const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
+      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built.flames, shader, twoD, layers: [medium, low], textures: [textures, R.info.memory.textures] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

@@ -301,7 +301,7 @@ export class TypePicker {
       // the jelly's own shaders are built by then, so its first picture never stalls the screen
       let lit = false;
       try { lit = !!this.frames[this.ids[i]][0] && this.painter.draw(c, kind, this.look(), t + i * 0.37, colour, strength); } catch (e) { console.warn('pick aura', e); }
-      if (!lit) { c.getContext('2d').clearRect(0, 0, c.width, c.height); if (calm) this.auraAt = -1; }   // (Reduce effects: its one frozen frame once it can)
+      if (!lit) { c.getContext('2d').clearRect(0, 0, c.width, c.height); if (calm && this.frames[this.ids[i]][0] !== '') this.auraAt = -1; }   // (Reduce effects: its one frozen frame as soon as its portrait and shader are ready, the frame loop going till then; never if its portrait failed)
       c.classList.toggle('lit', lit);
     });
   }
@@ -352,7 +352,7 @@ export class TypePicker {
   tick(now) {
     this.raf = 0;
     if (!this.isOpen) return;
-    const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016);
+    const dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000 || 0.016));   // (never back in time: stories tick it by hand between real frames)
     this.last = now;
     let moving = !!this.drag;
     if (!this.drag) {
@@ -385,7 +385,7 @@ export class TypePicker {
       this.spin += dt / LOOK.num('pick-spin-step', 1.4);
       this.showView(this.index, Math.floor(this.spin) % VIEWS, this.spin % 1);
     }
-    if (moving || turning || live || this.queue.length || !this.calm()) this.kick();   // the elements keep moving
+    if (moving || turning || live || this.queue.length || !this.calm() || this.auraAt < 0) this.kick();   // the elements keep moving (or one is still to be drawn)
   }
 
   // --- moving the row --------------------------------------------------------------------------

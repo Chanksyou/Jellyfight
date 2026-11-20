@@ -321,7 +321,8 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (typeof n.props.about !== 'string') throw new Error(`${where}: "${id}" needs about="…" (the pick screen's line on its attack)`);
     if (n.props.area !== undefined && typeof n.props.area !== 'boolean') throw new Error(`${where}: "${id}" area= must be #true or #false`);
     if (!(typeof n.props.hit === 'number' && n.props.hit > 0)) throw new Error(`${where}: "${id}" needs hit= (a number above 0)`);
-    if (n.props.aura !== undefined && !AURA_KINDS().includes(n.props.aura)) throw new Error(`${where}: "${id}" aura= must be one of ${AURA_KINDS().join(', ')}, not "${n.props.aura}"`);
+    const auras = AURA_KINDS();
+    if (n.props.aura !== undefined && !auras.includes(n.props.aura)) throw new Error(`${where}: "${id}" aura= must be one of ${auras.join(', ')}, not "${n.props.aura}"`);
     if (n.props.adorn !== undefined && !ADORNMENTS.includes(n.props.adorn)) throw new Error(`${where}: "${id}" adorn= must be one of ${ADORNMENTS.join(', ')}, not "${n.props.adorn}"`);
     const act = n.props['unlock-act'], elites = n.props['unlock-elites'];
     if (act !== undefined && elites !== undefined) throw new Error(`${where}: "${id}" takes unlock-act= or unlock-elites=, not both`);
