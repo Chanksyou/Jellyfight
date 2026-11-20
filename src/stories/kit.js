@@ -126,6 +126,9 @@ export function stillMismatch() {
   const root = G().APT?.root;
   if (!root?.userData.frozen) return '';
   let bad = null;
+  const { statics } = G();
+  statics.sync();   // as a frame would: a piece moved with markMoved takes its batch copy along; one moved without it doesn't
+  for (const b of statics.batches) for (const p of b.pieces) if (!bad && p.inBatch && !sameMatrix(p.mesh.matrixWorld, p.matrix)) bad = p.mesh;
   root.traverse((o) => {
     if (bad) return;
     if (o.matrixAutoUpdate && !sameMatrix(_still.compose(o.position, o.quaternion, o.scale), o.matrix)) bad = o;

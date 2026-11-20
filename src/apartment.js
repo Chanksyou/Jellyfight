@@ -61,8 +61,7 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
     } else {
       // move this part's objects into the Apartment node we already have (same place in the world)
       const into = apt.root.getObjectByName('Apartment');
-      apt.root.updateMatrixWorld(true);
-      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.updateMatrixWorld(true);   // (attach reads the frozen apartment's own matrices: static-batch.js freeze)
       for (const o of [...from.children]) { into.attach(o); added.push(o); }
     }
     addLights(scene, meta.lights.filter((L) => (L.act || 'act1') === part));
