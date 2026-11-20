@@ -301,9 +301,9 @@ night4('cicadas-from-1-30', {
 
 // act 4's Elites attack about 40% more often since snap=2 and the shorter windups and rests: this plays each one
 // for a minute on the run's own beat (the jelly held on its spot, no damage) and counts the attacks it starts
-// (`e.next` counts them). The bowl gains least: its rings stay a bar apart. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
+// (`e.next` counts them). The bowl gains least: its rings stay a bar apart, and now it throws five a time (act 4 retune), so it starts fewer, longer attacks: only the other two are held to +10%. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
 night4('elites-attack-faster', {
-  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and each at least 10% more (their old counts are in this story).',
+  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and the Pillow and Headphones each at least 10% more (their old counts are in this story).',
   setup() {},
   play() {
     const BEFORE = { bowl: 11, pillow: 17, headphones: 9 }, out = {};
@@ -316,6 +316,6 @@ night4('elites-attack-faster', {
       out[kind] = e.next;
     }
     const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
-    return ok(sum(out) >= sum(BEFORE) * 1.3 && Object.keys(BEFORE).every((k) => out[k] >= BEFORE[k] * 1.1), { attacksPerMinute: out, before: BEFORE });
+    return ok(sum(out) >= sum(BEFORE) * 1.3 && ['pillow', 'headphones'].every((k) => out[k] >= BEFORE[k] * 1.1), { attacksPerMinute: out, before: BEFORE });
   },
 });

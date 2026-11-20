@@ -2742,7 +2742,7 @@ export class Elites {
                 this.buzzHurt(this._mid.set(P.x, P.y + cfg.height * 0.5, P.z), '#' + col.getHexString());
               }
               L.k++;
-              if (L.angry && L.k < n) L.wave = { cup, from: due, at: due + S.lead };   // the cup that just burst now aims a shove wave at you
+              if (L.angry && L.k < n && !L.wave) L.wave = { cup, from: due, at: due + S.lead };   // the cup that just burst now aims a shove wave at you
             }
           } else if (beat > L.due[n - 1] + 1) { e.plan = null; e.locked = false; e.state = 'idle'; e.cool = angry ? S.angryRest : S.rest; }
           if (L.wave && this.shoveCue(e, L.cue, L.wave.cup, L.wave.from, L.wave.at, S.lock, P, fwd, dt)) L.wave = null;

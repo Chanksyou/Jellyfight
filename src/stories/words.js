@@ -1264,7 +1264,7 @@ story('words/leap-subtle-warning', {
 // it starts at once (its cooldown is spent) and, with on-beat, on the next bar line
 const cicadaAt = (d = 0.3) => { stub(G().run, 'song', null); const e = spawn('cicada', near(d, 0)); e.burrowCd = 0; return e; };   // (the run's own beat count: a song the speakers play, as an earlier story may have started one, keeps its own time)
 story('words/burrow', {
-  about: 'Within reach on the bar the cicada digs in (0.45 s, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for a bar of the song (4 beats), then locks and a circle and dome over the spot fill together for 2 beats; on that beat it bursts up as a Blast under the jelly that stood still (4 Health) and the Warning is gone.',
+  about: 'Within reach on the bar the cicada digs in (0.45 s, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for 5 beats of the song, then locks and a circle and dome over the spot fill together for 1 beat; on that beat it bursts up as a Blast under the jelly that stood still (5 Health) and the Warning is gone.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
   play() {
     const { enemies, run } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
@@ -1278,31 +1278,31 @@ story('words/burrow', {
     const trails = d1 < d0 - 0.05 && !e.burrowLocked && !enemies.burrowMarks.some((M) => M.floor.visible);
     step(60 * 8, () => e.burrowLocked);
     const lockedAt = e.pos.clone(), beatsAtLock = e.burrowBeats;
-    step(30);
+    step(8);   // (the circle fills for only 1 beat now)
     const stays = e.pos.distanceTo(lockedAt) < 1e-4 && e.burrowAt.distanceTo(lockedAt) < 1e-4;
     let both = true, grew = true, last = 0, shown = 0;
     step(60 * 8, () => {
       if (e.under) {
         const M = enemies.burrowMarks[0];
-        both = both && !!M && M.floor.visible && M.vol.visible && M.floor.material.progress === M.vol.material.progress && M.floor.scale.x === 0.1 && M.vol.scale.x === 0.1;
+        both = both && !!M && M.floor.visible && M.vol.visible && M.floor.material.progress === M.vol.material.progress && M.floor.scale.x === 0.15 && M.vol.scale.x === 0.15;
         if (M) { grew = grew && M.floor.material.progress >= last; last = M.floor.material.progress; shown++; }
       }
       return e.state === 'dazed';
     });
-    const bursts = log.filter((d) => d.source === 'cicada' && d.amount === 4);
+    const bursts = log.filter((d) => d.source === 'cicada' && d.amount === 5);
     const gone = !enemies.burrowMarks.some((M) => M.floor.visible || M.vol.visible);
     step(2);
-    return ok(dig > 20 && dig < 40 && under && trails && beatsAtLock >= 4 && beatsAtLock < 4.6 && stays && both && grew && shown > 30 && e.state === 'dazed' && !e.under && bursts.length === 1 && gone,
+    return ok(dig > 20 && dig < 40 && under && trails && beatsAtLock >= 5 && beatsAtLock < 5.6 && stays && both && grew && shown > 12 && e.state === 'dazed' && !e.under && bursts.length === 1 && gone,
       { dig, under, trails, beatsAtLock: +beatsAtLock.toFixed(2), stays, drift: [e.pos.distanceTo(lockedAt), e.burrowAt.distanceTo(lockedAt)], both, grew, shown, state: e.state, gone });
   },
 });
 story('words/burrow-hits', {
-  about: 'If you are inside the circle when it bursts up you take 4 Health, are shoved away from its middle and tossed up.',
+  about: 'If you are inside the circle when it bursts up you take 5 Health, are shoved away from its middle and tossed up.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
     step(60 * 25, () => e.state === 'dazed');
-    const hit = log.find((d) => d.source === 'cicada' && d.amount === 4), shove = shoves.find((k) => k.targetId === PLAYER && k.launch);
+    const hit = log.find((d) => d.source === 'cicada' && d.amount === 5), shove = shoves.find((k) => k.targetId === PLAYER && k.launch);
     return ok(!!hit && !!shove && shove.force === 0.5 && shove.launch === 0.5 && Math.abs(shove.dir.length() - 1) < 1e-6 && shove.dir.y === 0, { hit: hit?.amount, shove: shove && { force: shove.force, launch: shove.launch } });
   },
 });
@@ -1315,11 +1315,11 @@ story('words/burrow-dodge', {
     const P = G().player.position;
     tp(P.x + 0.3, P.y, P.z, 0);
     step(60 * 8, () => e.state === 'dazed');
-    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 4) && !shoves.some((k) => k.targetId === PLAYER && k.launch), { state: e.state });
+    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 5) && !shoves.some((k) => k.targetId === PLAYER && k.launch), { state: e.state });
   },
 });
 story('words/burrow-jump', {
-  about: 'The burst is a half sphere 10 cm round: a jelly at the top of a jump over the circle when it bursts up is not hurt.',
+  about: 'The burst is a half sphere 15 cm round: a jelly at the top of a jump over the circle when it bursts up is not hurt.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -1328,7 +1328,7 @@ story('words/burrow-jump', {
     stub(player, 'update', () => {});   // hold it up there for the frame the burst lands
     player.position.set(P.x, P.y + 0.2, P.z); player.velocity.set(0, 0, 0);
     step(60 * 3, () => e.state === 'dazed');
-    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 4), { state: e.state });
+    return ok(e.state === 'dazed' && !log.some((d) => d.source === 'cicada' && d.amount === 5), { state: e.state });
   },
 });
 story('words/burrow-untouchable', {
@@ -1353,7 +1353,7 @@ story('words/burrow-untouchable', {
   },
 });
 story('words/burrow-dazed', {
-  about: 'After it bursts up the cicada stands still for 1.6 s, dazed, then walks again and can dig in once its 6 s are up.',
+  about: 'After it bursts up the cicada stands still for 1.6 s, dazed, then walks again and can dig in once its 4 s are up.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies } = G(), e = enemies.list[0];
@@ -1361,7 +1361,7 @@ story('words/burrow-dazed', {
     const at = e.pos.clone();
     let frames = 0; step(60 * 4, () => { if (e.state === 'dazed') frames++; return e.state === 'approach'; });
     const moved = e.pos.distanceTo(at);
-    return ok(frames > 90 && frames < 102 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 5, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
+    return ok(frames > 90 && frames < 102 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 3, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
   },
 });
 story('words/burrow-mound-is-dimmer-than-the-warning', {

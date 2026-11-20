@@ -119,7 +119,7 @@ elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=
 //          outside that circle (the jelly's body counting), up to height= m over it (a jump doesn't clear it), and shoves you a little (knock=):
 //          swim in close, where the rings' echo catches you
 elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
-    ring dmg=3 rings=3 angryRings=4 snap=2 windup=2 warn=0.09 height=0.03 band=0.025 speed=0.45 angrySpeed=0.7 reach=0.6 echo=2 rest=0.6 angryRest=0.4
+    ring dmg=5 rings=5 angryRings=7 snap=1 windup=1 warn=0.09 height=0.1 band=0.06 speed=0.5 angrySpeed=0.7 reach=0.7 echo=3 rest=0.6 angryRest=0.4
     hum dmg=3 snap=2 windup=3 safe=0.12 height=0.35 knock=0.5 rest=0.6 angryRest=0.4
 }
 
@@ -138,9 +138,9 @@ elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
 //           --pillow-column): dmg= once, anywhere in a column, and a cap touched goes off at once. Hold
 //           still in the middle; run and you cross a column. Angry: after the first ring bursts a
 //           second sprouts flee= m on, the way you were moving (else away from it)
-elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.65 {
-    spores dmg=3 spots=5 angrySpots=8 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
-    fairy dmg=4 caps=8 ring=0.12 radius=0.04 snap=1 windup=1 grow=1 flee=0.34 rest=0.6 angryRest=0.4
+elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.5 angry=0.65 {
+    spores dmg=5 spots=6 angrySpots=9 snap=2 windup=1 drift=1 angryDrift=0.5 radius=0.06 near=0.45 spread=0.13 rest=0.6 angryRest=0.4
+    fairy dmg=5 caps=8 ring=0.12 radius=0.04 snap=1 windup=1 grow=1 flee=0.34 rest=0.6 angryRest=0.4
 }
 
 // act 4: the Headphones, up on their ear cups on the kitchen counter by the stove in the living room at dawn. They
@@ -163,7 +163,7 @@ elite "pillow" name="The Mushroom Pillow" icon="🍄" hp=800 aggro=1.2 angry=0.6
 //          just burst sends a shove wave (the shove's width, height, speed and push) through you across the
 //          line; its Warning locks lock= beats before: jump it or sidestep it, or be shoved deeper into the half
 //          about to burst
-elite "headphones" name="The Headphones" icon="🎶" hp=800 aggro=1.2 angry=0.65 {
-    shove waves=3 every=4 snap=2 windup=2 lock=1 width=0.2 height=0.05 speed=1.2 push=0.2 carry=0.2 rest=0.6 angryRest=0.4
-    stereo dmg=3 bursts=4 angryBursts=6 every=2 snap=2 windup=2 height=0.35 lead=1 lock=0.5 rest=0.6 angryRest=0.4
+elite "headphones" name="The Headphones" icon="🎶" hp=800 aggro=1.5 angry=0.65 {
+    shove waves=6 every=1 snap=1 windup=1 lock=0.5 width=0.4 height=0.1 speed=1.6 push=0.4 carry=0.3 rest=0.6 angryRest=0.4
+    stereo dmg=5 bursts=6 angryBursts=8 every=1 snap=1 windup=1 height=0.5 lead=1 lock=0.5 rest=0.6 angryRest=0.3
 }

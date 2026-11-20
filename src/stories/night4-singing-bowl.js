@@ -49,7 +49,7 @@ night4('bowl-wakes-when-you-are-on-the-chair', {
 });
 
 night4('bowl-rim-ring-strikes-on-the-bar', {
-  about: 'Rim ring: the striker lifts while a Warning (a disc round the bowl with the low ring wall over it, in the bowl\'s bronze orange) fills to each strike; it strikes the rim on the bar lines of the song, one ring a bar, three in all, and each ring wall rolls out across the seat and back in again (its echo): 3 to a jelly standing in its way, once going out and once coming back, from every ring.',
+  about: 'Rim ring: the striker lifts while a Warning (a disc round the bowl with the low ring wall over it, in the bowl\'s bronze orange) fills to each strike; it strikes the rim on the bar lines of the song, one ring a bar, five in all, and each ring wall rolls out across the seat and back in again (its echo): 5 to a jelly standing in its way, once going out and once coming back, from every ring.',
   setup() { startBowl(0); },
   play() {
     const { e } = startBowl(0), { run } = G(), log = record('damage_taken'), beats = [];
@@ -58,6 +58,7 @@ night4('bowl-rim-ring-strikes-on-the-bar', {
       if (bowlPairs().some(([v]) => v.material.kind === 'ring')) warned++;
       lifted = Math.max(lifted, -e.model.striker.rotation.z);
       if ((e.struckN || 0) > was) { beats.push(+run.beat.toFixed(2)); was = e.struckN; }
+      if (e.state === 'idle' && beats.length) e.cool = 1e9;   // (just this attack's rings, not the next one's)
       return e.state === 'idle' && beats.length && !run.elites.rings.length;
     });
     const hits = hitsBy(log, 'bowl-ring'), gaps = beats.slice(1).map((b, i) => +(b - beats[i]).toFixed(2));
@@ -67,11 +68,11 @@ night4('bowl-rim-ring-strikes-on-the-bar', {
 });
 
 night4('bowl-rings-are-thin-and-low-and-jumped', {
-  about: 'Each rim ring is a thin, low wall (3 cm high, a 2.5 cm band: content/elites.kdl) rolling outward across the seat, wider every moment: a jelly standing in its way is hit (going out, and again coming back), one in the air over it (feet 5 cm up) isn\'t, by any of them.',
+  about: 'Each rim ring is a thin, low wall (10 cm high, a 6 cm band: content/elites.kdl) rolling outward across the seat, wider every moment: a jelly standing in its way is hit (going out, and again coming back), one in the air over it (feet 12 cm up) isn\'t, by any of them.',
   setup() { startBowl(0); },
   play() {
     const out = {};
-    for (const [name, up] of [['standing', 0], ['jumping', 0.05]]) {
+    for (const [name, up] of [['standing', 0], ['jumping', 0.12]]) {
       const { e, player, seat } = startBowl(0), { run } = G(), log = record('damage_taken');
       if (up) { player.position.y = seat + up; player.grounded = false; }
       const walls = [], bands = [], radii = [];
@@ -84,6 +85,7 @@ night4('bowl-rings-are-thin-and-low-and-jumped', {
           bands.push(+((1 - Math.hypot(p.getX(0), p.getZ(0))) * r.r).toFixed(3));
           radii.push(r.r);
         }
+        if (first && e.state === 'idle') e.cool = 1e9;   // (just this attack's rings, not the next one's)
         return e.state === 'idle' && e.strikes === null && !run.elites.rings.length;
       });
       const grows = radii.length > 10 && radii.every((r, i) => !i || r >= radii[i - 1] - 1e-9) && radii[radii.length - 1] > 0.5;
@@ -115,18 +117,18 @@ night4('bowl-turning-angry-mid-ring-finishes-the-ring', {
   setup() { startBowl(0); },
   play() {
     const { e } = startBowl(0), { run } = G(), R = SK().ring;
-    let struck = 0;
+    let struck = 0, end = null;
     step(60 * 18, () => {
       if (e.struckN === 1 && e.hp >= e.maxHp * e.def.angry) e.hp = e.maxHp * 0.5;   // angry after the first ring
       struck = Math.max(struck, e.struckN || 0);
-      return e.state === 'idle' && struck && !run.elites.rings.length;
+      if (e.state === 'idle' && struck) { end = { struck, strikes: !!e.strikes, tele: e.tele.length, cool: e.cool }; return true; }   // (its rings roll on after it rests)
     });
-    return ok(struck === R.rings && e.state === 'idle' && !e.strikes && !e.tele.length && e.cool > 0 && e.cool <= R.angryRest, { struck, state: e.state, cool: e.cool });
+    return ok(end && end.struck === R.rings && !end.strikes && !end.tele && end.cool > 0 && end.cool <= R.angryRest, { end });
   },
 });
 
 night4('bowl-ring-echo-rolls-back-in', {
-  about: 'Each rim ring rolls out to its reach, holds there dim and harmless for echo= beats of the song, brightens through the last of them, then rolls back in to the bowl as bright as it left: it hits a jelly in its way again on the way back (3 more), and a jelly in the air over it (feet 5 cm up) for the return isn\'t hit.',
+  about: 'Each rim ring rolls out to its reach, holds there dim and harmless for echo= beats of the song, brightens through the last of them, then rolls back in to the bowl as bright as it left: it hits a jelly in its way again on the way back (5 more), and a jelly in the air over it (feet 12 cm up) for the return isn\'t hit.',
   setup() { startBowl(0); },
   play() {
     const out = {};
@@ -139,7 +141,7 @@ night4('bowl-ring-echo-rolls-back-in', {
         ring ||= run.elites.rings[0];
         if (!ring) return false;
         if (ring.phase === 'wait') {
-          if (from === null) { from = run.beat; outHits = hitsBy(log, 'bowl-ring').length; dimOpacity = ring.m.material.opacity; if (jumpBack) { player.position.y = seat + 0.05; player.grounded = false; } }
+          if (from === null) { from = run.beat; outHits = hitsBy(log, 'bowl-ring').length; dimOpacity = ring.m.material.opacity; if (jumpBack) { player.position.y = seat + 0.12; player.grounded = false; } }
           lastOpacity = ring.m.material.opacity;
         }
         if (ring.phase === 'back') { if (to === null) { to = run.beat; bright = ring.m.material.opacity; } minR = Math.min(minR, ring.r); }

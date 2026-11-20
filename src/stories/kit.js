@@ -603,9 +603,9 @@ function checkAttack(who, name, a) {
     r.filling = p1.length > 0 && p1.every(([v, f], i) => f && f.parent && v.parent && Math.abs(f.material.progress - v.material.progress) < 1e-6 && v.material.progress > was[i]);
   }
   // after the hit: keep it from starting another, let what's in flight land, then nothing shows
-  if (boss && a.end) a.end(); else if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 8, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
+  if (boss && a.end) a.end(); else if (boss) { step(60 * 6, () => boss.state !== name); boss.stateT = 1e9; } else if (e) { step(60 * 14, () => e.state === 'idle'); e.cool = 1e9; } else { step(60 * 8, () => !during()); a.end(); }
   const els = run.elites;
-  step(60 * 6, () => !els.blobs.length && !els.steams.length && !els.balloons.length && !els.rings.length && !shotsFlying());
+  step(60 * 10, () => !els.blobs.length && !els.steams.length && !els.balloons.length && !els.rings.length && !shotsFlying());
   step(20);
   const w = shownWarnings();
   r.gone = !w.floor.length && !w.volume.length; if (!r.gone) r.left = w.floor.map((o) => [o.material.kind, o.material.progress, o.position.toArray().map((v) => +v.toFixed(2))]);
