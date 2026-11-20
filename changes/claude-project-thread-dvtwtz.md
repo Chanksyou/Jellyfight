@@ -1,1 +1,0 @@
-gives Normal's side card on the pick screen glassy bubbles drawn in a shader: three depths rising through rippling light, each a lens that bends the jelly and water behind it, with a rainbow film on its rim and a window highlight.
