@@ -52,7 +52,7 @@ story('types/lightning-plays', {
 });
 
 story('types/lightning-look-comes-and-goes', {
-  about: 'The Lightning jelly\'s storm look is glowing tips on its jelly (nothing inside the bell), a small arc that jumps between two tips every few seconds (a bar of segments that shows for a moment), and static flecks that blink; a Normal jelly has none of it.',
+  about: 'The Lightning jelly\'s storm look is glowing tips on its jelly (nothing inside the bell), a small arc that jumps between two tips every few seconds (a bar of segments, thin at both tips, with a fork off its middle, that shows for a moment), and static flecks that blink; a Normal jelly has none of it.',
   setup() { setupFight({ types: 'lightning', bubbles: false, lash: false }); },
   play() {
     const { run } = G();
@@ -61,12 +61,12 @@ story('types/lightning-look-comes-and-goes', {
       step(1);
       const P = run.adorn.pieces.storm;
       if (!P) continue;
-      const kids = P.group.children;   // 8 tips, 6 arc segments, then the flecks
-      if (kids.slice(8, 14).some((m) => m.visible)) seen.arc = true;
-      if (kids.slice(14).some((m) => m.visible)) seen.fleck = true;
+      const kids = P.group.children;   // 8 tips, 6 arc segments and 2 of its fork, then the flecks
+      if (kids.slice(8, 16).some((m) => m.visible)) seen.arc = true;
+      if (kids.slice(16).some((m) => m.visible)) seen.fleck = true;
     }
     const P = run.adorn.pieces.storm, tips = P.group.children.slice(0, 8).filter((m) => m.visible).length;
-    const worn = P.group.visible && tips >= 3 && P.group.children.length === 8 + 6 + LOOK.num('storm-flecks', 8);
+    const worn = P.group.visible && tips >= 3 && P.group.children.length === 8 + 6 + 2 + LOOK.num('storm-flecks', 8);
     fresh({ types: 'normal' }); step(2);
     const none = !run.adorn.pieces.storm?.group.visible;
     return ok(worn && seen.arc && seen.fleck && none, { worn, tips, seen, none });
@@ -324,5 +324,30 @@ story('types/pick-screen-lightning-card', {
       const quiet = hurt.filter((d) => d.targetId !== PLAYER).length === 0;
       return ok(look && shots >= 1 && arcs >= 1 && kills >= 3 && quiet, { liveFor: picker.liveFor, look, shots, arcs, kills, quiet });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('attack/lightning-bolt-holds-its-channel', {
+  about: 'A chain bolt keeps one jagged shape for a return stroke (--bolt-hold) and re-strikes in a new one after it, so it reads as one channel flickering, not noise; it forks (a thinner jagged branch tapering off a kink: two on the pick screen); its ends never move off the two things it joins.',
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  play() {
+    const { run, fx } = G(), L = run.bubbles.looks, a = V(0, 0.05, 0), b = V(0.12, 0.05, 0.04);
+    const shape = (seed) => { L.jagged(a, b, 0.22, seed); return L.path.map((p) => p.clone()); };
+    const same = shape(42).every((p, i) => p.distanceTo(shape(42)[i]) < 1e-9);
+    const s1 = shape(42), s2 = shape(42 + 7919), differs = s1.some((p, i) => p.distanceTo(s2[i]) > 1e-4);
+    const pinned = s1[0].distanceTo(a) < 1e-9 && s1[16].distanceTo(b) < 1e-9;
+    // a strike: its first stroke's frames all hold the same shape, the next stroke's is another
+    L.clearBolts(); L.strike(a, b);
+    const holds = [];
+    for (let i = 0; i < 4; i++) { L.frame(); L.tickBolts(0.01); holds.push(L.path[8].clone()); }
+    const held = holds.every((p) => p.distanceTo(holds[0]) < 1e-9);
+    L.frame(); L.tickBolts(LOOK.num('bolt-hold', 0.05));
+    const restruck = L.path[8].distanceTo(holds[0]) > 1e-6;
+    const forked = L.fork[8].distanceTo(L.fork[0]) > 0.01;
+    stub(fx, 'showcase', true);
+    const forks = spy(L, 'channel'); L.tickBolts(0.001);
+    const two = forks.length === 3;   // the bolt and two forks on the pick screen
+    L.clearBolts();
+    return ok(same && differs && pinned && held && restruck && forked && two, { same, differs, pinned, held, restruck, forked, channels: forks.length });
   },
 });

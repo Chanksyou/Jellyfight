@@ -1,1 +1,1 @@
-redraws the Lightning card on the jelly pick screen: real branching bolts strike the jelly in a dark storm, flash its bell and fade to an afterimage, with a crackling glow round its edge, far bolts in the clouds and arcs between its tentacle tips.
+makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.

@@ -123,11 +123,16 @@ export class PickStage {
   }
   unreflect() { this.env?.dispose(); this.env = null; }
 
-  // the type's colour: the rim, the attack's light, the water low behind and the specks
-  setType(color) {
+  // the type's colour: the rim, the attack's light, the water low behind and the specks. A type `id` may
+  // give its water its own colour, how much of it, and how bright the water is in look.css
+  // (--preview-backdrop-<id>, --preview-backdrop-tint-<id>, --preview-backdrop-bright-<id>)
+  setType(color, id = '') {
+    const U = this.back.material.uniforms;
     this.rim.color.set(color);
     this.glow.color.set(color);
-    this.back.material.uniforms.uTint.value.set(color);
+    U.uTint.value.set(LOOK.color(`preview-backdrop-${id}`, color));
+    U.uTintK.value = LOOK.num(`preview-backdrop-tint-${id}`, LOOK.num('preview-backdrop-tint', 1));
+    U.uBright.value = LOOK.num(`preview-backdrop-bright-${id}`, LOOK.num('preview-backdrop', 0.5));
     this.speckColor.set(LOOK.color('menu-water-glow', '#70ddc7')).lerp(new THREE.Color(color), 0.4);
   }
 
