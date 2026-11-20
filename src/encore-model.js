@@ -305,18 +305,22 @@ export function buildEncoreBoss(){
   // each frame: where a travelling DJ is (u 0..1 along his arc, by the beat or the clock), and his facing
   function fly(r,dt,beat){
     const T=r.trip,b=r.body.position;
-    if(T){
-      const u=T.secs?(time-T.t0)/T.secs:beat===null?null:(beat-T.t0)/(T.t1-T.t0);
+    let moving=false;
+    if(T&&!T.done){
+      const u=T.secs?(time-T.t0)/T.secs:beat===null?null:(beat-T.t0)/(T.t1-T.t0);   // (no beat: he waits where he is)
+      if(u!==null&&u<0&&T.set){home(r);return;}   // the song rewound past his take-off: back in the booth
       if(u!==null&&u>=0){
+        moving=true;
         if(!r.out)leave(r);
         if(!T.set){T.set=true;T.from.copy(b);}   // he takes off from wherever he stands
         if(T.home)homeAt(r,T.to);
         const k=Math.min(1,u);b.lerpVectors(T.from,T.to,k);b.y+=4*T.h*k*(1-k);
         const dx=T.to.x-T.from.x,dz=T.to.z-T.from.z,end=T.home?homeYaw(r):r.facing?Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z):null;
         turnTo(r,k<.5||end===null?(Math.hypot(dx,dz)>.01?Math.atan2(dx,dz):r.yaw):end,dt);   // faces the way he goes, then where he lands facing
-        if(u>=1){if(T.home)home(r);else r.trip=null;}
+        if(u>=1){if(T.home)home(r);else T.done=true;}   // (kept, so asking again for it changes nothing)
       }
-    }else if(r.out&&r.facing)turnTo(r,Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z),dt);
+    }
+    if(!moving&&r.out&&r.facing)turnTo(r,Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z),dt);
     if(r.out)r.body.rotation.y=r.yaw;
   }
   moves();
@@ -331,7 +335,7 @@ export function buildEncoreBoss(){
     // arm 'inner' plays the move with his other arm (a conduct for the far lanes); dir still only mirrors turns.
     perform(who,move,beat0,dir=1,sustain,look=null,arm='outer'){
       const r=rigOf(who);if(!r||(move!==null&&(!MOVES.includes(move)||!Number.isFinite(beat0))))return false;
-      if(move&&r.move===MOVE[move]&&r.at===beat0)return true;   // asked again (each frame): it plays on
+      if(move&&r.move===MOVE[move]&&r.at===beat0&&r.arm===(arm==='inner'?'inner':'outer'))return true;   // asked again (each frame): it plays on
       r.was.set(r.now);r.from=r.w;r.fadeAt=null;r.move=move&&MOVE[move];r.at=beat0;r.dir=dir<0?-1:1;r.sustain=Number.isFinite(sustain)?Math.max(0,sustain):r.move?.sustain??0;r.look=Number.isFinite(look)?look:null;r.arm=arm==='inner'?'inner':'outer';return true;
     },
     // travel(who, to, takeOff, land, height): he leaves where he stands on beat takeOff and lands on beat
@@ -345,8 +349,9 @@ export function buildEncoreBoss(){
       if(clock){height=takeOff.height??vaultHeight;if(!(takeOff.secs>0))return false;}
       else if(!Number.isFinite(takeOff)||!Number.isFinite(land)||land<=takeOff)return false;
       const T=r.trip;
-      if(T&&!clock&&!T.secs&&T.t0===takeOff&&T.t1===land&&T.home===goHome&&(goHome||T.to.equals(_to.fromArray(to))))return true;   // asked again
-      if(goHome&&!r.out&&!T)return true;   // he is home already
+      const same=T&&T.home===goHome&&(goHome||T.to.equals(_to.fromArray(to)));
+      if(same&&(clock?T.secs===takeOff.secs:!T.secs&&T.t0===takeOff&&T.t1===land))return true;   // asked again (each frame)
+      if(goHome&&!r.out){r.trip=null;return true;}   // he is home already (a trip out not yet begun is called off)
       r.trip={home:goHome,to:goHome?new THREE.Vector3():new THREE.Vector3().fromArray(to),from:new THREE.Vector3(),set:false,h:Number.isFinite(height)?height:vaultHeight,
         t0:clock?time:takeOff,t1:clock?null:land,secs:clock?takeOff.secs:0};
       return true;

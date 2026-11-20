@@ -767,7 +767,7 @@ story('encore/dj-rig-the-booth-pump-does-not-move-a-dj-on-the-floor', {
       let floor = 0, booth = 0;
       for (let k = 0; k < 60; k++) {
         const kick = Math.exp(-(k % 30) / 5);
-        M.root.position.copy(home).add(V((Math.random() - 0.5) * 0.01, -0.012 * kick, 0)); M.root.rotation.z = 0.04 * kick;
+        M.root.position.copy(home).add(V(Math.sin(k * 2.3) * 0.005, -0.012 * kick, 0)); M.root.rotation.z = 0.04 * kick;
         M.root.scale.set(1 + kick * 0.008, 1 - kick * 0.03, 1 + kick * 0.008);
         M.update(1 / 60, true, 3 + k * db);
         floor = Math.max(floor, worldAt(M.rigs.gold.body).distanceTo(stand));
@@ -796,6 +796,30 @@ story('encore/dj-rig-a-clock-hop-home-and-a-knock-back', {
   },
 });
 
+story('encore/dj-rig-a-trip-asked-every-frame-or-rewound-plays-once', {
+  about: 'A trip asked for every frame plays once: after landing on the mark he stays put (no new trip each frame), a clock hop home asked every frame still gets him home in its time, a trip home asked before a trip out has begun calls it off, and a song rewind past his take-off mid-flight puts him back in the booth at rest instead of freezing him in the air.',
+  setup() {},
+  play() {
+    const T = rigStage(), M = T.boss, r = M.rigs.silver, db = rigBeat(60);
+    try {
+      const home = worldAt(r.body);
+      for (let b = 0; b <= 3; b += db) { M.travel('silver', MARK, 0.5, 2.5); M.update(1 / 60, true, b); }
+      const trip = r.trip; M.travel('silver', MARK, 0.5, 2.5); M.update(1 / 60, true, 3.1);
+      const kept = r.trip === trip && worldAt(r.body).distanceTo(V(...MARK)) < 1e-6;
+      let t = 0, at = null;
+      for (let k = 0; k < 40; k++) { M.travel('silver', 'home', { secs: 0.4 }); M.update(1 / 60, true, null); t += 1 / 60; if (!M.out('silver')) at ??= t; }
+      const hopped = at !== null && Math.abs(at - 0.4) <= 1 / 60 + 1e-9;
+      M.travel('silver', MARK, 10, 12); M.travel('silver', 'home', 10, 12); M.update(1 / 60, true, 11);
+      const calledOff = !M.out('silver') && !r.outerLeg.visible && !r.trip;
+      for (let b = 20; b <= 21; b += db) { M.travel('silver', MARK, 20, 22); M.update(1 / 60, true, b); }
+      const flying = M.out('silver');
+      M.update(1 / 60, true, 4);
+      const rewound = !M.out('silver') && worldAt(r.body).distanceTo(home) < 1e-6 && !r.outerLeg.visible && !r.trip;
+      return ok(kept && hopped && calledOff && flying && rewound, { kept, at, calledOff, flying, rewound });
+    } finally { T.done(); }
+  },
+});
+
 story('encore/dj-rig-on-the-floor-he-faces-the-way-he-goes-then-the-jelly', {
   about: 'Off the booth a DJ turns to face the way he travels and, once landed, the point face() gives him (the jelly), never faster than --encore-turn-rate a second; face(null) holds his facing.',
   setup() {},
@@ -810,7 +834,7 @@ story('encore/dj-rig-on-the-floor-he-faces-the-way-he-goes-then-the-jelly', {
         if (M.out('gold')) { if (prev !== null) fastest = Math.max(fastest, Math.abs(Math.atan2(Math.sin(r.body.rotation.y - prev), Math.cos(r.body.rotation.y - prev))) * 60); prev = r.body.rotation.y; }
         if (Math.abs(b - 1.4) < db / 2) midway = r.body.rotation.y;
       }
-      const p = worldAt(r.body), want = Math.atan2(0 - p.x, 0.48 - p.z), going = Math.atan2(to[0] - 0.083, to[2] + 0.505);
+      const p = worldAt(r.body), want = Math.atan2(0 - p.x, 0.48 - p.z), start = r.rest.clone().add(M.root.position), going = Math.atan2(to[0] - start.x, to[2] - start.z);
       const faces = Math.abs(Math.atan2(Math.sin(r.body.rotation.y - want), Math.cos(r.body.rotation.y - want))) < 0.01;
       M.face('gold', null); const held = r.body.rotation.y; M.update(1 / 60, true, 9); const holds = r.body.rotation.y === held;
       return ok(faces && fastest <= rate + 1e-6 && Math.abs(midway - going) < 0.35 && holds, { faces, fastest: +fastest.toFixed(2), midway: +midway.toFixed(2), going: +going.toFixed(2), holds });
@@ -866,7 +890,7 @@ fight('dj-rig-each-dj-vaults-to-a-point-and-back', {
       step(30);
       const at = r.body.getWorldPosition(V(0, 0, 0)).distanceTo(home);
       B.floor.held[who] = false; M.perform(who, null);
-      res[who] = { ok: landed !== null && landed - L < 0.1 && spot.distanceTo(V(to[0], to[1], to[2]).applyMatrix4(B.arenaView.root.matrixWorld)) < 0.002 && still < 1e-6 && homeAt !== null && homeAt - (back + 2) < 0.1 && at < 0.002, landed: landed && +(landed - L).toFixed(3), still, homeAt: homeAt && +(homeAt - back - 2).toFixed(3), at: +at.toFixed(4) };
+      res[who] = { ok: landed !== null && Math.abs(landed - L) < 0.1 && spot.distanceTo(V(to[0], to[1], to[2]).applyMatrix4(B.arenaView.root.matrixWorld)) < 0.002 && still < 1e-6 && homeAt !== null && Math.abs(homeAt - (back + 2)) < 0.1 && at < 0.002, landed: landed && +(landed - L).toFixed(3), still, homeAt: homeAt && +(homeAt - back - 2).toFixed(3), at: +at.toFixed(4) };
     }
     G().batcher?.sync?.(); GAME.compile();
     const newShaders = APT.renderer.info.programs.length - programs;
