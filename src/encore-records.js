@@ -36,18 +36,19 @@ function recordGeometry(r, label) {
 }
 
 // keep a landing spot on the open floor: out of the boss's reserved space by `edge` (its stage edge
-// inside it), and on the floor; and `keep` ([x, z, d]: a DJ standing on the floor) at least d from it,
-// the nearest way round him that is open floor
+// inside it), and on the floor; and `keep` ([x, z, d, w]: DJs standing on the floor, along a line `w` m
+// either side of x, 0 for one) at least d from it, the nearest way round them that is open floor
 export function landing(x, z, r, edge, out = [0, 0], keep = null) {
   onFloor(x, z, r, edge, out);
   if (!keep) return out;
-  const [kx, kz, d] = keep;
-  if (Math.hypot(out[0] - kx, out[1] - kz) >= d) return out;
-  const base = Math.hypot(out[0] - kx, out[1] - kz) > 1e-6 ? Math.atan2(out[1] - kz, out[0] - kx) : Math.PI / 2;
+  const [kx, kz, d, w = 0] = keep, near = (px) => Math.max(kx - w, Math.min(kx + w, px));
+  const qx = near(out[0]);
+  if (Math.hypot(out[0] - qx, out[1] - kz) >= d) return out;
+  const base = Math.hypot(out[0] - qx, out[1] - kz) > 1e-6 ? Math.atan2(out[1] - kz, out[0] - qx) : Math.PI / 2;
   for (let k = 0; k < 12; k++) {
     const a = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * Math.PI / 6;
-    onFloor(kx + Math.cos(a) * (d + 0.001), kz + Math.sin(a) * (d + 0.001), r, edge, out);
-    if (Math.hypot(out[0] - kx, out[1] - kz) >= d) return out;
+    onFloor(qx + Math.cos(a) * (d + 0.001), kz + Math.sin(a) * (d + 0.001), r, edge, out);
+    if (Math.hypot(out[0] - near(out[0]), out[1] - kz) >= d) return out;
   }
   return out;
 }
@@ -73,7 +74,7 @@ export class EncoreRecords {
     this.warnGlow = LOOK.num('encore-record-warning', 0.6); this.laneGlow = LOOK.num('encore-record-volume', 0.35);
     this.on = [0, 0.3];                                   // where the jelly is, when a cast names no target
     this.beat = null; this.casts = []; this.pushX = 0; this.pushZ = 0;
-    this.keep = null;                                     // [x, z, d]: no record lands within d of it (a DJ on the floor; the Encore sets it)
+    this.keep = null;                                     // [x, z, d, w]: no record lands within d of it (DJs on the floor; the Encore sets it, see landing)
     // the records: one instanced draw, always drawn (unused ones scaled to nothing) so its shader is built with the arena
     this.mesh = new THREE.InstancedMesh(recordGeometry(this.r, LOOK.color('encore-record-label', '#9bbaff')),
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }), RECORDS);

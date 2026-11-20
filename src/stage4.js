@@ -38,8 +38,9 @@ export const ENCORE = {
   bossSpace: { center: [0, 0, -0.36], width: 0.62, depth: 0.48 },
   // where a DJ stands on the floor for his solo ([x, z]; the Encore vaults him there and back, encore.js
   // floorStep): the silver DJ out on the floor in front of his side of the stage; the gold DJ at the stage
-  // front, mid lane 4 (x 0.24 to 0.48), inside his own flames. The duet's (+-0.12, -0.06) joins when its solo leaves the booth
-  marks: { silver: [-0.3, 0.1], gold: [0.36, 0.02] },
+  // front, mid lane 4 (x 0.24 to 0.48), inside his own flames. The duet's: one for each DJ, side by side at
+  // the stage front (its target is between them)
+  marks: { silver: [-0.3, 0.1], gold: [0.36, 0.02], duet: { silver: [-0.12, -0.06], gold: [0.12, -0.06] } },
 
   boss: {
     name: 'The Encore',
