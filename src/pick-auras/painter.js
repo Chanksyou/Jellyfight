@@ -5,10 +5,25 @@ import { KIT } from './kit.js';
 import { SHADERS } from '../pick-aura.js';
 import { portraitLayers, freePortraitLayers } from '../jelly-portrait.js';
 
-// Draws the shader kinds onto the cards' canvases: each card a full-quad shader drawn by the game's
-// renderer into the bottom-left corner of its canvas, copied onto the card (as attack-preview.js
-// does: no second WebGL context, no pixel read back), the renderer put back as it was.
-// shortcut: its corner draw is its own copy of attack-preview.js draw(); share one once F1's stage lands.
+// The pick screen's pictures (this and attack-preview.js) are drawn by the game's renderer into the
+// bottom-left corner of its canvas, `px` square, and copied straight onto the card's canvas (`size`
+// square): no second WebGL context, no pixel read back. paint(corner) draws; corner() points the
+// renderer at that corner. The renderer is put back as it was; exposure is the portraits'.
+export function drawToCard(R, ctx, px, size, paint) {
+  const gl = R.domElement, ratio = R.getPixelRatio();
+  const was = { target: R.getRenderTarget(), vp: R.getViewport(new THREE.Vector4()), sc: R.getScissor(new THREE.Vector4()), test: R.getScissorTest(),
+    color: R.getClearColor(new THREE.Color()), alpha: R.getClearAlpha(), exposure: R.toneMappingExposure };
+  try {
+    R.toneMappingExposure = LOOK.num('portrait-exposure', was.exposure || 1);
+    paint(() => { R.setRenderTarget(null); R.setViewport(0, 0, px / ratio, px / ratio); R.setScissor(0, 0, px / ratio, px / ratio); R.setScissorTest(true); });
+    ctx.drawImage(gl, 0, gl.height - px, px, px, 0, 0, size, size);   // the viewport is the canvas's bottom-left corner
+  } finally {
+    R.setRenderTarget(was.target); R.setViewport(was.vp); R.setScissor(was.sc); R.setScissorTest(was.test);
+    R.setClearColor(was.color, was.alpha); R.toneMappingExposure = was.exposure;
+  }
+}
+
+// Draws the shader kinds onto the cards' canvases: each card one full-quad shader (drawToCard).
 export class AuraPainter {
   // tier(): the graphics tier ('low': fewer noise layers)
   constructor(renderer, tier = () => 'medium') {
@@ -66,19 +81,7 @@ export class AuraPainter {
     u.uTime.value = t; u.uStrength.value = strength; u.uColor.value.set(colour).convertSRGBToLinear();
     u.uLayers.value = this.tier() === 'low' ? 2 : 4;
     this.quad.material = m;
-    const ratio = R.getPixelRatio(), px = Math.min(gl.width, gl.height, size);
-    const was = { target: R.getRenderTarget(), vp: R.getViewport(new THREE.Vector4()), sc: R.getScissor(new THREE.Vector4()), test: R.getScissorTest(), exposure: R.toneMappingExposure };
-    try {
-      R.setRenderTarget(null);
-      R.setViewport(0, 0, px / ratio, px / ratio);
-      R.setScissor(0, 0, px / ratio, px / ratio);
-      R.setScissorTest(true);
-      R.toneMappingExposure = LOOK.num('portrait-exposure', was.exposure || 1);
-      R.render(this.scene, this.camera);
-      canvas.getContext('2d').drawImage(gl, 0, gl.height - px, px, px, 0, 0, size, size);   // the viewport is the canvas's bottom-left corner
-    } finally {
-      R.setRenderTarget(was.target); R.setViewport(was.vp); R.setScissor(was.sc); R.setScissorTest(was.test); R.toneMappingExposure = was.exposure;
-    }
+    drawToCard(R, canvas.getContext('2d'), Math.min(gl.width, gl.height, size), size, (corner) => { corner(); R.render(this.scene, this.camera); });
     return true;
   }
 
