@@ -100,7 +100,7 @@ export class EncorePyro {
         this.burnAt[l] = c.fire; this.freeWarning(l, c);
         if (!skip) { _p.set(this.laneX(l), 0.02, LIP + c.reach * 0.2); this.fx.impact(_p, this.color, 0.03, 8); }
       }
-      if (!skip) { sfx.whiz?.(); juice.feel('hit'); }
+      if (!skip) { sfx.flameJet(); juice.feel('hit'); }
       const p = player?.position, pr = player?.cfg?.radius ?? 0.03;
       if (!skip && p && p.y < c.height && p.z > LIP - pr && p.z < LIP + c.reach + pr && c.lanes.some((l) => p.x > this.laneX(l) - this.w / 2 - pr && p.x < this.laneX(l) + this.w / 2 + pr)) this.onHit(c.dmg, c);
     }

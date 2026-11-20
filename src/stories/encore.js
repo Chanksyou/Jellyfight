@@ -17,6 +17,7 @@ import { EncoreRecords, landing } from '../encore-records.js';
 import { EncoreWall } from '../encore-wall.js';
 import { EncorePyro } from '../encore-pyro.js';
 import { bus, PLAYER } from '../events.js';
+import { sfx } from '../sfx.js';
 import { EncoreHints, ENCORE_HINTS, ENCORE_HINTS_KEY } from '../first-run.js';
 import { story, ok, V, encoreFight, step, stub, G } from './kit.js';
 
@@ -1217,6 +1218,62 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
         lands, lit, apart, standing, hands, disco, wallHit, bowed, late, after, clear };
     }
     return ok(Object.values(out).every((r) => r.ok), out);
+  },
+});
+
+// ---- the sounds of the new moves (sfx.js): each on its moment, never before the beat it belongs to
+const CUES = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'faderCrank', 'flameJet', 'wallSwell', 'wallShield', 'encoreWall', 'bowExhale', 'crowdCheer'];
+// every cue called from now on: { cue: [[beat, ...args]] } (`now()` says the beat)
+function cueBeats(now) {
+  const out = Object.fromEntries(CUES.map((c) => [c, []]));
+  for (const c of CUES) stub(sfx, c, (...a) => out[c].push([now(), ...a]));
+  return out;
+}
+const near = (list, want, tol = 0.07) => list.length === want.length && list.every(([b], i) => Math.abs(b - want[i]) < tol);
+
+fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
+  about: 'In a silver solo each record is scratched as it winds up (four beats before it lands), thrown on the beat before the bar and sticks on the bar line; each shatters when its four bars are up. The bow breathes out on its beat, and the crowd cheers only if no hit reached the jelly in the solo.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const hurt of [false, true]) {
+      const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
+      stub(B, 'hurtPlayer', () => {});
+      go(34); slot('silver', 40);
+      go(42); if (hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
+      go(78);
+      out[hurt ? 'hurt' : 'clean'] = { cues, scratch: near(cues.recordScratch, [36, 40, 44, 48]), thrown: near(cues.recordThrow, [39, 43, 47, 51]), stuck: near(cues.recordStick, [40, 44, 48, 52]), shattered: near(cues.recordShatter, [56, 60, 64, 68]), breath: near(cues.bowExhale, [56]), cheer: cues.crowdCheer.length };
+    }
+    const good = (r) => r.scratch && r.thrown && r.stuck && r.shattered && r.breath;
+    const { clean, hurt } = out;
+    return ok(good(clean) && good(hurt) && clean.cheer === 1 && hurt.cheer === 0, { clean: { ...clean, cues: undefined }, hurt: { ...hurt, cues: undefined } });
+  },
+});
+
+fight('the-golds-crank-and-flames-have-their-sounds-on-the-beat', {
+  about: 'In a gold solo the fader crank sounds once, on its beat in the first bar (two beats before the first set), then a flame jet sounds on each of the 12 sets, on the beat it fires.',
+  setup() {},
+  play() {
+    const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
+    stub(B, 'hurtPlayer', () => {});
+    go(34); slot('gold', 40); go(60);
+    const crank = near(cues.faderCrank, [42]), jets = near(cues.flameJet, Array.from({ length: 12 }, (_, i) => 44 + i));
+    return ok(crank && jets, { crank: cues.faderCrank, jets: cues.flameJet.map(([b]) => +b.toFixed(2)) });
+  },
+});
+
+story('encore/the-wall-has-a-swell-a-roll-and-a-crack-for-each-record', {
+  about: 'The wall\'s Warning starts a riser lasting as long as the Warning (8 beats), the roll sounds on the bar line, and each record that takes the wall cracks as the front reaches it.',
+  setup() {},
+  play() {
+    const T = wallRig();
+    try {
+      const cues = cueBeats(() => T.wall.beat);
+      playWall(T, standing(0.6, 0.6), 3, 27);
+      const secs = 8 * 60 / BPM, swell = near(cues.wallSwell, [16]) && Math.abs(cues.wallSwell[0][1] - secs) < 1e-6;
+      const roll = near(cues.encoreWall, [24]), want = frontBeat(0.1), cracks = cues.wallShield.length === 3 && cues.wallShield.every(([b]) => Math.abs(b - want) < 0.07);
+      return ok(swell && roll && cracks, { swell: cues.wallSwell, roll: cues.encoreWall, cracks: cues.wallShield.map(([b]) => +b.toFixed(2)), want });
+    } finally { T.done(); }
   },
 });
 
