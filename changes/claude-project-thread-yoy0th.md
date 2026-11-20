@@ -1,1 +1,0 @@
-makes the Encore's floor waves half as frequent (one every other bar) and only lines (sweeps, arrows, gates and pincers, no rings), including the last song's doubled waves and the lighter waves during solos; its lasers keep their pace.

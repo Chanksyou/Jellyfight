@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v556 makes the Encore's floor waves half as frequent (one every other bar) and only lines (sweeps, arrows, gates and pincers, no rings), including the last song's doubled waves and the lighter waves during solos; its lasers keep their pace.
+
 v555 lets the Encore's solos take turns across the whole fight instead of starting over at the silver DJ in each stage: set 2 opens on the gold DJ's Pyro and set 3 on the duet's Wall of sound, so a fight of a few minutes sees every solo (the duet still only below half Health).
 
 v554 tidies the Encore after a whole-fight review: the wall's riser stops when its Warning is cut short, the breakdown's bow breathes out like a solo's, and a standing record's push can no longer feed on itself and freeze the game.
