@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v559 the gold DJ now vaults out onto the floor for his solo, landing at the stage front inside his own flame lane, slams the floor as the first Warning shows, and raises an arm a beat before each set of flames to show which lanes burn next; he is the one to hit while he is out.
+
 v558 sends the silver DJ out of the booth for his solo: he vaults onto the floor two beats before it, lands on his mark on its first beat, throws three records from there (was four) and bows there, then vaults home as his bow ends. While he is out he is the one to hit (the booth can't be hurt), he pushes the jelly aside and never hurts it, and his partner watches from the booth and pumps his fist when a record lands on you. The short-out, the last hit and a song rewind send him straight home; no DJ leaves while the force field is up. The gold DJ's solo and the duet still play from the booth.
 
 v557 gives the Encore's DJs legs and a rig to leave the booth with (a vault there and back on the beat, landing, slam, conduct with either arm, push), ready for their solos on the floor; nothing changes in play yet.

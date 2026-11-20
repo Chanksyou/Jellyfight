@@ -260,9 +260,17 @@ export class Encore {
     if (S.mark) this.floorStep(S, beat);
     // his next throw (asked again each frame: it plays on; on the floor, once he has landed)
     for (const c of this.records.casts) if (c.state === 'wind') { if (beat >= c.release - 4 && (!S.mark || beat >= S.at + 1)) M.perform('silver', 'throw', c.release); break; }
-    // his fader crank, as the first Warning shows (held to his bow: his lanes burn under it)
-    if (S.who === 'gold' && !S.bowing) M.perform('gold', 'crank', S.at + 2, 1, Math.max(0, S.end - 1 - (S.at + 2)));
-    if (S.who === 'gold' && !S.cranked && beat >= S.at + 2) { S.cranked = true; if (beat < S.at + 3) sfx.faderCrank(); }
+    // the floor slam as the first Warning shows (A+2), then he conducts each set of flames a beat before it fires with the
+    // arm for its lanes (outer: lanes 0 2 4); the last set's conduct, then his bow
+    if (S.who === 'gold' && !S.bowing && beat >= S.at + 1) {
+      const j = Math.floor(beat - (S.at + 2.25)), sets = (this.def.skills.solo?.bars ?? 4) * 4 - 4;
+      if (j < 0) M.perform('gold', 'slam', S.at + 2);
+      else if (j < sets) M.perform('gold', 'conduct', S.at + 3 + j, 1, undefined, null, j % 2 ? 'inner' : 'outer');
+    }
+    if (S.who === 'gold' && !S.slammed && beat >= S.at + 2) {
+      S.slammed = true;
+      if (beat < S.at + 3) { sfx.faderCrank(); this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6); juice.feel('hit'); }   // (B6 gives the slam its own sound)
+    }
     // the duet: both DJs throw their hands up as the wall's Warning fills, held till they bow
     if (S.warnAt != null && !S.bowing && beat >= S.warnAt) for (const d of DJS) M.perform(d, 'hands-up', S.warnAt + 1, 1, Math.max(0, S.end - S.warnAt - 3.5));
     // his bow, a beat before his solo ends: the long one if no hit reached the jelly till then (a duet's is its own)
