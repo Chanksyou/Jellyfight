@@ -32,6 +32,9 @@ v369 fixes memory growth during Act 2 by sharing ladybug and missile geometry ac
 The Encore keeps attacking while music loads or audio is suspended, and restarts its attack schedule safely when the song restarts.
 
 Treasure and level-up picks preserve a held phone joystick, so movement resumes when the cards close without another tap.
+Level-up and Treasure picks open with a slot machine spin: a reel for each card lands on what you're offered, and tapping stops the reels early.
+Three of the same rarity on one spin upgrades one of them a rarity, and the Luck panel shows the true odds for each rarity.
+Boss rewards and Attack upgrades don't spin.
 Held keyboard controls recover after a focus interruption without repeating jump or interact actions.
 
 The main and pause menus include Achievements: 13 challenges awarded only after a full four-boss win, each completed within a single run, with earned achievements saved in this browser.
