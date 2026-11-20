@@ -1,1 +1,0 @@
-gives the Encore's attacks a feel pass: a club laser flashes at its corner post as it fires, the disco ball's spots blaze magenta and the ball flares as they strike, every Encore hit leaves a fading scorch under the jelly, the stage edge's shock crackles, and with two Pyro sets warning at once the lanes firing next show brightest.
