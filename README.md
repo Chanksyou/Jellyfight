@@ -412,7 +412,7 @@ Historical records remain in `runs`; [Run data](docs/agents/run-data.md) explain
   Wrangler creates the D1 database on the first deploy (no ID to paste), and the Worker creates its tables on the first request.
 - **What's served:** the repo root, minus what `.assetsignore` lists (`tests/`, `tools/`, `worker/`, the config, the docs, and the unused whole-apartment models).
 - **The board's rules:** a player is a random id kept in their browser, and the board only ever sends back your own (an id is all it takes to post as that player).
-  Scores are capped at 60,000, names are trimmed to 20 characters with HTML stripped, and each player can post once every 15 s and each address once every 5 s (addresses are stored only as a salted hash; set an `IP_SALT` secret on the Worker to choose your own salt).
+  Scores are capped at 62,000 (the most a run can score, `src/score.js`), names are trimmed to 20 characters with HTML stripped, and each player can post once every 15 s and each address once every 5 s (addresses are stored only as a salted hash; set an `IP_SALT` secret on the Worker to choose your own salt).
   Scores come from the player's browser, so this stops casual cheating, not a determined cheater.
 - **Try it locally:** `npx wrangler dev`, then open http://localhost:8787.
 

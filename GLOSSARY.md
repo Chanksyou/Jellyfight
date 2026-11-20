@@ -73,6 +73,15 @@ _Avoid_: Tutorial, onboarding run
 What every run that ends earns, banked between runs and spent on shop looks in Change your look. The golden awards can't be bought; they're earned by what you do.
 _Avoid_: Tokens, coins
 
+**Score**:
+What a run is ranked by: each act pays for its night survived, its Boss's damage and beating it, Elites beaten, Bugs cleared, Clean play and Boss pace (`src/score.js`). Kills, Levels and Treasures add nothing of their own.
+
+**Clean play**:
+A score part for a cleared act: all of it with no damage taken, less for every point of damage, none at 100. Damage a Shield takes counts too.
+
+**Boss pace**:
+A score part for a cleared act: all of it for beating the Boss within a minute, falling to none at three minutes.
+
 ### Things the jelly meets
 
 **Treasure**:
