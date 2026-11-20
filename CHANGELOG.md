@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v586 makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.
+
 v585 repaints Wind's card on the jelly type pick screen: soft ribbons of air circle the jelly (the near ones bend the bell and tentacles as they cross it), with dust and three small leaves riding the spiral and the tentacles streaming sideways in the breeze, instead of hard white arcs.
 
 v584 adds experiment links for phone measuring (?lights=3|4|6 sets the lamp slots, ?rt, ?msaa and ?lite are ready for later tasks); the bench shows which are on. Nothing changes without them.

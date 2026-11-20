@@ -1,1 +1,0 @@
-makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.
