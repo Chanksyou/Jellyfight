@@ -39,7 +39,7 @@ import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { VolumeMaterial, volumeGeometry, hostile } from './vfx.js';
 import { TRACKS } from './song-track.js';
-import { EncoreFloor, PATTERNS } from './encore-floor.js';
+import { EncoreFloor } from './encore-floor.js';
 import { ENCORE } from './stage4.js';
 import { EncoreLasers } from './encore-laser.js';
 import { EncoreDisco } from './encore-disco.js';
@@ -384,7 +384,7 @@ export class Encore {
       this.beat = beat;
       const S = this.def.skills.set || {};
       this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],
-        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco, turn: this.soloTurn });
+        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco, waveBars: S.wave, turn: this.soloTurn });
       this.set.update(beat);
       this.floor.update(beat, player);
       this.lasers.update(beat, player);
@@ -567,20 +567,20 @@ function forceField(booth) {
   return m;
 }
 
-// What the Encore plays: a wave every 4 beats (a jump hangs about 2.7, so that is as tight as it
-// goes), each one picked at random, never the same pattern twice running, with its direction, gap,
-// spin and DJ picked too; at a drop (the song's `drop(beat)`), two waves at once, one from each DJ.
+// What the Encore plays: a wave every other bar (8 beats; a jump hangs about 2.7), each one a line
+// (a sweep, arrow, gate or pincer, never a ring) picked at random, never the same pattern twice
+// running, with its direction, gap, spin and DJ picked too; at a drop (the song's `drop(beat)`), two
+// waves at once, one from each DJ. Bars are still 4 beats: the lasers, solos and disco ball keep to them.
 export const WAVE_GAP = 4;
+export const LINE_WAVES = ['sweep', 'arrow', 'gate', 'pincer'];
 const DIRS = ['down', 'left', 'right'];
 const pick = (list, random) => list[Math.floor(random() * list.length) % list.length];
-// a wave's options, picked; `on` is where the jelly is (the closing ring closes on it)
-function options(name, random, on) {
+// a wave's options, picked
+function options(name, random) {
   const dir = pick(DIRS, random);
   switch (name) {
-    case 'arc': return { heading: (random() - 0.5) * 1.6 };
     case 'arrow': return { dir };
     case 'sweep': return { spin: random() < 0.5 ? 1 : -1 };
-    case 'closing': return { on };
     case 'gate': return { dir, gap: 1 + Math.floor(random() * (ENCORE.tiles - 3)) };
     default: return {};
   }
@@ -591,10 +591,10 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 // The Encore's set list: its fight laid out a bar (4 beats) at a time from beat `from`, each bar cast
 // 6 beats ahead of its downbeat (time for the wind-up). After a jump in time it skips what was missed.
 // A bar holds, by `stage()` as the bar is laid out (Encore.stage):
-//   a wave (every stage): picked at random, never the same pattern twice running; the song's
+//   a wave (every stage, every `waveBars` bars): picked at random from the line waves, never the same pattern twice running; the song's
 //     `quiet(beat)` (its breakdown, the kick out) rests the floor; its `drop(beat)` doubles the waves
 //     (not in the warm-up), and in the last song they are always two at a time. `target()` is where the jelly is.
-//   a club laser from a random corner on every wave (`lasers`, encore-laser.js; not in the warm-up)
+//   a club laser from a random corner on every bar (`lasers`, encore-laser.js; not in the warm-up)
 //   in set 2, a disco ball visit every `discoEvery` bars, halfway between solo slots (`disco`)
 // From the first bar after the warm-up (`origin`), every `solo` bars is a solo slot: `slot(kind, at)`,
 // silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet. The turn carries on from
@@ -605,8 +605,8 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 const SOLOS = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'], last: ['silver', 'gold', 'duet'] };
 export class SetList {
   constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null, disco = null,
-    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, soloLast = 10, discoEvery = 8, turn = { last: null } } = {}) {
-    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, soloLast, discoEvery, turn });
+    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, soloLast = 10, discoEvery = 8, waveBars = 2, turn = { last: null } } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, soloLast, discoEvery, waveBars, turn });
     this.next = 0; this.last = null; this.dj = 0; this.origin = null;
   }
   update(beat) {
@@ -630,10 +630,10 @@ export class SetList {
       if (stage === 'set2' && n % this.discoEvery === this.discoEvery / 2) this.disco?.visit(at);
     }
     if (this.quiet(at) || this.quiet(at + 8)) return;
-    // a solo: the lasers rest and the other DJ plays a wave every 8 beats, a bar into it (a duet: no wave)
+    // a solo: the lasers rest and the other DJ plays a wave every `waveBars` x 8 beats, a bar into it (a duet: no wave)
     const solo = warm ? null : this.soloing(at);
-    if (solo) { if (solo.who !== 'duet' && (at - solo.at) % 8 === 4) this.wave(at, 1, solo.who === 'silver' ? 'gold' : 'silver'); return; }
-    this.wave(at, !warm && (stage === 'last' || this.drop(at)) ? 2 : 1);
+    if (solo) { if (solo.who !== 'duet' && (at - solo.at) % (2 * WAVE_GAP * this.waveBars) === WAVE_GAP) this.wave(at, 1, solo.who === 'silver' ? 'gold' : 'silver'); return; }
+    if (this.next % this.waveBars === 0) this.wave(at, !warm && (stage === 'last' || this.drop(at)) ? 2 : 1);
     // (its corner and side are picked in the warm-up too, so the waves roll the same with lasers or without)
     if (this.lasers) {
       const corner = Math.floor(this.random() * 4) % 4, side = this.random() < 0.5 ? 1 : -1;
@@ -643,10 +643,10 @@ export class SetList {
   // `count` waves on beat `at`, different patterns. Two at once are one from each DJ: a wave from a
   // wing is that side's DJ, so the other wave is turned away from that wing.
   wave(at, count, dj = null) {
-    const names = Object.keys(PATTERNS), waves = [];
+    const names = LINE_WAVES, waves = [];
     for (let n = 0; n < count; n++) {
       const name = pick(names.filter((x) => x !== this.last && !waves.some((w) => w.name === x)), this.random);
-      waves.push({ name, o: options(name, this.random, this.target()) });
+      waves.push({ name, o: options(name, this.random) });
     }
     const [a, b] = waves;
     if (b) {
