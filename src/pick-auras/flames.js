@@ -23,7 +23,6 @@ vec2 fireAt(vec2 uv, float t, float seed, float tall) {
   float tear = fbm(vec2(q.x * 24.0 - seed, q.y * 6.0 - t * 4.6), 2);            // torn edges, loose licks
   float h = reach(q.x, tall);
   float f = (1.0 - q.y / h) * 1.05 + (body - 0.5) * 2.1 + (tear - 0.5) * 0.8;
-  f *= smoothstep(-0.02, 0.06, uv.y + 0.05);                                    // (rooted below the card)
   float vein = noise(vec2(q.x * 9.0 + seed, q.y * 2.5 - t * 4.3));
   return vec2(f, vein);
 }
@@ -48,12 +47,12 @@ vec3 paint(vec2 uv) {
   vec3 warm = uRamp[1] / max(uRamp[1].r, 1e-3);
 
   // -- behind: dark water warmed by the fire, thin dark smoke drifting up
-  vec3 c = water(uv) * 0.7;
+  vec3 c = water(uv) * mix(1.0, 0.7, uStrength);
   c = mix(c, uRamp[3] * 0.05, 0.55 * uStrength);
   c += uRamp[2] * light * light * 0.22 * uStrength;
   float s = fbm(uv * vec2(3.0, 2.0) - vec2(t * 0.06, t * 0.28), 3);
   float sa = cut(s, 0.48, 0.25) * smoothstep(0.45, 0.95, uv.y) * smoothstep(0.15, 0.6, side);
-  c = mix(c, vec3(0.004, 0.002, 0.002), sa * 0.55 * uStrength);
+  c = mix(c, uRamp[3] * 0.02, sa * 0.55 * uStrength);
   float pocket = fbm(uv * vec2(14.0, 5.0) - vec2(0.0, t * 3.0), 2);
   vec4 back = fire(fireAt(uv, t, 0.0, 1.0), pocket);
   c = c * (1.0 - back.a * 0.8 * uStrength) + back.rgb * back.a * uStrength;   // (fire is light: it mostly adds)
@@ -68,7 +67,7 @@ vec3 paint(vec2 uv) {
   // its teal glow round it too)
   // (the portrait is HDR, several times white: capped, or tone mapping washes the warm light out to white)
   float lum = min(dot(p.rgb, vec3(0.3, 0.5, 0.2)), 1.3);
-  vec2 toward = normalize(vec2(sign(uv.x - 0.5), -0.6));                     // the nearest flames: below and out to its side
+  vec2 toward = normalize(vec2(clamp((uv.x - 0.5) * 8.0, -1.0, 1.0), -0.6));                     // the nearest flames: below and out to its side
   float facing = 0.65 + 0.35 * max(0.0, dot(j.zw, toward));
   float lit = clamp(light * facing * 1.6 + 0.3, 0.0, 0.9) * uStrength;
   float hi = max(p.r, max(p.g, p.b)), sat = (hi - min(p.r, min(p.g, p.b))) / max(hi, 1e-3);
