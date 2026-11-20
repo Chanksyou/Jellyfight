@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v571 makes a new player's first reward spin say how to stop the reels; boss rewards and Attack upgrades open straight on their cards.
+
 v570 gives the reward spin its sounds: a lever clunk, soft ticks that slow with each reel, and a thunk as every reel lands, higher for rarer cards.
 
 v569 makes act 4's Headphones, Mushroom Pillow and Singing Bowl hit harder and faster (more waves, rings and bursts, shorter windups, bigger hits), and its Firefly, Moth and Cicada more dangerous (Firefly hovers higher and lobs sooner, Moth plunges quicker for 5, Cicada's mound races after you and warns for one beat); the Headphones' angry waves no longer drop when bursts come every beat.
