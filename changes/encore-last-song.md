@@ -1,1 +1,0 @@
-adds the Encore's last song at a quarter of its Health: waves two at a time and the DJs solo back to back, then a duet, with a toast. The boss bar names the solo, the duet and the bow, the first bow and the first standing record before a wall get a one-time hint, and the shorts-out toast now shows.
