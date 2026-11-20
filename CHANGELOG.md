@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v568 gives the Encore's DJs sounds for leaving the booth: a whoosh and crowd rise as they vault out, a thud on landing, the same home, a deeper floor slam for the gold DJ, and a shove under the duet's Wall of sound.
+
 v567 adds a one-time hint the first time a DJ lands on the floor ("A DJ on the floor is the one to hit. The booth can't be hurt until he is back."), and notes in the glossary that Solo and Bow happen on the floor.
 
 v566 opens every level-up and Treasure chest on a slot machine: a reel per card rolls past real rolls and lands on your offer, the Luck panel shows each rarity's odds without and with your Luck, a jelly lever pulls itself, and three of a kind rolls one reel again onto its upgraded card (marked Upgraded on the pick card too). Tap, click or Space lands the reels, then skips to the cards; Reduce effects shows the landed machine and fades.
