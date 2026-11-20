@@ -153,6 +153,7 @@ export class ThirdPersonCamera {
       const m = h.mesh, small = sizeOf(m) < SMALL;
       this.over.add(m);
       if (small) (direct ? this.partly : this.solid).add(m);
+      if (m.userData.noCameraFade) continue;   // it never fades, so nor do its instanced parts (the arena's floor tiles and records, act4-arena.js)
       // and the instanced parts of the same piece (a sideboard's flutes): nothing collides with
       // instanced meshes, so no ray finds them. They fade like the piece they're part of
       const kin = m.parent && !m.parent.isScene ? m.parent.children : NONE;   // not the scene's: the bugs are instanced
