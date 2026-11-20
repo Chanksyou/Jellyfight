@@ -2,6 +2,14 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v583 gives the Ice jelly's attack more bite: in play and on the pick screen its frost flower on the floor is now a shaded crystal instead of a line drawing, its shards are solid ice, its tentacle tip crystals catch the light and its cold mist is softer; on the pick screen a Chilled roach glints with rime and breathes cold and the water behind turns a cold blue.
+
+v582 keeps the leaderboard as a best run per player and jelly type each season, and the Worker now works out each run's score from its own run log instead of trusting the number it is sent (runs that claim more bugs cleared than came out, a boss beaten in under 10 seconds, or more than 3 Elites in an act are refused); the board screen itself is unchanged until the next update.
+
+v581 redraws the Ice jelly's pick card: real frost grows across the card's glass from the corners and glints as the light moves, snow falls at three depths, cold mist sinks off the bell and the jelly takes a pale icy rim, replacing the drawn-on corner flakes.
+
+v580 redraws the Lightning card on the jelly pick screen: real branching bolts strike the jelly in a dark storm, flash its bell and fade to an afterimage, with a crackling glow round its edge, far bolts in the clouds and arcs between its tentacle tips.
+
 v579 raises the disco ball while it hangs for good in set 3, so it no longer hides the DJs' heads and their bow during the duet; its spots, beams' landing and strikes are unchanged.
 
 v578 puts scores on a new scale: each act now pays for what you did in it (the night survived, damage to its boss and beating it, up to 3 Elites, the share of the night's bugs cleared, and for a cleared act Clean play and Boss pace), up to 15,500 an act and 62,000 a run. Kills, Levels and Treasures no longer add to the score, and damage your Shield soaks counts against Clean play.

@@ -13,6 +13,10 @@
 //   damageTaken  Health the act's hits would have taken with no Shield, until the boss falls (each damage-over-time
 //                tick counts; a Treasure's own Health drain, Bloody Fangs, is a price you chose and doesn't)
 //   bossSeconds  how long the boss fight took
+// The board's season: rows are kept per season (worker/index.js `board`), and the game sends this with every
+// run-log act and score post. Ending a season is bumping this number, only when the owner asks.
+export const SEASON = 1;
+
 export const SCORE = {
   night: 2000,          // Night survived: all of it for the whole night
   bossDamage: 3000,     // <Boss> damage: all of it for all its Health

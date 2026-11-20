@@ -2,13 +2,16 @@
 // game's own files, served from the CDN by the assets binding (wrangler.jsonc) before this
 // code runs at all.
 //
-//   GET  /api/scores?me=<id>   the top 10, plus your own entry: { top: [...], mine: {...} | null }
-//   POST /api/scores           { id, run, name, body, look, score, level, kills, time, won, build, jelly }
-//                              (run: the run log's id; the score must match that run's last logged act
+//   GET  /api/scores?tab=champions|all|<jelly>&me=<id>   this season's board (`board`): { season, tab, top: [...], mine: {..., place} | null }
+//                              champions: the best row of each jelly type (mine null); all: each player's best row of any
+//                              type, top 10; a jelly type: that type's top 10. No tab = all. Ties: the earlier run first
+//   POST /api/scores           { id, run, season, name, body, look, score, level, kills, time, won, build, jelly }
+//                              (run: the run log's id; the Worker scores that run itself from its logged acts
+//                              (src/score.js actScore over each act's details.score) and the score must match it,
 //                              and the run must pass checkRun, else why: 'pending' | 'unverified')
 //                              (look: the player's jelly descriptor, carried whole so a
 //                              board row can draw the jelly it belongs to)
-//                              keeps your entry only when it beats it: { posted, best, why? }
+//                              keeps your row for this season and jelly type only when it beats it: { posted, why? }
 //   POST /api/feedback         { id, text, build, act, won, score, device }: a player's beta
 //                              feedback from an end screen, kept in the feedback table: { sent, why? }
 //                              (read it in the D1 console: SELECT * FROM feedback ORDER BY at DESC)
@@ -25,7 +28,7 @@
 // caps what's believable and how often one browser or one address can post, which stops casual
 // cheating, not a determined one.
 import { ACHIEVEMENTS } from '../src/achievements.js';
-import { MAX_SCORE } from '../src/score.js';   // the most a run can score
+import { MAX_SCORE, SCORE, SEASON, actScore } from '../src/score.js';   // the most a run can score, and how an act scores
 
 const ID = /^[a-z0-9-]{8,48}$/;
 const PER_ID_MS = 15000;      // one post per player every 15 s (a run takes minutes)
@@ -54,6 +57,13 @@ const SCHEMA = [
   // the phone bench's Send (src/bench.js): a device's results; no player id, one per address every 30 s
   'CREATE TABLE IF NOT EXISTS perf_reports (at INTEGER NOT NULL, build TEXT, device TEXT, ua TEXT, json TEXT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS run_summaries_by_build ON run_summaries (build, act, device, at)',
+  // the board: each player's best run per season and jelly type (`scores` is the old one-list board, no longer read or written)
+  // acts: the act the run reached (1-4); clean: acts cleared taking no damage
+  `CREATE TABLE IF NOT EXISTS board (season INTEGER NOT NULL, id TEXT NOT NULL, jelly TEXT NOT NULL, name TEXT NOT NULL, body TEXT, look TEXT,
+    score INTEGER NOT NULL, level INTEGER, kills INTEGER, time INTEGER, won INTEGER, acts INTEGER, clean INTEGER, build TEXT, at INTEGER NOT NULL, ip TEXT,
+    PRIMARY KEY (season, id, jelly))`,
+  'CREATE INDEX IF NOT EXISTS board_by_score ON board (season, jelly, score DESC)',
+  'CREATE INDEX IF NOT EXISTS board_by_player ON board (id, at)',   // renames, and achievement portraits' latest look
 ];
 let ready = null;
 const setUp = (db) => (ready ||= (async () => {
@@ -90,6 +100,7 @@ const claimName = (db, id, name, at) => db.prepare(`INSERT INTO player_names (id
 const nameConflict = e => /UNIQUE constraint failed: player_names.name_key/i.test(String(e));
 const syncName = (db, id, name) => [
   db.prepare('UPDATE scores SET name = ? WHERE id = ?').bind(cleanName(name), id),
+  db.prepare('UPDATE board SET name = ? WHERE id = ?').bind(cleanName(name), id),
   db.prepare('UPDATE achievement_players SET name = ? WHERE id = ?').bind(cleanName(name), id),
 ];
 
@@ -141,7 +152,7 @@ async function hashIp(ip, salt) {
   return [...new Uint8Array(d)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const ROW = 'id, name, body, look, jelly, score, level, kills, time, won, at';
+const ROW = 'id, name, body, look, jelly, score, level, kills, time, won, acts, clean, at';
 const withLook = (r) => {
   if (!r) return r;
   let look = null;
@@ -150,13 +161,24 @@ const withLook = (r) => {
 };
 const shape = r => r ? { ...withLook(r), won: !!r.won } : r;
 
-async function top(db, me) {
+// This season's board for one tab (see the top of this file). `best` keeps one row per `per` (player or jelly type):
+// its highest score, the earlier run on a tie. A place is how many rows beat yours, plus one.
+const TABS = ['champions', 'all'];
+const best = (per) => `SELECT ${ROW} FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${per} ORDER BY score DESC, at ASC) AS n
+  FROM board WHERE season = ?) WHERE n = 1`;
+const placed = (rows) => `SELECT r.*, (SELECT COUNT(*) FROM (${rows}) b WHERE b.score > r.score OR (b.score = r.score AND b.at < r.at)) + 1 AS place
+  FROM (${rows}) r WHERE r.id = ?`;
+export const tabOf = (v) => TABS.includes(v) ? v : v ? jellyOf(v) : 'all';
+async function top(db, me, tab = 'all', season = SEASON) {
+  me = me && ID.test(me) ? me : '';
+  const rows = tab === 'champions' ? best('jelly') : tab === 'all' ? best('id') : `SELECT ${ROW} FROM board WHERE season = ? AND jelly = ?`;
+  const args = tab === 'champions' || tab === 'all' ? [season] : [season, tab];
   const [list, mine] = await db.batch([
-    db.prepare(`SELECT ${ROW} FROM scores ORDER BY score DESC, at ASC LIMIT 10`),
-    db.prepare(`SELECT ${ROW} FROM scores WHERE id = ?`).bind(me && ID.test(me) ? me : ''),
+    db.prepare(`${rows} ORDER BY score DESC, at ASC LIMIT ${tab === 'champions' ? 16 : 10}`).bind(...args),
+    db.prepare(tab === 'champions' ? 'SELECT 1 WHERE 0' : placed(rows)).bind(...(tab === 'champions' ? [] : [...args, ...args, me])),
   ]);
   // only your own id comes back: an id is all it takes to post as that player
-  return { top: list.results.map((r) => shape({ ...r, id: r.id === me ? r.id : undefined })), mine: shape(mine.results[0]) || null };
+  return { season, tab, top: list.results.map((r) => shape({ ...r, id: r.id === me ? r.id : undefined })), mine: shape(mine.results[0]) || null };
 }
 
 // What a real run can't do, from the run log (run_summaries). Generous: the best real runs so far
@@ -169,16 +191,43 @@ const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back
 const MIN_NIGHT_4 = 170;                 // seconds: act 4's stage door opens after its 180 s night, so its arena is reached no sooner
 const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
 const MAX_UPGRADES = 3;                  // a jelly type's Attack upgrades: one after each of acts 1-3's bosses
+const MIN_BOSS_SECONDS = 10;             // no boss falls faster than this (generous: the quickest real fights take a minute)
+// content/waves.kdl `spawning rate … grow=…`: bugs a second from the waves (tests check these match). Bugs out in an
+// act can't pass BUGS_OUT_ROOM times the waves over the whole act's time: Nests, splits, Elite summons and
+// more-bugs Treasures all fit inside (the most kills ever logged in one act, Nov 2026: 654 in 550 s; this allows about 4,740)
+export const WAVES = { rate: 0.22, grow: 0.0022 };
+const BUGS_OUT_ROOM = 10, BUGS_OUT_FLOOR = 200;
+const bugsOutCap = (t) => BUGS_OUT_FLOOR + BUGS_OUT_ROOM * (WAVES.rate * t + WAVES.grow * t * t / 2);
+const won = (a) => a.outcome === 'next-act' || a.outcome === 'won';
+const detailsOf = (a) => { try { return JSON.parse(a.details || '{}') || {}; } catch { return {}; } };
+// one logged act's score facts (src/score.js), or null when they're missing or impossible
+function actFacts(a) {
+  const d = detailsOf(a), f = d.score, elites = d.elitesBeaten ?? 0;
+  const within = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi;   // a number (null >= 0 is true in JS)
+  if (d.season !== SEASON || !f || typeof f !== 'object') return null;
+  if (!within(f.bugsOut, 0, bugsOutCap(a.time)) || !within(f.bugsCleared, 0, f.bugsOut)) return null;
+  if (!within(f.damageTaken, 0, Infinity) || !within(f.nightShare, 0, 1) || !within(f.bossShare, 0, 1) || !within(elites, 0, SCORE.elites)) return null;
+  if (f.bossSeconds != null && !within(f.bossSeconds, 0, a.time + 1)) return null;   // the fight is part of the act's time (rounded)
+  if (won(a) && !within(f.bossSeconds, MIN_BOSS_SECONDS, Infinity)) return null;
+  return { ...f, elites, won: won(a) };
+}
+// What the board shows of a run the Worker has checked: its score from the log, the act it reached, and
+// how many acts it cleared taking no damage
+export const runFacts = (acts) => {
+  const facts = acts.map(actFacts);
+  return { score: facts.reduce((n, f) => n + actScore(f), 0), acts: acts.at(-1).act, clean: facts.filter((f) => f.won && f.damageTaken === 0).length };
+};
 // null when the run backs the score; 'pending' while its last act hasn't been logged yet; else 'unverified'
-export function checkRun(acts, score, jelly = 'normal') {
+export function checkRun(acts, score, jelly = 'normal', season = SEASON) {
   const last = acts.at(-1);
   if (!last || !last.finalized || last.outcome === 'next-act') return 'pending';
   // logged acts follow on from each other (an older build's or a lost upload's first acts may be missing)
   if (acts.some((a, i) => a.act !== acts[0].act + i || !a.finalized || (a !== last && a.outcome !== 'next-act'))) return 'unverified';
   if (last.score !== score) return 'unverified';
+  // this season's run, logged from act 1, each act's facts believable, and its score is what they add up to
+  if (season !== SEASON || acts[0].act !== 1 || acts.some((a) => !actFacts(a)) || runFacts(acts).score !== score) return 'unverified';
   for (const a of acts) {
-    let d = {};
-    try { d = JSON.parse(a.details || '{}') || {}; } catch {}
+    const d = detailsOf(a);
     if (jellyOf(d.jelly) !== jellyOf(jelly)) return 'unverified';   // one jelly type the whole run
     if (a.level > (LEVEL_CAP[a.act] ?? 0)) return 'unverified';
     if (a !== last && a.act < 4 && a.time < MIN_ACT_TIME) return 'unverified';
@@ -231,22 +280,23 @@ async function post(request, env) {
   // the score must be the end of a run this player logged act by act, and that run must look playable
   const acts = (await db.prepare('SELECT act, outcome, finalized, score, time, level, treasures, details, boss_left FROM run_summaries WHERE player_id = ? AND run_id = ? ORDER BY act')
     .bind(b.id, b.run).all()).results;
-  const check = checkRun(acts, score, b.jelly);
+  const check = checkRun(acts, score, b.jelly, b.season ?? null);
   if (check) return json({ posted: false, why: check }, check === 'pending' ? 409 : 422);
-  const was = await db.prepare('SELECT score FROM scores WHERE id = ?').bind(b.id).first();
+  const jelly = jellyOf(b.jelly), run = runFacts(acts);
+  const was = await db.prepare('SELECT score FROM board WHERE season = ? AND id = ? AND jelly = ?').bind(SEASON, b.id, jelly).first();
   const stamp = db.prepare('INSERT INTO posts (key, at) VALUES (?, ?), (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at')
     .bind('id:' + b.id, now, 'ip:' + ip, now);
   if (was && was.score >= score) { await stamp.run(); return json({ posted: false, why: 'lower' }); }
   try { await db.batch([
     claimName(db, b.id, b.name, now),
-    db.prepare(`INSERT INTO scores (id, name, body, look, jelly, score, level, kills, time, won, build, at, ip)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET name = excluded.name, body = excluded.body, look = excluded.look, jelly = excluded.jelly, score = excluded.score,
-                  level = excluded.level, kills = excluded.kills, time = excluded.time, won = excluded.won,
+    db.prepare(`INSERT INTO board (season, id, jelly, name, body, look, score, level, kills, time, won, acts, clean, build, at, ip)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(season, id, jelly) DO UPDATE SET name = excluded.name, body = excluded.body, look = excluded.look, score = excluded.score,
+                  level = excluded.level, kills = excluded.kills, time = excluded.time, won = excluded.won, acts = excluded.acts, clean = excluded.clean,
                   build = excluded.build, at = excluded.at, ip = excluded.ip
-                WHERE excluded.score > scores.score`)
-      .bind(b.id, cleanName(b.name), String(b.body || 'nettle').slice(0, 16), cleanLook(b.look), jellyOf(b.jelly), score, int(b.level, 1, 999),
-        int(b.kills, 0, 100000), int(b.time, 0, 100000), b.won ? 1 : 0, String(b.build || '').slice(0, 12), now, ip),
+                WHERE excluded.score > board.score`)
+      .bind(SEASON, b.id, jelly, cleanName(b.name), String(b.body || 'nettle').slice(0, 16), cleanLook(b.look), score, int(b.level, 1, 999),
+        int(b.kills, 0, 100000), int(b.time, 0, 100000), acts.at(-1).outcome === 'won' ? 1 : 0, run.acts, run.clean, String(b.build || '').slice(0, 12), now, ip),
     ...syncName(db, b.id, b.name),
     stamp,
   ]); } catch (e) { if (nameConflict(e)) return json({ posted: false, why: 'taken' }, 409); throw e; }
@@ -271,9 +321,10 @@ async function rename(request, env) {
 }
 
 async function achievementTop(db, me) {
-  const ranked = `SELECT p.id, p.name, COALESCE(p.look, s.look) AS look, s.body, COUNT(*) AS count, MAX(u.at) AS at
-    FROM achievement_players p JOIN achievement_unlocks u ON u.player_id = p.id
-    LEFT JOIN scores s ON s.id = p.id GROUP BY p.id, p.name`;
+  // a player who shared no look yet shows the one from their latest board run
+  const latest = (col) => `(SELECT ${col} FROM board b WHERE b.id = p.id ORDER BY b.at DESC LIMIT 1)`;
+  const ranked = `SELECT p.id, p.name, COALESCE(p.look, ${latest('look')}) AS look, ${latest('body')} AS body, COUNT(*) AS count, MAX(u.at) AS at
+    FROM achievement_players p JOIN achievement_unlocks u ON u.player_id = p.id GROUP BY p.id, p.name`;
   const [list, mine] = await db.batch([
     db.prepare(`${ranked} ORDER BY count DESC, at ASC, p.id ASC LIMIT 5`),
     db.prepare(`SELECT * FROM (${ranked}) WHERE id = ?`).bind(ID.test(me || '') ? me : ''),
@@ -380,6 +431,7 @@ const scoreFacts = (f) => !f || typeof f !== 'object' ? null : {
 };
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
   ...omitNull({ perf: perf(d.perf), settings: settings(d.settings) }),
+  ...omitNull({ season: d.season == null ? null : int(d.season, 0, 1e6) }),   // src/score.js SEASON; an older client sends none
   jelly: jellyOf(d.jelly), upgrades: wordList(d.upgrades), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
   ...omitNull({ score: scoreFacts(d.score) }),
@@ -459,7 +511,7 @@ export default {
         if (request.method === 'POST') return await postAchievements(request, env);
         return json({ error: 'method' }, 405);
       }
-      if (request.method === 'GET') return json(await top(env.DB, url.searchParams.get('me')));
+      if (request.method === 'GET') return json(await top(env.DB, url.searchParams.get('me'), tabOf(url.searchParams.get('tab'))));
       if (request.method === 'POST') return await post(request, env);
       return json({ error: 'method' }, 405);
     } catch (e) {

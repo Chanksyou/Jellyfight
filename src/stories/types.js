@@ -7,7 +7,7 @@ import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
-import { SHADERS } from '../pick-aura.js';
+import { AURAS, SHADERS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
@@ -433,6 +433,31 @@ story('types/pick-screen-centre-card-attacks', {
   },
 });
 
+story('types/pick-stage-ice', {
+  about: 'On the centre card the Ice jelly\'s shards Chill the roaches (attack-preview.js reads status_applied), and a Chilled roach shows it: rime glints and cold breath (fx glow); its shards stay solid ice (not see-through) and the water behind takes a cold blue grade (--preview-grade-ice), which Fire\'s does not.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('ice');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, chills = spy(live, 'chilled');
+      let chilled = 0;
+      for (let i = 0; i < 6 * 30; i++) { live.simulate(1 / 30); chilled = Math.max(chilled, P.enemies.list.filter((b) => b.chillT > 0 && !b.dead).length); }
+      const shown = chilled >= 1 && chills.length > 0;
+      const solid = !P.fx.ice.shards.material.transparent;
+      const grade = P.stage.back.material.uniforms.uGrade.value.clone(), cold = grade.b > grade.r + 0.2;
+      picker.go(picker.ids.indexOf('fire')); picker.pos = picker.target; settle();
+      const plain = P.stage.back.material.uniforms.uGrade.value.equals(new THREE.Color(1, 1, 1));
+      return ok(shown && solid && cold && plain, { chilled, frames: chills.length, solid, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
@@ -557,6 +582,30 @@ story('types/pick-side-card-shader', {
       picker.close();
       const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
       return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built, shader, twoD, flatId, layers: [medium, low], textures: [textures, R.info.memory.textures] });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-frost', {
+  about: 'Ice\'s card (aura="frost", pick-auras/frost.js) is painted by its shader, with no 2D drawing left: frost on the card\'s glass, thick in the corners and clear round the jelly in the middle.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('ice');
+      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const ice = picker.auras[picker.ids.indexOf('ice')];
+      for (let i = 0; i < 400 && !ice.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost') && !AURAS.frost;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
+      const S = ice.width, ctx = ice.getContext('2d');
+      const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
+      const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
+      return ok(lit && corners > open + 40, { lit, corners: Math.round(corners), open: Math.round(open) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

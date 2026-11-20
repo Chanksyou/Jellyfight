@@ -48,7 +48,7 @@ import { endStyles, stamp, dressEnd } from './end-screen.js';
 import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements } from './achievements.js';
 import { balanceChanges } from './balance-editor.js';
 import { loadLayout } from './layout.js';
-import { actParts } from './score.js';
+import { actParts, SEASON } from './score.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
@@ -1872,7 +1872,7 @@ export class Run {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
-    const entry = { score, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, season: SEASON, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B && !this.easy ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
@@ -1982,7 +1982,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { season: SEASON, easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
