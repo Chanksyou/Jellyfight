@@ -500,7 +500,9 @@ story('types/pick-side-cards-show-their-element', {
     try {
       // a card whose neighbours are both still drawn in 2D (the shader kinds have their own stories)
       const flat = (k) => k >= 0 && k < picker.ids.length && !SHADERS[CONTENT.jellies[picker.ids[k]].aura];
-      pressPlay(picker.ids.find((id, k) => flat(k - 1) && flat(k + 1)));
+      const centre = picker.ids.find((id, k) => flat(k - 1) && flat(k + 1));
+      if (!centre) return ok(false, { why: 'no card has two 2D neighbours left: retire this story for the shader stories' });
+      pressPlay(centre);
       stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
       stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
       stub(picker, 'painter', null);   // the shader kinds (their own stories): every kind drawn in 2D or not at all

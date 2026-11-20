@@ -27,17 +27,19 @@ vec2 bolt(vec2 uv, vec2 a, vec2 b, float seed, float fine, float amp, float w, f
   float L = length(ab);
   vec2 dir = ab / L, nrm = vec2(-dir.y, dir.x), q = uv - a;
   float s = dot(q, dir) / L, n = dot(q, nrm);
-  if (s < -0.1 || s > 1.1 || abs(n) > amp * L * 0.6 + 0.12) return vec2(0.0);   // far off it: no light
+  float reach = amp * L * 0.6 + 0.12;
+  if (s < -0.1 || s > 1.1 || abs(n) > reach) return vec2(0.0);   // far off it: no light
   float sc = clamp(s, 0.0, 1.0);
   float env = mix(smoothstep(0.0, 0.12, sc), sin(sc * PI), pinned) * amp * L;
   float off = wander(sc, seed, fine) * env, off2 = wander(sc + 0.004, seed, fine) * env;
   float slope = (off2 - off) / (0.004 * L);
   float d = abs(n - off) / sqrt(1.0 + slope * slope) + (max(0.0, -s) + max(0.0, s - 1.0)) * L;
-  float wd = w * mix(1.0, taper, pow(sc, 0.8));
+  float wd = max(w * mix(1.0, taper, pow(sc, 0.8)), 1e-4);
   float core = 1.0 - smoothstep(wd * 0.5, wd * 1.4, d);
   float g = wd * 4.0 + 0.006;
   float glow = g / (d + g);
-  return vec2(core, glow * glow * (1.0 - sc * (1.0 - taper) * 0.5));
+  float fade = (1.0 - smoothstep(0.7, 1.0, abs(n) / reach)) * (1.0 - smoothstep(1.02, 1.1, s)) * smoothstep(-0.1, -0.02, s);   // (no hard edge where the light is cut off)
+  return vec2(core, glow * glow * (1.0 - sc * (1.0 - taper) * 0.5) * fade);
 }
 // a point along a bolt (where a fork leaves it)
 vec2 along(vec2 a, vec2 b, float s, float seed, float fine, float amp, float pinned) {
@@ -110,7 +112,7 @@ vec3 paint(vec2 uv) {
   c += hot * rim(uv, toward, 0.02) * (flash * 2.5 + after * 0.3);
   // the corona: a thin glow hugging the bell's edge, bright patches crawling along it
   float e1 = 0.0, e2 = 0.0;
-  for (int i = 0; i < 6; i++) {
+  if (uv.y > 0.42 && j.x < 0.99) for (int i = 0; i < 6; i++) {
     vec2 o = vec2(cos(float(i) * PI / 3.0), sin(float(i) * PI / 3.0));
     e1 = max(e1, jelly(uv + o * 0.008).x); e2 = max(e2, jelly(uv + o * 0.02).x);
   }
@@ -122,7 +124,7 @@ vec3 paint(vec2 uv) {
 
   // -- in front: the strike itself and its forks
   vec3 light = vec3(0.0);
-  if (flash + after > 0.01) {
+  if (flash + after > 0.03) {
     vec2 m = bolt(uv, top, hit, k, fine, 0.2, 0.0055, 0.5, 1.0);
     vec2 cg = m;
     for (int i = 0; i < 3; i++) {
