@@ -1943,7 +1943,12 @@ export class Run {
     if (B?.web && !this.dev && !this.easy) {
       const could = B.qualifies(score, entry.jelly);
       B.open();
-      B.load(entry.jelly).then(() => { if (this.endView === 'summary' && B.qualifies(score, entry.jelly) !== could) show(last); });
+      B.load(entry.jelly).then(() => {
+        if (this.endView !== 'summary' || B.qualifies(score, entry.jelly) === could) return;
+        const box = this.ui.modal.querySelector('input[name="player"]');
+        if (box) typed = box.value.trim().slice(0, 20);   // what was typed so far survives the redraw
+        show(last);
+      });
     }
     // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)
     const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);

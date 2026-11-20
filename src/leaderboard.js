@@ -20,7 +20,8 @@ export class Leaderboard {
     this.rows = [];          // the top 10: [{ id, score, name, body, jelly, level, kills, time, won, at }]
     this.mine = null;        // your entry on the board (on the game's own site: your best run of any jelly type)
     this.tabs = new Map();   // the game's own site: tab ('champions', 'all', a jelly type) -> { top, mine, visit }, as the Worker answered
-    this.pending = new Map();// tab -> the read of it now under way
+    this.pending = new Map();// tab -> { visit, read }: the read of it now under way
+    this.failed = new Set(); // tabs whose last read failed and that have nothing to show
     this.visit = 0;          // bumped when the board is opened or a run posts: a tab read before that is read again
     this.season = null;      // the season the Worker is on
     this.id = null;
@@ -76,24 +77,30 @@ export class Leaderboard {
   load(tab) {
     const have = this.tabs.get(tab);
     if (have && have.visit === this.visit) return Promise.resolve(have);
-    if (!this.pending.has(tab)) this.pending.set(tab, this.readTab(tab).finally(() => this.pending.delete(tab)));
-    return this.pending.get(tab);
+    const p = this.pending.get(tab);
+    if (p && p.visit === this.visit) return p.read;
+    const read = this.readTab(tab, this.visit).finally(() => { if (this.pending.get(tab)?.read === read) this.pending.delete(tab); });
+    this.pending.set(tab, { visit: this.visit, read });
+    return read;
   }
 
-  async readTab(tab) {
+  // visit: the visit the read began in (an answer is only as fresh as when it was asked for)
+  async readTab(tab, visit) {
+    const fail = () => { const had = this.tabs.get(tab) || null; if (!had) { this.failed.add(tab); this.onChange?.(tab); } return had; };
     try {
       const r = await fetch(`${API}?tab=${encodeURIComponent(tab)}&me=${encodeURIComponent(this.id)}`, { cache: 'no-store' });
-      if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return this.tabs.get(tab) || null;
+      if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return fail();
       const d = await r.json();
-      if (!Array.isArray(d.top)) return this.tabs.get(tab) || null;
-      const got = { top: d.top, mine: d.mine || null, visit: this.visit };
+      if (!Array.isArray(d.top)) return fail();
+      const got = { top: d.top, mine: d.mine || null, visit };
       this.tabs.set(tab, got);
+      this.failed.delete(tab);
       if (Number.isInteger(d.season)) this.season = d.season;
       if (tab === 'all') { this.rows = d.top; this.mine = got.mine; }
       this.status = 'live';
       this.onChange?.(tab);
       return got;
-    } catch { return this.tabs.get(tab) || null; }
+    } catch { return fail(); }
   }
 
   // Every tab is read again the next time it is shown (the board opening, or a run posting)
@@ -162,7 +169,7 @@ export class Leaderboard {
         await this.runLog?.flush();
         const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...entry, id: this.id }) });
         const d = await r.json().catch(() => ({}));
-        if (d.posted) { this.mine = entry; this.open(); await Promise.all([this.load(jellyOf(entry.jelly)), this.load('all')]); return { posted: true }; }
+        if (d.posted) { if (!(this.mine?.score > entry.score)) this.mine = entry; this.open(); await Promise.all([this.load(jellyOf(entry.jelly)), this.load('all')]); return { posted: true }; }
         if (d.why === 'pending' && tries < 5) { await new Promise((ok) => setTimeout(ok, PENDING_WAIT)); continue; }
         return { posted: false, why: ['lower', 'taken', 'slow', 'unverified'].includes(d.why) ? d.why : 'error' };
       }
@@ -253,7 +260,7 @@ export class Leaderboard {
     const name = (id) => types.find((t) => t.id === id)?.name || 'Jelly';
     const c = this.tabs.get(tab), mine = c?.mine;
     if (this.status === 'offline') return { note: this.note(), rows: [], cls: '' };
-    if (!c) return { note: 'Loading the leaderboard…', rows: [], cls: '' };
+    if (!c) return { note: this.failed.has(tab) ? 'Couldn\'t load this board. Tap its tab to try again.' : 'Loading the leaderboard…', rows: [], cls: '' };
     const second = (r, withType) => esc([withType ? name(r.jelly) : null, r.won ? 'Won' : `Reached act ${r.acts || 1}`, tab !== 'champions' && r.clean > 0 ? `${r.clean} ${r.clean === 1 ? 'act' : 'acts'} untouched` : null].filter(Boolean).join(' · '));
     const who = (r, withType) => `<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}<small class="jf-sub">${second(r, withType)}</small></span>`;
     const pic = (r) => (face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : '');
