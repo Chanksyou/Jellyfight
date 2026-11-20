@@ -406,6 +406,7 @@
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
   --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
+  --preview-grade-wind: #c9f5e6;       /* Wind: the water behind it, minty */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -1062,7 +1063,7 @@
   --sparkle-twinkle-every: 0.16;  /* seconds between them */
   --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
   --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
-  --gale-streak: #e6f8ff;         /* Wind jelly: the thin air streaks circling the bell */
+  --gale-streak: #e6f8ff;         /* Wind jelly: the soft air ribbons circling the bell */
   --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
   --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
   --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
