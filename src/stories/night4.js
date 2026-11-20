@@ -64,7 +64,7 @@ night4('bug-health-is-constant-all-night', {
       enemies.list.filter((e) => !e.dead && !before.has(e)).forEach((e) => { e.dead = true; });
     }
     const want = { firefly: 700, moth: 1000, cicada: 1200 };
-    const flat = Object.keys(seen).length > 0 && Object.entries(seen).every(([id, v]) => v.size === 1 && v.has(want[id]));
+    const flat = Object.keys(want).every((id) => seen[id]?.size === 1 && seen[id].has(want[id]));
     return ok(flat, { seen: Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v]])) });
   },
 });
