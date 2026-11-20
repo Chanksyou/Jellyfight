@@ -129,7 +129,7 @@ export class Encore {
       this.hurtPlayer(dmg, hostile('encore-wall'));
       bus.emit('knockback', { targetId: PLAYER, dir: new THREE.Vector3(0, 0, 1), force: w.knock });   // the wall carries it a little way
     } });
-    this.solo = null; this.restBow = false; this.hints = new EncoreHints(); this.toldLast = false;
+    this.solo = null; this.soloTurn = { last: null }; this.restBow = false; this.hints = new EncoreHints(); this.toldLast = false;
     this.spots = Object.fromEntries(DJS.map((who) => [who, spotlight(A, who)]));
     this.bowLift = Number(LOOK.list('encore-dance-bow', [])[3]) || 1.5;    // beats a bow takes to come back up
     // a hit on the jelly during a solo spoils it: the bow after is the short one
@@ -384,7 +384,7 @@ export class Encore {
       this.beat = beat;
       const S = this.def.skills.set || {};
       this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],
-        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco });
+        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco, turn: this.soloTurn });
       this.set.update(beat);
       this.floor.update(beat, player);
       this.lasers.update(beat, player);
@@ -597,15 +597,17 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 //   a club laser from a random corner on every wave (`lasers`, encore-laser.js; not in the warm-up)
 //   in set 2, a disco ball visit every `discoEvery` bars, halfway between solo slots (`disco`)
 // From the first bar after the warm-up (`origin`), every `solo` bars is a solo slot: `slot(kind, at)`,
-// silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet (each stage from its first).
+// silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet. The turn carries on from
+// stage to stage (`turn.last`, kept by the Encore so a rebuilt set list keeps it), so set 2 opens on gold and
+// set 3 on the duet: a fight that's over in a few slots still shows every solo.
 // The last song's slots come every `soloLast` bars from 2 bars in (a slot that finds a solo still playing
 // tries again the next bar): a solo and its bow, the next, a duet, with only the waves between.
 const SOLOS = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'], last: ['silver', 'gold', 'duet'] };
 export class SetList {
   constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null, disco = null,
-    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, soloLast = 10, discoEvery = 8 } = {}) {
-    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, soloLast, discoEvery });
-    this.next = 0; this.last = null; this.dj = 0; this.origin = null; this.solos = 0;
+    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, soloLast = 10, discoEvery = 8, turn = { last: null } } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, soloLast, discoEvery, turn });
+    this.next = 0; this.last = null; this.dj = 0; this.origin = null;
   }
   update(beat) {
     for (;;) {
@@ -621,9 +623,10 @@ export class SetList {
     if (!warm) {
       this.origin ??= at;
       const n = (at - this.origin) / WAVE_GAP, kinds = SOLOS[stage];
-      if (stage !== this.soloStage) { this.soloStage = stage; this.solos = 0; this.nextSlot = n + 2; }   // each stage's solos start with its first kind (silver)
-      if (stage === 'last') { if (n >= this.nextSlot && this.slot(kinds[this.solos % kinds.length], at) !== false) { this.solos++; this.nextSlot = n + this.soloLast; } }   // (a slot that finds a solo still playing waits a bar)
-      else if (n > 0 && n % this.solo === 0) this.slot(kinds[this.solos++ % kinds.length], at);
+      if (stage !== this.soloStage) { this.soloStage = stage; this.nextSlot = n + 2; }
+      const kind = kinds[(kinds.indexOf(this.turn.last) + 1) % kinds.length];   // the one after the last that played (in this stage's list)
+      if (stage === 'last') { if (n >= this.nextSlot && this.slot(kind, at) !== false) { this.turn.last = kind; this.nextSlot = n + this.soloLast; } }   // (a slot that finds a solo still playing waits a bar)
+      else if (n > 0 && n % this.solo === 0 && this.slot(kind, at) !== false) this.turn.last = kind;
       if (stage === 'set2' && n % this.discoEvery === this.discoEvery / 2) this.disco?.visit(at);
     }
     if (this.quiet(at) || this.quiet(at + 8)) return;

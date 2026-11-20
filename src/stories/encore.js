@@ -478,7 +478,7 @@ story('encore/the-set-list-plays-the-same-waves-as-the-old-set', {
 });
 
 story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
-  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no doubling at a drop); from set 1 a laser on every wave; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, each stage starting from silver.',
+  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no doubling at a drop); from set 1 a laser on every wave; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, the turn carrying on from stage to stage (set 2 opens on gold, set 3 on the duet).',
   setup() {},
   play() {
     // the stage by beat (a stand-in for the Encore's Health)
@@ -492,10 +492,23 @@ story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
     const warm = f.casts.filter((c) => c.at < o), single = warm.length > 0 && new Set(warm.map((c) => c.at)).size === warm.length;
     const noLasers = shots.every((at) => at >= o) && shots.length > 100 && f.casts.filter((c) => c.at >= o).every((c) => shots.includes(c.at));
     const disco = visits.length > 3 && visits.every((at) => stageAt(at) === 'set2' && (at - o) % 32 === 16);
-    const want = []; let k = 0, was = null;
-    for (let at = o + 64; at <= 900; at += 64) { const st = stageAt(at); if (st !== was) { was = st; k = 0; } const kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[st]; want.push(`${kinds[k++ % kinds.length]}@${at}`); }
+    const want = []; let last = null;
+    for (let at = o + 64; at <= 900; at += 64) { const kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[stageAt(at)]; last = kinds[(kinds.indexOf(last) + 1) % kinds.length]; want.push(`${last}@${at}`); }
     const solos = slots.join() === want.join() && slots.some((x) => x.startsWith('duet'));
     return ok(o === 40 && single && noLasers && disco && solos, { origin: o, single, noLasers, disco, visits: visits.slice(0, 6), solos, slots: slots.slice(0, 8) });
+  },
+});
+
+story('encore/a-short-fight-still-sees-every-solo', {
+  about: 'The solo turn carries on across the 75%, 50% and 25% gates, so a fight paced at about 3.5 minutes (24 bars a stage after a 8 bar warm-up) sees the silver solo, the gold solo and the duet; the duet never plays above half Health (its turn passes to the next DJ), and gold never before set 2.',
+  setup() {},
+  play() {
+    const stageAt = (b) => (b < 32 ? 'warmup' : b < 128 ? 'set1' : b < 224 ? 'set2' : b < 320 ? 'set3' : 'last');
+    let now = 0;
+    const slots = [], set = new SetList(recorder(), 0, { random: lcg(5), stage: () => stageAt(now + 6), slot: (kind, at) => { slots.push([kind, stageAt(at)]); } });
+    for (now = -6; now <= 416; now += 0.25) set.update(now);
+    const kinds = new Set(slots.map(([k]) => k)), early = slots.every(([k, st]) => (k !== 'duet' || st === 'set3' || st === 'last') && (k !== 'gold' || st !== 'set1'));
+    return ok(kinds.has('silver') && kinds.has('gold') && kinds.has('duet') && early, { slots: slots.map((x) => x.join(' in ')), early, minutes: +(416 * 60 / BPM / 60).toFixed(1) });
   },
 });
 
@@ -525,6 +538,21 @@ fight('fight-stages-follow-its-health-not-the-clock', {
     const gates = [[0.76, 'set1'], [0.5, 'set3'], [0.26, 'set3'], [0.25, 'last'], [0.1, 'last']].map(([f, want]) => { B.hp = B.maxHp * f; return B.stage === want; });
     const kdl = B.def.skills.stages?.set2 === 0.75 && B.def.skills.stages?.set3 === 0.5 && B.def.skills.stages?.last === 0.25 && B.def.skills.set?.solo === 16 && B.def.skills.set?.disco === 8;
     return ok(kdl && warm && set1 && noDisco && set2 && booked && gates.every(Boolean), { kdl, warm, set1, noDisco, set2, booked, visit: B.disco.visitAt, beat: B.beat, gates, n });
+  },
+});
+
+fight('the-solo-turn-carries-on-through-the-short-out', {
+  about: 'The short-out rebuilds the set list, but the solo turn carries on: after a gold solo in set 2, the first slot after the short-out (set 3) is the duet, not silver again.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false }), slots = [];
+    stub(B, 'song', { beat: () => null });
+    stub(B, 'slot', (kind, at) => { slots.push(kind); return true; });   // (counted, not played)
+    B.hp = B.maxHp * 0.6; B.soloTurn.last = 'gold';                       // set 2, its last solo the gold DJ's
+    step(30); B.damage(B.hp - B.maxHp * 0.45);
+    const cut = !!B.cut;
+    step(60 * 60, () => slots.length > 0);
+    return ok(cut && B.stage === 'set3' && slots[0] === 'duet', { cut, stage: B.stage, slots });
   },
 });
 

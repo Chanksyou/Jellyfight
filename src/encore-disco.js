@@ -1,4 +1,4 @@
-// The Encore's disco ball (act 4). Every 8 bars, from 32 bars into the fight, a big mirror ball
+// The Encore's disco ball (act 4). In set 2 (75% Health down to the short-out), every 8 bars as the set list books it, a big mirror ball
 // (about three jellies tall) drops from above the arena for 8 beats and throws 32 light spots across
 // the floor, each on its own beam. Twice, 4 beats each: the spots wheel round as the ball turns for 3
 // beats, then stop and flash fast in the Encore's disco colour for the 4th, the Warning; as that beat
