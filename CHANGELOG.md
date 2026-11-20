@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v583 gives the Ice jelly's attack more bite: in play and on the pick screen its frost flower on the floor is now a shaded crystal instead of a line drawing, its shards are solid ice, its tentacle tip crystals catch the light and its cold mist is softer; on the pick screen a Chilled roach glints with rime and breathes cold and the water behind turns a cold blue.
+
 v582 keeps the leaderboard as a best run per player and jelly type each season, and the Worker now works out each run's score from its own run log instead of trusting the number it is sent (runs that claim more bugs cleared than came out, a boss beaten in under 10 seconds, or more than 3 Elites in an act are refused); the board screen itself is unchanged until the next update.
 
 v581 redraws the Ice jelly's pick card: real frost grows across the card's glass from the corners and glints as the light moves, snow falls at three depths, cold mist sinks off the bell and the jelly takes a pale icy rim, replacing the drawn-on corner flakes.
