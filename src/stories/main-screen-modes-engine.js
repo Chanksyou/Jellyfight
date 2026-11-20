@@ -240,7 +240,7 @@ story('engine/leaderboard', {
     window.claude = fakeClaude({ id: 'u_game' });
     run.board = new Leaderboard();
     await run.board.ready;
-    run.kills = 12; run.level = 3;
+    run.kills = 12; run.level = 3; run.t = 60;   // a minute of the night: a score above 0
     run.die();
     await wait(800);
     const shown = /Score/.test(modal()?.innerText || '');
@@ -280,7 +280,7 @@ story('engine/leaderboard', {
     delete window.claude;
     run.board = realBoard;
     return ok(notYet && remembered && guest && home && listed && fresh.posted && !refused.posted && refused.why === 'readonly' && refusedNote && first.posted && !lower.posted && lower.why === 'lower' && higher.posted && order === '1200,900' && escaped
-      && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && firstScore >= 12 * 10 + 200,
+      && !ro.posted && ro.why === 'readonly' && O.status === 'offline' && off.why === 'offline' && shown && posted && firstScore > 0,
       { notYet, remembered, guest, home, listed, fresh, refused, refusedNote, first, lower, higher, order, escaped, ro, off, shown, posted, score: firstScore });
   },
 });
@@ -994,7 +994,7 @@ const changeNameStory = {
         return Response.json({ top: [{ ...mine, id: run.board?.id }], mine });
       };
       const board = run.board = new Leaderboard(); await board.ready;
-      run.kills = 500; run.endRun('Finished', '', 'Again');
+      run.t = run.duration; run.endRun('Finished', '', 'Again');   // the whole night: a score above the board's 1,200
       press('Leaderboard'); await tick();
       press('Change name');
       modal().querySelector('input[name="player"]').value = 'Taken'; press('Save name'); await tick();

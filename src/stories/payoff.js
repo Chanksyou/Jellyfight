@@ -326,7 +326,7 @@ story('payoff/act-complete-celebrates', {
     const { run, menus } = G();
     return withEmpty([FEATS_KEY, PEARLS_KEY], () => {
       run.owned.add('bobbyPin'); run.owned.add('rubberDuck'); run.owned.add('rubberDuck');
-      run.kills = 12; run.t = 125; run.level = 4;
+      run.kills = 12; run.bugsOut = 20; run.bugsCleared = 12; run.t = 125; run.level = 4;
       run.actComplete({ id: 2, subtitle: 'the bathroom' });
       const m = modal(), heading = m.querySelector('h2'), tiles = [...m.querySelectorAll('.jf-tiles .ui-tile')];
       const stamped = !!heading.querySelector('.jf-stamp svg') && /^Act 1 complete$/.test(heading.textContent.trim());

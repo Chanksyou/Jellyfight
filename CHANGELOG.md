@@ -2,6 +2,16 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v579 raises the disco ball while it hangs for good in set 3, so it no longer hides the DJs' heads and their bow during the duet; its spots, beams' landing and strikes are unchanged.
+
+v578 puts scores on a new scale: each act now pays for what you did in it (the night survived, damage to its boss and beating it, up to 3 Elites, the share of the night's bugs cleared, and for a cleared act Clean play and Boss pace), up to 15,500 an act and 62,000 a run. Kills, Levels and Treasures no longer add to the score, and damage your Shield soaks counts against Clean play.
+
+v577 gives the Encore its own fight view, further back and flatter, so a DJ out on the floor is on screen head to feet (his solo, the bow that leaves the Encore EXPOSED, and the duet) on phones and desktops; the arena's invisible fence no longer fades the floor, records and flames when the camera stands behind it.
+
+v576 slows the reward spin: reels now roll 40% slower and the whole spin (every reel's stop and the hold before the cards) lasts twice as long.
+
+v575 paints the Fire card on the jelly pick screen in a shader instead of drawn-on shapes: flames eaten by moving noise lick up behind and in front of the tentacles, the jelly is lit warm from below, embers rise with short trails, smoke drifts behind and the heat bends the jelly above the fire (the other side cards follow one by one).
+
 v574 keeps the reward spin's reels landing on time on a slow phone or under hit-stop, silences its ticking when the machine closes mid-roll, times the lever's clunk to the lever, and hides the touch controls behind the machine.
 
 v573 makes the Encore's duet EXPOSED only once both DJs bow (not while they push the wall out), and keeps the crowd rise of a late vault to the air he has left.

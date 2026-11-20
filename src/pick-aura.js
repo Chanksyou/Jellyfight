@@ -7,6 +7,22 @@
 // allocated past the gradients.
 //
 //   aura(ctx, S, t, colour, a)   S: the canvas's size in pixels, t: seconds, a: strength (0-1)
+//
+// A kind with a shader (SHADERS below, src/pick-auras/<kind>.js) is drawn by AuraPainter (pick-auras/painter.js) instead: the
+// whole card picture (water, the jelly relit, the element behind and in front of it) in one full-card
+// shader by the game's renderer, then copied onto the card's canvas. The 2D kinds are going one by one.
+//
+// How to add a shader kind (the type tasks):
+//   1. src/pick-auras/<kind>.js exports PAINT (GLSL with `vec3 paint(vec2 uv)`: the card's colour at
+//      uv, linear, before tone mapping; kit.js lists what it can call), RAMP (its look.css colour ramp,
+//      four colours hot to deep) and RAMP_FALLBACK.
+//   2. Import it into SHADERS here, and delete its 2D function from AURAS.
+//   3. Its numbers and colours go in content/look.css (--aura-<kind>-*); shoot it with
+//      node tools/pick-shots.mjs --only=<type> and compare against the plan's row.
+
+import * as flames from './pick-auras/flames.js';
+
+export const SHADERS = { flames };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -53,35 +69,6 @@ export const AURAS = {
       const [x, y, life] = riser(S, i, t, 0.22), r = S * (0.018 + 0.03 * rnd(i, 5)) * (0.6 + life * 0.6), fade = Math.min(1, life * 6, (1 - life) * 4) * a;
       ctx.strokeStyle = rgba(col, 0.9 * fade); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
       dot(ctx, x - r * 0.35, y - r * 0.35, r * 0.25, rgba('#ffffff', 0.8 * fade));
-    }
-  },
-
-  // Fire: flames licking up round the bottom of the jelly, embers rising off them
-  flames(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.8);
-    floorGlow(ctx, S, col, a);
-    // tongues rising off the bottom edge, tallest at the sides so they climb round the jelly
-    const tongue = (bx, by, w, h, sway, inner, outer) => {
-      const g = ctx.createLinearGradient(bx, by, bx, by - h);
-      g.addColorStop(0, inner); g.addColorStop(0.45, outer); g.addColorStop(1, rgba(col, 0));
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(bx - w, by);
-      ctx.bezierCurveTo(bx - w * 1.1, by - h * 0.35, bx - w * 0.3 + sway * 0.5, by - h * 0.7, bx + sway, by - h);
-      ctx.bezierCurveTo(bx + w * 0.3 + sway * 0.5, by - h * 0.7, bx + w * 1.1, by - h * 0.35, bx + w, by);
-      ctx.closePath(); ctx.fill();
-    };
-    for (let i = 0; i < 11; i++) {
-      const u = (i + 0.5 * rnd(i, 3)) / 10.5, edge = Math.abs(u - 0.5) * 2, bx = S * u, by = S * 1.02;
-      const flick = 0.72 + 0.28 * Math.sin(t * (8 + 4 * rnd(i)) + i * 2.3);
-      const h = S * (0.14 + 0.36 * edge * edge + 0.06 * rnd(i, 1)) * flick, w = S * (0.05 + 0.03 * rnd(i, 2) + 0.03 * edge);
-      const sway = Math.sin(t * 5 + i * 1.7) * w * 0.9 - (u - 0.5) * w * 0.8;   // leaning in toward the jelly
-      tongue(bx, by, w, h, sway, rgba(col, 0.7 * a), rgba(col, 0.35 * a));
-      tongue(bx, by, w * 0.5, h * 0.6, sway * 0.6, rgba('#fff1b0', 0.85 * a), rgba('#ffc45c', 0.4 * a));
-    }
-    for (let i = 0; i < 10; i++) {
-      const [x, y, life] = riser(S, i + 20, t, 0.45);
-      dot(ctx, x + Math.sin(t * 3 + i) * S * 0.02, y, S * 0.008 * (1.3 - life), rgba('#ffd27a', (1 - life) * a));
     }
   },
 
@@ -217,3 +204,6 @@ export function drawAura(canvas, kind, t, colour, strength = 1) {
   ctx.restore();
   return true;
 }
+
+// every kind aura= can name (content/jellies.kdl)
+export const KINDS = () => [...Object.keys(SHADERS), ...Object.keys(AURAS)];

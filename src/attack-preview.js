@@ -35,6 +35,7 @@ import { Adornments } from './adornments.js';
 import { jellyStats } from './jelly-types.js';
 import { newMods } from './words.js';
 import { PickStage } from './pick-stage.js';
+import { drawToCard } from './pick-auras/painter.js';
 import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
@@ -337,28 +338,19 @@ export class AttackPreview {
   // canvas, copy that onto the card's canvas, and put the renderer back
   draw() {
     const R = this.renderer, P = this.P, gl = R.domElement, size = this.canvas.width;
-    const ratio = R.getPixelRatio(), px = Math.min(gl.width, gl.height, Math.round(size * LOOK.num('preview-supersample', 1)));
+    const px = Math.min(gl.width, gl.height, Math.round(size * LOOK.num('preview-supersample', 1)));
     const F = this.film(px);
     P.batch.sync();
     // glows are sized in metres: pixels a metre at 1 m for this little view, not the screen's (vfx.js)
     P.fx.glow.mat.uniforms.uScale.value = px / (2 * Math.tan(THREE.MathUtils.degToRad(P.camera.fov) / 2));
     F.bloom.enabled = this.tier() !== 'low';
-    const was = { target: R.getRenderTarget(), vp: R.getViewport(new THREE.Vector4()), sc: R.getScissor(new THREE.Vector4()), test: R.getScissorTest(),
-      color: R.getClearColor(new THREE.Color()), alpha: R.getClearAlpha(), exposure: R.toneMappingExposure };
-    try {
+    drawToCard(R, this.ctx, px, size, (corner) => {
       R.setClearColor(0x000000, 1);
-      R.toneMappingExposure = LOOK.num('portrait-exposure', was.exposure || 1);
       R.setRenderTarget(F.rt);
       R.render(P.scene, P.camera);
       if (F.bloom.enabled) F.bloom.render(R, null, F.rt);
-      R.setViewport(0, 0, px / ratio, px / ratio);
-      R.setScissor(0, 0, px / ratio, px / ratio);
-      R.setScissorTest(true);
+      corner();
       F.out.render(R, null, F.rt);
-      this.ctx.drawImage(gl, 0, gl.height - px, px, px, 0, 0, size, size);   // the viewport is the canvas's bottom-left corner
-    } finally {
-      R.setRenderTarget(was.target); R.setViewport(was.vp); R.setScissor(was.sc); R.setScissorTest(was.test);
-      R.setClearColor(was.color, was.alpha); R.toneMappingExposure = was.exposure;
-    }
+    });
   }
 }

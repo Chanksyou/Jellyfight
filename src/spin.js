@@ -52,19 +52,19 @@ export function buildStrips(result, rollOne, { cells, seed = performance.now() }
 }
 
 // How many filler cells a reel has (--spin-cells-*): kind 'treasure' or 'levelup'
-export const spinCells = (kind) => LOOK.num(`spin-cells-${kind}`, kind === 'treasure' ? 16 : 10);
+export const spinCells = (kind) => LOOK.num(`spin-cells-${kind}`, kind === 'treasure' ? 19 : 12);
 
 // When things happen, in ms: the lever, each reel's stop after it, and the hold before the cards.
 // A reel landing Epic or Legendary waits --spin-rare-wait longer, and so does every reel after it.
 // kind 'treasure' or 'levelup'; results: the offered cards (a Treasure's rarity is a string, a card's an object).
 export function spinTimes(kind, results) {
-  const base = LOOK.list(`spin-stops-${kind}`, kind === 'treasure' ? ['900', '1250', '1600'] : ['500', '700', '900']).map(parseFloat);
+  const base = LOOK.list(`spin-stops-${kind}`, kind === 'treasure' ? ['1800', '2500', '3200'] : ['1000', '1400', '1800']).map(parseFloat);
   const step = base.length > 1 ? base[base.length - 1] - base[base.length - 2] : base[0];
-  const wait = LOOK.num('spin-rare-wait', 250);
+  const wait = LOOK.num('spin-rare-wait', 500);
   let extra = 0;
   const stops = results.map((c, i) => {
     if (['epic', 'legendary'].includes(c.rarity?.id ?? c.rarity)) extra += wait;
     return (base[i] ?? base[base.length - 1] + step * (i - base.length + 1)) + extra;
   });
-  return { lever: LOOK.num('spin-lever', 250), stops, hold: LOOK.num(`spin-hold-${kind}`, kind === 'treasure' ? 450 : 300) };
+  return { lever: LOOK.num('spin-lever', 250), stops, hold: LOOK.num(`spin-hold-${kind}`, kind === 'treasure' ? 900 : 600) };
 }

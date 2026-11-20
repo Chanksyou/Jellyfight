@@ -500,6 +500,7 @@ story('types/pick-side-cards-show-their-element', {
       pressPlay('ice');
       stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
       stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
+      stub(picker, 'painter', null);   // the shader kinds (their own stories): every kind drawn in 2D or not at all
       stub(picker, 'calm', () => false);
       let t = picker.last;
       const tick = (n) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
@@ -517,6 +518,62 @@ story('types/pick-side-cards-show-their-element', {
       const held = hash(side[0]); tick(4);
       const still = hash(side[0]) === held && lit(side[0]) > 0.02;
       return ok(distinct && drawn && moves && still, { kinds, distinct, drawn, moves, still });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-shader', {
+  about: 'A kind with a shader (pick-auras/, Fire\'s flames) paints its card\'s whole picture with the game\'s renderer: the player\'s jelly (jelly-portrait.js portraitLayers, kept on the GPU) relit in the element, once its still portrait is drawn and its shader built; a kind without one (Lightning\'s sparks) still draws in 2D over its portrait; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
+  setup() {},
+  async play() {
+    const { picker, gfx } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = (n = 1) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
+    try {
+      pressPlay('fire');
+      stub(picker, 'live', null);   // no live centre card: the Fire card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      stub(gfx, 'quality', 'medium');
+      const fire = picker.auras[picker.ids.indexOf('fire')], bolt = picker.auras[picker.ids.indexOf('lightning')];
+      // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader
+      for (let i = 0; i < 400 && !fire.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = fire.classList.contains('lit') && P.built.flames === true;
+      const draws = spy(P, 'draw'), flat = spy(bolt, 'getContext');
+      picker.auraAt = -1; tick();
+      const shader = draws.some(([c, kind]) => c === fire && kind === 'flames') && !draws.some(([c]) => c === bolt);
+      const twoD = flat.length > 0 && !bolt.classList.contains('lit') && P.has('flames') && !P.has('sparks');
+      const medium = P.mats.flames.uniforms.uLayers.value;
+      stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
+      const low = P.mats.flames.uniforms.uLayers.value;
+      const R = P.renderer, textures = R.info.memory.textures;
+      picker.close();
+      const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
+      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built.flames, shader, twoD, layers: [medium, low], textures: [textures, R.info.memory.textures] });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-shader-holds-still-calm', {
+  about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = (n = 1) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
+    try {
+      pressPlay('fire');
+      stub(picker, 'live', null);
+      stub(picker, 'calm', () => true);
+      stub(picker, 'portrait', () => 'data:,');   // (a stand-in still portrait: the shader card waits for one)
+      let ready = false;
+      const draws = [];
+      stub(P, 'draw', (c, kind, look, at) => { draws.push(at); return ready; });
+      picker.measure(); tick(3);
+      const waited = draws.length >= 2;   // not drawn yet: it tries again
+      ready = true; tick(1);
+      const n = draws.length; tick(6);
+      const frozen = draws.length === n && picker.auras[picker.index].classList.contains('lit');
+      return ok(waited && frozen && new Set(draws).size === 1, { tries: draws.length, waited, frozen, at: [...new Set(draws)] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

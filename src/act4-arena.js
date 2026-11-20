@@ -179,6 +179,9 @@ export function buildAct4(scene){
     tint.set(color??0).multiplyScalar(THREE.MathUtils.clamp(strength,0,1));tiles.setColorAt(row*n+col,tint);tiles.instanceColor.needsUpdate=true;return true;
   }
   function clearTiles(){for(let row=0;row<n;row++)for(let col=0;col<n;col++)setTile(row,col);}
+  // none of them ever fades for the camera (invisible, or rails too low to hide anything): the fight view can stand
+  // outside the fence, and a faded piece takes the arena's instanced pieces (tiles, records, flames) with it (camera.js look)
+  for(const m of solids)m.userData.noCameraFade=true;
   return {root,floor,tiles,solids,shockSolids,span,setTile,clearTiles,boss,updateAmbience,
     dispose(){boss.dispose();root.removeFromParent();root.traverse(o=>{if(o.isInstancedMesh)o.dispose();});ownedGeo.forEach(g=>g.dispose());ownedMat.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

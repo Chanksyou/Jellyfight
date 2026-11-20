@@ -43,6 +43,7 @@ import { VolumeMaterial, volumeGeometry, hostile } from './vfx.js';
 import { TRACKS } from './song-track.js';
 import { EncoreFloor } from './encore-floor.js';
 import { ENCORE } from './stage4.js';
+import { IS_TOUCH } from './touch.js';
 import { EncoreLasers } from './encore-laser.js';
 import { EncoreDisco } from './encore-disco.js';
 import { EncoreContact } from './encore-contact.js';
@@ -131,6 +132,10 @@ export class Encore {
     this.flash = 0;
     this.guardT = this.def.skills.start?.guard ?? 0; this.opening = this.guardT > 0;   // its force field is up as the fight opens (bosses.kdl start `guard`)
     this.holder = new THREE.Object3D(); this.holder.position.set(...TARGET);
+    // its own fight view (look.css --encore-camera-*; run.js hands it to the camera): further back,
+    // flatter and aimed ahead, so a DJ on the floor is in frame head to feet
+    const ph = IS_TOUCH ? '-phone' : '';
+    this.camera = { distance: LOOK.num('encore-camera-distance' + ph, 1), pitch: LOOK.num('encore-camera-tilt' + ph, 0.8), ahead: LOOK.num('encore-camera-ahead' + ph, 0.3) };
     const A = this.arenaView;
     // each hit lands with a flash and sparks at the jelly in that attack's colour
     this.floor = new EncoreFloor(A, { onHit: (dmg, c) => this.hurtPlayer(dmg, hostile(`encore-${c?.dj === 'gold' ? 'gold' : 'silver'}`), c?.dj) });

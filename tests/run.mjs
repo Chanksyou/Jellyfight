@@ -70,6 +70,7 @@ const PAGES = [
   { key: 'night4', opts: { viewport: { width: 1100, height: 650 }, act: { act: 4, carry: CARRY4 } } },           // act 4's night in the living room
   { key: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } },
   { key: 'phone3', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, act: { act: 3, carry: CARRY3 } } },
+  { key: 'phone4', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, act: { act: 4, scene: 2, carry: CARRY4 } } },   // the arena on a phone
 ];
 const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith('phone/') ? 'phone' : n.startsWith('act2/') ? 'act2' : n.startsWith('act3/') ? 'act3' : n.startsWith('act4/') ? 'act4' : n.startsWith('night4/') ? 'night4' : 'act1');
 // Most of a full run is the game booting (a minute or more each: its shaders are built in software),
