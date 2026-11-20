@@ -7,6 +7,7 @@ import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
+import { AURAS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
@@ -497,7 +498,7 @@ story('types/pick-side-cards-show-their-element', {
   play() {
     const { picker } = G(), back = asPlayer(true);
     try {
-      pressPlay('ice');
+      pressPlay('wind');   // (its neighbours, Poison and Glitter, still draw in 2D)
       stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
       stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
       stub(picker, 'painter', null);   // the shader kinds (their own stories): every kind drawn in 2D or not at all
@@ -553,6 +554,30 @@ story('types/pick-side-card-shader', {
   },
 });
 
+story('types/pick-side-card-frost', {
+  about: 'Ice\'s card (aura="frost", pick-auras/frost.js) is painted by its shader, with no 2D drawing left: frost on the card\'s glass, thick in the corners and clear round the jelly in the middle.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('ice');
+      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const ice = picker.auras[picker.ids.indexOf('ice')];
+      for (let i = 0; i < 400 && !ice.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost') && !AURAS.frost;
+      picker.auraAt = -1; tick();
+      // (one look at the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
+      const S = ice.width, ctx = ice.getContext('2d');
+      const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
+      const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
+      return ok(lit && corners > open + 40, { lit, corners: Math.round(corners), open: Math.round(open) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-side-card-shader-holds-still-calm', {
   about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
   setup() {},
@@ -567,13 +592,15 @@ story('types/pick-side-card-shader-holds-still-calm', {
       stub(picker, 'portrait', () => 'data:,');   // (a stand-in still portrait: the shader card waits for one)
       let ready = false;
       const draws = [];
-      stub(P, 'draw', (c, kind, look, at) => { draws.push(at); return ready; });
+      stub(P, 'draw', (c, kind, look, at) => { draws.push([c, at]); return ready; });
       picker.measure(); tick(3);
       const waited = draws.length >= 2;   // not drawn yet: it tries again
       ready = true; tick(1);
       const n = draws.length; tick(6);
       const frozen = draws.length === n && picker.auras[picker.index].classList.contains('lit');
-      return ok(waited && frozen && new Set(draws).size === 1, { tries: draws.length, waited, frozen, at: [...new Set(draws)] });
+      const at = new Map(); for (const [c, when] of draws) at.set(c, (at.get(c) || new Set()).add(when));
+      const one = [...at.values()].every((w) => w.size === 1);   // each card its one moment
+      return ok(waited && frozen && one, { tries: draws.length, waited, frozen, at: [...at.values()].map((w) => [...w]) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
