@@ -1,1 +1,0 @@
-softens Wind's air on the jelly type pick screen and in play: the gust's speed lines and the Wind jelly's circling streaks are now soft ribbons of air that fade at both ends instead of hard thin bars and arcs, and the pick screen shows more of them with a minty backdrop.

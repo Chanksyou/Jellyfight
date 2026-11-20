@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v590 softens Wind's air on the jelly type pick screen and in play: the gust's speed lines and the Wind jelly's circling streaks are now soft ribbons of air that fade at both ends instead of hard thin bars and arcs, and the pick screen shows more of them with a minty backdrop.
+
 v589 gives Normal's side card on the pick screen glassy bubbles drawn in a shader: three depths rising through rippling light, each a lens that bends the jelly and water behind it, with a rainbow film on its rim and a window highlight.
 
 v588 repaints the Fire Jelly's card on the type pick screen: one rolling fire with torn tips and loose licks instead of separate spikes, and its warm light now falls on the jelly's bell and tentacles.
