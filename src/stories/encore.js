@@ -1489,7 +1489,7 @@ fight('the-golds-crank-and-flames-have-their-sounds-on-the-beat', {
 });
 
 fight('a-dj-vaulting-out-and-home-has-its-sounds-on-the-beat', {
-  about: 'On the floor a DJ\'s take-off whooshes and the crowd rises for the 2 beats in the air (out only, once for a duet), he lands with a thud on the bar line, and the vault home whooshes and thuds on its beats; the duet\'s wall shove sounds on its roll beat, once. A solo booked with its take-off already past makes no late whoosh.',
+  about: 'On the floor a DJ\'s take-off whooshes and the crowd rises for the 2 beats in the air (out only, once for a duet), he lands with a thud on the bar line, and the vault home whooshes and thuds on its beats; the duet\'s wall shove sounds on its roll beat, once.',
   setup() {},
   play() {
     const out = {};

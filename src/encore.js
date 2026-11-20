@@ -296,7 +296,7 @@ export class Encore {
   // his records clear of him, and in his bow's last beats crouches and vaults home, landing as it ends.
   // The duet: both, each to his own mark; the gold DJ faces and points at where each record will land,
   // and from the wall's Warning both face down the floor
-  // the sounds of a floor solo, each once on its beat and never late (a rewind or a late booking skips it):
+  // the sounds of a floor solo, each once on its beat and never late (a hitch of over a beat skips it; a late booking plays its take-off sounds on booking):
   // a whoosh as he takes off, the crowd up for the 2 beats in the air, the thud on landing; home again the
   // same whoosh and thud; a duet's push on its roll beat
   floorSounds(S, beat, air) {
