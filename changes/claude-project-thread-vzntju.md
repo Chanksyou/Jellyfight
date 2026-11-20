@@ -1,1 +1,0 @@
-gives the Encore its own fight view, further back and flatter, so a DJ out on the floor is on screen head to feet (his solo, the bow that leaves the Encore EXPOSED, and the duet) on phones and desktops; the arena's invisible fence no longer fades the floor, records and flames when the camera stands behind it.

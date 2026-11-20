@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v577 gives the Encore its own fight view, further back and flatter, so a DJ out on the floor is on screen head to feet (his solo, the bow that leaves the Encore EXPOSED, and the duet) on phones and desktops; the arena's invisible fence no longer fades the floor, records and flames when the camera stands behind it.
+
 v576 slows the reward spin: reels now roll 40% slower and the whole spin (every reel's stop and the hold before the cards) lasts twice as long.
 
 v575 paints the Fire card on the jelly pick screen in a shader instead of drawn-on shapes: flames eaten by moving noise lick up behind and in front of the tentacles, the jelly is lit warm from below, embers rise with short trails, smoke drifts behind and the heat bends the jelly above the fire (the other side cards follow one by one).
