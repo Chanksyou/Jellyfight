@@ -21,8 +21,9 @@
 //      node tools/pick-shots.mjs --only=<type> and compare against the plan's row.
 
 import * as flames from './pick-auras/flames.js';
+import * as sparks from './pick-auras/sparks.js';
 
-export const SHADERS = { flames };
+export const SHADERS = { flames, sparks };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -104,29 +105,6 @@ export const AURAS = {
       ctx.beginPath();
       for (let k = 0; k < 3; k++) { const q = spin + k * Math.PI / 3; ctx.moveTo(x - Math.cos(q) * r, y - Math.sin(q) * r); ctx.lineTo(x + Math.cos(q) * r, y + Math.sin(q) * r); }
       ctx.stroke();
-    }
-  },
-
-  // Lightning: jagged arcs crackling round the jelly, a new set every few hundredths of a second
-  sparks(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * (0.6 + 0.3 * rnd(Math.floor(t * 12), 9)));
-    const seed = Math.floor(t / 0.09);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (let b = 0; b < 3; b++) {
-      if (rnd(seed, b + 40) < 0.2) continue;   // now and then one goes dark
-      const from = TAU * rnd(Math.floor(t / 0.55) + b * 17, 41), span = 0.7 + 0.5 * rnd(seed, b + 42), pts = 8;
-      ctx.beginPath();
-      for (let k = 0; k <= pts; k++) {
-        const out = 1.04 + (k % pts ? (rnd(seed * 9 + k, b) - 0.5) * 0.18 : 0);
-        const [x, y] = ring(S, from + span * k / pts, out);
-        k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      }
-      ctx.strokeStyle = rgba(col, 0.45 * a); ctx.lineWidth = S * 0.035; ctx.stroke();
-      ctx.strokeStyle = rgba('#ffffff', 0.95 * a); ctx.lineWidth = S * 0.011; ctx.stroke();
-    }
-    for (let i = 0; i < 8; i++) {   // flecks thrown off
-      const [x, y] = ring(S, TAU * rnd(seed + i, 43), 0.95 + 0.25 * rnd(seed + i, 44));
-      dot(ctx, x, y, S * 0.008, rgba('#fff8c8', 0.9 * a));
     }
   },
 

@@ -7,6 +7,7 @@ import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
+import { SHADERS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
@@ -497,7 +498,9 @@ story('types/pick-side-cards-show-their-element', {
   play() {
     const { picker } = G(), back = asPlayer(true);
     try {
-      pressPlay('ice');
+      // a card whose neighbours are both still drawn in 2D (the shader kinds have their own stories)
+      const flat = (k) => k >= 0 && k < picker.ids.length && !SHADERS[CONTENT.jellies[picker.ids[k]].aura];
+      pressPlay(picker.ids.find((id, k) => flat(k - 1) && flat(k + 1)));
       stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
       stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
       stub(picker, 'painter', null);   // the shader kinds (their own stories): every kind drawn in 2D or not at all
@@ -523,7 +526,7 @@ story('types/pick-side-cards-show-their-element', {
 });
 
 story('types/pick-side-card-shader', {
-  about: 'A kind with a shader (pick-auras/, Fire\'s flames) paints its card\'s whole picture with the game\'s renderer: the player\'s jelly (jelly-portrait.js portraitLayers, kept on the GPU) relit in the element, once its still portrait is drawn and its shader built; a kind without one (Lightning\'s sparks) still draws in 2D over its portrait; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
+  about: 'A kind with a shader (pick-auras/: Fire\'s flames, Lightning\'s sparks) paints its card\'s whole picture with the game\'s renderer: the player\'s jelly (jelly-portrait.js portraitLayers, kept on the GPU) relit in the element, once its still portrait is drawn and its shader built; a kind without one still draws in 2D over its portrait; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
   setup() {},
   async play() {
     const { picker, gfx } = G(), back = asPlayer(true), P = picker.painter;
@@ -534,21 +537,24 @@ story('types/pick-side-card-shader', {
       stub(picker, 'live', null);   // no live centre card: the Fire card shows its element in the centre
       stub(picker, 'calm', () => false);
       stub(gfx, 'quality', 'medium');
-      const fire = picker.auras[picker.ids.indexOf('fire')], bolt = picker.auras[picker.ids.indexOf('lightning')];
-      // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader
-      for (let i = 0; i < 400 && !fire.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = fire.classList.contains('lit') && P.built.flames === true;
-      const draws = spy(P, 'draw'), flat = spy(bolt, 'getContext');
+      const card = (id) => picker.auras[picker.ids.indexOf(id)];
+      const fire = card('fire'), storm = card('lightning');
+      const flatId = picker.ids.find((id) => !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a kind still drawn in 2D (while any is)
+      // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader;
+      // Lightning (the next card) comes alive beside it
+      for (let i = 0; i < 400 && !(fire.classList.contains('lit') && storm.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = fire.classList.contains('lit') && P.built.flames === true && storm.classList.contains('lit') && P.built.sparks === true;
+      const draws = spy(P, 'draw'), flat = bolt ? spy(bolt, 'getContext') : [];
       picker.auraAt = -1; tick();
-      const shader = draws.some(([c, kind]) => c === fire && kind === 'flames') && !draws.some(([c]) => c === bolt);
-      const twoD = flat.length > 0 && !bolt.classList.contains('lit') && P.has('flames') && !P.has('sparks');
+      const shader = draws.some(([c, kind]) => c === fire && kind === 'flames') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
+      const twoD = !bolt || (flat.length > 0 && !bolt.classList.contains('lit'));
       const medium = P.mats.flames.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
       const low = P.mats.flames.uniforms.uLayers.value;
       const R = P.renderer, textures = R.info.memory.textures;
       picker.close();
       const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
-      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built.flames, shader, twoD, layers: [medium, low], textures: [textures, R.info.memory.textures] });
+      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built, shader, twoD, flatId, layers: [medium, low], textures: [textures, R.info.memory.textures] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
@@ -567,7 +573,7 @@ story('types/pick-side-card-shader-holds-still-calm', {
       stub(picker, 'portrait', () => 'data:,');   // (a stand-in still portrait: the shader card waits for one)
       let ready = false;
       const draws = [];
-      stub(P, 'draw', (c, kind, look, at) => { draws.push(at); return ready; });
+      stub(P, 'draw', (c, kind, look, at) => { if (kind === 'flames') draws.push(at); return ready; });   // (the Fire card's; Lightning's beside it is a shader too)
       picker.measure(); tick(3);
       const waited = draws.length >= 2;   // not drawn yet: it tries again
       ready = true; tick(1);

@@ -1,0 +1,1 @@
+redraws the Lightning card on the jelly pick screen: real branching bolts strike the jelly in a dark storm, flash its bell and fade to an afterimage, with a crackling glow round its edge, far bolts in the clouds and arcs between its tentacle tips.
