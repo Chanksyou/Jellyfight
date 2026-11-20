@@ -433,6 +433,31 @@ story('types/pick-screen-centre-card-attacks', {
   },
 });
 
+story('types/pick-stage-ice', {
+  about: 'On the centre card the Ice jelly\'s shards Chill the roaches (attack-preview.js reads status_applied), and a Chilled roach shows it: rime glints and cold breath (fx glow); its shards stay solid ice (not see-through) and the water behind takes a cold blue grade (--preview-grade-ice), which Fire\'s does not.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('ice');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, chills = spy(live, 'chilled');
+      let chilled = 0;
+      for (let i = 0; i < 6 * 30; i++) { live.simulate(1 / 30); chilled = Math.max(chilled, P.enemies.list.filter((b) => b.chillT > 0 && !b.dead).length); }
+      const shown = chilled >= 1 && chills.length > 0;
+      const solid = !P.fx.ice.shards.material.transparent;
+      const grade = P.stage.back.material.uniforms.uGrade.value.clone(), cold = grade.b > grade.r + 0.2;
+      picker.go(picker.ids.indexOf('fire')); picker.pos = picker.target; settle();
+      const plain = P.stage.back.material.uniforms.uGrade.value.equals(new THREE.Color(1, 1, 1));
+      return ok(shown && solid && cold && plain, { chilled, frames: chills.length, solid, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
