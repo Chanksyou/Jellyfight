@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v573 makes the Encore's duet EXPOSED only once both DJs bow (not while they push the wall out), and keeps the crowd rise of a late vault to the air he has left.
+
 v572 films the pick screen's live centre card on a lit stage: its own sharp picture with bloom (none on Low graphics), reflections in the bell, a rim light in the jelly type's colour, a light that flares with each shot and hit, a glossy floor with soft shadows, light shafts and drifting specks, and a closer, slowly drifting camera; the room behind the pick screen is no longer drawn while it's open.
 
 v571 makes a new player's first reward spin say how to stop the reels; boss rewards and Attack upgrades open straight on their cards.
