@@ -20,13 +20,14 @@
 //   3. Its numbers and colours go in content/look.css (--aura-<kind>-*); shoot it with
 //      node tools/pick-shots.mjs --only=<type> and compare against the plan's row.
 
+import * as bubbles from './pick-auras/bubbles.js';
 import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
 import * as sparks from './pick-auras/sparks.js';
 import * as gust from './pick-auras/gust.js';
 import * as toxic from './pick-auras/toxic.js';
 
-export const SHADERS = { flames, sparks, frost, gust, toxic };
+export const SHADERS = { flames, sparks, frost, gust, bubbles, toxic };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -58,17 +59,6 @@ function riser(S, i, t, speed) {
 }
 
 export const AURAS = {
-  // Normal: plain bubbles rising up both sides
-  bubbles(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.5);
-    ctx.lineWidth = S * 0.012;
-    for (let i = 0; i < 12; i++) {
-      const [x, y, life] = riser(S, i, t, 0.22), r = S * (0.018 + 0.03 * rnd(i, 5)) * (0.6 + life * 0.6), fade = Math.min(1, life * 6, (1 - life) * 4) * a;
-      ctx.strokeStyle = rgba(col, 0.9 * fade); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
-      dot(ctx, x - r * 0.35, y - r * 0.35, r * 0.25, rgba('#ffffff', 0.8 * fade));
-    }
-  },
-
   // Glitter: rainbow stars winking on and off round the jelly
   glitter(ctx, S, t, col, a) {
     halo(ctx, S, col, a * 0.55);
