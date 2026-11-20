@@ -39,7 +39,7 @@ import { drawToCard } from './pick-auras/painter.js';
 import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
-const _at = new THREE.Vector3(), _rim = new THREE.Vector3(), _way = new THREE.Vector3();
+const _at = new THREE.Vector3(), _rim = new THREE.Vector3(), _way = new THREE.Vector3(), _from = new THREE.Vector3(), _dir = new THREE.Vector3();
 const QUAD = new THREE.PlaneGeometry(2, 2).deleteAttribute('normal');   // (stands in for the passes' own quads while their shaders are built: no normals, as theirs)
 const IDLE = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
 // where the three roaches stand: [metres from the jelly, radians round from straight ahead]. The
@@ -56,6 +56,7 @@ function onBug(P, type, p) {
   const bug = P.enemies.list.find((b) => b.id === p?.targetId);
   if (!bug || bug.dead) return;
   if (type === 'knockback' && p.dir) bug.push.addScaledVector(p.dir, Math.min(0.03, p.force || 0));
+  if (type === 'status_applied' && p.status === 'stun') bug.stunT = Math.max(bug.stunT || 0, p.duration || 0);
   if (type === 'status_applied' && p.status === 'chill') bug.chillT = Math.max(bug.chillT || 0, p.duration || 0);   // (roachFrame shows it)
   if (type !== 'damage_taken') return;
   P.stage.flash(P.enemies.center(bug, _at));   // the attack's light flares at the hit
@@ -142,7 +143,7 @@ export class AttackPreview {
         this.clearJelly();
         this.id = id; this.lookKey = key;
         const own = LOOK.color(`type-${id}`, '#8fd9ff');
-        P.stage.setType(own, LOOK.color(`preview-grade-${id}`, '#ffffff'));
+        P.stage.setType(own, id);
         const avatar = P.avatar = buildCharacter(look, H);
         avatar.update?.(0, IDLE);
         P.scene.add(avatar.root);
@@ -321,6 +322,15 @@ export class AttackPreview {
       bug.mesh.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.mat = o.material; o.material = FLASH; } else if (o.userData.mat) o.material = o.userData.mat; });
     }
     bug.anim?.(dt, bug);
+    // stunned (Lightning): it twitches where it stands, small arcs jumping across it
+    bug.stunT = Math.max(0, (bug.stunT || 0) - dt);
+    const twitch = bug.stunT > 0 && !juice.calm ? LOOK.num('preview-stun-twitch', 0.25) : 0;
+    bug.mesh.rotation.z = twitch * (Math.random() - 0.5);
+    bug.mesh.rotation.x = twitch * 0.6 * (Math.random() - 0.5);
+    if (twitch && Math.random() < dt * 9) {
+      const c = this.P.enemies.center(bug, _at);
+      this.P.bubbles.looks.strike(_from.copy(c).add(_dir.randomDirection().multiplyScalar(bug.r * 1.2)), c.add(_dir.randomDirection().multiplyScalar(bug.r * 1.2)), LOOK.num('bolt-width', 0.005) * 0.4);
+    }
     if ((bug.chillT = Math.max(0, (bug.chillT || 0) - dt)) > 0) this.chilled(bug, dt);
   }
 

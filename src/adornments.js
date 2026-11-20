@@ -344,11 +344,11 @@ export class Adornments {
     const fleckMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-fleck', '#cfeaff'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8), bar = new THREE.CylinderGeometry(0.5, 0.5, 1, 4);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, tipMat); group.add(m); return m; });
-    const SEG = 6, segs = Array.from({ length: SEG }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
+    const SEG = 6, FORK = 2, segs = Array.from({ length: SEG + FORK }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
     const flecks = Array.from({ length: LOOK.num('storm-flecks', 8) }, () => { const m = new THREE.Mesh(ball, fleckMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
     const tipCol = tipMat.color.clone();
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), fork = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     let arcIn = LOOK.num('storm-arc-every', 2.5), arcT = 0, arcA = 0, arcB = 1;
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
@@ -372,17 +372,30 @@ export class Adornments {
         arcT -= dt;
         rig.list[arcA].tip.getWorldPosition(a); rig.list[arcB].tip.getWorldPosition(b);
         const w = rig.thick * unit * LOOK.num('storm-arc-width', 0.35), kink = a.distanceTo(b) * 0.18;
-        prev.copy(a);
-        segs.forEach((m, k) => {
-          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+        // a bar from prev to next, `k` wide
+        const lay = (m, k) => {
           m.visible = true;
           m.position.copy(prev).add(next).multiplyScalar(0.5);
           d.copy(next).sub(prev);
-          m.scale.set(w, d.length(), w);
+          m.scale.set(w * k, d.length(), w * k);
           m.quaternion.setFromUnitVectors(Y, d.normalize());
           prev.copy(next);
-        });
-        G?.hold(a, tipCol, w * 12, 0.8); G?.hold(b, tipCol, w * 12, 0.8);
+        };
+        // the arc, thickest in the middle and thin where it leaves and reaches each tip
+        prev.copy(a);
+        for (let k = 0; k < SEG; k++) {
+          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+          if (k === 2) fork.copy(next);
+          lay(segs[k], 0.45 + 0.75 * Math.sin(Math.PI * (k + 0.5) / SEG));
+        }
+        // a fork off its middle kink, thinning to nothing
+        prev.copy(fork);
+        next.copy(fork).add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.22));
+        lay(segs[SEG], 0.55);
+        next.add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.12));
+        lay(segs[SEG + 1], 0.3);
+        // the two tips it joins light up
+        G?.hold(a, tipCol, w * 16, 1); G?.hold(b, tipCol, w * 16, 1);
       } else for (const m of segs) m.visible = false;
       // static flecks: tiny points blinking on and off round the bell
       const P = this.player.position, life = LOOK.num('storm-fleck-life', 0.18), size = LOOK.num('storm-fleck-size', 0.0018);

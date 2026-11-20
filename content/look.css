@@ -406,6 +406,10 @@
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
   --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
+  --preview-stun-twitch: 0.25;         /* radians a stunned roach twitches (Lightning), none with Reduce effects */
+  --preview-backdrop-lightning: #4a38c8;   /* Lightning: a storm's violet in the water (a type may set --preview-backdrop-<id>, */
+  --preview-backdrop-tint-lightning: 30;   /* --preview-backdrop-tint-<id>, */
+  --preview-backdrop-bright-lightning: 0.2;  /* --preview-backdrop-bright-<id>: darker, so each strike stands out */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -983,6 +987,7 @@
   --bolt-halo: #ffd21a;         /* the yellow halo round it, */
   --bolt-flash: #fff6c8;        /* and the flash where one lands */
   --bolt-life: 0.2;             /* s a chain bolt flickers before it's gone */
+  --bolt-hold: 0.05;            /* s a bolt keeps one shape (a return stroke) before it re-strikes in a new one */
   --bolt-width: 0.005;          /* m, a bolt at its thickest (the middle; it tapers to both ends) */
   --bolt-jag: 0.22;             /* how far a bolt bends off the straight line, as a share of its length */
   --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
