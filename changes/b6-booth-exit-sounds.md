@@ -1,0 +1,1 @@
+gives the Encore's DJs sounds for leaving the booth: a whoosh and crowd rise as they vault out, a thud on landing, the same home, a deeper floor slam for the gold DJ, and a shove under the duet's Wall of sound.

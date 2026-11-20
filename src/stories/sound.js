@@ -269,7 +269,7 @@ story('sound/effects-sit-a-fifth-quieter-than-the-music', {
 });
 
 story('sound/the-encore-moves-each-make-their-own-sound', {
-  about: 'Each synthesized cue of the Encore\'s new moves (record scratch, throw, stick and shatter, fader crank, flame jet, wall swell and crack, bow exhale, crowd cheer) makes sound, with the audio running.',
+  about: 'Each synthesized cue of the Encore\'s new moves (record scratch, throw, stick and shatter, floor slam, flame jet, wall swell and crack, bow exhale, crowd cheer, vault whoosh, landing thud, crowd rise, wall shove) makes sound, with the audio running.',
   setup() { setupFight(); },
   async play() {
     const S = await freshSfx();
@@ -278,7 +278,7 @@ story('sound/the-encore-moves-each-make-their-own-sound', {
     const { when } = S.preview(oc, dest);
     let made = 0;
     for (const k of ['createOscillator', 'createBufferSource']) { const real = oc[k].bind(oc); oc[k] = () => { made++; return real(); }; }
-    const cues = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'faderCrank', 'flameJet', 'wallSwell', 'wallShield', 'bowExhale', 'crowdCheer'], made_ = {};
+    const cues = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'floorSlam', 'flameJet', 'wallSwell', 'wallShield', 'bowExhale', 'crowdCheer', 'vaultWhoosh', 'landThud', 'crowdRise', 'wallShove'], made_ = {};
     let t = 0;
     for (const c of cues) { when(t += 0.5); made = 0; S.sfx[c](); made_[c] = made; }
     const silent = cues.filter((c) => !made_[c]);
