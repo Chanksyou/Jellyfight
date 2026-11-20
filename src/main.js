@@ -31,6 +31,7 @@ import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx }
 import { Music } from './music.js';
 import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
+import { AuraPainter } from './pick-auras/painter.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { shadeWithBakedAO } from './baked-ao.js';
@@ -304,6 +305,7 @@ const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
 const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO);   // phones start on Medium so Low is a choice, not a default
+picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick screen's side cards drawn in shaders
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
 const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);   // the arena has no lamps

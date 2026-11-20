@@ -61,6 +61,7 @@ const CSS = `
 #type-pick .tp-art canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 #type-pick .tp-art canvas[hidden] { display: none; }
 #type-pick .tp-art .tp-aura { mix-blend-mode: screen; }
+#type-pick .tp-art .tp-aura.lit { mix-blend-mode: normal; }   /* a shader kind's whole picture (pick-auras/painter.js) */
 #type-pick .tp-bars { display: grid; gap: var(--ui-space-2); }
 #type-pick .tp-bar { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: var(--ui-space-2); font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink-dim); white-space: nowrap; }
 #type-pick .tp-track { display: grid; grid-template-columns: repeat(${BAR_SEGMENTS}, 1fr); gap: 2px; height: 14px; }
@@ -92,6 +93,7 @@ export class TypePicker {
   // calm: Reduce effects is on. look(): the player's jelly look, so the portraits are redrawn when it changes.
   // portrait(id, turn): a data URL of the player's jelly as that type, turned `turn` radians (jelly-portrait.js), or null.
   // live: the centre card's moving picture (attack-preview.js AttackPreview), or null for still portraits only.
+  // painter (set after): draws the side cards' shader kinds (pick-auras/painter.js); without one every kind is 2D.
   constructor({ calm = () => false, look = () => null, portrait = () => null, live = null } = {}) {
     Object.assign(this, { calm, look, portrait, live });
     this.liveFor = null;   // the type the live picture is showing
@@ -101,6 +103,7 @@ export class TypePicker {
     this.pos = 0; this.target = 0; this.vel = 0; this.index = 0;
     this.queue = []; this.spin = 0; this.drag = null; this.wheel = 0; this.wheelAt = 0;
     this.onPlay = null; this.onBack = null; this.raf = 0; this.last = 0;
+    this.painter = null;
     this.auraT = 0; this.auraAt = -1;   // the elements' clock, and when they were last drawn (-1: draw them now)
   }
 
@@ -204,6 +207,7 @@ export class TypePicker {
     this.panel.play.classList.remove('tp-squeeze');
     this.stopLive();
     this.live?.release();   // its pictures on the GPU
+    this.painter?.release();   // the side cards' pictures on the GPU
     this.drag = null;
     this.stage.classList.remove('drag');
   }
@@ -291,7 +295,15 @@ export class TypePicker {
     const covered = this.liveFor && this.live?.canvas && !this.live.canvas.hidden ? this.index : -1;
     this.auras.forEach((c, i) => {
       if (Math.abs(i - this.pos) > 2.6 || i === covered) return;
-      drawAura(c, c.dataset.aura, t + i * 0.37, LOOK.color(`type-${this.ids[i]}`, '#8fd9ff'), strength);
+      const kind = c.dataset.aura, colour = LOOK.color(`type-${this.ids[i]}`, '#8fd9ff');
+      if (!this.painter?.has(kind)) { drawAura(c, kind, t + i * 0.37, colour, strength); return; }
+      // a shader kind paints the whole picture, the jelly relit in it; until it can (its shader
+      // building, a lost graphics chip) the card shows its still portrait. It waits for that portrait:
+      // the jelly's own shaders are built by then, so its first picture never stalls the screen
+      let lit = false;
+      try { lit = !!this.frames[this.ids[i]][0] && this.painter.draw(c, kind, this.look(), t + i * 0.37, colour, strength); } catch (e) { console.warn('pick aura', e); }
+      if (!lit) { c.getContext('2d').clearRect(0, 0, c.width, c.height); if (calm && this.frames[this.ids[i]][0] !== '') this.auraAt = -1; }   // (Reduce effects: its one frozen frame as soon as its portrait and shader are ready, the frame loop going till then; never if its portrait failed)
+      c.classList.toggle('lit', lit);
     });
   }
 
@@ -341,7 +353,7 @@ export class TypePicker {
   tick(now) {
     this.raf = 0;
     if (!this.isOpen) return;
-    const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016);
+    const dt = Math.max(0, Math.min(0.1, (now - this.last) / 1000 || 0.016));   // (never back in time: stories tick it by hand between real frames)
     this.last = now;
     let moving = !!this.drag;
     if (!this.drag) {
@@ -374,7 +386,7 @@ export class TypePicker {
       this.spin += dt / LOOK.num('pick-spin-step', 1.4);
       this.showView(this.index, Math.floor(this.spin) % VIEWS, this.spin % 1);
     }
-    if (moving || turning || live || this.queue.length || !this.calm()) this.kick();   // the elements keep moving
+    if (moving || turning || live || this.queue.length || !this.calm() || this.auraAt < 0) this.kick();   // the elements keep moving (or one is still to be drawn)
   }
 
   // --- moving the row --------------------------------------------------------------------------

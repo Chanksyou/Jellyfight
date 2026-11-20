@@ -1,0 +1,1 @@
+paints the Fire card on the jelly pick screen in a shader instead of drawn-on shapes: flames eaten by moving noise lick up behind and in front of the tentacles, the jelly is lit warm from below, embers rise with short trails, smoke drifts behind and the heat bends the jelly above the fire (the other side cards follow one by one).
