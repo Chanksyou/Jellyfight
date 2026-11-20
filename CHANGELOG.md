@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v588 repaints the Fire Jelly's card on the type pick screen: one rolling fire with torn tips and loose licks instead of separate spikes, and its warm light now falls on the jelly's bell and tentacles.
+
 v587 gives the leaderboard tabs: Champions (the best run with each jelly type, and how many you hold), All, and a board for each jelly type, with a Season chip, a second line saying Won or the act reached and acts untouched, and your own row pinned with its real place when you are outside the top 10. Submit score is now offered when a run makes its own jelly type's top 10, so a second type's run is no longer held back by your best run with another.
 
 v586 makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.
