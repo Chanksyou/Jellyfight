@@ -9,12 +9,13 @@ export const RAMP = 'aura-sting-ramp';
 export const RAMP_FALLBACK = ['#ffffff', '#e9d4ff', '#a468ff', '#3b1b7c'];
 
 export const PAINT = /* glsl */`
-#define PI 3.14159265
 vec2 bez(vec2 a, vec2 c, vec2 b, float u) { float v = 1.0 - u; return v * v * a + 2.0 * v * u * c + u * u * b; }
 
 // the light of one lash's ribbon from a through c to b, its leading edge at u = head and its tail at
 // u = tail along the curve. x: its white core, y: its glow, z: how far along it is here (0 tail .. 1 head)
 vec3 ribbon(vec2 uv, vec2 a, vec2 c, vec2 b, float head, float tail, float width, float seed) {
+  vec2 lo = min(min(a, c), b) - 0.25, hi = max(max(a, c), b) + 0.25;   // (far from the whole curve: no light, and none of the work)
+  if (uv.x < lo.x || uv.y < lo.y || uv.x > hi.x || uv.y > hi.y) return vec3(0.0);
   float span = max(head - tail, 1e-3);
   float best = 9.0, along = 0.0;
   vec2 prev = bez(a, c, b, tail);
@@ -36,8 +37,9 @@ vec3 ribbon(vec2 uv, vec2 a, vec2 c, vec2 b, float head, float tail, float width
   return vec3(core, glow * pow(w, 1.2), w);
 }
 
-// one lash's light at uv, k: which lash, a: seconds into it (0-1.3 s), who: 0 the lash, 1 the snap
-vec4 lash(vec2 uv, float k, float a, float who, out vec2 tip, out float snap, out vec2 away) {
+// one lash's light at uv, k: which lash, a: seconds into it (0-1.3 s); tip, snap and away say where its snap
+// is, how strong it is now and which way it points
+vec3 lash(vec2 uv, float k, float a, out vec2 tip, out float snap, out vec2 away) {
   float side = hash(vec2(k, 1.0)) < 0.5 ? -1.0 : 1.0;
   vec2 A = vec2(0.5 - side * (0.02 + 0.08 * hash(vec2(k, 2.0))), 0.22 + 0.1 * hash(vec2(k, 3.0)));
   vec2 B = vec2(0.5 + side * (0.26 + 0.14 * hash(vec2(k, 4.0))), 0.5 + 0.28 * hash(vec2(k, 5.0)));
@@ -49,7 +51,7 @@ vec4 lash(vec2 uv, float k, float a, float who, out vec2 tip, out float snap, ou
   float fade = 1.0 - smoothstep(0.55, 1.15, a);
   tip = bez(A, C, B, head);
   away = normalize(B - vec2(0.5, 0.5));
-  snap = who > 0.5 ? exp(-max(a - swing, 0.0) / 0.07) * step(swing, a) : 0.0;
+  snap = exp(-max(a - swing, 0.0) / 0.07) * step(swing, a);
   vec3 r = ribbon(uv, A, C, B, head, tail, 0.015, k);
   vec3 col = ramp(0.35 + 0.65 * r.z * r.z);
   vec3 light = (uRamp[0] * r.x * 2.4 * (0.4 + 0.6 * r.z) + col * r.y * 1.1) * fade;
@@ -59,11 +61,12 @@ vec4 lash(vec2 uv, float k, float a, float who, out vec2 tip, out float snap, ou
     vec3 r2 = ribbon(uv, A, C2, B + vec2(0.0, 0.03), head * 0.97, tail, 0.008, k + 3.0);
     light += (uRamp[1] * r2.x * 1.2 + uRamp[2] * r2.y * 0.5) * fade * (0.5 + 0.5 * r2.z);
   }
-  return vec4(light, fade);
+  return light;
 }
 
 vec3 paint(vec2 uv) {
-  float t = uTime + 0.5, s = uStrength;
+  float t = uTime + 0.75,   // (so Reduce effects' one frozen frame is mid-snap)
+       s = uStrength;
   vec3 lilac = uRamp[1], violet = uRamp[2], deep = uRamp[3];
   // -- behind: violet dusk, slow haze, a few motes drifting up
   vec3 c = water(uv) * 0.7;
@@ -81,10 +84,10 @@ vec3 paint(vec2 uv) {
   float snapSum = 0.0;
   float period = 1.2;
   for (int i = 0; i < 3; i++) {
-    float fi = float(i), ph = t / period + fi / 3.0, k = floor(ph) * 3.0 + fi, a = fract(ph) * period;
+    float fi = float(i), ph = t / period + fi / 3.0, k = mod(floor(ph) * 3.0 + fi, 96.0), a = fract(ph) * period;
     vec2 tip, away; float snap;
-    vec4 L = lash(uv, k, a, 1.0, tip, snap, away);
-    if (mod(fi, 2.0) < 0.5) behind += L.rgb; else front += L.rgb;
+    vec3 L = lash(uv, k, a, tip, snap, away);
+    if (mod(fi, 2.0) < 0.5) behind += L; else front += L;
     snapSum += snap;
     lit += away * snap;
     if (snap > 0.01) {
@@ -95,14 +98,16 @@ vec3 paint(vec2 uv) {
       float age = 1.0 - snap;
       float rr = (r - 0.015 - 0.14 * age) / 0.012, ring = exp(-rr * rr) * snap;
       flash += violet * ring * 1.4;
-      // venom drops thrown off: they fly out, then fall
-      float aa = max(a - 0.3, 0.0);
+    }
+    // venom drops thrown off: they fly out, then fall, shrinking to nothing as the lash's cycle ends
+    float aa = a - 0.3;
+    if (aa > 0.0) {
       for (int j = 0; j < 6; j++) {
         if (float(j) >= uLayers + 2.0) break;
         float fj = float(j), ang = (hash(vec2(k, fj + 20.0)) - 0.5) * 2.6 + atan(away.y, away.x);
         float sp = 0.18 + 0.2 * hash(vec2(k, fj + 30.0));
         vec2 at = tip + vec2(cos(ang), sin(ang)) * sp * aa + vec2(0.0, -0.9) * aa * aa;
-        float rd = (0.008 + 0.008 * hash(vec2(k, fj + 40.0))) * (1.0 - aa / 1.0);
+        float rd = (0.008 + 0.008 * hash(vec2(k, fj + 40.0))) * (1.0 - aa / 0.9);
         vec2 q = uv - at;
         float disc = 1.0 - smoothstep(rd * 0.8, rd, length(q));
         float spec = 1.0 - smoothstep(0.0, rd * 0.35, length(q - vec2(-0.3, 0.35) * rd));
