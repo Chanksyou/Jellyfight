@@ -39,7 +39,7 @@ export class Gadgets {
     // Magnifying Glass: a beam of focused moonlight on its target
     this.beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.004, 0.012, 0.5, 12, 1, true).translate(0, 0.25, 0),
-      new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
+      new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending }),
     );
     this.beam.visible = false;
     this.group.add(this.beam);

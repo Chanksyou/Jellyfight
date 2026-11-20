@@ -146,7 +146,7 @@ export function buildEncoreBoss(){
   for(const side of [-1,1]){
     const A=[side*.43,0,-.13],B=[side*.17,.355,-.13],C=[side*.17,0,-.13];
     const tri=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...A),new THREE.Vector3(...B),new THREE.Vector3(...C)]);tri.setIndex(side<0?[0,2,1]:[0,1,2]);tri.computeVertexNormals();
-    const wing=mat(new THREE.MeshStandardMaterial({color:0x131e30,transparent:true,opacity:.5,roughness:.65,metalness:.2,side:THREE.DoubleSide,depthWrite:false}));put(geo(tri),wing,[0,0,0]);lightTriangle([A,B,C].map(p=>new THREE.Vector3(...p)),side<0?'leftWing':'rightWing');
+    const wing=mat(new THREE.MeshStandardMaterial({color:0x131e30,transparent:true,opacity:.5,roughness:.65,metalness:.2,side:THREE.DoubleSide,forceSinglePass:true,depthWrite:false}));put(geo(tri),wing,[0,0,0]);lightTriangle([A,B,C].map(p=>new THREE.Vector3(...p)),side<0?'leftWing':'rightWing');
     const v=(a,b,t)=>new THREE.Vector3(...a).lerp(new THREE.Vector3(...b),t).toArray();
     for(const edge of [[A,B],[B,C],[C,A]])bar(...edge,.0032,steel);
     const front=p=>[p[0],p[1],p[2]+.004];
