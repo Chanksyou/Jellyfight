@@ -559,7 +559,7 @@ export class Run {
 
   // ------------------------------------------------------------ main update
   update(dt) {
-    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.recordRun(this.logResumed ? 'in-progress' : 'started'); }   // an act picked up part way (a reload, a stage door) goes on
+    if (!this.logStarted && !this.dev && dt > 0) { this.logStarted = true; this.fieldReset?.(); this.recordRun(this.logResumed ? 'in-progress' : 'started'); }   // an act picked up part way (a reload, a stage door) goes on
     if ((this.keepT -= dt) <= 0) { this.keepT = 1; this.keepProgress(); }
     // a hit's pushback waits a frame: if its attack sent a knockback of its own (before or after the damage), that one stands
     if (this.hitPush) { const { dir, force } = this.hitPush; this.hitPush = null; bus.emit('knockback', { targetId: PLAYER, dir, force }); }
@@ -1958,14 +1958,14 @@ export class Run {
     }
     if (['died', 'won', 'ended', 'next-act'].includes(outcome)) this.logFinal = outcome;
     outcome = this.logFinal || outcome;
-    const B = this.boss, round = (n) => Math.round(n * 10) / 10;
+    const B = this.boss, round = (n) => Math.round(n * 10) / 10, field = (() => { try { return this.fieldNumbers?.(); } catch { return null; } })();
     const row = {
       run: this.logId, build: (typeof window !== 'undefined' && window.JF_BUILD) || '', act: this.stage.id, outcome,
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
       details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
-        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null },
+        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
     };

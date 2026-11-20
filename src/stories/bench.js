@@ -2,7 +2,7 @@
 // replays the busiest once per switch and ends on a results card, and leaves the game as it found it.
 // Here each moment is cut to a fraction of a second: these prove the bench works, not how fast anything is.
 import { G, offs, ok, story } from './kit.js';
-import { runBench, showResults } from '../bench.js';
+import { runBench, showResults, sendable } from '../bench.js';
 import { MOMENTS } from '../bench-moments.js';
 
 const SHORT = { settle: 0.05, secs: 0.25 };
@@ -49,3 +49,16 @@ story('bench/leaves-no-trace', {
   },
 });
 function litLamps() { let n = 0; G().APT.scene.traverse((o) => { if (o.isPointLight && o.visible) n++; }); return n; }
+
+story('bench/never-sends-from-a-story', {
+  phone: true,
+  about: 'A bench results card opened from a story URL has no Send button (the card shows it on a real `?bench` link only), so a test never fills the developer\'s results table.',
+  setup() {},
+  play() {
+    const el = showResults({ env: { build: 'v0', act: 1 }, moments: [{ name: 'quiet room', frames: 10, ms: 16.7 }] });
+    offs.push(() => el.remove());
+    const has = (k) => !!el.querySelector(`[data-bench=${k}]`);   // the test runner's own page has no ?story, so it shows Send
+    const rule = !sendable('?story=bench/x') && !sendable('?stories') && sendable('?bench&act=3') && sendable('');
+    return ok(has('copy') && has('back') && has('send') && rule, { copy: has('copy'), back: has('back'), send: has('send'), rule });
+  },
+});

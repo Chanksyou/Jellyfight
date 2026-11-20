@@ -17,8 +17,50 @@ import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '.
 import { TYPES } from '../enemies.js';
 import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
+import { FieldPerf } from '../field-perf.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
+story('engine/field-numbers-ride-the-summary', {
+  about: 'A played act\'s summary carries the frame numbers (median and slowest-5% frame, share of slow frames, lowest pixel ratio, tier, cap, screen) and the Settings picks, only after enough frames to mean something, and a dev run sends none.',
+  setup: () => fresh({ elites: false, lash: false }),
+  play() {
+    const { run, GAME, gfx, pacing } = G(), rows = [];
+    stub(run, 'telemetryDisabled', false);
+    stub(run, 'board', { runLog: {}, saveRun: row => rows.push(row) });
+    stub(pacing.pacer, 'due', () => true);
+    Object.assign(pacing.field, new FieldPerf());
+    step(2);
+    // synthetic frame times in the past: a time ahead of now would give the next real frame a huge negative dt and break the music
+    const base = performance.now() - 1e5, frame = (now) => GAME.frame(base + now);
+    for (let i = 0; i < 10; i++) frame(i * 16);
+    run.recordRun('in-progress');
+    const tooFew = rows.at(-1).details.perf == null;
+    for (let i = 10; i < 40; i++) frame(i * 16);
+    frame(40 * 16 + 60); frame(40 * 16 + 120);   // two slow frames (the first interval after the stub is a skipped hitch)
+    run.recordRun('in-progress');
+    const d = rows.at(-1).details, p = d.perf, s = d.settings;
+    const sane = p && p.n === 41 && p.ms > 16 && p.ms < 18 && p.p95 > 16 && p.p95 < 18 && p.slow > 0.04 && p.slow < 0.06 && p.minRatio > 0 && p.tier === gfx.quality
+      && p.dpr === Math.round(devicePixelRatio * 100) / 100 && p.w === innerWidth && p.h === innerHeight && p.cap === (pacing.pacer.fps || 0) && p.lost === 0 && p.loadMs >= 0;
+    const picks = s && s.graphics === gfx.choice && typeof s.easy === 'boolean' && typeof s.music === 'boolean' && typeof s.sound === 'boolean' && typeof s.calm === 'boolean' && typeof s.calmOs === 'boolean' && ['normal', 'large'].includes(s.text);
+    const count = rows.length;
+    run.devRun(); run.recordRun('ended');
+    return ok(tooFew && sane && picks && rows.length === count, { tooFew, p, s, devSent: rows.length - count });
+  },
+});
+story('engine/field-numbers-count-played-frames', {
+  about: 'The frame numbers keep a fixed 64-bucket histogram: hitches over 250 ms and bad intervals are not frames, a 2 ms bucket is its middle, and 200 ms lands in the last bucket without growing anything.',
+  setup() {},
+  play() {
+    const f = new FieldPerf();
+    for (const ms of [0, -5, NaN, 251, 4000]) f.sample(ms, 16.7, 1.5);
+    const none = f.n === 0 && f.summary({}) === null;
+    for (let i = 0; i < 90; i++) f.sample(10.1, 16.7, 1.5);
+    for (let i = 0; i < 10; i++) f.sample(200, 16.7, 1);
+    const s = f.summary({ tier: 'medium' });
+    return ok(none && f.hist.length === 64 && s.n === 100 && s.ms === 11 && s.p95 === 127 && s.slow === 0.1 && s.minRatio === 1 && s.tier === 'medium',
+      { none, s });
+  },
+});
 story('engine/run-log', {
   about: 'Actual play starts one act report, Health loss is summarized by source, hiding checkpoints without counting a death, completed outcomes survive hiding, and dev runs send nothing.',
   setup: () => fresh({ hurt: true }),

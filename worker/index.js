@@ -16,6 +16,7 @@
 //                              evolutions, lost, bossLeft, device, details: { jelly, upgrades, … } }: one act played, for the owner's run
 //                              log (the runs table, read only in the D1 console): { saved, why? }
 //
+//   POST /api/perf             { build, device, bench }: the phone bench's results (src/bench.js Send), under 8 KB
 //   POST /api/dev              { pass }: { open } — the dev tools' password, checked against the
 //                              DEV_PASSWORD secret (set it with `npx wrangler secret put DEV_PASSWORD`)
 //
@@ -50,6 +51,8 @@ const SCHEMA = [
     revision INTEGER NOT NULL, finalized INTEGER NOT NULL, build TEXT, outcome TEXT, score INTEGER, time INTEGER,
     level INTEGER, kills INTEGER, body TEXT, treasures TEXT, evolutions TEXT, health_lost TEXT, boss_left INTEGER, device TEXT, details TEXT,
     PRIMARY KEY (player_id, run_id, act))`,
+  // the phone bench's Send (src/bench.js): a device's results; no player id, one per address every 30 s
+  'CREATE TABLE IF NOT EXISTS perf_reports (at INTEGER NOT NULL, build TEXT, device TEXT, ua TEXT, json TEXT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS run_summaries_by_build ON run_summaries (build, act, device, at)',
 ];
 let ready = null;
@@ -322,6 +325,27 @@ async function postFeedback(request, env) {
   return json({ sent: true });
 }
 
+const PERF_IP_MS = 30000, PERF_MAX = 8192;
+async function postPerf(request, env) {
+  let b, raw;
+  try { raw = await request.text(); } catch { return json({ sent: false, why: 'bad' }, 400); }
+  if (new TextEncoder().encode(raw).length > PERF_MAX + 1024) return json({ sent: false, why: 'large' }, 413);   // before parsing
+  try { b = JSON.parse(raw); } catch { return json({ sent: false, why: 'bad' }, 400); }
+  if (!b?.bench || typeof b.bench !== 'object' || Array.isArray(b.bench)) return json({ sent: false, why: 'bad' }, 400);
+  const text = JSON.stringify(b.bench);
+  if (new TextEncoder().encode(text).length > PERF_MAX) return json({ sent: false, why: 'large' }, 413);
+  const now = Date.now(), db = env.DB;
+  const key = 'perf:ip:' + await hashIp(request.headers.get('cf-connecting-ip') || 'unknown', env.IP_SALT || 'jelly-fight');
+  const last = await db.prepare('SELECT at FROM posts WHERE key = ?').bind(key).first();
+  if (last && now - last.at < PERF_IP_MS) return json({ sent: false, why: 'slow' }, 429);
+  await db.batch([
+    db.prepare('INSERT INTO perf_reports (at, build, device, ua, json) VALUES (?, ?, ?, ?, ?)')
+      .bind(now, String(b.build || '').slice(0, 12), b.device === 'phone' ? 'phone' : 'desktop', (request.headers.get('user-agent') || '').slice(0, 200), text),
+    db.prepare('INSERT INTO posts (key, at) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET at = excluded.at').bind(key, now),
+  ]);
+  return json({ sent: true });
+}
+
 // The run log (run.js recordRun): one row per act played. Lists are kept as short JSON text:
 // treasures [[id, count]], evolutions [id], health_lost { source: Health }. One per player every 5 s,
 // per address every 2 s (an act takes minutes)
@@ -336,7 +360,21 @@ const amounts = (o) => JSON.stringify(Object.fromEntries(Object.entries(o && typ
 const events = (list, max, counts = false) => (Array.isArray(list) ? list : []).slice(0, max)
   .filter(p => Array.isArray(p) && word(p[0]) && Number.isFinite(p[1]) && (!counts || Number.isFinite(p[2])))
   .map(p => [word(p[0]), Math.round(Math.max(0, Math.min(100000, p[1])) * 10) / 10, ...(counts ? [int(p[2], 1, 99)] : [])]);
+// Frame numbers from real play (src/field-perf.js) and the player's Settings picks: numbers clamped, words from a fixed list
+const num = (v, lo, hi, dp = 0) => Number.isFinite(+v) ? Math.round(Math.max(lo, Math.min(hi, +v)) * 10 ** dp) / 10 ** dp : null;
+const pick = (v, list) => list.includes(v) ? v : null;
+const omitNull = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null));   // older clients send none: the key stays out
+const perf = (p) => !p || typeof p !== 'object' ? null : {
+  ms: num(p.ms, 0, 128, 1), p95: num(p.p95, 0, 128, 1), slow: num(p.slow, 0, 1, 3), n: int(p.n, 0, 1e7), minRatio: num(p.minRatio, 0, 4, 3),
+  tier: pick(p.tier, ['low', 'medium', 'high']), cap: int(p.cap, 0, 240), dpr: num(p.dpr, 0, 8, 2), w: int(p.w, 0, 10000), h: int(p.h, 0, 10000),
+  loadMs: int(p.loadMs, 0, 600000), lost: int(p.lost, 0, 99),
+};
+const settings = (s) => !s || typeof s !== 'object' ? null : {
+  graphics: pick(s.graphics, ['low', 'medium', 'high']), fps: pick(s.fps, [0, 30, 60]), text: pick(s.text, ['normal', 'large']),
+  easy: !!s.easy, music: !!s.music, sound: !!s.sound, calm: !!s.calm, calmOs: !!s.calmOs,
+};
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
+  ...omitNull({ perf: perf(d.perf), settings: settings(d.settings) }),
   jelly: jellyOf(d.jelly), upgrades: wordList(d.upgrades), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
   killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
@@ -402,11 +440,12 @@ async function postSummaries(b, request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (!['/api/scores', '/api/name', '/api/achievements', '/api/feedback', '/api/runs', '/api/dev'].includes(url.pathname)) return env.ASSETS.fetch(request);
+    if (!['/api/scores', '/api/name', '/api/achievements', '/api/feedback', '/api/runs', '/api/perf', '/api/dev'].includes(url.pathname)) return env.ASSETS.fetch(request);
     try {
       await setUp(env.DB);
       if (url.pathname === '/api/dev') return request.method === 'POST' ? await devUnlock(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/name') return request.method === 'POST' ? await rename(request, env) : json({ error: 'method' }, 405);
+      if (url.pathname === '/api/perf') return request.method === 'POST' ? await postPerf(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/runs') return request.method === 'POST' ? await postRun(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/feedback') return request.method === 'POST' ? await postFeedback(request, env) : json({ error: 'method' }, 405);
       if (url.pathname === '/api/achievements') {

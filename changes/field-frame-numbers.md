@@ -1,0 +1,1 @@
+sends each played act's frame numbers (median and slowest-5% frame, share of slow frames, lowest pixel ratio, graphics tier, frame cap, screen size, load time, graphics resets) and the player's Settings picks with the run summaries already sent, and adds a Send button to the phone bench; frame times and screen size only, nothing typed, no location.

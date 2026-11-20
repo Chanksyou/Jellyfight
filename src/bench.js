@@ -171,14 +171,17 @@ function card(html) {
 const leave = () => { nav.reload = () => location.replace(location.pathname); goToAct(1); };   // back to act 1's menu, without ?bench
 const LINKS = [['Act 1', '', 'act1'], ['Act 3', '&act=3', 'act3'], ['Act 4', '&act=4', 'night4'], ['Encore', '&act=4&scene=2', 'arena']];
 
-// The results: a small table, Copy results (JSON) and Back to the game
+// a story page never sends (it has no Worker to answer, and no business filling the table)
+export const sendable = (search = location.search) => !['story', 'stories'].some((k) => new URLSearchParams(search).has(k));
+
+// The results: a small table, Copy results (JSON), Send and Back to the game
 export function showResults(res) {
   const e = res.env || {}, c = (v, k = 1) => (v === null || v === undefined ? '–' : (+v).toFixed(k)), pct = (v) => (v === null || v === undefined ? '–' : `${Math.round(v * 100)}%`);
   const rows = res.moments.map((m) => (m.skipped ? `<tr><td>${m.name}</td><td colspan="8">doesn't apply here</td></tr>`
     : m.error && !m.frames ? `<tr><td>${m.name}</td><td colspan="8">stopped: ${m.error.replace(/[<&]/g, '')}</td></tr>`
     : `<tr><td>${m.name}${m.interrupted ? ' (interrupted)' : ''}</td><td>${c(m.ms)}</td><td>${c(m.p95)}</td><td>${pct(m.over33)}</td><td>${pct(m.over50)}</td><td>${c(m.stepMs)}</td><td>${c(m.renderMs)}</td><td>${c(m.gpuMs)}</td><td>${m.draws ?? '–'}</td></tr>`)).join('');
   const el = card(`<div class="ui-header"><h2 class="ui-title">Phone bench</h2>
-    <div class="acts"><button class="ui-btn ui-btn--primary" data-bench="copy">Copy results</button><button class="ui-btn" data-bench="back">Back to the game</button></div></div>
+    <div class="acts"><button class="ui-btn ui-btn--primary" data-bench="copy">Copy results</button>${sendable() ? '<button class="ui-btn" data-bench="send">Send to the developer</button>' : ''}<button class="ui-btn" data-bench="back">Back to the game</button></div></div>
     <p class="ui-text" data-bench="note">Copy the results and paste them in a message.</p>
     <p class="ui-label" style="text-transform:none">${e.build || ''} · act ${e.act || 1}${e.scene === 2 ? ' arena' : ''} · ${e.tier || ''} · ${e.screen || ''} at ${e.dpr || ''}x · browser frames ${e.raf ? `${e.raf.fps} a second` : '–'} · GPU time ${e.gpuTime || '–'}</p>
     <div class="wide"><table><thead><tr><th>Moment</th><th>Frame ms</th><th>p95</th><th>&gt;33 ms</th><th>&gt;50 ms</th><th>Step ms</th><th>Draw ms</th><th>GPU ms</th><th>Draws</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -191,6 +194,17 @@ export function showResults(res) {
       note.innerHTML = '<textarea readonly aria-label="Results"></textarea>';
       const box = note.querySelector('textarea'); box.value = json; box.focus(); box.select();
     }
+  };
+  const send = el.querySelector('[data-bench=send]');
+  if (send) send.onclick = async () => {   // frame times and device details only: what the card shows, nothing typed, no location
+    const note = el.querySelector('[data-bench=note]');
+    send.disabled = true;
+    try {
+      const r = await fetch('api/perf', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({ build: e.build, device: matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop', bench: res }) });
+      note.textContent = r.ok ? 'Sent. Thank you!' : r.status === 429 ? 'Please wait a moment before sending again.' : 'Couldn\'t send it. Copy the results instead.';
+      send.disabled = r.ok;
+    } catch { note.textContent = 'Couldn\'t send it. Copy the results instead.'; send.disabled = false; }
   };
   el.querySelector('[data-bench=back]').onclick = leave;
   return el;
