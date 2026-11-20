@@ -25,8 +25,8 @@
 // caps what's believable and how often one browser or one address can post, which stops casual
 // cheating, not a determined one.
 import { ACHIEVEMENTS } from '../src/achievements.js';
+import { MAX_SCORE } from '../src/score.js';   // the most a run can score
 
-const MAX_SCORE = 60000;      // the game's own cap (leaderboard.js)
 const ID = /^[a-z0-9-]{8,48}$/;
 const PER_ID_MS = 15000;      // one post per player every 15 s (a run takes minutes)
 const PER_IP_MS = 5000;       // and per address every 5 s
@@ -373,10 +373,16 @@ const settings = (s) => !s || typeof s !== 'object' ? null : {
   graphics: pick(s.graphics, ['low', 'medium', 'high']), fps: pick(s.fps, [0, 30, 60]), text: pick(s.text, ['normal', 'large']),
   easy: !!s.easy, music: !!s.music, sound: !!s.sound, calm: !!s.calm, calmOs: !!s.calmOs,
 };
+// the score's facts for one act (src/score.js): counts and shares, clamped; an older client sends none
+const scoreFacts = (f) => !f || typeof f !== 'object' ? null : {
+  bugsOut: int(f.bugsOut, 0, 100000), bugsCleared: int(f.bugsCleared, 0, 100000), damageTaken: num(f.damageTaken, 0, 1e6, 1),
+  bossSeconds: f.bossSeconds == null ? null : num(f.bossSeconds, 0, 100000, 1), nightShare: num(f.nightShare, 0, 1, 2), bossShare: num(f.bossShare, 0, 1, 2),
+};
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
   ...omitNull({ perf: perf(d.perf), settings: settings(d.settings) }),
   jelly: jellyOf(d.jelly), upgrades: wordList(d.upgrades), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
+  ...omitNull({ score: scoreFacts(d.score) }),
   killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
     ? { unit: word(d.killedBy.unit) || 'unknown', source: word(d.killedBy.source) || 'other' } : null,
 });

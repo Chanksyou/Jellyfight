@@ -58,6 +58,7 @@ import './stories/layout-editor.js';
 import './stories/main-menu.js';
 import './stories/come-back.js';
 import './stories/payoff.js';
+import './stories/score.js';
 import './stories/act2.js';
 import './stories/act2-bosses.js';
 import './stories/every-attack.js';
