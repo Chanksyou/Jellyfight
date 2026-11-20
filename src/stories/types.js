@@ -566,7 +566,7 @@ story('types/pick-side-card-shader', {
       stub(gfx, 'quality', 'medium');
       const card = (id) => picker.auras[picker.ids.indexOf(id)];
       const fire = card('fire'), storm = card('lightning');
-      const flatId = picker.ids.find((id) => !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a kind still drawn in 2D (while any is)
+      const flatId = [picker.index - 1, picker.index + 1].map((k) => picker.ids[k]).find((id) => id && !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a neighbour still drawn in 2D (while any is)
       // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader;
       // Lightning (the next card) comes alive beside it
       for (let i = 0; i < 400 && !(fire.classList.contains('lit') && storm.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
@@ -606,6 +606,34 @@ story('types/pick-side-card-frost', {
       const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
       const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
       return ok(lit && corners > open + 40, { lit, corners: Math.round(corners), open: Math.round(open) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-bubbles', {
+  about: 'Normal\'s card (aura="bubbles", pick-auras/bubbles.js) is painted by its shader, with no 2D drawing left: glassy bubbles rise through the water and the picture moves from one frame to the next.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('normal');
+      stub(picker, 'live', null);   // no live centre card: the Normal card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('normal')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.bubbles === true && P.has('bubbles') && !AURAS.bubbles;
+      // (a few small reads of the card's own 2D canvas, once: the same patch of it a few frames on)
+      const S = card.width, ctx = card.getContext('2d');
+      const grab = () => ctx.getImageData(0, 0, S, S).data;
+      const before = grab();
+      for (let i = 0; i < 20; i++) { picker.auraAt = -1; tick(); }
+      const after = grab();
+      let changed = 0;
+      for (let k = 0; k < before.length; k += 16) changed += Math.abs(before[k] - after[k]) > 6;
+      const moves = changed / (before.length / 16) > 0.02;
+      return ok(lit && moves, { lit, moves, changed: Math.round(1000 * changed / (before.length / 16)) / 1000 });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
