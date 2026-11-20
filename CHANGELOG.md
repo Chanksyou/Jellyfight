@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v570 gives the reward spin its sounds: a lever clunk, soft ticks that slow with each reel, and a thunk as every reel lands, higher for rarer cards.
+
 v569 makes act 4's Headphones, Mushroom Pillow and Singing Bowl hit harder and faster (more waves, rings and bursts, shorter windups, bigger hits), and its Firefly, Moth and Cicada more dangerous (Firefly hovers higher and lobs sooner, Moth plunges quicker for 5, Cicada's mound races after you and warns for one beat); the Headphones' angry waves no longer drop when bursts come every beat.
 
 v568 gives the Encore's DJs sounds for leaving the booth: a whoosh and crowd rise as they vault out, a thud on landing, the same home, a deeper floor slam for the gold DJ, and a shove under the duet's Wall of sound.
