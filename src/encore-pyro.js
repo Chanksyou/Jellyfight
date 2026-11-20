@@ -44,6 +44,7 @@ export class EncorePyro {
     this.w = LOOK.num('encore-pyro-lane', 0.24);
     this.lanes = Math.max(2, Math.round((HALF * 2) / this.w));
     this.warnGlow = LOOK.num('encore-pyro-warning', 0.6); this.laneGlow = LOOK.num('encore-pyro-volume', 0.3);
+    this.warnEarly = LOOK.num('encore-pyro-warning-early', 0.15);   // of that, how much a Warning shows as it starts: the set firing next reads brightest
     this.beat = null; this.casts = [];
     // when each lane's flames last burst (beats; null: none), for the flames and the scorch under them
     this.burnAt = new Array(this.lanes).fill(null); this.base = new Array(this.lanes).fill(0);   // (base: the soot already there when a lane burns again)
@@ -107,7 +108,8 @@ export class EncorePyro {
     this.draw(beat);
   }
 
-  // its Warning: a strip and volume per lane, filling over `warn` beats to the beat it fires
+  // its Warning: a strip and volume per lane, filling over `warn` beats to the beat it fires and
+  // brightening as it fills, so with two sets warning the one firing next stands out
   warnStep(c, beat) {
     const progress = Math.min(1, Math.max(0, (beat - c.warnAt) / (c.fire - c.warnAt)));
     for (const l of c.lanes) {
@@ -117,7 +119,8 @@ export class EncorePyro {
       w.lane.position.set(this.laneX(l), 0, LIP); w.lane.scale.set(this.w, c.height, c.reach);
       w.band.material.progress = w.lane.material.progress = progress;
       w.band.material.uniforms.uTime.value = beat;
-      w.band.material.opacity = this.warnGlow; w.lane.material.opacity = this.laneGlow;
+      const k = this.warnEarly + (1 - this.warnEarly) * progress * progress;   // two sets warn at once: the nearer one is the brighter
+      w.band.material.opacity = this.warnGlow * k; w.lane.material.opacity = this.laneGlow * k;
     }
   }
   freeWarning(l, c) { const w = this.warnings[l]; if (w.cast === c) { w.band.visible = w.lane.visible = false; w.cast = null; } }
