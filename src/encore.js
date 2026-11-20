@@ -11,12 +11,13 @@
 //   BOW · EXPOSED; the first bow and the first standing record before a wall each get a hint, once ever
 //   (first-run.js EncoreHints).
 // In set 1 to 3, every 16 bars from the end of the warm-up one DJ solos (slot, solo): for 4 bars a spotlight is on him
-// and his wing lit his colour, the lasers rest and the other DJ plays a wave every 8 beats, while he
-// plays his solo attack (the silver DJ's Record toss, encore-records.js). Then he bows (bosses.kdl
+// and his wing lit his colour, the lasers rest and the other DJ plays a wave every 8 beats (none in a duet), while he
+// plays his solo attack (the silver DJ's Record toss, encore-records.js; the gold DJ's Pyro, encore-pyro.js). Then he bows (bosses.kdl
 // `solo`): for 2 bars, or 4 if no hit reached the jelly during his solo, the Encore is EXPOSED and
 // hits on it do 1.5x. The song's breakdown bows both DJs, exposed too. In the duet (bosses.kdl `wall`)
 // both DJs are lit and the floor rests: the silver DJ throws three records, the whole floor fills as a
-// Warning but for a strip behind each, the wall rolls, and both bow, exposed.
+// Warning but for a strip behind each, the wall rolls, and both bow, exposed. The speaker pulse that
+// used to play in every set is gone (E5): the Wall of sound replaced it.
 // Its stage edge shocks a jelly that touches it (encore-contact.js).
 // It opens behind a force field (bosses.kdl start `guard`) that hits bounce off. Otherwise your attacks
 // hurt it like any boss (its hit sphere is in front of the booth, clear of the stage's collider), and
