@@ -172,7 +172,7 @@ const leave = () => { nav.reload = () => location.replace(location.pathname); go
 const LINKS = [['Act 1', '', 'act1'], ['Act 3', '&act=3', 'act3'], ['Act 4', '&act=4', 'night4'], ['Encore', '&act=4&scene=2', 'arena']];
 
 // a story page never sends (it has no Worker to answer, and no business filling the table)
-const sendable = () => !['story', 'stories'].some((k) => new URLSearchParams(location.search).has(k));
+export const sendable = (search = location.search) => !['story', 'stories'].some((k) => new URLSearchParams(search).has(k));
 
 // The results: a small table, Copy results (JSON), Send and Back to the game
 export function showResults(res) {
