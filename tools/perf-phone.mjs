@@ -2,25 +2,107 @@
 // jelly-phone-performance workflow (.claude/skills/jelly-phone-performance/SKILL.md):
 // draw calls and triangles across all passes (gfx.frameInfo), shader programs (at startup and any
 // built during the moment), lights, the JS time a frame's game step and render call take under a 4x
-// CPU slowdown, and what the frames allocate (V8 sampling heap profiler, collected objects included).
+// CPU slowdown, what the frames allocate (V8 sampling heap profiler, collected objects included),
+// how often a frame uploads to the GPU (texSubImage2D, texImage2D, bufferSubData, bufferData: median
+// calls a frame) and a count of the scene (materials by type, see-through ones, batches, lights,
+// textures). With --profile, a CDP CPU profile of the same frames: the 30 functions with the most
+// self time and the time by file, in ms a frame.
 //
 //   node tools/perf-phone.mjs                       every act, Medium and Low
 //   node tools/perf-phone.mjs --tiers=medium        one tier
 //   node tools/perf-phone.mjs --only=night4,arena   some pages (act1, act3, night4, arena)
-//   node tools/perf-phone.mjs --json=out.json       also write the numbers as JSON
+//   node tools/perf-phone.mjs --profile             also profile the CPU (top 30 functions, time by file)
+//   node tools/perf-phone.mjs --json=out.json       also write everything as JSON (counts, uploads, scene, profile)
 //
 // Headless Chromium draws with SwiftShader (software WebGL): counts are real, times are not a
-// phone's. A phone's frame rate needs the game's own Diagnostics readout on the device.
+// phone's. A phone's own frame times come from the phone bench (index.html?bench, src/bench.js), which
+// plays the same moments (src/bench-moments.js).
 import fs from 'node:fs';
 import { start, openGame } from '../tests/lib.mjs';
 import { PAGES, MOMENTS } from '../src/bench-moments.js';
 
 const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
 const TIERS = arg('tiers', 'medium,low').split(','), ONLY = arg('only', '').split(',').filter(Boolean), JSON_OUT = arg('json', '');
-const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4);
+const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4), PROFILE = args.includes('--profile');
 
 // The moments, and the pages they play in, are shared with the phone bench (src/bench-moments.js): each
 // sets its moment up in the page with the story kit; the frames after it are measured.
+
+// Counts what the scene holds, from what the camera could draw (shown, on its layers).
+function census() {
+  const r = APT.renderer, gl = r.getContext(), types = {}, lights = {}, seen = new Set(), texSeen = new Set();
+  let shown = 0, transparent = 0, doubleSidedTwoPass = 0, batches = 0, batchInstances = 0, instanced = 0, texBytes = 0;
+  const on = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  APT.scene.traverse((o) => {
+    if (o.isLight) { if (on(o)) lights[o.type] = (lights[o.type] || 0) + 1; return; }
+    if (!(o.isMesh || o.isPoints || o.isLine) || !on(o) || !o.layers.test(APT.camera.layers)) return;
+    shown++;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      types[m.type] = (types[m.type] || 0) + 1;
+      seen.add(m);
+      if (m.transparent) { transparent++; if (m.side === THREE.DoubleSide && !m.forceSinglePass) doubleSidedTwoPass++; }
+      for (const k in m) {
+        const t = m[k];
+        if (t && t.isTexture && t.image && !texSeen.has(t)) { texSeen.add(t); texBytes += (t.image.width || 0) * (t.image.height || 0) * (t.image.depth || 1) * 4 * (t.generateMipmaps ? 1.33 : 1); }
+      }
+    }
+    if (o.isBatchedMesh) { batches++; batchInstances += o.instanceCount; }
+    if (o.isInstancedMesh) instanced++;
+  });
+  return {
+    shownObjects: shown, materialsByType: types, uniqueMaterials: seen.size, transparent, doubleSidedWithoutSinglePass: doubleSidedTwoPass,
+    batches, batchInstances, instanced, lights, textures: texSeen.size, textureMBEstimate: +(texBytes / 1048576).toFixed(1),
+    multiDraw: !!gl.getExtension('WEBGL_multi_draw'), pixelRatio: r.getPixelRatio(), canvas: [r.domElement.width, r.domElement.height],
+  };
+}
+
+// Runs a second sample of frames (the game has moved on a few seconds from the first, so uploads, profile and scene describe a slightly later state) with the GL upload calls wrapped (and the CPU profiler on, with --profile).
+async function uploadsAndProfile(page, cdp) {
+  await page.evaluate(() => {
+    const gl = APT.renderer.getContext(), c = window.__uploads = { names: ['texSubImage2D', 'texImage2D', 'bufferSubData', 'bufferData'], frame: {}, perFrame: {} };
+    for (const n of c.names) {
+      c.frame[n] = 0; c.perFrame[n] = [];
+      const orig = gl[n].bind(gl);
+      gl[n] = (...a) => { c.frame[n]++; return orig(...a); };
+    }
+    window.__flushUploads = () => { for (const n of c.names) { c.perFrame[n].push(c.frame[n]); c.frame[n] = 0; } };
+  });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+  if (PROFILE) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
+  const uploads = await page.evaluate((N) => {
+    const yaw0 = tpc.yaw, gl = APT.renderer.getContext(), c = window.__uploads, out = {};
+    try {
+      for (let i = 0; i < N; i++) { tpc.yaw = yaw0 + (i / N) * Math.PI * 2; GAME.step(1 / 60); GAME.render(); window.__flushUploads(); }
+      for (const n of c.names) {
+        const s = [...c.perFrame[n]].sort((a, b) => a - b);
+        out[n] = { median: s[Math.floor(s.length / 2)], max: s[s.length - 1] };
+      }
+    } finally {
+      for (const n of c.names) delete gl[n];   // the prototype's own method again
+      delete window.__uploads; delete window.__flushUploads;
+    }
+    return out;
+  }, FRAMES);
+  let profile = null;
+  if (PROFILE) {
+    const p = (await cdp.send('Profiler.stop')).profile;
+    await cdp.send('Profiler.disable');
+    const nodes = new Map(p.nodes.map((n) => [n.id, n])), self = new Map(), files = new Map();
+    let software = 0;   // (program) is the time the software GL spends drawing, (idle) and (root) are not work: neither is a phone's, so they stay out of the table
+    for (let i = 0; i < p.samples.length; i++) {
+      const f = nodes.get(p.samples[i]).callFrame;
+      if (/^\((program|idle|root)\)$/.test(f.functionName)) { if (f.functionName === '(program)') software += p.timeDeltas[i] / 1000 / FRAMES; continue; }
+      const file = f.url.replace(/^.*\/src\//, 'src/').replace(/^.*\/vendor\//, 'vendor/').replace(/^.*\/(three\.[\w.]+\.js)/, '$1') || '(native)';
+      const k = `${f.functionName || '(anon)'} ${file}:${f.lineNumber + 1}`, dt = p.timeDeltas[i] / 1000 / FRAMES;
+      self.set(k, (self.get(k) || 0) + dt); files.set(file, (files.get(file) || 0) + dt);
+    }
+    const top = (m, n) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ at: k, msPerFrame: +v.toFixed(2) }));
+    profile = { totalMsPerFrame: +[...files.values()].reduce((a, b) => a + b, 0).toFixed(2), nativeNonScriptMsPerFrame: +software.toFixed(1), topFunctions: top(self, 30), byFile: top(files, 20) };
+  }
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  return { uploads, profile };
+}
+
 async function measure(env, pageKey, tier) {
   const { page } = await openGame(env, { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, ...PAGES[pageKey], seed: 1 });
   // the tier is a stored choice (graphics.js); switching rebuilds behind the menu, so store it and reload
@@ -71,8 +153,19 @@ async function measure(env, pageKey, tier) {
     m.allocKBPerFrame = +(total / FRAMES / 1024).toFixed(1);
     m.topAlloc = [...sites].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${(v / FRAMES / 1024).toFixed(2)} KB/f ${k}`);
     m.programsBuiltInSetup = pre - base.programs;
+    const extra = await uploadsAndProfile(page, cdp);
+    m.uploadsPerFrame = extra.uploads;
+    if (extra.profile) m.profile = extra.profile;
+    m.scene = await page.evaluate(`(${census})()`);
     out.moments[name] = m;
     console.log(`${pageKey} ${tier} | ${name}: draws ${m.calls.median}/${m.calls.max}, tris ${m.triangles.max}, step ${m.stepMs.median}/${m.stepMs.p95} ms, alloc ${m.allocKBPerFrame} KB/f, programs +${m.programsBuiltInSetup} setup +${m.programsBuiltDuring} during, lights ${m.lights}`);
+    const u = m.uploadsPerFrame, sc = m.scene;
+    console.log(`  uploads/frame (median): texSub ${u.texSubImage2D.median}, tex ${u.texImage2D.median}, bufSub ${u.bufferSubData.median}, buf ${u.bufferData.median} | scene: ${sc.shownObjects} shown, ${sc.uniqueMaterials} materials, ${sc.transparent} see-through (${sc.doubleSidedWithoutSinglePass} two-pass), ${sc.batches} batches/${sc.batchInstances} pieces, ~${sc.textureMBEstimate} MB textures`);
+    if (m.profile) {
+      console.log(`  CPU profile at ${THROTTLE}x, ms a frame: ${m.profile.totalMsPerFrame} of script and calls (${m.profile.nativeNonScriptMsPerFrame} of native non-script time, mostly software GL, left out). Top functions:`);
+      for (const f of m.profile.topFunctions) console.log(`    ${String(f.msPerFrame).padStart(6)}  ${f.at}`);
+      console.log('  By file: ' + m.profile.byFile.map((f) => `${f.at} ${f.msPerFrame}`).join(', '));
+    }
   }
   await page.close();
   return out;
