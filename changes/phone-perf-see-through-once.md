@@ -1,0 +1,1 @@
+draws glass, window shades, bug wings, the jelly's oral arms and the additive glow pieces once instead of twice, a little less work on a phone's processor each frame (no change to how they look, except sheer curtains, which keep two passes).

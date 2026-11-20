@@ -79,7 +79,7 @@ export class Fx {
       return [k, m];
     }));
     // shockwave rings glow (additive, unlit): they're how an area attack shows its reach
-    this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }));
+    this.ringMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending, toneMapped: false }));
     // the combat visual language (vfx.js): every glow is one point in one draw call, and every
     // projectile a white-hot core (instanced) inside one of them
     this.glow = new GlowPoints(scene);

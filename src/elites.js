@@ -700,7 +700,7 @@ export class Elites {
     this._beadDir = new THREE.Vector3(); this._beadAt = new THREE.Vector3();
     this.rings = [];         // and its rings rolling out (the clock's chimes, the Singing Bowl's rim rings)
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
-    this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true });
     this.ringMats = {};      // the ring walls' bands, one per hostile colour (all one program: ringMat's)
     this.bandGeo = new THREE.RingGeometry(0.5, 1, 64, 1).rotateX(-Math.PI / 2);   // a thick band (ring()): each copy's inner edge moves
     this._probe = new THREE.Vector3(); this._ringAt = new THREE.Vector3(); this._glowAt = new THREE.Vector3();   // scratch for the rings

@@ -961,7 +961,7 @@ export class Enemies {
       const color = hostile('dragonfly');
       this.whirlMats = {
         blade: new THREE.MeshBasicMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.6), transparent: true, opacity: LOOK.num('whirl-blade-opacity', 1), side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
-        blur: new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.6), transparent: true, opacity: LOOK.num('whirl-blur-opacity', 0.1), side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+        blur: new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.6), transparent: true, opacity: LOOK.num('whirl-blur-opacity', 0.1), side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
       };
       this.whirls = [];
     }
