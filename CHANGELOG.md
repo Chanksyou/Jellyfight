@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v562 sets the Elites' and bosses' final Health: Act 2 Elites 800 each, the Vacuum 1200, the Great White One 8000, Act 3 Elites 1800 each and Act 4 Elites 3200 each.
+
 v561 three of a kind: when every level-up card or chest Treasure on offer shares a rarity, one of them goes up a rarity (three Commons make a Rare, three Rares an Epic, three Epic Treasures a Legendary; three Epic level-up cards stay Epic). Adds the reward spin's reels and odds behind the scenes, nothing on screen yet.
 
 v560 moves the Encore's duet, the Wall of sound, onto the floor: both DJs vault out of the booth together and land side by side at the stage front, the one target between them (the booth can't be hit meanwhile). The silver DJ throws his three records from there while the gold DJ points at each landing spot, both push the wall out as it rolls, then bow on their marks and vault home. The duet is a bar longer (its Warning is still 2 bars), no record lands by the DJs, and a duet that is called off sends them home with no bow.
