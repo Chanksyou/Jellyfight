@@ -1,1 +1,0 @@
-gives the Encore's new moves their own sounds: a record scratched, thrown, stuck and shattered, the gold DJ's fader crank and flame jets, a riser and a crack for the Wall of sound, a breath out as a DJ bows and a cheer for a clean solo.

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v553 gives the Encore's new moves their own sounds: a record scratched, thrown, stuck and shattered, the gold DJ's fader crank and flame jets, a riser and a crack for the Wall of sound, a breath out as a DJ bows and a cheer for a clean solo.
+
 v552 gives the Encore's attacks a feel pass: a club laser flashes at its corner post as it fires, the disco ball's spots blaze magenta and the ball flares as they strike, every Encore hit leaves a fading scorch under the jelly, the stage edge's shock crackles, and with two Pyro sets warning at once the lanes firing next show brightest.
 
 v551 adds the Encore's last song at a quarter of its Health: waves two at a time and the DJs solo back to back, then a duet, with a toast. The boss bar names the solo, the duet and the bow, the first bow and the first standing record before a wall get a one-time hint, and the shorts-out toast now shows.
