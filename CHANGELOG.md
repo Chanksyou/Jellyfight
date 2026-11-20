@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v554 tidies the Encore after a whole-fight review: the wall's riser stops when its Warning is cut short, the breakdown's bow breathes out like a solo's, and a standing record's push can no longer feed on itself and freeze the game.
+
 v553 gives the Encore's new moves their own sounds: a record scratched, thrown, stuck and shattered, the gold DJ's fader crank and flame jets, a riser and a crack for the Wall of sound, a breath out as a DJ bows and a cheer for a clean solo.
 
 v552 gives the Encore's attacks a feel pass: a club laser flashes at its corner post as it fires, the disco ball's spots blaze magenta and the ball flares as they strike, every Encore hit leaves a fading scorch under the jelly, the stage edge's shock crackles, and with two Pyro sets warning at once the lanes firing next show brightest.
