@@ -69,7 +69,7 @@ story('spin/reels-land-on-the-offer', {
     const lstrips = buildStrips(cards, (rng) => run.rollLevelUp(1, rng), { cells: lcells, seed: 12 });
     const lands = (ss, o, n) => ss.length === o.length && ss.every((s, i) => s.length === n + 2 && s[n] === o[i]);
     const neighbours = [...strips, ...lstrips].every((s) => s.every((c, i) => i === 0 || !sameCards([c], [s[i - 1]])));
-    return ok(lands(strips, offer, cells) && lands(lstrips, cards, lcells) && neighbours && cells === 16 && lcells === 10, { cells, lcells, neighbours });
+    return ok(lands(strips, offer, cells) && lands(lstrips, cards, lcells) && neighbours && cells === 19 && lcells === 12, { cells, lcells, neighbours });
   },
 });
 
@@ -143,7 +143,7 @@ story('spin/times-wait-on-rare-reels', {
     const c = (id) => ({ rarity: RARITY.find((r) => r.id === id) });
     const plain = spinTimes('levelup', [c('common'), c('common'), c('rare')]);
     const rare = spinTimes('treasure', [{ rarity: 'common' }, { rarity: 'epic' }, { rarity: 'common' }, { rarity: 'legendary' }]);
-    return ok(String(plain.stops) === '500,700,900' && plain.hold === 300 && String(rare.stops) === '900,1500,1850,2450' && rare.hold === 450 && rare.lever > 0, { plain, rare });
+    return ok(String(plain.stops) === '1000,1400,1800' && plain.hold === 600 && String(rare.stops) === '1800,3000,3700,4900' && rare.hold === 900 && rare.lever > 0, { plain, rare });
   },
 });
 

@@ -71,14 +71,14 @@
    lever (a 4th reel keeps the last step), the hold before the cards, and the extra wait on a reel
    landing Epic or Legendary (it and every reel after it) */
 :root {
-  --spin-cells-treasure: 16;
-  --spin-cells-levelup: 10;
+  --spin-cells-treasure: 19;
+  --spin-cells-levelup: 12;
   --spin-lever: 250ms;
-  --spin-stops-treasure: 900ms 1250ms 1600ms;
-  --spin-stops-levelup: 500ms 700ms 900ms;
-  --spin-hold-treasure: 450ms;
-  --spin-hold-levelup: 300ms;
-  --spin-rare-wait: 250ms;
+  --spin-stops-treasure: 1800ms 2500ms 3200ms;
+  --spin-stops-levelup: 1000ms 1400ms 1800ms;
+  --spin-hold-treasure: 900ms;
+  --spin-hold-levelup: 600ms;
+  --spin-rare-wait: 500ms;
   /* the machine (src/spin-screen.js) */
   --spin-cell: clamp(64px, calc(15.5vh + 14px), 112px);   /* a reel's row: 74 px on a phone held sideways, 112 on a desktop */
   --spin-reel: 2.05;           /* a reel's width, in rows (2.05 rows wide) */
