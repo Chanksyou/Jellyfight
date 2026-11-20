@@ -197,14 +197,14 @@ export class Adornments {
         const m = mists.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
         if (m && T) { T.tip.getWorldPosition(m.position); Object.assign(m.userData, { t: 0, dx: (Math.random() - 0.5) * 0.015, dz: (Math.random() - 0.5) * 0.015 }); m.visible = true; }
       }
-      const life = LOOK.num('frost-mist-life', 1), sink = LOOK.num('frost-mist-sink', 0.05), size = LOOK.num('frost-mist-size', 0.0038), floor = this.player.position.y + 0.002;
+      const life = LOOK.num('frost-mist-life', 1), sink = LOOK.num('frost-mist-sink', 0.05), size = LOOK.num('frost-mist-size', 0.0038), core = size * LOOK.num('frost-mist-core', 0.4), floor = this.player.position.y + 0.002;
       for (const m of mists) {
         if (!m.visible) continue;
         const u = (m.userData.t += dt) / life;
         if (u >= 1 || !on) { m.visible = false; continue; }
         m.position.x += m.userData.dx * dt; m.position.z += m.userData.dz * dt;
         m.position.y = Math.max(floor, m.position.y - sink / life * dt);
-        m.scale.setScalar(size * LOOK.num('frost-mist-core', 0.4) * (0.6 + u * 0.8));   // a small core: the soft glow round it is the mist
+        m.scale.setScalar(core * (0.6 + u * 0.8));   // a small core: the soft glow round it is the mist
         G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
       }
     } };
