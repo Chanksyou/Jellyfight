@@ -23,20 +23,20 @@ act4('the-encore-fight-starts-straight-away', {
 });
 
 act4('loading-music-cannot-disable-its-attacks', {
-  about: 'A recording that never finishes loading cannot stop the Encore: its opening shield expires, floor waves and lasers fire, then speakers and (in set 2) disco strikes join in.',
+  about: 'A recording that never finishes loading cannot stop the Encore: its opening shield expires, floor waves and lasers fire, then (in set 2) disco strikes join in.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false });
     stub(B, 'song', { beat: () => null });
     B.hp = B.maxHp * 0.7;   // set 2, so its disco ball visits
-    let floor = 0, laser = 0, disco = 0, pulse = false;
+    let floor = 0, laser = 0, disco = 0;
     for (const [system, method, count] of [[B.floor, 'cast', () => floor++], [B.lasers, 'cast', () => laser++], [B.disco, 'strike', () => disco++]]) {
       const real = system[method];
       stub(system, method, function (...args) { count(); return real.apply(this, args); });
     }
-    step(60 * 70, () => { pulse ||= B.pulses.live.length > 0; });
-    return ok(!B.shielded && floor > 10 && laser > 10 && pulse && disco > 0,
-      { shielded: B.shielded, beat: B.beat, floor, laser, pulse, disco });
+    step(60 * 70);
+    return ok(!B.shielded && floor > 10 && laser > 10 && disco > 0,
+      { shielded: B.shielded, beat: B.beat, floor, laser, disco });
   },
 });
 
@@ -74,7 +74,7 @@ act4('restarting-music-reschedules-the-set', {
 });
 
 act4('music-recovery-never-releases-an-unwarned-attack', {
-  about: 'Recovering music in the last instant of a disco cycle skips that stale strike and any in-flight speaker pulse; later attacks resume with their full warning/travel.',
+  about: 'Recovering music in the last instant of a disco cycle skips that stale strike; later attacks resume with their full warning/travel.',
   setup() {},
   play() {
     const B = encoreFight({ hurt: false });
@@ -85,11 +85,10 @@ act4('music-recovery-never-releases-an-unwarned-attack', {
     const strike = B.disco.strike;
     stub(B.disco, 'strike', function (c, player, skip) { if (!skip) strikes++; return strike.call(this, c, player, skip); });
     beat = 167.9; step(1);
-    const noOldPulse = B.pulses.live.length === 0;
     step(20, () => { beat += 128 / 60 / 60; });
     const noStaleStrike = strikes === 0;
     step(60 * 16, () => { beat += 128 / 60 / 60; });
-    return ok(noOldPulse && noStaleStrike && strikes > 0, { noOldPulse, noStaleStrike, strikes });
+    return ok(noStaleStrike && strikes > 0, { noStaleStrike, strikes });
   },
 });
 

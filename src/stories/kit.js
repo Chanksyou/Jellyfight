@@ -508,15 +508,18 @@ export const EVERY_ATTACK = {
   4: {
     // the Encore (encore.js): every attack on its song's beat, each proven by its own encore/* story.
     // Floor waves have no Warning by decision (you watch the wave come: docs/adr/0001); a laser's
-    // Warning is its faint floor line, a disco spot's its flash; the speaker waves only shove; the
-    // stage edge is a hazard
+    // Warning is its faint floor line, a disco spot's its flash; the stage edge is a hazard
     // The silver DJ's records: a floor strip and the lane over it, from a solo booked on the next bar but one
-    encore: { floor: { is: 'none' }, laser: { is: 'none' }, pulse: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' },
+    // The duet's Wall of sound: the floor strip and the slab over it (and a white strip behind the record),
+    // behind one record booked to land on the next bar but one
+    encore: { floor: { is: 'none' }, laser: { is: 'none' }, disco: { is: 'none' }, contact: { is: 'hazard' },
       records: { is: 'volume', scene: 2, start: () => { const B = G().run.boss; B.slot('silver', Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4); },
         during: () => G().run.boss.records.casts.some((c) => c.warn), end: () => G().run.boss.stopActs() },
       // the gold DJ's flame lanes: from the second bar of a solo, each lane's floor strip and its volume
       pyro: { is: 'volume', scene: 2, start: () => { const B = G().run.boss; B.slot('gold', Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4); },
-        during: () => G().run.boss.pyro.warnings.some((w) => w.band.visible), end: () => G().run.boss.stopActs() } },
+        during: () => G().run.boss.pyro.warnings.some((w) => w.band.visible), end: () => G().run.boss.stopActs() },
+      wall: { is: 'volume', scene: 2, start: () => { const B = G().run.boss, at = Math.ceil((B.beat ?? B.clock) / 4) * 4 + 4; B.wall.cast(at, at + 8, [B.records.cast(at, { from: () => B.hand('silver'), target: () => B.jellyAt(), stand: 99, face: 0 })]); },
+        during: () => G().run.boss.wall.w?.state === 'warn', end: () => G().run.boss.stopActs() } },
     // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line
     sun: { light: { is: 'hazard' } },
     // the room's bass wave (bass-wave.js): a floor strip and its volume over the bar before it goes. Only
