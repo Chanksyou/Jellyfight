@@ -120,8 +120,9 @@ export function applyCard(stats, card) {
   stats.bubbles = Math.min(MAX_BUBBLES, stats.bubbles);
 }
 
-function pickWeighted(list, w) {
-  let r = Math.random() * list.reduce((s, x) => s + w(x), 0);
+// rng: the dice (Math.random in play; the reward spin passes its own so filler never moves a roll)
+function pickWeighted(list, w, rng = Math.random) {
+  let r = rng() * list.reduce((s, x) => s + w(x), 0);
   for (const x of list) if ((r -= w(x)) <= 0) return x;
   return list[list.length - 1];
 }
@@ -142,21 +143,33 @@ export const cardsNotFor = (attack) => (attack ? Object.keys(CONTENT.levelups.ca
 // now: the stats you have with treasures (what a `toward` card's gain is measured from)
 // skip: stats whose cards would do nothing now (health-to-shield: Health and Health regen)
 // A card the dev editor has removed isn't offered (content.js REMOVED).
-export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip = []) {
+export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip = [], rng = Math.random) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
   const capped = (k) => CARD_FLAGS[k]?.toward <= (now[k] || 0);   // treasures alone filled it (five Odd Socks)
   const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !capped(k) && !skip.includes(k) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
-    const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1);
+    const stat = pickWeighted(pool, (s) => cardDef(s).weight ?? 1, rng);
     pool.splice(pool.indexOf(stat), 1);
-    const rarity = pickWeighted(tiers, (r) => w[tiers.indexOf(r)]);
+    const rarity = pickWeighted(tiers, (r) => w[tiers.indexOf(r)], rng);
     let ri = Math.min(RARITY.length - 1, tiers.indexOf(rarity) + bonus);
     while (cardDef(stat).amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
     cards.push({ stat, rarity: RARITY[ri], amount: cardAmount(stat, cardDef(stat).amounts[ri], now[stat] || 0) });
   }
   return cards;
+}
+
+// Three of a kind (Chan, Nov 20): when every offered card (3, or 4 with the Notebook) shares a
+// rarity, one at random goes up one: same stat, the next tier's amount, marked upgraded. Epic is
+// the top level-up tier, so three Epics stay. now: as rollCards. Draws nothing unless they match.
+export function threeOfAKind(cards, now = {}, rng = Math.random) {
+  const ri = RARITY.findIndex((r) => r.id === cards[0]?.rarity.id);
+  if (cards.length < 3 || ri >= RARITY.length - 1 || cards.some((c) => c.rarity.id !== RARITY[ri].id)) return cards;
+  const i = Math.floor(rng() * cards.length), c = cards[i];
+  const out = [...cards];
+  out[i] = { ...c, rarity: RARITY[ri + 1], amount: cardAmount(c.stat, cardDef(c.stat).amounts[ri + 1], now[c.stat] || 0), upgraded: true };
+  return out;
 }
 
 // XP needed to go from `level` to the next one: base x growth^(level-1), from
@@ -167,14 +180,27 @@ export const xpToNext = (level) => Math.round(CONTENT.levelups.xp.base * CONTENT
 // still in the pool, then one treasure of that rarity
 // favor(t): how much likelier than usual t is (1 = as usual); a tier's chance is its rarity
 // weight, shared across what's left in it, so with every favor at 1 this is the plain roll
-export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1) {
+export function rollTreasures(pool, n = 3, luck = 0, favor = () => 1, rng = Math.random) {
   const left = [...pool], out = [], w = luckWeights(TREASURE_RARITY, luck);
   while (out.length < n && left.length) {
     const inTier = (t) => left.filter((o) => o.rarity === t.rarity).length;
-    const t = pickWeighted(left, (o) => w[TREASURE_TIER[o.rarity]] / inTier(o) * favor(o));
+    const t = pickWeighted(left, (o) => w[TREASURE_TIER[o.rarity]] / inTier(o) * favor(o), rng);
     left.splice(left.indexOf(t), 1);
     out.push(t);
   }
+  return out;
+}
+
+// Three of a kind for Treasures: when every offered Treasure shares a rarity below Legendary, one
+// slot at random becomes a Treasure of the next rarity from pool (what the player could take now)
+// that isn't already offered, marked upgraded; none left, no change.
+export function threeOfAKindTreasures(offer, pool, rng = Math.random) {
+  const ti = TREASURE_TIER[offer[0]?.rarity];
+  if (offer.length < 3 || ti >= TREASURE_RARITY.length - 1 || offer.some((t) => t.rarity !== offer[0].rarity)) return offer;
+  const next = pool.filter((t) => TREASURE_TIER[t.rarity] === ti + 1 && !offer.some((o) => o.id === t.id));
+  if (!next.length) return offer;
+  const out = [...offer];
+  out[Math.floor(rng() * out.length)] = { ...next[Math.floor(rng() * next.length)], upgraded: true };
   return out;
 }
 

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { addForceField, showForceField } from './forcefield.js';
 import { startingJelly, jellyStats, jellyAttack, typeLock, openTypes } from './jelly-types.js';
-import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
+import { BASE_STATS, cardsNotFor, rollCards, rollTreasures, threeOfAKind, threeOfAKindTreasures, treasureTier, applyCard, xpToNext, TREASURES, EVOLUTIONS, MAX_BUBBLES, MAX_DODGE, MAX_TENTACLES, STAT_INFO, CHEST_WEIGHTS, RARITY } from './stats.js';
 import { inPoly } from './hud.js';
 import { STAGES, forgetRun, goToAct, keepAct, keepRun } from './stages.js';
 import { Vacuum } from './vacuum.js';
@@ -1344,8 +1344,7 @@ export class Run {
     if (this.mods.nightLight) this.gadgets.plugIn(this.player.position, this.mods.nightLight);   // night-light: one plugged in where you are
     // the cards on offer are still owed if the page goes before one is picked (keepProgress): the
     // same ones come back, so a reload isn't a free reroll
-    const skip = [...(this.mods.shield.fromHealth ? ['health', 'regen'] : []), ...cardsNotFor(this.attack?.kind)];
-    const roll = () => rollCards(this.stats, 3 + this.mods.cardChoices, this.mods.cardRarity, this.S.luck, this.S, skip);
+    const roll = () => threeOfAKind(this.rollLevelUp(), this.S);
     this.cardsOnOffer = this.owedCards.shift() || roll();
     this.choosingCard = true;
     sfx.levelUp();
@@ -1364,6 +1363,25 @@ export class Run {
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect());
   }
 
+  // The level-up roll: n cards as a level-up offers them (rng: the reward spin's own dice for its
+  // reel filler, which must never move the real roll)
+  rollLevelUp(n = 3 + this.mods.cardChoices, rng = Math.random) {
+    const skip = [...(this.mods.shield.fromHealth ? ['health', 'regen'] : []), ...cardsNotFor(this.attack?.kind)];
+    return rollCards(this.stats, n, this.mods.cardRarity, this.S.luck, this.S, skip, rng);
+  }
+
+  // A Treasure the player could take now (unique ones not owned, stackable ones below stack=N)
+  takeable(t) { return this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t) && !(t.heals && this.mods.shield.fromHealth); }   // heals=: no use at 1 max Health (Pot Lid)
+
+  // A chest's roll: n Treasures it can hold, at its source's rarity weights (CHEST_WEIGHTS) and
+  // your Luck; rng as rollLevelUp above
+  rollChest(source = 'room', n = 3, rng = Math.random) {
+    const weights = CHEST_WEIGHTS[source];
+    // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
+    const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
+    return rollTreasures(TREASURES.filter((t) => weights[t.rarity] > 0 && this.takeable(t)), n, this.S.luck, favor, rng);
+  }
+
   resume() {
     if (!this.ui.open || this.ui.closing) this.onResume?.();
   }
@@ -1378,13 +1396,9 @@ export class Run {
   // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
   pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room') {
-    const weights = CHEST_WEIGHTS[source];
-    // rollTreasures already supports a weight multiplier; cancel its base weights, retaining Luck.
-    const favor = (t) => weights[t.rarity] / treasureTier(t).weight;
-    const takeable = (t) => this.owned.count(t.id) < t.stack && (!t.needs || this.owned.has(t.needs)) && this.hasStat(t) && this.forAttack(t) && !(t.heals && this.mods.shield.fromHealth);   // heals=: no use at 1 max Health (Pot Lid)
-    const can = (t) => weights[t.rarity] > 0 && takeable(t);
     this.chestsOpened++;
-    let left = shuffle(rollTreasures(TREASURES.filter(can), 3, this.S.luck, favor));
+    // three of a kind: one goes up a rarity, from anything takeable (chest weight or not)
+    let left = shuffle(threeOfAKindTreasures(this.rollChest(source), TREASURES.filter((t) => this.takeable(t))));
     if (!left.length) return;
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {

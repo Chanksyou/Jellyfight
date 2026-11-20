@@ -93,11 +93,13 @@ story('treasures/wind-blade', {
   },
 });
 story('treasures/rarity-by-source', {
-  about: 'At 0 Luck, ordinary room options roll 60/30/8/2 and elite options 40/40/15/5 across Common/Rare/Epic/Legendary. Luck still lifts rarer tiers.',
+  about: 'At 0 Luck, ordinary room options roll 60/30/8/2 and elite options 40/40/15/5 across Common/Rare/Epic/Legendary (the roll, before three of a kind). Luck still lifts rarer tiers.',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G(), seen = { room: {}, elite: {} };let src = 'room';
-    stub(run, 'offer', (t, s, list) => { for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; });
+    stub(run, 'offer', () => {});
+    const roll = run.rollChest.bind(run);
+    stub(run, 'rollChest', (source, ...a) => { const list = roll(source, ...a); for (const c of list) seen[src][c.rarity] = (seen[src][c.rarity] || 0) + 1; return list; });
     run.stats.luck = 0;stub(Math, 'random', seededRandom(41023));
     for (src of ['room', 'elite']) for (let i = 0; i < 1600; i++) { run.chestsOpened = 0; run.pickTreasure('', '', src); }
     const rates = { room: { ...seen.room }, elite: { ...seen.elite } }, expected = { room: { common: .6, rare: .3, epic: .08, legendary: .02 }, elite: { common: .4, rare: .4, epic: .15, legendary: .05 } };
@@ -108,12 +110,12 @@ story('treasures/rarity-by-source', {
   },
 });
 story('treasures/chest-rolls-have-no-minimum-rarity', {
-  about: 'Either source can offer three Common treasures; no old Rare/Epic guarantee replaces the final option.',
+  about: 'Either source can roll three Common treasures; no old Rare/Epic guarantee replaces the final option (three of a kind then makes one of them Rare).',
   setup() { setupFight({ lash: false }); },
   play() {
     const { run } = G();let list = [];const allCommon = {};
-    stub(run, 'offer', (t, s, l) => { list = l; });stub(Math, 'random', seededRandom(125833));run.stats.luck = 0;
-    for (const source of ['room', 'elite']) for (let i = 0; i < 200; i++) {run.chestsOpened = 0;run.pickTreasure('', '', source);allCommon[source] ||= list.length === 3 && list.every(c => c.rarity === 'common');}
+    stub(Math, 'random', seededRandom(125833));run.stats.luck = 0;
+    for (const source of ['room', 'elite']) for (let i = 0; i < 200; i++) {list = run.rollChest(source);allCommon[source] ||= list.length === 3 && list.every(c => c.rarity === 'common');}
     restore();return ok(allCommon.room && allCommon.elite, { allCommon });
   },
 });

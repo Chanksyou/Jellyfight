@@ -29,8 +29,8 @@ export const STAGE3 = {
   // tougher again than act 2 (stage2.js says what each one is): 3x the bugs' health, 2x every hit
   // you take, 1.4x the XP
   toughness: 3,
-  eliteHp: 2.4,                       // the Alligator's, the Bull's and the Coffer's Health: 500 x 2.4 = 1200
-  bossHp: 1.6,                        // the shark's Health: 6000 x 1.6 = 9600
+  eliteHp: 2.25,                      // the Alligator's, the Bull's and the Coffer's Health: 800 x 2.25 = 1800
+  bossHp: 1.6,                        // the shark's Health: 5000 x 1.6 = 8000
   power: 2,
   bugs: 0.7,                        // 18% fewer regular spawns than before; at most 14 alive
   xpMult: 1.4,

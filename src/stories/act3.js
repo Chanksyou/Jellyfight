@@ -340,8 +340,8 @@ for(const source of ['bite','eruption','pool','tornado','fish','bleed'])for(cons
     const stopped=response==='kill'?B.dying&&!B.pools.length&&!B.tornadoes.length&&!B.shots.length&&!B.warning:B.stunT>0&&B.phase==='rest'&&!B.warning;
     return ok(answered&&stopped,{answered,stopped,phase:B.phase,pools:B.pools.length,shots:B.shots.length});},
 });
-act3('shark-health-fourfold',{
-  about:'The shark has four times its previous Health: 6000 base and 9600 after Act 3 scaling.',setup(){},play(){const B=sharkFight();return ok(CONTENT.bosses.shark.hp===6000&&B.maxHp===9600&&B.hp===B.maxHp&&B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{base:CONTENT.bosses.shark.hp,hp:B.hp,maxHp:B.maxHp});},
+act3('shark-health',{
+  about:'The shark has 8000 Health in Act 3: 5000 base and 8000 after Act 3 scaling.',setup(){},play(){const B=sharkFight();return ok(CONTENT.bosses.shark.hp===5000&&B.maxHp===8000&&B.hp===B.maxHp&&B.maxHp===CONTENT.bosses.shark.hp*STAGES[2].bossHp,{base:CONTENT.bosses.shark.hp,hp:B.hp,maxHp:B.maxHp});},
 });
 act3('shark-force-field-is-invisible-and-the-camera-stays-level',{
   about:'The bed arena\'s force field is invisible (look.css --boss-force-field 0) but still solid and still rises with the fight: with the jelly backed against each wall and the camera facing out past it, the camera keeps the fight view\'s own angle and distance (it doesn\'t tip up), so it may stand behind the field, and no field is ever drawn.',
@@ -510,4 +510,11 @@ act3('shark-illusion-goes-when-the-shark-is-beaten',{
   about:'Beating the shark takes its illusion and every hazard it left with it.',setup(){},
   play(){const {B,I}=illusionFight({hurt:false});I.pool(I.position);B.damage(B.hp+1);step(2);
     return ok(I.dead&&!I.holder.visible&&!I.pools.length&&!I.warning,{dead:I.dead,pools:I.pools.length});},
+});
+act3('final-health-by-act',{
+  about:'The Elites and bosses end up with their set Health after each act\'s scaling: Act 2 Elites 800, the Vacuum 1200, the Great White One 8000, Act 3 Elites 1800, Act 4 Elites 3200.',setup(){},
+  play(){const E=CONTENT.elites,B=CONTENT.bosses,eh=(id,act)=>Math.round(E[id].hp*STAGES[act-1].eliteHp);
+    const got={soap:eh('soap',2),clock:eh('clock',2),whipper:eh('whipper',2),vacuum:B.vacuum.hp,shark:Math.round(B.shark.hp*STAGES[2].bossHp),croc:eh('croc',3),bull:eh('bull',3),coffer:eh('coffer',3),bowl:eh('bowl',4),pillow:eh('pillow',4),headphones:eh('headphones',4)};
+    const want={soap:800,clock:800,whipper:800,vacuum:1200,shark:8000,croc:1800,bull:1800,coffer:1800,bowl:3200,pillow:3200,headphones:3200};
+    return ok(JSON.stringify(got)===JSON.stringify(want),got);},
 });
