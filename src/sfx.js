@@ -636,8 +636,16 @@ export const sfx = {
   recordStick() { if (!ready() || !gap('recordStick', 80)) return; const j = jitter(0.06); tone('square', 320 * j, 110 * j, 0.06, 0.06); noise(4200 * j, 1, 0.05, 0.06, 'highpass'); tone('sine', 140 * j, 70 * j, 0.12, 0.08); },
   // a record breaking: bright shards pattering down
   recordShatter() { if (!ready() || !gap('recordShatter', 60)) return; const j = jitter(0.06); noise(6500 * j, 1, 0.26, 0.18, 'highpass'); tone('triangle', 3000 * j, 900 * j, 0.14, 0.05); patter(6, 0.03, 0.25, 0.03); },
-  // the gold DJ cranking his fader: a rising ratchet of clicks
-  faderCrank() { if (!ready() || !gap('faderCrank', 300)) return; const j = jitter(0.05); tone('sawtooth', 90 * j, 260 * j, 0.5, 0.04); for (let k = 0; k < 6; k++) noise(3500 * j, 4, 0.02, 0.05, 'bandpass', k * 0.07); },
+  // a DJ vaulting off the booth or back (B6): a short rising whoosh of air
+  vaultWhoosh() { if (!ready() || !gap('vaultWhoosh', 120)) return; const j = jitter(0.08); noise(500 * j, 0.8, 0.5, 0.05, 'bandpass', 0, 2600); tone('sine', 220 * j, 420 * j, 0.3, 0.012); },
+  // a DJ landing on the floor or back in the booth, on the bar line: low and short
+  landThud() { if (!ready() || !gap('landThud', 120)) return; const j = jitter(0.05); tone('sine', 110 * j, 48 * j, 0.14, 0.1); noise(420 * j, 0.8, 0.07, 0.05, 'lowpass'); },
+  // the crowd rising as a DJ is in the air, over `dur` s
+  crowdRise(dur = 1) { if (!ready() || !gap('crowdRise', 400)) return; const d = Math.min(3, Math.max(0.3, dur)); noise(900, 0.6, d, 0.04, 'bandpass', 0, 2200); patter(8, 0.05, d * 0.8, 0.012); },
+  // the gold DJ slamming his hands on the floor: a hard knock over a boom
+  floorSlam() { if (!ready() || !gap('floorSlam', 300)) return; const j = jitter(0.05); tone('sine', 95 * j, 40 * j, 0.28, 0.11); noise(2600 * j, 1, 0.05, 0.07, 'highpass'); noise(380 * j, 0.8, 0.2, 0.06, 'lowpass'); },
+  // both DJs shoving the Wall of sound out (the duet's roll beat): a deep push under the wall's own whomp
+  wallShove() { if (!ready() || !gap('wallShove', 300)) return; const j = jitter(0.05); tone('sine', 70 * j, 38 * j, 0.4, 0.08); noise(300 * j, 0.7, 0.35, 0.05, 'lowpass', 0, 120); },
   // a flame jet along its lanes: a roar with a crackle
   flameJet() { if (!ready() || !gap('flameJet', 120)) return; const j = jitter(0.08); noise(1400 * j, 0.8, 0.45, 0.07, 'bandpass', 0, 500); noise(400, 0.7, 0.4, 0.09, 'lowpass'); patter(5, 0.05, 0.3, 0.03); },
   // the Wall of sound's Warning filling: a sub riser over `dur` s, dropping away as the wall goes

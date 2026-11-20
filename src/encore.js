@@ -270,7 +270,7 @@ export class Encore {
     }
     if (S.who === 'gold' && !S.slammed && beat >= S.at + 2) {
       S.slammed = true;
-      if (beat < S.at + 3) { sfx.faderCrank(); this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6); juice.feel('hit'); }   // (B6 gives the slam its own sound)
+      if (beat < S.at + 3) { sfx.floorSlam(); this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6); juice.feel('hit'); }
     }
     // the duet: both DJs throw their hands up as the wall's Warning fills, held till they bow
     if (S.warnAt != null && !S.bowing && beat >= S.warnAt) for (const d of DJS) M.perform(d, 'hands-up', S.warnAt + 1, 1, Math.max(0, S.end - S.warnAt - 3.5));
@@ -296,9 +296,20 @@ export class Encore {
   // his records clear of him, and in his bow's last beats crouches and vaults home, landing as it ends.
   // The duet: both, each to his own mark; the gold DJ faces and points at where each record will land,
   // and from the wall's Warning both face down the floor
+  // the sounds of a floor solo, each once on its beat and never late (a rewind or a late booking skips it):
+  // a whoosh as he takes off, the crowd up for the 2 beats in the air, the thud on landing; home again the
+  // same whoosh and thud; a duet's push on its roll beat
+  floorSounds(S, beat, air) {
+    const heard = (S.heard ||= {}), once = (k, at, play) => { if (!heard[k] && beat >= at) { heard[k] = 1; if (beat < at + 1) play(); } };
+    once('off', S.off, () => { sfx.vaultWhoosh(); sfx.crowdRise(air * 60 / TRACKS.encore.bpm); });
+    once('down', S.at, () => sfx.landThud());
+    if (S.bowEnd !== null) { once('back', S.bowEnd - air, () => sfx.vaultWhoosh()); once('home', S.bowEnd, () => sfx.landThud()); }
+    if (S.bowAt > S.end) once('push', S.end, () => sfx.wallShove());
+  }
   floorStep(S, beat) {
     const M = this.arenaView.boss, F = this.def.skills.floor || {}, air = F.air ?? 2, crouch = F.crouch ?? 2, djs = SOLOISTS[S.who];
     const home = S.bowEnd !== null && beat >= S.bowEnd - air - crouch, next = this.records.casts.find((c) => c.state === 'wind'), aim = this.records.casts.find((c) => c.state === 'wind' || c.state === 'fly');
+    this.floorSounds(S, beat, air);
     for (const who of djs) {
       if (!home) {
         if (beat < S.at - 0.3) { if (beat >= S.off - crouch) M.perform(who, 'vault', S.off, 1, Math.max(0, S.at - S.off - 0.5)); }

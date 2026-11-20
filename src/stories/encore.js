@@ -1448,7 +1448,7 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
 });
 
 // ---- the sounds of the new moves (sfx.js): each on its moment, never before the beat it belongs to
-const CUES = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'faderCrank', 'flameJet', 'wallSwell', 'wallShield', 'encoreWall', 'bowExhale', 'crowdCheer'];
+const CUES = ['recordScratch', 'recordThrow', 'recordStick', 'recordShatter', 'floorSlam', 'flameJet', 'vaultWhoosh', 'landThud', 'crowdRise', 'wallShove', 'wallSwell', 'wallShield', 'encoreWall', 'bowExhale', 'crowdCheer'];
 // every cue called from now on: { cue: [[beat, ...args]] } (`now()` says the beat)
 function cueBeats(now) {
   const out = Object.fromEntries(CUES.map((c) => [c, []]));
@@ -1477,14 +1477,31 @@ fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
 });
 
 fight('the-golds-crank-and-flames-have-their-sounds-on-the-beat', {
-  about: 'In a gold solo the floor slam sounds once (for now as the fader crank does: B6 gives it its own sound), on its beat in the first bar (two beats before the first set), then a flame jet sounds on each of the 12 sets, on the beat it fires.',
+  about: 'In a gold solo the floor slam sounds once (its own sound), on its beat in the first bar (two beats before the first set), then a flame jet sounds on each of the 12 sets, on the beat it fires.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
     stub(B, 'hurtPlayer', () => {});
     go(34); slot('gold', 40); go(60);
-    const crank = near(cues.faderCrank, [42]), jets = near(cues.flameJet, Array.from({ length: 12 }, (_, i) => 44 + i));
-    return ok(crank && jets, { crank: cues.faderCrank, jets: cues.flameJet.map(([b]) => +b.toFixed(2)) });
+    const crank = near(cues.floorSlam, [42]), jets = near(cues.flameJet, Array.from({ length: 12 }, (_, i) => 44 + i));
+    return ok(crank && jets, { crank: cues.floorSlam, jets: cues.flameJet.map(([b]) => +b.toFixed(2)) });
+  },
+});
+
+fight('a-dj-vaulting-out-and-home-has-its-sounds-on-the-beat', {
+  about: 'On the floor a DJ\'s take-off whooshes and the crowd rises for the 2 beats in the air (out only, once for a duet), he lands with a thud on the bar line, and the vault home whooshes and thuds on its beats; the duet\'s wall shove sounds on its roll beat, once. A solo booked with its take-off already past makes no late whoosh.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const kind of ['silver', 'duet']) {
+      const { B, go, slot } = soloFight(), cues = cueBeats(() => B.beat);
+      stub(B, 'hurtPlayer', () => {});
+      go(34); slot(kind, 40); go(76);
+      const S = kind === 'duet' ? { off: 38, end: 60, bowEnd: 68 } : { off: 38, end: 56, bowEnd: 72 };
+      out[kind] = { ok: near(cues.vaultWhoosh, [S.off, S.bowEnd - 2]) && near(cues.landThud, [40, S.bowEnd]) && near(cues.crowdRise, [S.off]) && Math.abs(cues.crowdRise[0]?.[1] * BPM / 60 - 2) < 1e-6 && near(cues.wallShove, kind === 'duet' ? [S.end] : []),
+        whoosh: cues.vaultWhoosh.map(([b]) => +b.toFixed(2)), thud: cues.landThud.map(([b]) => +b.toFixed(2)), rise: cues.crowdRise, shove: cues.wallShove.map(([b]) => +b.toFixed(2)) };
+    }
+    return ok(out.silver.ok && out.duet.ok, out);
   },
 });
 
