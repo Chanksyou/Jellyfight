@@ -46,7 +46,8 @@ export class EncorePyro {
     this.warnGlow = LOOK.num('encore-pyro-warning', 0.6); this.laneGlow = LOOK.num('encore-pyro-volume', 0.3);
     this.beat = null; this.casts = [];
     // when each lane's flames last burst (beats; null: none), for the flames and the scorch under them
-    this.burnAt = new Array(this.lanes).fill(null); this.at = { height: 0.35, reach: 0.48, burn: 0.5, scorch: 8 };
+    this.burnAt = new Array(this.lanes).fill(null); this.base = new Array(this.lanes).fill(0);   // (base: the soot already there when a lane burns again)
+     this.at = { height: 0.35, reach: 0.48, burn: 0.5, scorch: 8 };
     const n = this.lanes;
     this.flames = new THREE.InstancedMesh(flameGeometry(color), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: LOOK.num('encore-flame-opacity', 0.8) }), n);
     this.scorch = new THREE.InstancedMesh(scorchGeometry(n), new THREE.MeshBasicMaterial({ color: LOOK.color('encore-scorch', '#1a1410'), transparent: true, depthWrite: false, opacity: LOOK.num('encore-scorch-opacity', 0.55), polygonOffset: true, polygonOffsetFactor: -1 }), n);
@@ -94,6 +95,7 @@ export class EncorePyro {
       c.fired = true; moved = true;
       this.at.height = c.height; this.at.reach = c.reach; this.at.burn = c.burn; this.at.scorch = c.scorch;
       for (const l of c.lanes) {
+        this.base[l] = this.burnAt[l] === null ? 0 : this.scorch.geometry.attributes.fade.getX(l);
         this.burnAt[l] = c.fire; this.freeWarning(l, c);
         if (!skip) { _p.set(this.laneX(l), 0.02, LIP + c.reach * 0.2); this.fx.impact(_p, this.color, 0.03, 8); }
       }
@@ -130,10 +132,10 @@ export class EncorePyro {
       const t = beat - t0, s = t / burn;
       if (t > scorch) { this.burnAt[l] = null; this.flames.setMatrixAt(l, _m.makeScale(0, 0, 0)); this.scorch.setMatrixAt(l, _m.makeScale(0, 0, 0)); fade.setX(l, 0); any = true; continue; }
       // the burst: up fast, then down; it flickers as it burns
-      const h = s >= 1 ? 0 : height * (s < 0.2 ? s / 0.2 : 1 - (s - 0.2) / 0.8), f = 1 + 0.08 * Math.sin(beat * 40 + l * 2);
+      const h = s >= 1 ? 0 : height * (s < 0.2 ? 0.3 + 0.7 * s / 0.2 : 1 - (s - 0.2) / 0.8), f = 1 + 0.08 * Math.sin(beat * 40 + l * 2);
       this.flames.setMatrixAt(l, _m.compose(_p.set(this.laneX(l), 0, LIP + reach / 2), _q.identity(), _s.set(this.w * 0.9 * f, Math.max(0, h), reach * 0.95 * f)));
       this.scorch.setMatrixAt(l, _m.compose(_p.set(this.laneX(l), 0.002, LIP + reach / 2), _q.identity(), _s.set(this.w * 0.9, 1, reach * 0.95)));
-      fade.setX(l, Math.min(1, t / 0.25) * Math.max(0, 1 - t / scorch));
+      fade.setX(l, Math.max(this.base[l], Math.min(1, t / 0.25)) * Math.max(0, 1 - t / scorch));
       any = true;
     }
     if (any) { this.flames.instanceMatrix.needsUpdate = this.scorch.instanceMatrix.needsUpdate = fade.needsUpdate = true; }
