@@ -2,7 +2,10 @@
 // its 12 Attack upgrades (content/upgrades.kdl) and the words they brought (nth-attack bolt, charged-shot,
 // touch-zap, orb, zap target and look, and new props on element-up).
 // Shared helpers are in ./kit.js; src/stories.js imports this file in order.
+import * as THREE from 'three';
 import { LOOK } from '../look.js';
+import { juice } from '../juice.js';
+import { AttackPreview } from '../attack-preview.js';
 import { PLAYER } from '../events.js';
 import { CONTENT, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
@@ -343,11 +346,35 @@ story('attack/lightning-bolt-holds-its-channel', {
     const held = holds.every((p) => p.distanceTo(holds[0]) < 1e-9);
     L.frame(); L.tickBolts(LOOK.num('bolt-hold', 0.05));
     const restruck = L.path[8].distanceTo(holds[0]) > 1e-6;
-    const forked = L.fork[8].distanceTo(L.fork[0]) > 0.01;
+    const forked = L.fork[4].distanceTo(L.fork[0]) > 0.01;   // in play a 4-kink fork
     stub(fx, 'showcase', true);
     const forks = spy(L, 'channel'); L.tickBolts(0.001);
     const two = forks.length === 3;   // the bolt and two forks on the pick screen
     L.clearBolts();
     return ok(same && differs && pinned && held && restruck && forked && two, { same, differs, pinned, held, restruck, forked, channels: forks.length });
+  },
+});
+
+story('attack/lightning-preview-stun-twitches', {
+  setup() { setupFight({ bubbles: false, lash: false }); },
+  about: 'On the pick screen\'s centre card a stunned roach twitches where it stands, with small arcs jumping across it (--preview-stun-twitch); it settles when the stun ends, and with Reduce effects it never twitches or sparks.',
+  play() {
+    const strikes = [], P = { enemies: { center: (b, out) => out.copy(b.pos) }, bubbles: { looks: { strike: () => strikes.push(1) } } };
+    const mesh = new THREE.Group();
+    const bug = { pos: V(0, 0, 0), vel: V(0, 0, 0), push: V(0, 0, 0), home: V(0, 0, 0), mesh, r: 0.02, pop: 0, flashT: 0, stunT: 0.5 };
+    const frame = (dt) => AttackPreview.prototype.roachFrame.call({ P }, bug, dt);
+    const calm = juice.calm;
+    try {
+      juice.calm = false;
+      let moved = 0;
+      for (let i = 0; i < 20; i++) { frame(1 / 30); moved = Math.max(moved, Math.abs(mesh.rotation.z) + Math.abs(mesh.rotation.x)); }
+      const twitched = moved > 0.01, sparked = strikes.length > 0;
+      for (let i = 0; i < 10; i++) frame(1 / 30);
+      const settled = bug.stunT === 0 && mesh.rotation.z === 0 && mesh.rotation.x === 0;
+      juice.calm = true; bug.stunT = 0.5; strikes.length = 0;
+      for (let i = 0; i < 10; i++) frame(1 / 30);
+      const still = mesh.rotation.z === 0 && mesh.rotation.x === 0 && strikes.length === 0;
+      return ok(twitched && sparked && settled && still, { moved, sparks: strikes.length, twitched, sparked, settled, still });
+    } finally { juice.calm = calm; }
   },
 });

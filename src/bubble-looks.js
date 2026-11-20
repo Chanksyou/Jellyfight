@@ -185,7 +185,7 @@ export class BubbleLooks {
     this.fork = Array.from({ length: 9 }, () => new THREE.Vector3());
     this.L = {
       core: C(LOOK.color('bolt-core', '#fffbe8')), halo: C(LOOK.color('bolt-halo', '#ffd21a')), flash: C(LOOK.color('bolt-flash', '#fff6c8')),
-      life: LOOK.num('bolt-life', 0.2), hold: LOOK.num('bolt-hold', 0.05), width: LOOK.num('bolt-width', 0.005), jag: LOOK.num('bolt-jag', 0.22), most: LOOK.num('bolt-most', 12),
+      life: LOOK.num('bolt-life', 0.2), hold: Math.max(0.01, LOOK.num('bolt-hold', 0.05)), width: LOOK.num('bolt-width', 0.005), jag: LOOK.num('bolt-jag', 0.22), most: LOOK.num('bolt-most', 12),
     };
   }
 
@@ -437,7 +437,7 @@ export class BubbleLooks {
       for (let f = 0; f < (this.fx.showcase ? 2 : 1); f++) {
         const at = P[3 + ((s.seed >> (f * 3)) % (n - 7))], len = s.a.distanceTo(s.b) * (0.25 + 0.1 * f);
         _d.subVectors(s.b, s.a).normalize().add(_v.set(Math.sin(s.seed + f * 2.1), Math.cos(s.seed * 1.7 + f), Math.sin(s.seed * 0.7 + f * 4.3)).multiplyScalar(0.9)).normalize();
-        const m = this.jagged(at, _a.copy(at).addScaledVector(_d, len), L.jag * 1.3, s.seed + stroke * 7919 + 101 * (f + 1), this.fork, 8);
+        const m = this.jagged(at, _a.copy(at).addScaledVector(_d, len), L.jag * 1.3, s.seed + stroke * 7919 + 101 * (f + 1), this.fork, this.fx.showcase ? 8 : 4);   // in play a 4-kink fork: fewer beads a frame
         this.channel(this.fork, m, s.w * 0.6, flick * 0.85, 0);
       }
     }
