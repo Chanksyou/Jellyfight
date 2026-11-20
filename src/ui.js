@@ -181,9 +181,13 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-board-tabs::-webkit-scrollbar { display: none; }
 .jf-board-tabs > button { flex: none; padding: 0 var(--ui-space-3); font-size: var(--ui-size-body); }
 .jf-board .jf-season { margin-left: var(--ui-space-2); vertical-align: middle; }
+.jf-board.jf-tabbed { display: flex; flex-direction: column; overflow: hidden; }
+.jf-board.jf-tabbed .jf-board-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.jf-board.jf-tabbed .btns { flex: none; }
+.jf-board .jf-sec { grid-column: 1 / -1; font: 700 var(--ui-size-label)/1.3 var(--ui-font-text); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-gold); }
 .jf-board-body.jf-fade { animation: ui-fade-in var(--ui-mid) var(--ui-ease-settle) both; }
-.jf-champs .jf-type-ic { font-style: normal; font-size: 1.3em; flex: none; width: 1.4em; text-align: center; }
-.jf-champs .jf-jelly { width: var(--board-champion-jelly-size, 56px); height: var(--board-champion-jelly-size, 56px); }
+.jf-champs .jf-type-ic, .jf-past .jf-type-ic { font-style: normal; font-size: 1.3em; flex: none; width: 1.4em; text-align: center; }
+.jf-champs .jf-jelly, .jf-past .jf-jelly { width: var(--board-champion-jelly-size, 56px); height: var(--board-champion-jelly-size, 56px); }
 .jf-champs .jf-nobody, .jf-champs .jf-none { color: var(--ui-ink-dim); }
 @media (min-width: 640px) { .jf-champs .jf-stats { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; column-gap: var(--ui-space-4); } }
 .jf-score { font-size: 1.5em; color: var(--ui-gold); }
@@ -221,8 +225,12 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
   .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
   .jf-board .jf-stats > b { font-size: 17px; }
   .jf-board .jf-jelly { width: var(--board-jelly-size-phone, 56px); height: var(--board-jelly-size-phone, 56px); }
-  .jf-champs .jf-jelly { width: var(--board-champion-jelly-size-phone, 44px); height: var(--board-champion-jelly-size-phone, 44px); }
+  .jf-champs .jf-jelly, .jf-past .jf-jelly { width: var(--board-champion-jelly-size-phone, 44px); height: var(--board-champion-jelly-size-phone, 44px); }
   .jf-champs .jf-stats { gap: 4px 12px; }
+  .jf-board.jf-tabbed { padding: var(--ui-space-3) var(--ui-space-4); }
+  .jf-board.jf-tabbed .ui-header { margin-bottom: var(--ui-space-1); }
+  .jf-board.jf-tabbed .btns { margin-top: var(--ui-space-2); }
+  .jf-board.jf-tabbed .jf-board-body .sub { margin: 0 0 var(--ui-space-1); }
   .jf-pop { top: 12%; padding: var(--ui-space-2) var(--ui-space-3); }
   .jf-award .face { width: 120px; height: 120px; margin: 2px 0 4px; }
   .jf-award .face img { width: 100px; height: 100px; }
@@ -543,11 +551,11 @@ export class UI {
   }
 
   // The leaderboard with a tab for each board (run.showBoard, on the game's own site): tabs [{ id, label, name? }]
-  // (name: what a screen reader says for an icon-only tab), buttons as in message(). The tab strip stays put while
+  // (name: what a screen reader says for an icon-only tab), buttons as in message(); season: the chip by the title (none without it). The tab strip stays put while
   // boardBody() swaps what is under it.
   board({ title, season, tabs, active, buttons, onTab }) {
     this._gen++;
-    this.modal.innerHTML = `<div class="ui-panel jf-panel jf-board jf-tabbed"><div class="ui-header"><h2>${bare(title)} <span class="ui-chip jf-season">Season ${season}</span></h2></div>
+    this.modal.innerHTML = `<div class="ui-panel jf-panel jf-board jf-tabbed"><div class="ui-header"><h2>${bare(title)}${season ? ` <span class="ui-chip jf-season">Season ${season}</span>` : ''}</h2></div>
       <div class="ui-seg jf-board-tabs" role="group" aria-label="Boards">${tabs.map((t) => `<button data-tab="${esc(t.id)}" aria-pressed="${t.id === active}"${t.name ? ` aria-label="${esc(t.name)}" title="${esc(t.name)}"` : ''}>${t.label}</button>`).join('')}</div>
       <div class="jf-board-body"></div>
       <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`).join('')}</div></div>`;

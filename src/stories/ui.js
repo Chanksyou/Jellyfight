@@ -4,7 +4,7 @@ import { story, G, fresh, ok, step, offs } from './kit.js';
 import { icon, ICON_NAMES } from '../icons.js';
 import { juice } from '../juice.js';
 import * as benchMod from '../bench.js';
-import { fixture, fakeWorker, webBoard } from './board.js';
+import { fixture, pastFixture, fakeWorker, webBoard } from './board.js';
 
 // --- every piece of the kit on one sheet (index.html?story=ui/kit)
 export function kitSheet() {
@@ -141,6 +141,7 @@ const boardOpen = (tab, pin = false) => {
   if (pin) boards.ice = { ...boards.ice, top: Array.from({ length: 10 }, (_, i) => ({ ...boards.ice.top[i % 5], name: 'Jelly ' + i, at: i, id: undefined, score: 57000 - i * 900 })), mine: { ...boards.ice.mine, score: 9100, won: false, acts: 2, clean: 0, place: 14 } };
   boardWorker = fakeWorker(boards); run.realBoard = run.board; run.board = webBoard(boards); run.showBoard(() => {}, tab);
 };
+const pastOpen = () => { const { run } = G(), boards = { ...fixture(), ...pastFixture() }; boardWorker = fakeWorker(boards); run.realBoard = run.board; run.board = webBoard(boards); run.board.season = 2; run.showPast(() => {}, 'champions'); };
 const boardClose = () => { const { run } = G(); run.board.onChange = null; run.ui.close(); run.board = run.realBoard; boardWorker?.restore(); };
 const spinClose = () => { const { menus } = G(); menus.close(); menus.spinOn = false; };
 export const SCREENS = {
@@ -163,6 +164,7 @@ export const SCREENS = {
   achievements: { open() { G().run.showAchievements(() => {}); }, close() { G().run.ui.close(); } },
   leaderboard: { open() { G().run.showBoard(() => {}); }, close() { G().run.board.onChange = null; G().run.ui.close(); } },
   'leaderboard-champions': { open() { boardOpen('champions'); }, close: boardClose },
+  'leaderboard-past': { open: pastOpen, close: boardClose },
   'leaderboard-type': { open() { boardOpen('ice', true); }, close: boardClose },
   'change-look': { open() { over().hidden = false; over().querySelector('[data-act="creator"]').click(); }, close() { document.querySelector('#creator [data-act="done"]').click(); over().hidden = true; } },
   'act-complete': { open() { const { run } = G(); run.devRun(); run.actComplete({ id: 2, subtitle: 'the bathroom' }); }, close() { G().run.ui.close(); } },

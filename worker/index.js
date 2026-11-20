@@ -5,6 +5,8 @@
 //   GET  /api/scores?tab=champions|all|<jelly>&me=<id>   this season's board (`board`): { season, tab, top: [...], mine: {..., place} | null }
 //                              champions: the best row of each jelly type (mine null); all: each player's best row of any
 //                              type, top 10; a jelly type: that type's top 10. No tab = all. Ties: the earlier run first
+//   GET  /api/scores?season=N&tab=champions|all   a past season (N below the current one), read-only: its Champions, or the top 3 of All;
+//                              any other tab reads as all; mine is null
 //   POST /api/scores           { id, run, season, name, body, look, score, level, kills, time, won, build, jelly }
 //                              (run: the run log's id; the Worker scores that run itself from its logged acts
 //                              (src/score.js actScore over each act's details.score) and the score must match it,
@@ -169,12 +171,16 @@ const best = (per) => `SELECT ${ROW} FROM (SELECT *, ROW_NUMBER() OVER (PARTITIO
 const placed = (rows) => `SELECT r.*, (SELECT COUNT(*) FROM (${rows}) b WHERE b.score > r.score OR (b.score = r.score AND b.at < r.at)) + 1 AS place
   FROM (${rows}) r WHERE r.id = ?`;
 export const tabOf = (v) => TABS.includes(v) ? v : v ? jellyOf(v) : 'all';
-async function top(db, me, tab = 'all', season = SEASON) {
+// A past season (1 to SEASON - 1) is read-only: Champions, or the top 3 of All (task: docs/agents/seasons.md)
+export const seasonOf = (v, now = SEASON) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n < now ? n : now; };
+export async function top(db, me, tab = 'all', season = SEASON, now = SEASON) {
   me = me && ID.test(me) ? me : '';
+  const past = season !== now;
+  if (past && tab !== 'champions') tab = 'all';
   const rows = tab === 'champions' ? best('jelly') : tab === 'all' ? best('id') : `SELECT ${ROW} FROM board WHERE season = ? AND jelly = ?`;
   const args = tab === 'champions' || tab === 'all' ? [season] : [season, tab];
   const [list, mine] = await db.batch([
-    db.prepare(`${rows} ORDER BY score DESC, at ASC LIMIT ${tab === 'champions' ? 16 : 10}`).bind(...args),
+    db.prepare(`${rows} ORDER BY score DESC, at ASC LIMIT ${tab === 'champions' ? 16 : past ? 3 : 10}`).bind(...args),
     db.prepare(tab === 'champions' ? 'SELECT 1 WHERE 0' : placed(rows)).bind(...(tab === 'champions' ? [] : [...args, ...args, me])),
   ]);
   // only your own id comes back: an id is all it takes to post as that player
@@ -511,7 +517,7 @@ export default {
         if (request.method === 'POST') return await postAchievements(request, env);
         return json({ error: 'method' }, 405);
       }
-      if (request.method === 'GET') return json(await top(env.DB, url.searchParams.get('me'), tabOf(url.searchParams.get('tab'))));
+      if (request.method === 'GET') return json(await top(env.DB, url.searchParams.get('me'), tabOf(url.searchParams.get('tab')), seasonOf(url.searchParams.get('season'))));
       if (request.method === 'POST') return await post(request, env);
       return json({ error: 'method' }, 405);
     } catch (e) {

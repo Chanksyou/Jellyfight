@@ -21,6 +21,7 @@ export class Leaderboard {
     this.mine = null;        // your entry on the board (on the game's own site: your best run of any jelly type)
     this.tabs = new Map();   // the game's own site: tab ('champions', 'all', a jelly type) -> { top, mine, visit }, as the Worker answered
     this.pending = new Map();// tab -> { visit, read }: the read of it now under way
+    this.past = new Map();   // season -> { champions, all } rows, read once a visit (past seasons never change)
     this.failed = new Set(); // tabs whose last read failed and that have nothing to show
     this.visit = 0;          // bumped when the board is opened or a run posts: a tab read before that is read again
     this.season = null;      // the season the Worker is on
@@ -254,6 +255,45 @@ export class Leaderboard {
     const i = this.shown().findIndex((r) => r.id === this.id); return i < 0 ? null : i + 1;
   }
 
+  // The pieces of a board row: who (name and second line), pic (their jelly), score
+  lines(face, name, tab) {
+    const second = (r, withType) => esc([withType ? name(r.jelly) : null, r.won ? 'Won' : `Reached act ${r.acts || 1}`, tab !== 'champions' && r.clean > 0 ? `${r.clean} ${r.clean === 1 ? 'act' : 'acts'} untouched` : null].filter(Boolean).join(' · '));
+    const who = (r, withType) => `<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}<small class="jf-sub">${second(r, withType)}</small></span>`;
+    const pic = (r) => (face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : '');
+    const score = (r) => `${Number(r.score).toLocaleString()}${r.won ? ` ${icon('trophy', 'Won')}` : ''}`;
+    return { who, pic, score };
+  }
+
+  // A past season (read-only, never changes): its Champions and the top 3 of All, or null when a read failed
+  async loadPast(n) {
+    if (!this.past.has(n)) {
+      const get = async (tab) => {
+        try {
+          const r = await fetch(`${API}?season=${n}&tab=${tab}&me=${encodeURIComponent(this.id)}`, { cache: 'no-store' });
+          const d = r.ok && await r.json();
+          return Array.isArray(d?.top) ? d.top : null;
+        } catch { return null; }
+      };
+      const [champions, all] = await Promise.all([get('champions'), get('all')]);
+      if (champions && all) this.past.set(n, { champions, all });
+    }
+    return this.past.get(n) || null;
+  }
+
+  // What to draw for one past season (data from loadPast, or null while it is read / when it failed): { note, rows, cls }
+  pastView(n, data, { face, types }) {
+    const name = (id) => types.find((t) => t.id === id)?.name || 'Jelly';
+    if (data === undefined) return { note: 'Loading the leaderboard…', rows: [], cls: '' };
+    if (!data) return { note: 'Couldn\'t load this season. Tap its tab to try again.', rows: [], cls: '' };
+    const { who, pic, score } = this.lines(face, name, 'champions');
+    const head = (t) => [`<b class="jf-sec">${t}</b>`, ''];
+    const champs = types.map((t) => [t, data.champions.find((r) => r.jelly === t.id)]).filter(([, r]) => r)
+      .map(([t, r]) => [`<i class="jf-type-ic" aria-hidden="true">${t.icon}</i>${pic(r)}${who(r, true)}`, score(r)]);
+    const best = data.all.map((r, i) => [`<i class="jf-rank" data-place="${i + 1}">${i + 1}.</i>${pic(r)}${who(r, true)}`, score(r)]);
+    const rows = champs.length || best.length ? [head('Champions'), ...champs, head('Top 3'), ...best] : [];
+    return { note: rows.length ? `How Season ${n} ended.` : `Nobody finished a run in Season ${n}.`, rows, cls: 'jf-past' };
+  }
+
   // The game's own site: what to draw for one tab. types: [{ id, name, icon }] in jellies.kdl order;
   // face(look): a picture of a player's jelly. Resolves nothing: { note, rows: [[label, value]], cls } for ui.boardBody
   view(tab, { face, types }) {
@@ -261,10 +301,7 @@ export class Leaderboard {
     const c = this.tabs.get(tab), mine = c?.mine;
     if (this.status === 'offline') return { note: this.note(), rows: [], cls: '' };
     if (!c) return { note: this.failed.has(tab) ? 'Couldn\'t load this board. Tap its tab to try again.' : 'Loading the leaderboard…', rows: [], cls: '' };
-    const second = (r, withType) => esc([withType ? name(r.jelly) : null, r.won ? 'Won' : `Reached act ${r.acts || 1}`, tab !== 'champions' && r.clean > 0 ? `${r.clean} ${r.clean === 1 ? 'act' : 'acts'} untouched` : null].filter(Boolean).join(' · '));
-    const who = (r, withType) => `<span class="jf-who">${esc(r.name || 'A jelly')}${r.id === this.id ? ' <small>(you)</small>' : ''}<small class="jf-sub">${second(r, withType)}</small></span>`;
-    const pic = (r) => (face ? `<img class="jf-jelly" src="${face(r.look || { body: r.body }) || ''}" alt="">` : '');
-    const score = (r) => `${Number(r.score).toLocaleString()}${r.won ? ` ${icon('trophy', 'Won')}` : ''}`;
+    const { who, pic, score } = this.lines(face, name, tab);
     if (tab === 'champions') {
       const held = types.filter((t) => c.top.some((r) => r.jelly === t.id && r.id === this.id)).length;
       return { cls: 'jf-champs', note: `The best run with each jelly type this season. You hold ${held} of ${types.length}.`, rows: types.map((t) => {
