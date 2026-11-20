@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { buildAct4 } from '../act4-arena.js';
 import { EncoreFloor, PATTERNS, FLOOR_DMG, FLOOR_STEP, tileX, tileZ } from '../encore-floor.js';
-import { SetList } from '../encore.js';
+import { SetList, LINE_WAVES } from '../encore.js';
 import { ENCORE } from '../stage4.js';
 import { World } from '../collision.js';
 import { CONFIG } from '../config.js';
@@ -307,15 +307,15 @@ story('encore/the-gap-the-squeeze-and-the-closing-ring-hit-as-they-should', {
 // a stand-in floor that only records what it's asked to play
 const recorder = () => ({ casts: [], cast(name, at, o) { this.casts.push({ name, at, ...o }); } });
 story('encore/waves-come-at-random-and-never-twice-running', {
-  about: 'The Encore picks every wave at random, a new one every 4 beats: never the same pattern twice running, all seven turning up, its options (direction, gap, spin) picked too, and two different rolls give different sets.',
+  about: 'The Encore picks every wave at random, a new one every other bar (8 beats), only lines (never a ring or an arc): never the same pattern twice running, all four line waves turning up and no other, its options (direction, gap, spin) picked too, and two different rolls give different sets.',
   setup() {},
   play() {
     const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const roll = (seed) => { const f = recorder(), set = new SetList(f, 0, { random: lcg(seed) }); for (let b = -6; b <= 800; b += 0.5) set.update(b); return f.casts; };
     const a = roll(1), b = roll(2), names = a.map((c) => c.name);
     const never = names.every((n, k) => k === 0 || n !== names[k - 1]);
-    const all = Object.keys(PATTERNS).every((n) => names.includes(n));
-    const spaced = a.every((c, k) => k === 0 || c.at - a[k - 1].at === 4);
+    const all = LINE_WAVES.every((n) => names.includes(n)) && names.every((n) => LINE_WAVES.includes(n)) && !names.some((n) => ['ring', 'arc', 'closing'].includes(n));
+    const spaced = a.every((c, k) => k === 0 || c.at - a[k - 1].at === 8);
     const differ = a.slice(0, 8).map((c) => c.name).join() !== b.slice(0, 8).map((c) => c.name).join();
     const varied = new Set(a.filter((c) => c.name === 'gate').map((c) => `${c.dir}${c.gap}`)).size > 3 && new Set(a.filter((c) => c.dir).map((c) => c.dir)).size === 3;
     const sides = a.every((c) => (c.dir === 'right' ? c.dj === 'silver' : c.dir === 'left' ? c.dj === 'gold' : true));
@@ -332,7 +332,7 @@ story('encore/the-drop-sends-two-waves-at-once-one-per-dj', {
     for (let b = -6; b <= 200; b += 0.5) set.update(b);
     const byBeat = new Map(); for (const c of f.casts) byBeat.set(c.at, [...(byBeat.get(c.at) || []), c]);
     const inDrop = [...byBeat].filter(([at]) => at >= 64 && at < 96), outside = [...byBeat].filter(([at]) => at < 64 || at >= 96);
-    const pairs = inDrop.length === 8 && inDrop.every(([, w]) => w.length === 2 && w[0].name !== w[1].name && new Set(w.map((c) => c.dj)).size === 2);
+    const pairs = inDrop.length === 4 && inDrop.every(([, w]) => w.length === 2 && w[0].name !== w[1].name && new Set(w.map((c) => c.dj)).size === 2);
     const singles = outside.every(([, w]) => w.length === 1);
     const again = track.drop(64 + track.loopBeats) && !track.drop(63) && !track.drop(96);
     // and on the real floor both DJs dance through it
@@ -394,14 +394,14 @@ story('encore/the-laser-hits-in-its-sweep-and-can-be-jumped-far-from-its-corner'
 });
 
 story('encore/a-laser-fires-every-4-beats', {
-  about: 'With the lasers rigged, a club laser fires on every wave\'s beat, every 4 beats, alongside the random floor waves, from a random corner (all four turn up) to a random side, aimed where the jelly is.',
+  about: 'With the lasers rigged, a club laser fires on every bar, every 4 beats, with a floor wave on every other one, from a random corner (all four turn up) to a random side, aimed where the jelly is.',
   setup() {},
   play() {
     const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     const shots = [], lasers = { cast(at, o) { shots.push({ at, ...o }); } }, f = recorder();
     const set = new SetList(f, 0, { random: lcg(7), lasers, target: () => [0.1, 0.2] });
     for (let b = -6; b <= 200; b += 0.5) set.update(b);
-    const every4 = shots.length > 40 && shots.every((s, k) => s.at === 4 * k), withWaves = shots.every((s) => f.casts.some((c) => c.at === s.at));
+    const every4 = shots.length > 40 && shots.every((s, k) => s.at === 4 * k), withWaves = f.casts.length > 20 && f.casts.every((c) => shots.some((s) => s.at === c.at)) && f.casts.every((c, k) => k === 0 || c.at - f.casts[k - 1].at === 8);
     const corners = new Set(shots.map((s) => s.corner)).size === 4, sides = new Set(shots.map((s) => s.side)).size === 2, aimed = shots.every((s) => s.target()[0] === 0.1);
     return ok(every4 && withWaves && corners && sides && aimed, { lasers: shots.length, every4, withWaves, corners, sides, aimed });
   },
@@ -460,20 +460,20 @@ story('encore/disco-spots-wheel-then-stop-and-flash-then-strike', {
   },
 });
 
-// The set list (encore.js SetList). Its waves and lasers at a fixed roll, recorded from the old
-// fixed-timer set (encore-floor.js EncoreSet, v544) before the set list replaced it
+// The set list (encore.js SetList). Its waves and lasers at a fixed roll, as recorded when waves became
+// line waves every other bar (a laser still every bar)
 const lcg = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-const SET_FIXTURE = 'arc@8:s:h0.007 L8:2+ sweep@12:g:s-1 L12:0- arc@16:s:h0.145 L16:3+ pincer@20:g L20:1- sweep@24:s:s1 L24:0+ ring@28:g L28:2+ arrow@32:s:right L32:3+ sweep@36:s:s1 L36:2+ pincer@40:g L40:2- gate@44:s:down:g4 L44:2+ arrow@48:g:down L48:2- arc@52:s:h0.722 L52:0- ring@56:g L56:0+ arc@60:s:h-0.147 L60:0- gate@64:s:right:g1 L64:0- closing@68:g L68:1- pincer@88:s L88:1+ ring@92:g L92:2- closing@96:s L96:0+ sweep@100:g:s1 L100:3+ pincer@104:s L104:1+ arrow@108:g:down L108:2- sweep@112:s:s-1 L112:1+ arrow@116:g:left L116:0+ arc@120:s:h0.436 closing@120:g L120:2- arrow@124:s:down pincer@124:g L124:2+ sweep@128:s:s-1 gate@128:g:down:g2 L128:2+ sweep@132:s:s1 arrow@132:g:down L132:2- gate@136:g:left:g8 L136:1- pincer@140:g L140:3- sweep@144:s:s1 L144:2- ring@148:g L148:3+ arrow@152:s:down L152:1- arc@156:g:h-0.636 L156:2- closing@160:s L160:1+ gate@164:g:down:g8 L164:2- arrow@168:s:right L168:0- sweep@172:s:s-1 L172:3- pincer@176:g L176:1- ring@180:s L180:0+ arrow@184:s:right L184:1- pincer@188:g L188:3+ sweep@192:s:s-1 L192:1+ ring@196:g L196:0- sweep@200:s:s-1 L200:1+ pincer@204:g L204:1- arrow@208:g:left L208:2- sweep@212:s:s1 L212:2+ pincer@216:g L216:1+ ring@220:s L220:1- gate@224:g:down:g7 L224:2- arrow@228:s:right L228:1- arc@232:s:h0.156 L232:2+ gate@236:g:left:g6 L236:3- pincer@240:g L240:3+ sweep@244:s:s1 L244:1+ closing@248:g L248:1- ring@252:s L252:0- sweep@256:g:s-1 L256:1- gate@260:g:left:g4 L260:3- ring@264:s L264:1-';
+const SET_FIXTURE = 'sweep@8:s:s-1 L8:2+ L12:1- gate@16:g:down:g6 L16:1+ L20:2- sweep@24:s:s-1 L24:1- L28:2+ arrow@32:g:down L32:1+ L36:2- gate@40:s:down:g7 L40:3+ L44:1- arrow@48:g:left L48:1- L52:3- pincer@56:g L56:0+ L60:2+ arrow@64:s:down L64:2- L68:1+ pincer@88:g L88:3+ L92:1+ arrow@96:s:down L96:3+ L100:0- pincer@104:g L104:0+ L108:3- arrow@112:g:left L112:2- L116:2+ gate@120:s:down:g9 pincer@120:g L120:2- L124:0+ arrow@128:s:right sweep@128:g:s1 L128:3- L132:1+ gate@136:s:down:g6 L136:2+ L140:1- sweep@144:g:s1 L144:2+ L148:1+ arrow@152:s:right L152:2- L156:2- gate@160:s:down:g9 L160:2- L164:1- sweep@168:g:s-1 L168:0+ L172:2+ gate@176:g:left:g5 L176:1+ L180:2- pincer@184:s L184:3+ L188:2- sweep@192:g:s-1 L192:2+ L196:0- pincer@200:s L200:0- L204:0+ sweep@208:g:s-1 L208:1+ L212:0- pincer@216:s L216:1+ L220:0- sweep@224:g:s-1 L224:2+ L228:2+ pincer@232:s L232:1- L236:3- gate@240:s:right:g3 L240:3+ L244:2+ sweep@248:g:s-1 L248:1- L252:3+ pincer@256:s L256:2+ L260:2+ arrow@264:g:down L264:0+';
 const describe = (casts) => casts.map((c) => c.laser != null ? `L${c.laser}:${c.corner}${c.side > 0 ? '+' : '-'}` : `${c.name}@${c.at}:${c.dj[0]}${c.dir ? ':' + c.dir : ''}${c.gap != null ? ':g' + c.gap : ''}${c.spin ? ':s' + c.spin : ''}${c.heading != null ? ':h' + c.heading.toFixed(3) : ''}`).join(' ');
-story('encore/the-set-list-plays-the-same-waves-as-the-old-set', {
-  about: 'At a fixed roll, the set list in set 1 lays out exactly the waves and lasers the old fixed-timer set did (recorded before the change): the same patterns, options and DJs on the same beats, resting through a breakdown and doubling through a drop.',
+story('encore/the-set-list-lays-out-its-waves-and-lasers-as-recorded', {
+  about: 'At a fixed roll, the set list in set 1 lays out exactly the waves and lasers recorded: a line wave every other bar and a laser every bar, the same patterns, options and DJs on the same beats, resting through a breakdown and doubling through a drop.',
   setup() {},
   play() {
     const f = recorder(), lasers = { cast(at, o) { f.casts.push({ laser: at, corner: o.corner, side: o.side }); } };
     const set = new SetList(f, 8, { random: lcg(1), quiet: (b) => b >= 80 && b < 88, drop: (b) => b >= 120 && b < 136, target: () => [0.1, 0.2], lasers });
     for (let b = -6; b <= 260; b += 0.25) set.update(b);
     const got = describe(f.casts), same = got === SET_FIXTURE;
-    return ok(same, { same, first: got.split(' ').findIndex((w, k) => w !== SET_FIXTURE.split(' ')[k]), got: got.slice(0, 300) });
+    return ok(same, { same, first: got.split(' ').findIndex((w, k) => w !== SET_FIXTURE.split(' ')[k]), got });
   },
 });
 
@@ -527,7 +527,7 @@ fight('fight-stages-follow-its-health-not-the-clock', {
     stub(B, 'song', { beat: () => null });
     const n = counting(B);
     step(60 * 8);
-    const warm = B.stage === 'warmup' && n.floor >= 3 && n.laser === 0;
+    const warm = B.stage === 'warmup' && n.floor >= 1 && n.laser === 0;
     step(60 * 9, () => !B.opening); step(60 * 4);
     const set1 = B.stage === 'set1' && n.laser > 0;
     B.clock += 400; step(60 * 16);                                // a long set 1, far past where the old timer dropped the ball
@@ -841,15 +841,15 @@ story('encore/a-record-held-against-a-jelly-that-cannot-move-stays-a-small-push'
   },
 });
 
-story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-8-beats', {
-  about: 'In the 4 bars of a solo the set list casts no lasers, and only the other DJ plays a wave, one every 8 beats from a bar into it; before and after it the set plays as usual.',
+story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-16-beats', {
+  about: 'In the 4 bars of a solo the set list casts no lasers, and only the other DJ plays a wave, one a bar into it (every 16 beats, half as often as before); before and after it the set plays as usual.',
   setup() {},
   play() {
     const f = recorder(), shots = [], solo = { who: 'silver', at: 72, end: 88 };
     const set = new SetList(f, 8, { random: lcg(5), lasers: { cast: (at) => shots.push(at) }, soloing: (at) => (at >= solo.at && at < solo.end ? solo : null) });
     for (let b = -6; b <= 120; b += 0.25) set.update(b);
     const inSolo = f.casts.filter((c) => c.at >= 72 && c.at < 88);
-    const waves = inSolo.map((c) => `${c.at}:${c.dj}`).join() === '76:gold,84:gold';
+    const waves = inSolo.map((c) => `${c.at}:${c.dj}`).join() === '76:gold';
     const rest = !shots.some((at) => at >= 72 && at < 88) && shots.includes(68) && shots.includes(88);
     return ok(waves && rest, { waves: inSolo.map((c) => `${c.at}:${c.dj}`), shots: shots.filter((at) => at > 60 && at < 96) });
   },
@@ -1225,7 +1225,7 @@ story('encore/the-duet-rests-the-floor-and-comes-only-below-half', {
     const f = recorder(), shots = [], solo = { who: 'duet', at: 72, end: 88, rest: 92 };
     const set = new SetList(f, 8, { random: lcg(7), lasers: { cast: (at) => shots.push(at) }, soloing: (at) => (at >= solo.at && at < solo.rest ? solo : null) });
     for (let b = -6; b <= 120; b += 0.25) set.update(b);
-    const rests = !f.casts.some((c) => c.at >= 72 && c.at < 92) && !shots.some((at) => at >= 72 && at < 92) && f.casts.some((c) => c.at === 92) && f.casts.some((c) => c.at === 68);
+    const rests = !f.casts.some((c) => c.at >= 72 && c.at < 92) && !shots.some((at) => at >= 72 && at < 92) && f.casts.some((c) => c.at === 96) && f.casts.some((c) => c.at === 64);
     const kinds = (stage) => { const slots = [], L = new SetList(recorder(), 8, { random: lcg(7), stage: () => stage, slot: (kind) => slots.push(kind) }); for (let b = -6; b <= 900; b += 0.5) L.update(b); return slots; };
     const below = ['set1', 'set2'].every((st) => !kinds(st).includes('duet')) && ['set3', 'last'].every((st) => kinds(st).includes('duet'));
     return ok(rests && below, { rests, below, waves: f.casts.filter((c) => c.at > 60 && c.at < 100).map((c) => c.at) });
