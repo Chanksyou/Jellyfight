@@ -1,1 +1,0 @@
-keeps the leaderboard as a best run per player and jelly type each season, and the Worker now works out each run's score from its own run log instead of trusting the number it is sent (runs that claim more bugs cleared than came out, a boss beaten in under 10 seconds, or more than 3 Elites in an act are refused); the board screen itself is unchanged until the next update.

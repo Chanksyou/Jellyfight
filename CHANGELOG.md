@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v582 keeps the leaderboard as a best run per player and jelly type each season, and the Worker now works out each run's score from its own run log instead of trusting the number it is sent (runs that claim more bugs cleared than came out, a boss beaten in under 10 seconds, or more than 3 Elites in an act are refused); the board screen itself is unchanged until the next update.
+
 v581 redraws the Ice jelly's pick card: real frost grows across the card's glass from the corners and glints as the light moves, snow falls at three depths, cold mist sinks off the bell and the jelly takes a pale icy rim, replacing the drawn-on corner flakes.
 
 v580 redraws the Lightning card on the jelly pick screen: real branching bolts strike the jelly in a dark storm, flash its bell and fade to an afterimage, with a crackling glow round its edge, far bolts in the clouds and arcs between its tentacle tips.
