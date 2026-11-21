@@ -34,7 +34,7 @@ export class WindLooks {
   constructor(scene, fx) {
     Object.assign(this, { scene, fx });
     // speed lines: soft ribbons of air along +z (two crossed bands, each fading to nothing at both ends and along its edges), additive, faded by its instance colour
-    this.lines = new THREE.InstancedMesh(ribbonGeometry(), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, vertexColors: true, side: THREE.DoubleSide }), STREAKS);
+    this.lines = new THREE.InstancedMesh(ribbonGeometry(), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, vertexColors: true, side: THREE.DoubleSide, forceSinglePass: true }), STREAKS);
     this.lines.name = 'Wind streaks'; this.lines.frustumCulled = false; this.lines.userData.noCollide = true; this.lines.renderOrder = 2;
     this.streakList = Array.from({ length: STREAKS }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), len: 0, w: 0, t: 0, life: 0 }));
     // flecks of dust and lint: little flat squares, matte
