@@ -416,6 +416,7 @@
   --preview-backdrop-lightning: #4a38c8;   /* Lightning: a storm's violet in the water (a type may set --preview-backdrop-<id>, */
   --preview-backdrop-tint-lightning: 30;   /* --preview-backdrop-tint-<id>, */
   --preview-backdrop-bright-lightning: 0.2;  /* --preview-backdrop-bright-<id>: darker, so each strike stands out */
+  --preview-grade-poison: #a8e07c;     /* Poison: murky sickly green water */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -1075,6 +1076,7 @@
   --barb: #f4e9ff;                /* the barbs along them */
   --barb-size: 3;                 /* a barb's length, in tentacle widths */
   --toxin-drop: #3ee68c;          /* Poison jelly: the drops on the tentacle tips and the drips off the rim */
+  --toxin-drop-glow: 0.9;         /* how much it glows (low enough that its highlight shows) */
   --toxin-drop-size: 1.3;         /* a full drop's radius, in tentacle widths */
   --toxin-drop-hang: 0.9;         /* about how long a tip's drop swells before it falls, seconds */
   --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */

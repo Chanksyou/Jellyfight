@@ -487,6 +487,29 @@ story('types/pick-stage-fire', {
   },
 });
 
+story('types/pick-stage-poison', {
+  about: 'On the centre card the Poison jelly\'s blob is a darker core inside a see-through glossy body with a wet highlight; its burst leaves a cloud of green gas puffs (normal blending, so it stays green, not glow that whitens) and falling droplets; the water behind takes a sickly green grade (--preview-grade-poison). In play the blob keeps its plain unlit body.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('poison');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks, puffs = spy(P.fx, 'puff'), bursts = spy(looks, 'poisonBurst');
+      let wet = false;
+      for (let i = 0; i < 4 * 30; i++) { live.simulate(1 / 30); P.scene.traverse((o) => { if (o.userData.look === 'poison' && o.visible && o.userData.core && o.userData.blob.material === looks.wetPoison) wet = true; }); }
+      const cloud = bursts.length > 0 && puffs.length >= bursts.length * 8;   // its gas: a middle and a cloud of puffs round it
+      const grade = P.stage.back.material.uniforms.uGrade.value.clone(), green = grade.g > grade.b + 0.15 && grade.g > grade.r + 0.1;
+      const plain = !G().run.bubbles.looks.wetPoison;
+      return ok(wet && cloud && green && plain, { wet, bursts: bursts.length, puffs: puffs.length, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
