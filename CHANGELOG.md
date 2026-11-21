@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v605 adds an Overdraw view to the dev tools (Check group) and a count of how many layers each pixel is drawn over to the phone measuring tool, and stops drawing the Encore stage edge's shock flash and the stage door's glow while they have nothing to show, which takes about half of the see-through layers off the Encore's arena on a phone.
+
 v604 lets the furniture's batches check what's in view only when the camera has moved 5 cm or turned 4 degrees, in a view padded by both so nothing in sight is left out, instead of every frame; solid furniture stops being sorted too, so a still camera sends phones none of the 66 draw lists a frame it used to.
 
 v603 adds a `?msaa=2|4` test link that smooths edges in the graphics chip on Medium and draws a phone at pixel ratio 1.25 instead of 1.5, so the phone bench can compare the two; nothing changes without the link.

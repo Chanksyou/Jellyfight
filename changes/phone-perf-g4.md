@@ -1,1 +1,0 @@
-adds an Overdraw view to the dev tools (Check group) and a count of how many layers each pixel is drawn over to the phone measuring tool, and stops drawing the Encore stage edge's shock flash and the stage door's glow while they have nothing to show, which takes about half of the see-through layers off the Encore's arena on a phone.
