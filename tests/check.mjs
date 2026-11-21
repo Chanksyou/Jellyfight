@@ -76,7 +76,7 @@ for (const file of ['src/critters.js', 'src/attack-motion.js']) {
 // V8's slow form, so each write allocates (act 4's sun did: game step 3 to 5 times slower). Numbers come from LOOK.nums.
 for (const f of files.filter((f) => f.startsWith(path.join(ROOT, 'src') + path.sep))) {
   fs.readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
-    if (/\.(fromArray|set|setScalar|setRGB)\(\s*(\.\.\.)?LOOK\.list\(/.test(line)) { bad++; console.log(`✗ ${path.relative(ROOT, f)}:${i + 1} hands LOOK.list's strings to three.js: use LOOK.nums`); }
+    if (/(\.(fromArray|set|setScalar|setRGB|copy)|\bVector[234]|\bEuler|\bQuaternion)\(\s*(\.\.\.)?LOOK\.list\(/.test(line)) { bad++; console.log(`✗ ${path.relative(ROOT, f)}:${i + 1} hands LOOK.list's strings to three.js: use LOOK.nums`); }
   });
 }
 for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apartment-act\d+|props)\.glb$/.test(f))) {

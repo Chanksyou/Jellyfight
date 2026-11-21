@@ -278,11 +278,12 @@ act3('low-alligator-fight-builds-no-shader', {
     const { gfx, APT, GAME } = G(), was = gfx.choice;
     try {
       gfx.setQuality('low'); await gfx.ready;
-      const before = APT.renderer.info.programs.length;
+      const before = new Set(APT.renderer.info.programs);
       const { e } = startCroc(0, { angry: true });
       step(30); GAME.render();
-      const built = APT.renderer.info.programs.length - before, mats = [];
-      e.holder.traverse((o) => { for (const m of [].concat(o.material || [])) if (m.isMeshPhysicalMaterial) mats.push(m); });
+      const mats = [], mine = new Set();
+      e.holder.traverse((o) => { for (const m of [].concat(o.material || [])) { mine.add(APT.renderer.properties.get(m).currentProgram); if (m.isMeshPhysicalMaterial) mats.push(m); } });
+      const built = APT.renderer.info.programs.filter((p) => !before.has(p) && mine.has(p)).length;   // the Alligator's own (the restart may build others)
       const lowSheen = Math.max(0, ...mats.map((m) => m.sheen));
       gfx.setQuality('medium'); await gfx.ready;
       const mediumSheen = Math.max(0, ...mats.map((m) => m.sheen));
