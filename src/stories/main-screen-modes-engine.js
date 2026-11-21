@@ -1169,7 +1169,7 @@ story('engine/furniture-drawn-in-batches', {
   setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   play() {
     const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2 && x.pieces.some((q) => !q.mesh.userData.structural)), p = b.pieces.find((q) => !q.mesh.userData.structural), o = p.mesh;   // (a wall never fades: it is structural)
-    const visibleAt = () => b.batch.getVisibleAt(p.id);
+    const visibleAt = () => b.batch.getVisibleAt(p.id) || (p.inBatch && !p.inView);   // (in the batch, though maybe culled out of view)
     const pieces = statics.count, start = visibleAt() && o.layers.mask !== 1;
     tpc.startFade(o); statics.sync();
     const faded = !visibleAt() && o.layers.mask === 1;
@@ -1207,6 +1207,78 @@ story('engine/still-furniture-skips-matrix-updates', {
     return ok(pieces > 1000 && inApt === 0 && swung && batchFollows, { pieces, visited, inApt, door: node.name, swung, batched: !!p, batchFollows });
   },
 });
+
+// The furniture batches (static-batch.js) work out what's in view only when the camera has moved or
+// turned enough: three would cull and upload each batch's draw list every frame.
+const tinyTarget = {};
+const frame = () => {   // a step, then the scene drawn once into a tiny target: the pass the batches' lists serve (the composer's would be slow on desktop High)
+  const { GAME, APT, batcher, statics } = G(), R = APT.renderer, was = R.getRenderTarget();
+  GAME.step(1 / 60); batcher.sync(); statics.sync();
+  tinyTarget.t ||= new THREE.WebGLRenderTarget(4, 4);
+  try { R.setRenderTarget(tinyTarget.t); R.render(APT.scene, APT.camera); } finally { R.setRenderTarget(was); }
+};
+const listVersions = () => G().statics.batches.map((b) => b.batch._indirectTexture.version);
+story('engine/batches-cull-off-the-frame-clock', {
+  about: "While the camera holds still the furniture batches reuse their draw lists: no batch uploads one in 60 frames, and no batch sorts. A turn past the threshold culls again, and pieces behind the camera are left out.",
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(30); frame(); frame(); },
+  play() {
+    const { statics, tpc, APT } = G(), gl = APT.renderer.getContext();
+    const before = listVersions(), culls = statics.culls;
+    let uploads = 0, sorting = 0;
+    const real = gl.texSubImage2D;
+    gl.texSubImage2D = function (...a) { uploads++; return real.apply(this, a); };
+    const still = tpc.yaw;
+    try { for (let i = 0; i < 60; i++) { tpc.yaw = still; frame(); sorting += statics.batches.filter((b) => b.batch.sortObjects).length; } } finally { gl.texSubImage2D = real; }
+    const after = listVersions(), changed = after.filter((v, i) => v !== before[i]).length, stillCulls = statics.culls - culls;
+    const outOfView = statics.batches.reduce((n, b) => n + b.pieces.filter((p) => p.inBatch && !p.inView).length, 0);
+    tpc.yaw = still + Math.PI; frame();   // turn round: past the threshold, so the lists change
+    const turned = listVersions().filter((v, i) => v !== after[i]).length, turnCulls = statics.culls - culls - stillCulls;
+    tpc.yaw = still; frame();
+    const opaqueSort = statics.batches.filter((b) => !b.batch.material.transparent && b.batch.sortObjects).length;
+    return ok(statics.batches.length > 20 && changed === 0 && stillCulls === 0 && sorting === 0 && uploads < statics.batches.length && outOfView > 0 && turned > 0 && turnCulls === 1 && opaqueSort === 0,
+      { batches: statics.batches.length, changed, stillCulls, sorting, uploads, outOfView, turned, turnCulls, opaqueSort });
+  },
+});
+
+// every frame, each batched piece whose bounds touch the camera's true view is in its batch's draw list
+function missingInView() {
+  const { statics, APT } = G(), cam = APT.camera, f = new THREE.Frustum(), s = new THREE.Sphere();
+  f.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
+  const miss = [];
+  for (const { batch, pieces } of statics.batches) {
+    const list = new Set(batch._indirectTexture.image.data.subarray(0, batch._multiDrawCount));
+    for (const p of pieces) {
+      if (!p.inBatch) continue;
+      batch.getBoundingSphereAt(batch.getGeometryIdAt(p.id), s).applyMatrix4(p.matrix);
+      if (f.intersectsSphere(s) && !list.has(p.id)) miss.push(p.mesh.name || p.mesh.uuid);
+    }
+  }
+  return miss;
+}
+const noPieceMissing = (phone) => ({
+  phone,
+  about: `Spinning the camera (slowly, under the re-cull threshold, and fast), walking and riding a vent${phone ? ' in a phone\'s wider view' : ''}: in every frame every batched piece in the camera's view is drawn, though the batches cull only now and then.`,
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(30); frame(); },
+  play() {
+    const { statics, tpc, input, traversal, player } = G();
+    const culls = statics.culls;
+    let frames = 0, missed = 0, first = null, flew = 0;
+    const check = () => { frames++; const m = missingInView(); if (m.length) { missed++; first ||= { frame: frames, pieces: m.slice(0, 3) }; } };
+    for (let i = 0; i < 160; i++) { tpc.yaw += 0.05; tpc.pitch = Math.sin(i / 9) * 0.4; frame(); check(); }   // about 3 degrees a frame: mostly reused lists
+    for (let i = 0; i < 40; i++) { tpc.yaw += 0.35; frame(); check(); }   // as fast as a flick
+    input.keys = new Set(['KeyW']);
+    for (let i = 0; i < 120; i++) { if (i % 30 === 0) tpc.yaw += 0.6; frame(); check(); }
+    input.keys = new Set();
+    const v = traversal.vents[0];
+    tp(v.x + 0.1, v.y + 0.01, v.z, Math.PI / 2); frame(); check();
+    player.position.set(v.x, v.y + 0.005, v.z);
+    for (let i = 0; i < 240; i++) { frame(); check(); if (player.flight) flew++; else if (flew) break; }
+    const reused = frames - (statics.culls - culls);
+    return ok(frames > 350 && missed === 0 && flew > 10 && reused > frames / 3, { frames, culls: statics.culls - culls, reused, missed, first, flew, vent: v.to });
+  },
+});
+story('engine/no-piece-missing-in-view', noPieceMissing(false));
+story('engine/no-piece-missing-in-view-phone', noPieceMissing(true));
 
 story('engine/old-code-reloads-into-the-new-version', {
   about: 'A page running an older BUILD than the server has (a phone holding last version\'s code while content comes fresh: the Soap crash of Nov 15) fetches its files past the cache and reloads, once per version; a matching BUILD plays on.',
