@@ -197,17 +197,19 @@ export class HouseGadgets {
     const L = M.spotlight;
     this.ball.visible = !!L;
     if (!L) { this.spot = null; this.cone.visible = this.spotPool.visible = false; return; }
+    const C = g.companions;
     this.ball.position.copy(center).y += 0.07;
-    if (!quiet) this.ball.rotation.y += dt * 1.5;
+    if (!quiet) this.ball.rotation.y += dt * (1.5 + 9 * C.kick);   // spins up as it picks
     if (g.every('spotlight', dt, L.every, 0.5)) {
       const hp = (e) => (e.proxy ? 1e9 + (e.proxy.hp || 0) : e.hp), found = g.near(center, L.range).sort((a, b) => hp(b) - hp(a));
       if (found[0]) {
         this.spot = { e: found[0], t: L.time };
         bus.emit('status_applied', { targetId: found[0].id, status: 'spot', duration: L.time, more: L.more });
-        sfx.disco(); ctx.pulse?.(0.2);
+        sfx.disco(); ctx.pulse?.(0.2); C.picked();
       }
     }
     const P = this.spot;
+    C.disco(feet, P && !P.e.dead ? P.e : null, dt, ctx.beat);
     if (P) { P.t -= dt; if (P.t <= 0 || P.e.dead) this.spot = null; }
     this.cone.visible = this.spotPool.visible = !!this.spot;
     if (this.spot) {

@@ -683,7 +683,7 @@ export class Run {
         grab: (ef) => this.lash.grab(origin, this.tentacleStats, this.mods.hits.tentacles, ef),
         flare: (mult) => { this.lash.flare = Math.max(this.lash.flare, mult); return this.tentacleStats.reach * mult; },
         mirrorReady: this.t>=this.reflectAt, mirrorActive: this.t<this.mirrorUntil&&this.iFrames>0,
-        steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
+        beat: this.beat, steaming: this.mods.whiles.some((c) => c.when === 'low-health' && this.health < this.S.health * c.under),
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         blob: (ef) => this.bubbles.rain(origin, ef.count, ef.range, this.S, this.mods),
         nextAttack: (ef) => { if (!this.attack || this.attack.kind === 'bubble' || this.attack.kind === 'tentacle') return false; this.bubbles.next = ef; return true; },   // an Element shot only

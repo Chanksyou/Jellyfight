@@ -225,6 +225,12 @@
   --buff-silver: #e4f0ff;            /* Thimble: its fleck */
   --buff-slice-half: #e8d9c0;        /* Pizza Cutter: the two halves of the bug */
   --shield-full-glow: 0.18;          /* Oven Mitt (shield-full-damage): how much brighter the full Shield burns */
+  --treasure-disco-0: #d8beff;      /* Disco Ball: the four pastels its light steps through on the beat (lilac, pink, ice, mint) */
+  --treasure-disco-1: #ffc2e8;
+  --treasure-disco-2: #b8f0ff;
+  --treasure-disco-3: #c8ffd2;
+  --treasure-wire-opacity: 0.5;      /* Fairy Lights: the wire through the bulbs */
+  --treasure-lens-size: 0.016;       /* m: the Magnifying Glass's lens over the bell */
   --treasure-aura-glow: 0.55;        /* Glow Stick: how bright its floor glow is (more as it charges) */
   --treasure-aura-spark-gap: 0.12;   /* s between sparks off its rim at full charge */
   --treasure-stick-size: 0.024;      /* m: the glow stick circling the bell */
