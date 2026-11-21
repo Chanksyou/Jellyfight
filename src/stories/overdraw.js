@@ -15,7 +15,7 @@ function stack(page, name) {
   const yaw0 = tpc.yaw, got = { avg: 0, all: 0, worst: 0 };
   for (let i = 0; i < 4; i++) {
     tpc.yaw = yaw0 + (i * Math.PI) / 2; K.step(6); GAME.render();
-    const t = measureOverdraw(APT.renderer, APT.scene, APT.camera, { seeThrough: true, room: APT.root }), a = measureOverdraw(APT.renderer, APT.scene, APT.camera);
+    const t = measureOverdraw(APT.renderer, APT.scene, APT.camera, { seeThrough: true, room: APT.arena ? null : APT.root }), a = measureOverdraw(APT.renderer, APT.scene, APT.camera);
     got.avg = Math.max(got.avg, t.avg); got.worst = Math.max(got.worst, t.worst); got.all = Math.max(got.all, a.avg);
   }
   tpc.yaw = yaw0;
@@ -25,7 +25,7 @@ function stack(page, name) {
 const CEILING = {   // [moment, see-through ceiling, all-pieces figure (printed only: it moves with the view and the faded furniture)]
   act1: [['bugs + Controller', 1.85, 7.9], ['bubble storm + Bubble Bath', 0.45, 3.6], ['Vacuum fight', 0.7, 4.1]],
   night4: [['three bugs + 12 Firefly pools', 1.9, 3.7], ['bass wave + sun', 0.45, 2.4]],
-  arena: [['Encore disco', 0.05, 5.2], ['Encore Pyro, six lanes', 1.95, 6.1]],
+  arena: [['Encore disco', 0.71, 5.2], ['Encore Pyro, six lanes', 2.41, 6.1]],
 };
 const budget = (page) => () => {
   const rows = CEILING[page].map(([name, see, all]) => ({ name, see, all, got: stack(page, name) }));

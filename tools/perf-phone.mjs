@@ -127,7 +127,7 @@ async function measure(env, pageKey, tier) {
         const all = window.BM.STACKS[p]?.[n] || window.BM.MOMENTS[p][n];
         all({ K, G: window, nav: NAV }); K.step(30); GAME.render();
         const R = APT.renderer, args = [R, APT.scene, APT.camera], yaw0 = tpc.yaw, rows = { all: [], seeThrough: [] };
-        for (let i = 0; i < 4; i++) { tpc.yaw = yaw0 + i * Math.PI / 2; K.step(6); GAME.render(); rows.all.push(measureOverdraw(...args)); rows.seeThrough.push(measureOverdraw(...args, { seeThrough: true })); }
+        for (let i = 0; i < 4; i++) { tpc.yaw = yaw0 + i * Math.PI / 2; K.step(6); GAME.render(); rows.all.push(measureOverdraw(...args)); rows.seeThrough.push(measureOverdraw(...args, { seeThrough: true, room: APT.arena ? null : APT.root })); }
         const worst = (a, k) => a.reduce((m, x) => (x[k] > m ? x[k] : m), 0), mean = (a, k) => +(a.reduce((s, x) => s + x[k], 0) / a.length).toFixed(2);
         const sum = (a) => ({ avg: mean(a, 'avg'), worst: worst(a, 'worst'), p99: worst(a, 'p99'), covered: mean(a, 'covered') });
         return { all: sum(rows.all), seeThrough: sum(rows.seeThrough) };
