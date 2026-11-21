@@ -13,6 +13,7 @@ import { knockFor } from './stats.js';
 import { HouseGadgets } from './house-gadgets.js';
 import { glowPool } from './treasure-glow.js';
 import { TreasureProps } from './treasure-props.js';
+import { TreasureBursts } from './treasure-bursts.js';
 
 const _white = new THREE.Color(1, 1, 1), _to = new THREE.Vector3(), _up = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
 
@@ -28,6 +29,7 @@ export class Gadgets {
     batcher.track(this.group);
     this.looks = new GadgetLooks(fx);
     this.props = new TreasureProps();   // the bodies Treasures show, built here and warmed up front
+    this.bursts = new TreasureBursts(this);   // the duck, cactus needles, guitar pick and salt bursts (treasure-bursts.js)
     this.brickPool = []; this.marblePool = [];
 
     const glow = (color, k = 1.6) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
@@ -150,7 +152,7 @@ export class Gadgets {
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
     this.auraCharge = 0; this.auraPulse = 1;
-    this.props.reset();
+    this.props.reset(); this.bursts.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
     this.house?.reset();
     this.lampPool.forEach((g) => { g.visible = false; });
@@ -390,6 +392,7 @@ export class Gadgets {
     const { mods: M, feet, center, power } = ctx;
     const E = this.enemies, fx = this.fx;
     this.clock = (this.clock || 0) + dt;
+    this.bursts.update(dt, center, feet);
     this.tickClouds(dt);
     this.tickWhirls(dt);
     this.tickLights(dt, M, feet);
@@ -418,6 +421,7 @@ export class Gadgets {
         if(ef.look==='chord'&&this.t[T.key]<LOOK.num('gadget-chord-prepare',.25)) {
           this.chordReady.visible=true;this.chordReady.position.copy(feet).y+=.004;
           this.chordReady.scale.setScalar(ef.radius*(.25+.35*(1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25))));
+          this.bursts.pickPrepare(center,1-this.t[T.key]/LOOK.num('gadget-chord-prepare',.25));
         }
       }
     }
@@ -657,18 +661,19 @@ export class Gadgets {
     if (ef.kind === 'ring') {
       const col = new THREE.Color(ef.color);
       if(ef.look==='chord'){
-        this.looks.arc(feet.clone().setY(feet.y+.004),ef.radius,col,ef.show);
+        this.bursts.chord(feet,ef.radius,col,ef.show);
         sfx.gadgetChord();ctx.pulse?.(.3);
       }else if(ef.look==='needles'){
         this.looks.arc(feet.clone().setY(feet.y+.004),.025,col,.18);sfx.gadgetNeedles();ctx.pulse?.(.25);
       }
       else fx.ring(feet.clone().setY(feet.y + 0.004), col.getHex(), ef.radius, ef.show);
+      const stung = [];
       for (const e of this.near(center, ef.radius, { proxies: ef.elites })) {
         if(ef.look==='chord'||ef.look==='needles'){
           const at=E.center(e);
           this.looks.contact(at,col,Math.max(.006,e.r*.6));
-          if(ef.look==='needles')this.looks.streak(center,at,col,LOOK.num('gadget-needle-width',.0013),LOOK.num('gadget-needle-life',.16),'needle');
-          else this.looks.streak(at.clone().add(new THREE.Vector3(-.009,.004,0)),at.clone().add(new THREE.Vector3(.009,.004,0)),col,.001,.18);
+          if(ef.look==='needles')stung.push({at,e});
+          else{this.looks.streak(at.clone().add(new THREE.Vector3(-.009,.004,0)),at.clone().add(new THREE.Vector3(.009,.004,0)),col,.001,.18);if(stung.length<6){stung.push(at);this.bursts.note(at,col);}}
         }
         if (ef.dmg) bus.emit('damage_taken', { targetId: e.id, amount: power * ef.dmg, color: ef.color, source: 'ring' });
         if (ef.push) bus.emit('knockback', { targetId: e.id, dir: e.pos.clone().sub(feet).setY(0).normalize(), force: ef.push });
@@ -676,6 +681,7 @@ export class Gadgets {
         if (ef.slow) bus.emit('status_applied', { targetId: e.id, status: 'slow', duration: ef.slow });
         if (ef.chill) bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: ef.chill });
       }
+      if (ef.look === 'needles' && stung.length) this.bursts.needles(center, feet, ef.radius, stung, col);   // after every hit has landed
     } else if (ef.kind === 'zap') {
       const hp = (e) => (e.proxy ? 1e9 : e.hp), found = this.near(center, ef.range);
       if (ef.target === 'toughest') found.sort((a, b) => hp(b) - hp(a));   // (the sort is stable: the nearest of equals first)

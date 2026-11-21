@@ -1,0 +1,1 @@
+gives the Rubber Duck, Windowsill Cactus, Guitar Pick and Bath Salt Treasures bodies: a duck pops from under the bell and stars circle the Stunned bugs, Cactus needles fly to their bugs and stick, the Guitar Pick flicks across the bell and sends notes up, and chained Bath Salt bursts grow with the chain. Only how they look changes.

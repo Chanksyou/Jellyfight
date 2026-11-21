@@ -71,7 +71,7 @@ story('treasure-feel/needles-only-connect-to-affected-bugs',{
   about:'Cactus needles connect the actual source and affected bugs, skip out-of-range targets and retain radius, damage and cooldown.',
   setup(){ready('cactus');roachAt(.1,0);roachAt(-.12,.05);roachAt(.6,0);},
   play(){const {run}=G(),g=run.gadgets,c=context(),ef=run.mods.onHurt[0].effects[0],log=record('damage_taken');
-    run.hit(1);const hits=log.filter(d=>d.source==='ring'),lines=g.looks.pools.needle.filter(p=>p.alive&&p.m.scale.y>.03);
+    run.hit(1);const hits=log.filter(d=>d.source==='ring'),lines=g.looks.pools.needle.filter(p=>p.alive&&p.stick);
     run.iFrames=0;run.hit(1);const count=log.filter(d=>d.source==='ring').length;
     return ok(ef.look==='needles'&&hits.length===2&&lines.length===2&&count===2&&hits.every(d=>d.amount===c.power*ef.dmg),{look:ef.look,hits:hits.length,lines:lines.length,count});},
 });

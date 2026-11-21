@@ -222,6 +222,9 @@
   --treasure-stick-size: 0.024;      /* m: the glow stick circling the bell */
   --treasure-lamp-glow: 2;           /* Night-Light: how bright its pool is */
   --treasure-lamp-mote-gap: 0.4;     /* s between motes rising off each lamp's glow */
+  --treasure-needle-flight: 0.08;    /* Windowsill Cactus: s a needle takes to fly from the bell to its bug (the hit lands first) */
+  --treasure-needle-floor-reach: 1;  /* Cactus: where its floor needles stand, as a share of the ring's reach */
+  --treasure-bristle-radius: 0.03;   /* m: how far from the bell's middle its needles bristle */
   --gadget-focus: #c6f6ff;
   --gadget-focus-height: 0.22;
   --gadget-focus-opacity: 0.12;

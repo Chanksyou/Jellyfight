@@ -943,7 +943,7 @@ export class Run {
       if ((this.squeakCd[i] || 0) > this.t) return;
       this.squeakCd[i] = this.t + Q.cooldown;
       const P = this.player.position;
-      this.gadgets.looks.squeak(P,Q.radius);sfx.gadgetSqueak();
+      this.gadgets.bursts.squeak(P,Q.radius);sfx.gadgetSqueak();
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
       for (const e of this.enemies.list) {
         if (e.dead || e.proxy || e.under) continue;
@@ -953,7 +953,7 @@ export class Run {
         if (Q.push) bus.emit('knockback', { targetId: e.id, dir: away.normalize(), force: Q.push });
         this.gadgets.looks.streak(this.enemies.center(e),this.enemies.center(e).addScaledVector(away,.018),this.gadgets.looks.duck,.001,.16);
         if (Q.dmg) bus.emit('damage_taken', { targetId: e.id, amount: Q.dmg, color: '#ffe066', source: 'squeak' });
-        if (Q.stun) bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Q.stun });
+        if (Q.stun) { bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: Q.stun }); if (e.stunT > 0) this.gadgets.bursts.star(e); }
       }
     });
     // when-hit effects: a { ring, zap … } block on its own cooldown, aimed at whoever hit you
@@ -1326,7 +1326,7 @@ export class Run {
   burst(c) {
     const B = this.mods.burstOnKill;
     if (!B) return;
-    this.gadgets.looks.salt(c,B.radius);sfx.gadgetSalt();
+    sfx.gadgetSalt(this.gadgets.bursts.salt(c,B.radius));
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy || e.under) continue;
       if (this.enemies.center(e).distanceTo(c) < B.radius + e.r) {this.gadgets.looks.contact(this.enemies.center(e),this.gadgets.looks.silver,.006);bus.emit('damage_taken', { targetId: e.id, amount: this.power * B.dmg, color: '#bfe8ff', source: 'burst' });}
