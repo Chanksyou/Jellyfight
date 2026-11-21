@@ -1182,6 +1182,7 @@
   --menu-fps: 20;              /* how often the game behind a menu redraws */
   --phone-pixel-ratio: 1.5;    /* the sharpest a phone draws (an iPhone's screen is 3) */
   --desktop-pixel-ratio: 2;
+  --msaa-pixel-ratio: 1.25;    /* the sharpest a phone draws with ?msaa=2|4 (smooth edges instead of more pixels) */
   --min-pixel-ratio: 1;        /* the governor never draws blurrier than this */
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
   --desktop-lights: 0;
