@@ -538,7 +538,7 @@ export function buildCharacter(look, heightMeters) {
     mesh(new THREE.SphereGeometry(box ? 0.02 : 0.012, 8, 6), dot, bell, x, box ? 0.03 : -0.015, z);
   }
   // oral arms twisting down from the middle
-  const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: LOOK.num('jelly-arm-glow', 0.55) * glow, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+  const armMat = new THREE.MeshStandardMaterial({ color: acc, emissive: acc, emissiveIntensity: LOOK.num('jelly-arm-glow', 0.55) * glow, roughness: 0.4, side: THREE.DoubleSide, forceSinglePass: true, transparent: true, opacity: 0.9 });
   // the arms' style (look.arms) stretches the species' own arms: longer, narrower, coiled, or ending in a puff
   const AS = ARM_STYLES[look.arms] || ARM_STYLES.frilly;
   const A = { ...sp.arms, len: sp.arms.len * AS.len, width: sp.arms.width * AS.width, frill: sp.arms.frill * AS.frill, twist: sp.arms.twist * AS.twist };
