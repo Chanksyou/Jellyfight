@@ -168,6 +168,7 @@ export class ConcertDressing {
     const open = this.state === 'open';
     if (this.tv) this.tv.m.emissiveIntensity = K.tv + K.tvBeat * pulse + K.flare * (open ? 0.3 : p * p);
     this.glow.material.opacity = open ? K.door + K.doorBeat * pulse : p * K.door;
+    this.glow.visible = this.glow.material.opacity > 0.002;   // not drawn while it has no light to show
     if (this.state === 'moment' && p >= 1) { this.state = 'open'; run.showStageDoor(); }
   }
 }

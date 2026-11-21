@@ -81,6 +81,7 @@ import './stories/sunrise.js';
 import './stories/dressing.js';
 import './stories/act4-perf.js';
 import './stories/bench.js';
+import './stories/overdraw.js';
 import './stories/phone.js';
 import './stories/nests.js';
 import './stories/types.js';

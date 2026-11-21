@@ -18,7 +18,7 @@ export class EncoreContact {
     this.material=new THREE.LineBasicMaterial({color:this.color,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
     this.bolts=new THREE.LineSegments(this.geometry,this.material);this.bolts.frustumCulled=false;this.root.add(this.bolts);
     this.flashGeometry=new THREE.IcosahedronGeometry(1,1);this.flashMaterial=new THREE.MeshBasicMaterial({color:this.color,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
-    this.flash=new THREE.Mesh(this.flashGeometry,this.flashMaterial);this.root.add(this.flash);
+    this.flash=new THREE.Mesh(this.flashGeometry,this.flashMaterial);this.flash.visible=false;this.root.add(this.flash);   // (drawn only while it flashes: unseen at opacity 0, it still filled most of the screen)
     // Constant thin warning traces make the energized surface readable before touching it.
     this.edgeGeometry=new THREE.BufferGeometry();const edges=[];
     for(const m of solids){const g=new THREE.EdgesGeometry(m.geometry,25);g.applyMatrix4(m.matrixWorld);edges.push(...g.attributes.position.array);g.dispose();}
@@ -42,7 +42,7 @@ export class EncoreContact {
     if(active&&this.cooldown===0&&this.touching(player)){this.cooldown=CONTACT_GAP;this.life=this.duration;this.onShock(CONTACT_DMG,this.hitPoint);hit=true;}
     const fade=this.life/this.duration;
     this.edgeMaterial.opacity=this.warning+fade*(quiet?.12:.5);
-    this.material.opacity=fade*(quiet?.55:1);this.flashMaterial.opacity=fade*(quiet?.06:.16);
+    this.material.opacity=fade*(quiet?.55:1);this.flashMaterial.opacity=fade*(quiet?.06:.16);this.flash.visible=this.life>0;
     if(this.life>0){
       const p=player.position,c=player.cfg;this.center.set(p.x,p.y+c.height*.55,p.z);this.flash.position.copy(this.center);this.flash.scale.set(c.radius*1.2,c.height*.6,c.radius*1.2);
       for(let branch=0;branch<4;branch++)for(let k=0;k<5;k++)for(let end=0;end<2;end++){
@@ -53,6 +53,6 @@ export class EncoreContact {
     }
     return hit;
   }
-  reset(){this.cooldown=this.life=0;this.material.opacity=this.flashMaterial.opacity=0;this.edgeMaterial.opacity=this.warning;}
+  reset(){this.cooldown=this.life=0;this.material.opacity=this.flashMaterial.opacity=0;this.flash.visible=false;this.edgeMaterial.opacity=this.warning;}
   dispose(){this.root.removeFromParent();for(const r of [this.geometry,this.material,this.flashGeometry,this.flashMaterial,this.edgeGeometry,this.edgeMaterial])r.dispose();}
 }

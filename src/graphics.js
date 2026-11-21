@@ -1,6 +1,7 @@
 // Post-processing for game mode: ambient occlusion (soft contact shadows in corners and
 // under furniture), depth of field (the far side of the room goes soft, like a macro photo,
 // which sells being tiny), bloom on lamps and windows, and a light vignette.
+import { drawOverdrawView } from './overdraw.js';
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -260,6 +261,7 @@ export class Graphics {
     this.camera = camera;
     this.composer = null;
     this.focus = 0.16;
+    this.overdraw = false;  // the dev Overdraw view (overdraw.js): the scene as flat layers, no passes
     this.off = new Set();   // passes switched off to measure what they cost (dev tools: toggle)
     let q = defaultQuality;
     try { q = localStorage.getItem(STORE) || q; } catch {}
@@ -368,6 +370,7 @@ export class Graphics {
   }
 
   _draw() {
+    if (this.overdraw) { drawOverdrawView(this.renderer, this.scene, this.camera); return; }
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);
       return;
