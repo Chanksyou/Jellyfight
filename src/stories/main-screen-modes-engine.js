@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { STAGES, nav } from '../stages.js';
 import { serverBuild, reloadIfStale } from '../fresh.js';
 import { FramePacer, FrameGovernor } from '../pacing.js';
-import { World, checkBvhLayout } from '../collision.js';
+import { World, checkBvhLayout, hitSpot } from '../collision.js';
 import { loadLayout, applyLayout, visibleBox } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
@@ -920,6 +920,26 @@ story('engine/raycast-matches-reference', {
       }
     }
     return ok(same === rays && maxD < 1e-6 && normals === 0, { rays, same, maxD, normals });
+  },
+});
+story('engine/raycast-into-a-hit-record-matches', {
+  about: 'world.cast written into a reused hit record (the floor under a bug, the jelly\'s feet, every frame) gives the same hit as one that returns a new object, and a miss leaves the record alone.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { world } = G(), out = hitSpot();
+    world.focus(V(3.2, 0.05, 3.0), 1); world._focusAge = Infinity; world.focus(V(3.2, 0.05, 3.0), 1);
+    let rays = 0, same = 0, reused = 0, hits = 0;
+    for (let k = 0; k < 300; k++) {
+      const o = V(3.2 + (Math.random() - 0.5) * 0.6, 0.05 + Math.random() * 0.3, 3.0 + (Math.random() - 0.5) * 0.6);
+      const d = k % 3 ? V(0, 0, 0).randomDirection() : V(0, -1, 0), far = [0.05, 0.3, 3][k % 3];
+      const A = world.cast(o, d, far), B = world.cast(o, d, far, null, false, out);
+      rays++;
+      if (!A && !B) { same++; continue; }
+      hits++;
+      if (B === out) reused++;
+      if (A && B && Math.abs(A.distance - B.distance) < 1e-9 && A.point.distanceTo(B.point) < 1e-9 && A.normal.distanceTo(B.normal) < 1e-9 && A.mesh === B.mesh) same++;
+    }
+    return ok(same === rays && reused === hits && hits > 20, { rays, same, hits, reused });
   },
 });
 story('engine/fight-draw-calls', {

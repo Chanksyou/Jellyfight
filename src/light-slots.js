@@ -11,6 +11,8 @@
 import * as THREE from 'three';
 
 const _p = new THREE.Vector3();
+const RESELECT_MOVE = 0.05, RESELECT_EVERY = 0.25;   // m the jelly moves, or s, before the lamps are ranked again
+const byScore = (a, b) => b.score - a.score;
 
 export class LightSlots {
   // scene: where the lamps are (apartment.js marks them userData.lamp); count: slots
@@ -26,6 +28,9 @@ export class LightSlots {
       this.slots.push({ light, lamp: null });
     }
     this.last = new THREE.Vector3(Infinity, 0, 0);
+    this.picked = new THREE.Vector3(Infinity, 0, 0);   // where the jelly was when the lamps were last ranked
+    this.want = [];                                    // the lamps that win a slot, best first
+    this.since = 0;
     this.rescan();
   }
 
@@ -35,7 +40,8 @@ export class LightSlots {
     this.scene.traverse((o) => {
       if (!o.isPointLight || !o.userData.lamp || known.has(o)) return;
       o.visible = false;
-      this.lamps.push({ light: o, w: 0, slot: null, score: 0 });
+      this.lamps.push({ light: o, w: 0, slot: null, score: 0, on: false });
+      this.since = Infinity;                // a new lamp: rank again next frame
     });
   }
 
@@ -51,25 +57,36 @@ export class LightSlots {
   }
 
   // focus: the point to light (the jelly). A big jump (a teleport, a new run) snaps instead of fading.
+  // Which lamps win the slots is worked out again only when the jelly has moved 5 cm (or a quarter
+  // second has passed, for lamps that flicker): the arrays are kept and sorted in place, so a frame
+  // allocates nothing. The fade of each slot runs every frame.
   update(dt, focus) {
     const snap = this.last.distanceToSquared(focus) > 1;
+    this.since += dt;
+    const reselect = snap || this.since >= RESELECT_EVERY || this.picked.distanceToSquared(focus) >= RESELECT_MOVE * RESELECT_MOVE;
+    if (reselect) {
+      this.since = 0; this.picked.copy(focus);
+      const want = this.want; want.length = 0;
+      for (const l of this.lamps) { l.score = this.score(l, focus); l.on = false; if (l.score > 0) want.push(l); }
+      want.sort(byScore);
+      want.length = Math.min(want.length, this.count);
+      for (const l of want) l.on = true;
+    }
     this.last.copy(focus);
-    for (const l of this.lamps) l.score = this.score(l, focus);
-    const want = this.lamps.filter((l) => l.score > 0).sort((a, b) => b.score - a.score).slice(0, this.count);
-    const wanted = new Set(want);
-    const rate = snap ? Infinity : dt / this.fade;
-    if (snap) for (const s of this.slots) if (s.lamp && !wanted.has(s.lamp)) { s.lamp.w = 0; s.lamp.slot = null; s.lamp = null; }
+    const want = this.want, rate = snap ? Infinity : dt / this.fade;
+    if (snap) for (const s of this.slots) if (s.lamp && !s.lamp.on) { s.lamp.w = 0; s.lamp.slot = null; s.lamp = null; }
     for (const l of want) {
       if (l.slot) continue;
-      const free = this.slots.find((s) => !s.lamp);
+      let free = null;
+      for (const s of this.slots) if (!s.lamp) { free = s; break; }
       if (!free) continue;                 // every slot is still fading a lamp out: wait a moment
       free.lamp = l; l.slot = free; l.w = snap ? 1 : 0;
     }
     for (const s of this.slots) {
       const l = s.lamp, out = s.light;
       if (!l) { out.intensity = 0; continue; }
-      l.w = wanted.has(l) ? Math.min(1, l.w + rate) : Math.max(0, l.w - rate);
-      if (l.w <= 0 && !wanted.has(l)) { l.slot = null; s.lamp = null; out.intensity = 0; continue; }
+      l.w = l.on ? Math.min(1, l.w + rate) : Math.max(0, l.w - rate);
+      if (l.w <= 0 && !l.on) { l.slot = null; s.lamp = null; out.intensity = 0; continue; }
       const L = l.light;
       L.getWorldPosition(out.position);
       out.color.copy(L.color);
@@ -85,6 +102,6 @@ export class LightSlots {
   dispose() {
     for (const s of this.slots) this.scene.remove(s.light);
     for (const l of this.lamps) l.light.visible = true;
-    this.slots = []; this.lamps = [];
+    this.slots = []; this.lamps = []; this.want = [];
   }
 }

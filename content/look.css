@@ -494,6 +494,8 @@
   --swat-speed: 1.5;
   --swat-life: 1.5;
   --swat-spare-reach: 0.3;
+  --map-fps: 15;                /* how often the minimap is redrawn (at once when a mark appears, moves or goes) */
+  --map-max-dpr: 2;             /* the most pixels per CSS pixel the minimap is drawn with */
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
@@ -524,6 +526,11 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
+  --fire-smoke-dark: #2a201c;    /* the pick screen's stage only (fire-looks.js): the top of the smoke a hit curls up into */
+  --fire-scorch: #1c1410;        /* and the scorch it leaves on the floor */
+  --fire-scorch-glow: 0.9;       /* seconds the scorch glows ember-hot before it has cooled */
+  --fire-burn-flame: 2.6;        /* and a burning bug's flames, how tall, in its radii */
+  --fire-tail-flame: 6;          /* and a fireball's flame tail, how long, in its radii */
   --fire-blast: #ff8a3a;          /* Fire Attack upgrades: a burning bug's hit bursting (Flashpoint), the flame cone (Fire Breath) */
   --wind-core: #d9f6ff;
   --wind-gather-radius: 0.022;

@@ -3,6 +3,7 @@ import { ModelPool } from './model-pool.js';
 // mosquitoes that dart in to bite, and the act 2 bugs. The hair
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
+import { hitSpot } from './collision.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildMoth, buildFirefly, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
@@ -77,6 +78,7 @@ export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
 export const TYPES = CONTENT.enemies;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const FLOOR_HIT = hitSpot();   // where the floor under a bug is written each frame (World.cast `out`)
 
 // Angry eyes: white eyeballs with small red-rimmed pupils and thick brows slanted down toward
 // the middle. Built in "radius units" (the body is about 1 across) facing +z. The face sits on the
@@ -590,7 +592,7 @@ export class Enemies {
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
     bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, golden: !!e.lastGolden, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, by: e.lastBy, statuses: this.statusesOf(e), body: e.proxy ? null : e.root,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
-        floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
+        floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3, null, false, FLOOR_HIT)?.point.y ?? e.pos.y } : null });
     this.models.release(e.model);
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
   }
@@ -700,7 +702,7 @@ export class Enemies {
   // ---------------------------------------------------------------- ladybugs (the sortie word)
   // the floor under a point (or `fallback`)
   floorBelow(p, fallback) {
-    const h = this.world.cast(S.o.set(p.x, p.y + 0.3, p.z), DOWN, 0.6);
+    const h = this.world.cast(S.o.set(p.x, p.y + 0.3, p.z), DOWN, 0.6, null, false, FLOOR_HIT);
     return h ? h.point.y : fallback;
   }
   ladyLand(e) { this.fx.puff(e.pos.clone().setY(e.pos.y - 0.7 * e.r), 0xd8c8b4, e.r * 1.5, 0.35); sfx.ladyLand(); }
