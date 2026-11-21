@@ -213,7 +213,7 @@ export class Adornments {
   // Wind jelly: thin air streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
   make_gale() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
-    const airMat = new THREE.MeshBasicMaterial({ color: LOOK.color('gale-streak', '#e6f8ff'), vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false });   // (additive: one pass looks the same)
+    const airMat = new THREE.MeshBasicMaterial({ color: LOOK.color('gale-streak', '#e6f8ff'), vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false });
     // air ribbons: soft bands of air that climb a little as they curl round the bell, bright in the middle and fading to
     // nothing at both ends and along both edges (vertex colour), their face tilted up like a cone so they read from above and the side
     const ribbon = (radius, y, rise, a0, arc, width) => {
