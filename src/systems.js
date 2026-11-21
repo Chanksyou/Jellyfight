@@ -8,7 +8,7 @@
 //   menuOpen()   true while the pause menu, a pick, the creator or the layout editor is up
 import * as THREE from 'three';
 import { juice } from './juice.js';
-import { batcher } from './batch.js';
+import { batcher, updateShown } from './batch.js';
 import { hitSpot } from './collision.js';
 import { LOOK } from './look.js';
 
@@ -195,8 +195,10 @@ export class DebugSystem {
 export class RenderSystem {
   constructor({ gfx, statics }) { this.gfx = gfx; this.statics = statics; }
   update() {
-    batcher.sync();
-    this.statics?.sync();
-    this.gfx.render();
+    const scene = batcher.scene;
+    if (!scene) { batcher.sync(); this.statics?.sync(); this.gfx.render(); return; }
+    updateShown(scene);                       // the frame's matrices, once: the batches read them and the renderer doesn't walk the scene again
+    scene.matrixWorldAutoUpdate = false;
+    try { batcher.sync(true); this.statics?.sync(); this.gfx.render(); } finally { scene.matrixWorldAutoUpdate = true; }
   }
 }

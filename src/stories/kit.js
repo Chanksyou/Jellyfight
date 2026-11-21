@@ -134,6 +134,8 @@ export function stillMismatch() {
     if (o.matrixAutoUpdate && !sameMatrix(_still.compose(o.position, o.quaternion, o.scale), o.matrix)) bad = o;
     else if (!sameMatrix(o.parent ? _still.multiplyMatrices(o.parent.matrixWorld, o.matrix) : o.matrix, o.matrixWorld)) bad = o;
   });
+  const { world, player } = G();   // and the collision world never kept a piece's old place (collision.js focus re-checks frozen pieces only after markMoved)
+  if (!bad && world) { world.focus(player.position, 0); world.colliders.forEach((m, i) => { if (!bad && !sameMatrix(world.sweepBounds[i].matrix, m.matrixWorld)) bad = m; }); }
   let named = bad;
   while (named && !named.name) named = named.parent;
   return bad ? named?.name || bad.type : '';

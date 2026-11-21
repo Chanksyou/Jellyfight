@@ -90,12 +90,13 @@ export class Batcher {
   }
 
   // Gather this frame's instances. Call once per frame, right before rendering.
-  sync() {
+  // current: this.scene's matrices are already this frame's (updateShown just ran), so a root in it isn't walked again
+  sync(current = false) {
     for (let i = 0; i < this.all.length; i++) this.all[i].n = 0;
     for (const root of this.roots) {
       if (!root.parent) { this.roots.delete(root); continue; }
       if (!root.visible) continue;
-      root.updateMatrixWorld();
+      if (!current || top(root) !== this.scene) root.updateMatrixWorld();
       root.traverseVisible(this._visit);
     }
     let drawn = 0;
@@ -124,6 +125,30 @@ export class Batcher {
       drawn += g.n;
     }
     this.drawn = drawn;
+  }
+}
+
+const top = (o) => { while (o.parent) o = o.parent; return o; };
+
+// The frame's one matrix pass (systems.js RenderSystem), in place of the renderer's own scene.updateMatrixWorld():
+// the same, except a hidden piece one or two levels down (a pooled effect, shot or Warning not in use, a hidden
+// group's parts) is left as it was while it's hidden. Nobody draws it, and the frame it shows it's brought current.
+const PLAIN = THREE.Object3D.prototype.updateMatrixWorld;
+export function updateShown(o, force = false, depth = 0) {
+  if (o.matrixAutoUpdate) o.updateMatrix();
+  if (o.matrixWorldNeedsUpdate || force) {
+    if (o.matrixWorldAutoUpdate) { if (o.parent) o.matrixWorld.multiplyMatrices(o.parent.matrixWorld, o.matrix); else o.matrixWorld.copy(o.matrix); }
+    o.matrixWorldNeedsUpdate = false;
+    force = true;
+  }
+  const kids = o.children;
+  for (let i = 0; i < kids.length; i++) {
+    const c = kids[i];
+    if (!c.visible) { c.staleWhileHidden = true; continue; }
+    const f = force || c.staleWhileHidden === true;
+    c.staleWhileHidden = false;
+    if (depth > 0 || c.updateMatrixWorld !== PLAIN) c.updateMatrixWorld(f);   // deeper down (a bug's own parts, the jelly's rig), and anything with its own (a frozen apartment, a camera): as three does it
+    else updateShown(c, f, 1);
   }
 }
 

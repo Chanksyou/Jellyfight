@@ -843,6 +843,38 @@ story('engine/graphics-switch-prepares-shaders', {
     }
   },
 });
+story('engine/low-draws-plain-materials', {
+  about: 'Low graphics draw the apartment with plain diffuse materials (no shine maths per lamp) and its spotlights dark, the room fill lifted for them, and shiny extras (clearcoat, iridescence) off; a lamp glow set on a piece still shows. Back on Medium every piece has its own material again. Both switches build their shaders behind the menu, and play then builds none.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { gfx, APT, GAME, statics, batcher } = G(), was = gfx.choice;
+    const pieces = () => { const a = []; APT.root.traverse((o) => { if (o.isMesh) a.push(o); }); return a; };
+    const standard = () => pieces().filter((o) => [].concat(o.material).some((m) => m.isMeshStandardMaterial)).length + statics.batches.filter((b) => b.batch.material.isMeshStandardMaterial).length;
+    const lights = (k) => { const a = []; APT.scene.traverse((o) => { if (o[k]) a.push(o); }); return a; };
+    const shiny = () => { let n = 0; APT.scene.traverse((o) => { for (const m of [].concat(o.material || [])) if (m.isMeshPhysicalMaterial && (m.clearcoat > 0 || m.iridescence > 0)) n++; }); return n; };
+    const drawn = async () => { await gfx.ready; batcher.sync(); statics.sync(); const n = APT.renderer.info.programs.length; GAME.render(); GAME.render(); return APT.renderer.info.programs.length - n; };
+    try {
+      gfx.setQuality('medium'); await gfx.ready;
+      const mats = new Map(pieces().map((o) => [o, o.material])), hemi = lights('isHemisphereLight')[0].intensity;
+      const medium = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length };
+      gfx.setQuality('low');
+      const lowNew = await drawn();
+      const lamp = pieces().find((o) => !Array.isArray(o.material) && o.material.isMeshLambertMaterial && mats.get(o).isMeshStandardMaterial);
+      const own = mats.get(lamp), glowWas = own.emissiveIntensity;
+      own.emissiveIntensity = 3.5;   // what act 4's beat does to a lamp's own material
+      const follows = lamp.material.emissiveIntensity === 3.5 && lamp.material.emissive === own.emissive;
+      own.emissiveIntensity = glowWas;
+      const low = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, inBatches: statics.count, follows, built: lowNew };
+      gfx.setQuality('medium');
+      const backNew = await drawn();
+      const restored = pieces().every((o) => o.material === mats.get(o));
+      const back = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, restored, built: backNew };
+      const pass = medium.standard > 100 && medium.spots > 0 && low.standard === 0 && low.shiny === 0 && low.spots === 0 && low.hemi > 1 && low.inBatches > 100 && follows && lowNew === 0
+        && restored && back.standard === medium.standard && back.shiny === medium.shiny && back.spots === medium.spots && back.hemi === 1 && backNew === 0;
+      return ok(pass, { medium, low, back });
+    } finally { gfx.setQuality(was); await gfx.ready; }
+  },
+});
 story('engine/reversed-depth', {
   about: 'With EXT_clip_control the game draws with a reversed depth buffer: the camera keeps its 2 mm near plane without log depth, and depth of field reads depth the reversed way.',
   setup() { fresh({ elites: false }); },

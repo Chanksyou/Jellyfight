@@ -3,6 +3,7 @@
 // props on stat (no-penalty), rebound (walls-only) and echo-bubble (on="kill"). Popcorn says it with
 // split-on-hit, which Split Blob brought (src/stories/poison.js).
 import { bus } from '../events.js';
+import { LOOK } from '../look.js';
 import { CONTENT, compileMods, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { G, V, offs, ok, record, roachAt, setupFight, spy, step, story, stub, tp } from './kit.js';
@@ -476,5 +477,23 @@ story('treasures/flight-combos', {
     shoot({ dir: w.dir }); shoot({ dir: open(0.7) });
     step(60 * 15);
     return ok(home && !B.list.length, { home, left: B.list.length });
+  },
+});
+
+story('treasures/plain-pop-looks', {
+  about: 'A plain bubble popping on a bug shows a ring and twice the droplets only on the pick screen\'s stage (fx.showcase), and in play adds nothing: the same droplets, no extra ring; its soft puff is mostly clear (--bubble-pop-puff).',
+  setup() { calm(); },
+  play() {
+    const { run, fx } = G(), B = run.bubbles, at = bell().add(V(0, 0, -0.15));
+    const pop = (showcase) => {
+      clean(); fx.showcase = showcase;
+      const rings = spy(fx, 'ring'), bursts = spy(fx, 'burst'), puffs = spy(fx, 'puff');
+      try {
+      B.pop(hang(at), bugAt(at.clone().add(V(-0.05, 0, 0))), run.S, run.mods);
+      } finally { fx.showcase = false; }
+      return { rings: rings.length, drops: bursts[0]?.[2], puff: puffs[0]?.[4] };
+    };
+    const play = pop(false), stage = pop(true);
+    return ok(stage.rings === play.rings + 1 && stage.drops === play.drops * 2 && play.puff === LOOK.num('bubble-pop-puff', 0.2) && B.mat.sheen === 1 && B.mat.opacity === LOOK.num('bubble-opacity', 0.28) && B.goldMat.opacity === 0.6, { play, stage });
   },
 });

@@ -487,6 +487,29 @@ story('types/pick-stage-fire', {
   },
 });
 
+story('types/pick-stage-poison', {
+  about: 'On the centre card the Poison jelly\'s blob is a darker core inside a see-through glossy body with a wet highlight; its burst leaves a cloud of green gas puffs (normal blending, so it stays green, not glow that whitens) and falling droplets; the water behind takes a sickly green grade (--preview-grade-poison). In play the blob keeps its plain unlit body.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('poison');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks, puffs = spy(P.fx, 'puff'), bursts = spy(looks, 'poisonBurst');
+      let wet = false;
+      for (let i = 0; i < 4 * 30; i++) { live.simulate(1 / 30); P.scene.traverse((o) => { if (o.userData.look === 'poison' && o.visible && o.userData.core && o.userData.blob.material === looks.wetPoison) wet = true; }); }
+      const cloud = bursts.length > 0 && puffs.length >= bursts.length * 8;   // its gas: a middle and a cloud of puffs round it
+      const grade = P.stage.back.material.uniforms.uGrade.value.clone(), green = grade.g > grade.b + 0.15 && grade.g > grade.r + 0.1;
+      const plain = !G().run.bubbles.looks.wetPoison;
+      return ok(wet && cloud && green && plain, { wet, bursts: bursts.length, puffs: puffs.length, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
@@ -711,6 +734,30 @@ story('types/pick-side-card-toxic', {
       const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
       const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
       return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-sting', {
+  about: 'The Tentacle\'s card (aura="sting", pick-auras/sting.js) is painted by its shader, with no 2D drawing left: whip ribbons and snaps in a violet dusk, so the open water on the card leans violet, not teal.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('tentacle');
+      stub(picker, 'live', null);
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('tentacle')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting') && !AURAS.sting;
+      picker.auraAt = -1; tick();
+      // (one small read of the card's own 2D canvas: the dusk in its top left corner, violet where Ice's water is teal)
+      const S = card.width, d = card.getContext('2d').getImageData(0, 0, Math.ceil(S * 0.1), Math.ceil(S * 0.1)).data;
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; }
+      return ok(lit && b > g * 1.8, { lit, r: Math.round(r / (d.length / 4)), g: Math.round(g / (d.length / 4)), b: Math.round(b / (d.length / 4)) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

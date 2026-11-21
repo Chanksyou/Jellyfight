@@ -1,5 +1,6 @@
 import { MeshBVH, ExtendedTriangle, acceleratedRaycast } from 'three-mesh-bvh';
 import { HIDDEN } from './batch.js';
+import { moves } from './static-batch.js';
 
 import * as THREE from 'three';
 
@@ -8,7 +9,6 @@ import * as THREE from 'three';
 // scrambled the others (holes in furniture).
 const BVH_OPTIONS = { indirect: true };
 const CELL = 0.5; // metres: broad phase only; the triangle sweep still decides contact
-const indexOrder = (a, b) => a - b;
 // a hit record to hand to World.cast as `out` (make it once, outside the frame loop)
 export const hitSpot = () => ({ distance: 0, point: new THREE.Vector3(), normal: new THREE.Vector3(), mesh: null });
 
@@ -99,7 +99,11 @@ export class World {
   // Keep a short list of colliders around the player so each ray only checks those.
   // Rebuilt when the player moves or every quarter second (doors swing, the cat walks).
   focus(center, dt, radius = 1.6) {
-    for (let i = 0; i < this.colliders.length; i++) this.refreshCollider(i);
+    // a piece of a frozen apartment only moves through markMoved (static-batch.js), so its bounds are re-checked only after one
+    if (this._moves !== moves || this._liveN !== this.colliders.length) {
+      this._moves = moves; this._liveN = this.colliders.length; this.live = [];
+      for (let i = 0; i < this.colliders.length; i++) { this.refreshCollider(i); if (!frozenUnder(this.colliders[i])) this.live.push(i); }
+    } else for (let i = 0; i < this.live.length; i++) this.refreshCollider(this.live[i]);
     this._focusAge += dt;
     if (this._focus.distanceToSquared(center) < 0.04 && this._focusAge < 0.25) return;
     this._focus.copy(center);
@@ -166,7 +170,8 @@ export class World {
         }
       }
     }
-    return out.sort(indexOrder); // retain contact tie-breaking at corners
+    for (let i = 1; i < out.length; i++) { const v = out[i]; let j = i - 1; for (; j >= 0 && out[j] > v; j--) out[j + 1] = out[j]; out[j + 1] = v; }   // in index order, to keep contact tie-breaking at corners (an in-place insertion sort: Array sort allocates, and these lists are short)
+    return out;
   }
 
   // Like cast(), but checks every collider (slow; for rare lookups far from the player). Its hit
@@ -286,8 +291,7 @@ export class World {
     out.hit = false;
     for (const mi of this.sweepNearby(s.box)) {
       const m = this.colliders[mi], bounds = this.sweepBounds[mi];
-      if (!visibleChain(m)) continue;
-      if (!s.box.intersectsBox(bounds.box)) continue;
+      if (!s.box.intersectsBox(bounds.box) || !visibleChain(m)) continue;   // (the box first: it rejects most, and costs less than the walk up)
       s.localBox.copy(s.box).applyMatrix4(this._inv.copy(m.matrixWorld).invert());
       const g = m.geometry, bvh = g.boundsTree, pos = g.attributes.position.array, idx = g.index?.array;
       for (const root of bvh._roots) {
@@ -304,6 +308,8 @@ export class World {
             tri.a.fromArray(pos, (idx ? idx[t] : t) * 3).applyMatrix4(m.matrixWorld);
             tri.b.fromArray(pos, (idx ? idx[t + 1] : t + 1) * 3).applyMatrix4(m.matrixWorld);
             tri.c.fromArray(pos, (idx ? idx[t + 2] : t + 2) * 3).applyMatrix4(m.matrixWorld);
+            const A = tri.a, B = tri.b, C = tri.c, W = s.box;   // a triangle wholly outside the swept box can't be touched: skip the exact test
+            if (Math.min(A.x, B.x, C.x) > W.max.x || Math.max(A.x, B.x, C.x) < W.min.x || Math.min(A.y, B.y, C.y) > W.max.y || Math.max(A.y, B.y, C.y) < W.min.y || Math.min(A.z, B.z, C.z) > W.max.z || Math.max(A.z, B.z, C.z) < W.min.z) continue;
             tri.needsUpdate = true;
             this.sweepTriangle();
           }
@@ -386,6 +392,8 @@ export function checkBvhLayout(world, force = false) {
   }
   m.geometry.dispose();
 }
+
+function frozenUnder(o) { for (; o; o = o.parent) if (o.userData.frozen) return true; return false; }
 
 function isSolid(o) {
   if (!o.isMesh || o.isInstancedMesh || o.userData.noCollide) return false; // foliage is instanced: walk through leaves

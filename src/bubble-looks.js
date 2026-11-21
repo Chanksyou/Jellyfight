@@ -150,10 +150,10 @@ export class BubbleLooks {
         [ball, lit(0x46d80c), { name: 'tail1', s: [0.62, 0.62, 0.8], at: [0, 0, -1.25] }],   // a sloshing tail
         [ball, lit(0x34b808), { name: 'tail2', s: [0.38, 0.38, 0.55], at: [0, 0, -2.05] }],
       ],
-      poison: [
-        [ball, lit(PZ.blob), { name: 'blob' }],
-        [ball, lit(PZ.deep, 0.35), { s: [1.45, 1.45, 1.45] }],
-        [ball, lit(PZ.bright), { name: 'bub', s: [0.36, 0.36, 0.36] }],
+      poison: [   // a darker core seen through a see-through wobbling body, a wet highlight on top
+        [ball, lit(PZ.deep), { name: 'core', s: [0.66, 0.66, 0.66] }],
+        [ball, lit(PZ.blob, 0.62), { name: 'blob' }],
+        [ball, lit(PZ.bright), { name: 'bub', s: [0.24, 0.16, 0.24] }],
         [ball, lit(PZ.blob), { name: 'tail1', s: [0.62, 0.62, 0.8], at: [0, 0, -1.25] }],
         [ball, lit(PZ.deep), { name: 'tail2', s: [0.38, 0.38, 0.55], at: [0, 0, -2.05] }],
       ],
@@ -324,24 +324,37 @@ export class BubbleLooks {
   // the Poison blob's burst: a sphere of green gas swelling out to its real edge (radius), a ring round
   // its middle, wisps thrown to the edge. Nothing stays on the floor: the Poison shows on the bugs it reached
   poisonBurst(pos, radius) {
-    const glow = this.fx.glow, P = this.pz, life = P.burstLife;
-    glow.emit(pos, P.bright, radius * 0.5, radius * 0.9, 0.08, 0.9);
-    glow.emit(pos, P.gas, radius * 0.8, radius * 2, life, 0.35);
-    this.fx.ring(pos, P.blob.getHex(), radius, life * 0.8);
-    for (let k = 0; k < 10; k++) {
+    const glow = this.fx.glow, P = this.pz, life = P.burstLife, rich = this.fx.showcase;
+    glow.emit(pos, P.bright, radius * 0.35, radius * 0.6, 0.06, 0.7);
+    // a round cloud of gas (puffs, not glow, so it stays green): its middle thins first, its edge churns on after
+    this.fx.puff(pos, P.blob, radius * 0.55, life * 0.6, 0.3);
+    for (let k = 0, n = rich ? 14 : 7; k < n; k++) {   // (the pick screen's stage: a fuller cloud)
       _v.randomDirection();
-      glow.emit(_p.copy(pos).addScaledVector(_v, radius * 0.3), k % 2 ? P.gas : P.blob, radius * 0.25, radius * 0.45, life, 0.5, _a.copy(_v).multiplyScalar(radius * 2.2 / life), 0);
+      const out = 0.35 + Math.random() * 0.4;   // further out lasts longer
+      this.fx.puff(_p.copy(pos).addScaledVector(_v, radius * out), k % 3 ? P.deep : P.blob, radius * (0.16 + Math.random() * 0.12), life * (0.8 + out * 1.4 + Math.random() * 0.3), rich ? 0.24 : 0.3);
+    }
+    if (rich) glow.emit(pos, P.deep, radius * 1.2, radius * 1.8, life * 2, 0.22);   // a soft haze round it, so its puffs blur into one cloud
+    this.fx.ring(pos, P.blob.getHex(), radius, life * 0.8);
+    for (let k = 0; k < 6; k++) {
+      _v.randomDirection();
+      glow.emit(_p.copy(pos).addScaledVector(_v, radius * 0.3), P.gas, radius * 0.2, radius * 0.4, life, 0.35, _a.copy(_v).multiplyScalar(radius * 2.2 / life), 0);
+    }
+    // droplets left behind it, falling
+    for (let k = 0, n = rich ? 12 : 6; k < n; k++) {
+      _v.randomDirection(); _v.y = Math.abs(_v.y) * 0.6 + 0.2;
+      glow.emit(_p.copy(pos).addScaledVector(_v, radius * 0.6), k % 3 ? P.deep : P.blob, radius * 0.07, radius * 0.03, 0.5 + Math.random() * 0.3, 1, _a.copy(_v).multiplyScalar(radius * 1.4 / life), 1.3);
     }
   }
   // a Poisoned bug, now and then while it lasts: a green bubble welling up off it and popping, a drop
   // running off it and falling to `floor`
   poisoned(pos, r, floor) {
     const glow = this.fx.glow, P = this.pz;
-    glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r * 1.4, r * (0.3 + Math.random() * 0.6), (Math.random() - 0.5) * r * 1.4)), Math.random() < 0.5 ? P.blob : P.bright, r * 0.3, r * 0.5, 0.5, 0.9, _a.set(0, 0.03, 0));
+    glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r * 1.4, r * (0.3 + Math.random() * 0.6), (Math.random() - 0.5) * r * 1.4)), Math.random() < 0.7 ? P.blob : P.bright, r * 0.3, r * 0.5, 0.5, 0.9, _a.set(0, 0.03, 0));
     if (Math.random() < 0.6) {
       const t = Math.sqrt(Math.max(0.0005, pos.y - floor) * 2 / 1.4 / 9.8) + 0.05;   // about how long a drop takes to reach the floor
       glow.emit(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r, -r * 0.4, (Math.random() - 0.5) * r)), P.deep, r * 0.28, r * 0.2, Math.min(0.9, t), 1, _a.set(0, -0.01, 0), 1.4);
     }
+    if (this.fx.showcase) this.fx.puff(_p.copy(pos).add(_v.set((Math.random() - 0.5) * r, r * 0.7, (Math.random() - 0.5) * r)), Math.random() < 0.5 ? P.blob : P.deep, r * 0.22, 0.6, 0.3);   // (the pick screen's stage: green fumes off it too)
   }
 
   // the acid puddle splashing down: a ring of drops thrown out to its edge and a bright splat
@@ -606,7 +619,11 @@ export class BubbleLooks {
         const k = Math.sin(t * 15 + w), j = Math.cos(t * 11 + w), pz = U.look === 'poison';
         const body = pz ? this.pz.blob : COL.acid, drip = pz ? this.pz.deep : COL.drip, fume = pz ? this.pz.gas : COL.fume;
         U.blob.scale.set(1 + 0.22 * k, 1 - 0.2 * k, 1.1 + 0.15 * j);       // a wobbling glob
-        U.bub.position.set(Math.cos(t * 7 + w) * 0.75, 0.55 + 0.2 * k, Math.sin(t * 7 + w) * 0.75);
+        if (pz) {
+          U.core.position.set(0.12 * j, -0.08 * k, -0.1);                   // its darker heart sloshing inside it
+          U.bub.position.set(-0.32, 0.62 - 0.16 * k, 0.3);                   // the wet highlight riding its top as it wobbles
+          if (this.fx.showcase && U.blob.material !== this.wetPoison) U.blob.material = this.wetPoison ||= new THREE.MeshStandardMaterial({ color: this.pz.blob, emissive: this.pz.deep, emissiveIntensity: 0.6, roughness: 0.06, transparent: true, opacity: 0.55 });   // (the pick screen's stage: a glossy body that catches its lights)
+        } else U.bub.position.set(Math.cos(t * 7 + w) * 0.75, 0.55 + 0.2 * k, Math.sin(t * 7 + w) * 0.75);
         U.tail1.position.set(Math.sin(t * 13 + w) * 0.25, Math.cos(t * 11 + w) * 0.2, -1.25 - 0.15 * j);   // its tail sloshing behind it
         U.tail1.scale.set(0.62 - 0.1 * k, 0.62 + 0.1 * k, 0.8 + 0.2 * j);
         U.tail2.position.set(Math.sin(t * 13 + w - 1) * 0.4, Math.cos(t * 11 + w - 1) * 0.3, -2.05 - 0.2 * k);
