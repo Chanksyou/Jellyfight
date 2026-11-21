@@ -1,0 +1,1 @@
+draws the Tentacle jelly's pick card in a shader: whip lashes with ribbon trails crack round the jelly in a violet dusk, snapping with a star flash, a ring and venom drops, lighting the jelly's edge as they land.

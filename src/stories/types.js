@@ -715,6 +715,30 @@ story('types/pick-side-card-toxic', {
   },
 });
 
+story('types/pick-side-card-sting', {
+  about: 'The Tentacle\'s card (aura="sting", pick-auras/sting.js) is painted by its shader, with no 2D drawing left: whip ribbons and snaps in a violet dusk, so the open water on the card leans violet, not teal.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('tentacle');
+      stub(picker, 'live', null);
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('tentacle')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting') && !AURAS.sting;
+      picker.auraAt = -1; tick();
+      // (one small read of the card's own 2D canvas: the dusk in its top left corner, violet where Ice's water is teal)
+      const S = card.width, d = card.getContext('2d').getImageData(0, 0, Math.ceil(S * 0.1), Math.ceil(S * 0.1)).data;
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; }
+      return ok(lit && b > g * 1.8, { lit, r: Math.round(r / (d.length / 4)), g: Math.round(g / (d.length / 4)), b: Math.round(b / (d.length / 4)) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-side-card-shader-holds-still-calm', {
   about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
   setup() {},
