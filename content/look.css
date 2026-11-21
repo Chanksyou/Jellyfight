@@ -985,6 +985,11 @@
   --dress-door-beat: 0.35;
   --dress-door-beats: 8;         /* beats between time-up and the door opening (about 3.75 s at 128 BPM) */
   --dress-door-beats-calm: 2;    /* the same under Reduce effects, which also keeps the glow steady */
+  --bubble-opacity: 0.24;        /* how solid your plain bubble is (the rest is the water seen through it) */
+  --bubble-glow: 0.1;            /* its inner glow */
+  --bubble-sheen: #e8f8ff;       /* the light on its rim */
+  --bubble-sheen-roughness: 0.35; /* lower is a thinner, brighter rim */
+  --bubble-pop-puff: 0.2;        /* how solid the soft puff at a plain bubble's pop is (the droplets and ring carry it) */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */

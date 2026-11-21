@@ -478,3 +478,20 @@ story('treasures/flight-combos', {
     return ok(home && !B.list.length, { home, left: B.list.length });
   },
 });
+
+story('treasures/plain-pop-looks', {
+  about: 'A plain bubble popping on a bug shows a ring and twice the droplets only on the pick screen\'s stage (fx.showcase), and in play adds nothing: the same droplets, no extra ring; its soft puff is mostly clear (--bubble-pop-puff).',
+  setup() { calm(); },
+  play() {
+    const { run, fx } = G(), B = run.bubbles, at = bell().add(V(0, 0, -0.15));
+    const pop = (showcase) => {
+      clean(); fx.showcase = showcase;
+      const rings = spy(fx, 'ring'), bursts = spy(fx, 'burst'), puffs = spy(fx, 'puff');
+      B.pop(hang(at), bugAt(at.clone().add(V(-0.05, 0, 0))), run.S, run.mods);
+      fx.showcase = false;
+      return { rings: rings.length, drops: bursts[0]?.[2], puff: puffs[0]?.[4] };
+    };
+    const play = pop(false), stage = pop(true);
+    return ok(stage.rings === play.rings + 1 && stage.drops === play.drops * 2 && play.puff > 0 && play.puff < 0.55, { play, stage });
+  },
+});
