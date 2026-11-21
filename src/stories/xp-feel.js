@@ -104,14 +104,19 @@ phone('xp-feedback', {
   },
 });
 
-story('pickups/xp-sphere-is-twice-as-big', {
-  about: 'An XP sphere is twice the old size (radius 0.007 m, big ones 1.9x that), rests on the floor, and is still collected at the same distance.',
+story('pickups/xp-is-a-spinning-crystal', {
+  about: 'An XP drop is a faceted gem (8 triangles) that turns while it waits and is still twice the old size; Health crumbs stay round beads.',
   setup,
   play() {
-    const { xpDrops } = G();
+    const { xpDrops, run } = G();
     xpDrops.drop(near(0.3, 0, 0), 1, 6);
     const small = xpDrops.list.find(d => !d.big), big = xpDrops.list.find(d => d.big);
-    const rs = small.m.geometry.parameters.radius, rb = big.m.geometry.parameters.radius;
-    return ok(Math.abs(rs - 0.007) < 1e-6 && Math.abs(rb - 0.007 * 1.9) < 1e-6 && Math.abs(small.floor - small.pos.y) < 0.05, { rs, rb });
+    const g = small.m.geometry, kinds = [g.type, big.m.geometry.type, run.crumbs.geo.type];
+    g.computeBoundingBox();
+    const width = g.boundingBox.max.x * 2, height = g.boundingBox.max.y * 2;
+    const turn0 = small.m.rotation.y;
+    step(30);
+    const turned = small.m.rotation.y !== turn0;
+    return ok(kinds.join() === 'OctahedronGeometry,OctahedronGeometry,SphereGeometry' && width > 0.014 && height > width && turned, { kinds, width, height, turned });
   },
 });

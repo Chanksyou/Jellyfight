@@ -19,13 +19,15 @@ export class XpDrops {
     this.life = life;
     this.list = [];
     this.r = look ? 0.0035 : LOOK.num('xp-size', 0.007);   // XP spheres are set in look.css; Health crumbs and leave-on-kill drops stay small
-    this.geo = new THREE.SphereGeometry(this.r, 12, 8);
+    // XP is a faceted crystal (8 triangles, a little taller than wide); Health crumbs and leave-on-kill drops stay round beads
+    const gem = (r) => new THREE.OctahedronGeometry(r * LOOK.num('xp-gem-scale', 1.25), 0).scale(1, LOOK.num('xp-gem-height', 1.35), 1);
+    this.geo = look ? new THREE.SphereGeometry(this.r, 12, 8) : gem(this.r);
     this.mat = look
       ? new THREE.MeshStandardMaterial({ color: LOOK.color(look, '#ffb47a'), emissive: LOOK.color(look, '#ffb47a'), emissiveIntensity: 0.35, roughness: 0.6 })
-      : new THREE.MeshStandardMaterial({ color: LOOK.color('xp-color', '#ffd25a'), emissive: LOOK.color('xp-glow', '#e8a21b'), emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
+      : new THREE.MeshStandardMaterial({ color: LOOK.color('xp-color', '#ffd25a'), emissive: LOOK.color('xp-glow', '#e8a21b'), emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9, flatShading: true });
     // a big drop (worth BIG): about twice as wide and brighter, so a 5-XP drop reads as one thing
-    this.bigGeo = new THREE.SphereGeometry(this.r * 1.9, 16, 12);
-    this.bigMat = new THREE.MeshStandardMaterial({ color: LOOK.color('xp-big-color', '#ffe27a'), emissive: LOOK.color('xp-big-glow', '#ffc43a'), emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
+    this.bigGeo = gem(this.r * 1.9);
+    this.bigMat = new THREE.MeshStandardMaterial({ color: LOOK.color('xp-big-color', '#ffe27a'), emissive: LOOK.color('xp-big-glow', '#ffc43a'), emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95, flatShading: true });
     this.magnetAll = false;
     this._to = new THREE.Vector3();
     this.xpLook = !look;
@@ -47,7 +49,7 @@ export class XpDrops {
       this.scene.add(m);
       const a = Math.random() * Math.PI * 2, s = 0.04 + Math.random() * 0.05;
       const hit = this.world.cast(new THREE.Vector3(pos.x, pos.y + 0.01, pos.z), DOWN, 3);
-      this.list.push({ m, pos: pos.clone(), value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + this.r * (big ? 1.9 : 1) : pos.y, pull: false, pullT: 0, t: 0 });
+      this.list.push({ m, pos: pos.clone(), value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + this.r * (big ? 1.9 : 1) : pos.y, pull: false, pullT: 0, t: 0, spin: Math.random() * 6.28 });
     }
   }
 
@@ -94,6 +96,7 @@ export class XpDrops {
         d.vel.y -= 1.2 * dt;
         p.addScaledVector(d.vel, dt);
         if (p.y <= d.floor) { p.y = d.floor; d.vel.set(0, 0, 0); }
+        if (this.xpLook && !quiet) d.m.rotation.y = d.t * LOOK.num('xp-spin', 2.2) + d.spin;   // the crystal turns slowly while it waits
         d.m.scale.setScalar((d.k || 1) * (1 + Math.sin(d.t * 5) * 0.08));
         d.m.position.copy(p);
       }
