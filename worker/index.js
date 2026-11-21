@@ -196,7 +196,7 @@ export const jellyOf = (v) => String(v ?? '').replace(/[^a-z]/g, '').slice(0, 16
 const MIN_ACT_TIME = 250;                // seconds: acts 1-3 hold the boss back for 260 s
 const MIN_NIGHT_4 = 170;                 // seconds: act 4's stage door opens after its 180 s night, so its arena is reached no sooner
 const MAX_COPIES = 5;                    // no treasure stacks past 5 (content/treasures.kdl)
-const MAX_UPGRADES = 3;                  // a jelly type's Attack upgrades: one after each of acts 1-3's bosses
+const MAX_UPGRADES = 4;                  // a jelly type's Attack upgrades: one at the start of a run (#360), then one after each of acts 1-3's bosses
 const MIN_BOSS_SECONDS = 10;             // no boss falls faster than this (generous: the quickest real fights take a minute)
 // content/waves.kdl `spawning rate … grow=…`: bugs a second from the waves (tests check these match). Bugs out in an
 // act can't pass BUGS_OUT_ROOM times the waves over the whole act's time: Nests, splits, Elite summons and
