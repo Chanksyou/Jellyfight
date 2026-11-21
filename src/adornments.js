@@ -144,7 +144,9 @@ export class Adornments {
   // backward-hooked barbs sit along every tentacle so the type reads from far away
   make_barbs() {
     const group = new THREE.Group(), per = 3;
-    const mat = glowMat('barb', '#f4e9ff', { emissiveIntensity: 0.9 });
+    // (glossy with a venom glow inside, so each barb picks up the rim light instead of glowing flat white)
+    const mat = glowMat('barb', '#f4e9ff', { emissive: new THREE.Color(LOOK.color('barb-glow', '#a468ff')), emissiveIntensity: 0.7, roughness: 0.12, metalness: 0.3 });
+    const glintCol = new THREE.Color(LOOK.color('barb-glint-colour', '#e9d4ff')), at = new THREE.Vector3();
     const geo = new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
     const barbs = Array.from({ length: 8 * per }, () => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
     this.batch.track(group);
@@ -164,6 +166,13 @@ export class Adornments {
         m.quaternion.setFromUnitVectors(Y, d);
         const r = rig.thick * rig.barbThick * (1 - 0.72 * j / n) * unit;
         m.scale.set(r, r * size, r);
+      });
+      // a venom glint runs down each tentacle, one after another, passing its barbs
+      const glintSize = LOOK.num('barb-glint', 1.1);
+      if (on && glintSize > 0 && run.fx?.glow) rig.list.forEach((T, i) => {
+        const p = (this.t * LOOK.num('barb-glint-speed', 0.7) + i * 0.37) % 1, n = T.pts.length - 1;
+        rig.parent.localToWorld(at.copy(T.pts[Math.min(n, Math.round(p * n))]));
+        run.fx.glow.hold(at, glintCol, rig.thick * unit * glintSize, 0.8 * Math.sin(p * Math.PI));
       });
     } };
   }
