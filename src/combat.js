@@ -47,6 +47,10 @@ export class Lash {
     this.traceColor = new THREE.Color(LOOK.color('lash-trace', '#2ee9ff'));
     this.impactColor = new THREE.Color(LOOK.color('lash-impact', '#5ff0ff'));
     this.strikeColor = new THREE.Color(LOOK.color('lash-strike', '#e9fdff'));
+    // the ribbon the lash leaves: its colours from the dim tail to the white-hot leading edge (emitted glow keeps its colour object)
+    this.ribbonCols = Array.from({ length: 8 }, (_, i) => this.traceColor.clone().lerp(this.strikeColor, (i / 7) ** 2));
+    this.dropColor = new THREE.Color(LOOK.color('lash-drop', '#d9c2ff'));
+    this._col = new THREE.Color();
     this._c = new THREE.Vector3();
     this._d = new THREE.Vector3();
     this._e = new THREE.Vector3();
@@ -209,18 +213,39 @@ export class Lash {
   glowLash(s, a, b, k, bright, snapping) {
     if (k <= 0) { s.tip.copy(a); return; }
     const tip = this._tip.copy(a).lerp(b, k), P = this._c, glow = this.fx.glow, lift = a.distanceTo(tip) * LOOK.num('lash-arc', 0.3);
-    const n = LOOK.num('lash-glow-dots', 6), size = LOOK.num('lash-glow-size', 0.03);
+    const show = this.fx.showcase, n = LOOK.num('lash-glow-dots', 6) * (show ? 1.5 : 1), size = LOOK.num('lash-glow-size', 0.03);
     for (let i = 1; i <= n; i++) {
       const u = i / n;
       P.copy(a).lerp(tip, u); P.y += Math.sin(u * Math.PI) * lift;
-      glow.hold(P, this.traceColor, size * (0.5 + 0.5 * u), 0.7 * bright);
+      // a ribbon: thin and dim at its root, wider and nearly white at the leading edge
+      glow.hold(P, this._col.copy(this.traceColor).lerp(this.strikeColor, u * u * u), size * (0.3 + 0.7 * u), (0.3 + 0.7 * u) * 0.8 * bright);
     }
     glow.hold(tip, this.strikeColor, size * 2 * bright, bright);   // the tip: the bright point the eye follows
     if (snapping) {
-      const m = LOOK.num('lash-streak-dots', 4), ss = LOOK.num('lash-streak-size', 0.018);
-      for (let i = 1; i <= m; i++) glow.emit(P.copy(s.tip).lerp(tip, i / m), this.traceColor, ss, ss * 0.3, LOOK.num('lash-streak-life', 0.2), 0.8);
+      const m = LOOK.num('lash-streak-dots', 4) * (show ? 1.5 : 1), ss = LOOK.num('lash-streak-size', 0.018);
+      for (let i = 1; i <= m; i++) glow.emit(P.copy(s.tip).lerp(tip, i / m), this.traceColor, ss, ss * 0.3, LOOK.num('lash-streak-life', 0.2) * (show ? 1.5 : 1), 0.8);
     }
     s.tip.copy(tip);
+  }
+
+  // The snap: the lash's arc hangs a moment as a ribbon that fades from its root (leaving the tip last),
+  // the tip flashes, and a few venom drops are thrown off the bug and fall. (More of each on the pick screen's stage)
+  snap(a, b) {
+    const glow = this.fx.glow, show = this.fx.showcase, P = this._tip, V = this._a;
+    const n = LOOK.num('lash-ribbon-dots', 7) * (show ? 2 : 1), size = LOOK.num('lash-ribbon-size', 0.022), life = LOOK.num('lash-ribbon-life', 0.26);
+    const lift = a.distanceTo(b) * LOOK.num('lash-arc', 0.3), top = this.ribbonCols.length - 1;
+    for (let i = 1; i <= n; i++) {
+      const u = i / n;
+      P.copy(a).lerp(b, u); P.y += Math.sin(u * Math.PI) * lift;
+      glow.emit(P, this.ribbonCols[Math.round(u * top)], size * (0.3 + 0.7 * u), 0, life * (0.35 + 0.65 * u), 0.45);
+    }
+    glow.emit(b, this.strikeColor, LOOK.num('lash-snap-size', 0.06), 0, LOOK.num('lash-snap-life', 0.09), 1.8);
+    const d = LOOK.num('lash-drops', 3) * (show ? 3 : 1), away = V.copy(b).sub(a).setY(0).normalize();
+    for (let i = 0; i < d; i++) {
+      const sp = 0.05 + 0.07 * Math.random(), ang = (Math.random() - 0.5) * 2.2, c = Math.cos(ang), sn = Math.sin(ang);
+      P.set((away.x * c - away.z * sn) * sp, 0.05 + 0.08 * Math.random(), (away.x * sn + away.z * c) * sp);
+      glow.emit(b, this.dropColor, LOOK.num('lash-drop-size', 0.007), 0.003, 0.4 + 0.2 * Math.random(), 1, P, LOOK.num('lash-drop-gravity', 0.7));
+    }
   }
 
   // Impact: a crescent of glow swept across the bug, wider than its body, so the sting reads as a
@@ -294,6 +319,7 @@ export class Lash {
     if (!s.target.T.fly && !X?.grab) bus.emit('knockback', { targetId: id, dir: E.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * E.statusMore(s.target, 'tentacle')) });
     bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit, golden: s.golden } });
     this.slash(s.target, a, b);
+    this.snap(a, b);
     // the streak (glowLash) fades behind it; floor droplets stay a moment longer
     this.fx.splat(b.clone().setY(E.floorBelow(b, s.target.pos.y)), null, LOOK.num('lash-splat-size', 0.006));
     // Bleed (venom, or a sweep's): another stack, and they all last a while longer
