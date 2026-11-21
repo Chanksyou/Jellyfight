@@ -2,6 +2,24 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v602 makes bug crowds cheaper on phones: a far or off-screen bug that's only walking moves on alternate frames with both frames' time (same distance, walls still hold), a frame works out each moving piece's place once instead of twice, hidden pooled effects wait until they show, and the collision world re-checks furniture only after it moves.
+
+v601 gives the Tentacle jelly's sting a violet ribbon trail that fades from its root, a flash at the tip as it snaps and a few venom drops thrown off the stung bug, and its barbs a venom glow with a glint running down each tentacle.
+
+v600 makes the Poison jelly's attack look thicker on the pick screen: its blob shows a dark core through a glossy, wobbling body with a wet highlight, the burst leaves a soft green cloud that thins from the middle and droplets that fall, Poisoned roaches fume, and the water turns murky green. In play the blob and burst read the same, a little greener, and the tentacle drops are glossy and stretch as they fall.
+
+v599 adds a test link, `?rt=packed`, that draws the picture and glow buffers at 32 bits a pixel instead of 64 where the phone's graphics chip can, so the phone bench can measure whether it helps (nothing changes without the link).
+
+v598 makes your plain bubble glassier (clearer, with a bright rim) and its pop clearer too: on the pick screen it bursts as a ring and a double splash of droplets; in play the soft puff is mostly clear water.
+
+v597 makes Low graphics really low on phones: the apartment draws with plain diffuse materials (no shine), the three spotlights go dark with the room's fill light lifted for them, and clearcoat, iridescence and sheen are off. Low looks plainer and should run lighter; Medium and High are unchanged. `?lite=1` tries the same look on any tier.
+
+v596 draws the Tentacle jelly's pick card in a shader: whip lashes with ribbon trails crack round the jelly in a violet dusk, snapping with a star flash, a ring and venom drops, lighting the jelly's edge as they land.
+
+v595 lets the apartment's furniture hold still: three.js no longer recomputes its 1,100-odd pieces' positions every frame (doors, the layout editor and boss sets update the pieces they move), so phones spend less of each frame on bookkeeping.
+
+v594 makes the game churn less memory on phones: floor checks under bugs and the jelly's feet, the lamp ranking and the batch walk reuse what they have instead of making new objects each frame, and the minimap repaints 15 times a second (at once when a mark appears or moves) at no more than 2 pixels per CSS pixel.
+
 v593 makes the Fire Jelly's attack on the type pick screen's live card look like fire: the fireball boils and trails a flame tail, a burning roach wears real flames, and a hit smokes and leaves a scorch that cools. Play looks the same.
 
 v592 redraws the Poison jelly's pick card: thick glossy bubbles of poison wobble up and flow together when they touch, goo lines the card's glass and swells into drips that fall, vapour curls up behind, and a sickly green light from below lights the jelly, replacing the outlined circles.

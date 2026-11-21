@@ -4,6 +4,7 @@
 import { drawOverdrawView } from './overdraw.js';
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { EXPERIMENTS } from './experiments.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -109,14 +110,17 @@ const FiniteShader = {
 // gaussian blur per level in two passes each and blended its result over the full-res image;
 // this does about half the passes, none at full resolution, and the output pass adds the result
 // while it tone maps, so the image is written once.
+// picture buffer formats: half floats (RGBA, 64 bits a pixel), or packed R11G11B10 (32 bits, no alpha: the canvas is opaque)
+const HALF_BUFFER = { type: THREE.HalfFloatType };
+const PACKED_BUFFER = { type: THREE.UnsignedInt101111Type, format: THREE.RGBFormat };
 const LEVELS = 5;
 const GAIN = 2;   // the same --bloom draws about as much glow as UnrealBloomPass did (compared on screenshots)
 export class MipBloomPass extends Pass {
-  constructor(strength, threshold = 1) {
+  constructor(strength, threshold = 1, buffer = HALF_BUFFER) {
     super();
     this.needsSwap = false;   // reads the image, writes only its own targets: the output pass adds them
     this.strength = strength * GAIN;
-    const target = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+    const target = () => new THREE.WebGLRenderTarget(1, 1, { ...buffer, depthBuffer: false });
     this.down = Array.from({ length: LEVELS }, target);
     const shader = (frag, extra = {}) => new THREE.ShaderMaterial({
       uniforms: { tDiffuse: { value: null }, texel: { value: new THREE.Vector2() }, ...extra },
@@ -293,6 +297,18 @@ export class Graphics {
     if (had !== !!this.composer) this.onRetarget?.();   // Low draws to the screen, Medium/High into the composer: other shaders
   }
 
+  // can this GPU draw to an R11G11B10 target? (some phones can't: then the half-float buffers stay)
+  canPack() {
+    const r = this.renderer, was = r.getRenderTarget();
+    const t = new THREE.WebGLRenderTarget(1, 1, { ...PACKED_BUFFER, depthBuffer: false });
+    r.setRenderTarget(t);
+    const gl = r.getContext();
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    r.setRenderTarget(was);
+    t.dispose();
+    return ok;
+  }
+
   build() {
     if (this.composer) {
       this.composer.passes.forEach((p) => p.dispose?.());
@@ -306,7 +322,10 @@ export class Graphics {
     const r = this.renderer;
     const size = r.getSize(new THREE.Vector2());
     const high = this.quality === 'high';
-    const composer = new EffectComposer(r);
+    // ?rt=packed (src/experiments.js): 32-bit R11G11B10 picture buffers instead of 64-bit half floats, if this GPU can draw to them
+    const buffer = EXPERIMENTS.rt === 'packed' && this.canPack() ? PACKED_BUFFER : HALF_BUFFER;
+    this.bufferType = buffer.type;
+    const composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, buffer));
 
     // N8AO renders the scene itself (it replaces RenderPass) and keeps the depth buffer we reuse for DOF.
     let ao = null;
@@ -336,7 +355,7 @@ export class Graphics {
       this.dof = dof;
     }
 
-    const bloom = new MipBloomPass(LOOK.num('bloom', 0.22));   // only lamps, screens, sunlit glass
+    const bloom = new MipBloomPass(LOOK.num('bloom', 0.22), 1, buffer);   // only lamps, screens, sunlit glass
     bloom.enabled = !this.off.has('bloom');
     composer.addPass(bloom);
     composer.addPass(new BloomOutputPass(bloom));

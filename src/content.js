@@ -48,6 +48,7 @@ export function compileEnemies(nodes, file = 'content/enemies.kdl') {
       vocabulary: n.children.map((w) => w.name),
       attack: attackPhases(n.children),
       attackMotion: words.find((w) => w.attackMotion)?.attackMotion || null,   // src/attack-motion.js
+      reach: Math.max(0, ...n.children.map((w) => { const p = { ...ENEMY_WORDS[w.name].props, ...w.props }; return Math.max(+p.range || 0, +p.reach || 0); })),   // the farthest its attack words start or strike from (m): enemies.js moves a bug farther than this on alternate frames
     };
     if (out[id].attackMotion && !out[id].attack && out[id].attackMotion.style !== 'nip') throw new Error(`${where}: "${id}" has attack-motion but no attack word that names its phases`);
   }

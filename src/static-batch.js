@@ -17,6 +17,21 @@ import { HIDDEN } from './batch.js';
 const shape = (g) => Object.keys(g.attributes).sort().map((k) => { const a = g.attributes[k]; return `${k}${a.itemSize}${a.array.constructor.name}${a.normalized}`; }).join() + (g.index ? '|i' : '');
 const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 
+// The furniture holds still, so its ~2,000 matrices needn't be recomputed every frame. freeze(root)
+// stops the scene's frame update at the apartment's root; whatever moves a piece under it (a door,
+// the layout editor, a boss set) calls markMoved(piece), which updates that piece's matrices and has
+// the next sync() move its batch copy. The story runner fails any story that leaves a piece moved
+// without it (stories/kit.js stillMismatch).
+let moved = true;
+export let moves = 0;   // counts markMoved and freeze calls: the collision world re-checks a frozen piece's bounds only when it changes (collision.js focus)
+export function markMoved(o) { o.updateMatrixWorld(true); moved = true; moves++; }
+export function freeze(root) {
+  moves++;
+  root.updateMatrixWorld(true);
+  root.userData.frozen = true;
+  root.updateMatrixWorld = () => {};   // also skips an explicit scene.updateMatrixWorld(true): the pieces are already current
+}
+
 export class StaticBatches {
   constructor(scene) {
     this.scene = scene;
@@ -72,17 +87,20 @@ export class StaticBatches {
     return true;
   }
 
-  // once a frame, before drawing
+  // once a frame, before drawing: a piece faded, hidden or shown again; a piece moved (markMoved)
   sync() {
+    const check = moved;
+    moved = false;
     for (const { batch, pieces } of this.batches) {
       for (const p of pieces) {
         const o = p.mesh, inBatch = o.material === p.material && shown(o);
-        if (inBatch !== p.inBatch) {
+        const back = inBatch !== p.inBatch;
+        if (back) {
           p.inBatch = inBatch;
           batch.setVisibleAt(p.id, inBatch);
           o.layers.set(inBatch ? HIDDEN : 0);   // faded (or hidden): drawn by itself
         }
-        if (inBatch && !o.matrixWorld.equals(p.matrix)) {
+        if ((check || back) && inBatch && !o.matrixWorld.equals(p.matrix)) {
           p.matrix.copy(o.matrixWorld);
           batch.setMatrixAt(p.id, p.matrix);
         }

@@ -8,6 +8,7 @@
 //   show     [name]: pieces shown only during the fight (built hidden: bathroom.js's widened dressing)
 import * as THREE from 'three';
 import { meshesNamed } from './traversal.js';
+import { markMoved } from './static-batch.js';
 
 // the outermost objects with that name (a group and not also its children): as the model's loader
 // spells it ("Laundry_shelf") or as the game named a piece it built ("Bathroom details, widened")
@@ -37,6 +38,7 @@ export class BossSet {
         copy.userData = { ...m.userData };
         copy.visible = false;
         m.parent.add(copy);
+        markMoved(copy);   // the apartment holds still (static-batch.js freeze): a new piece sets its own matrices
         if (!m.userData.noCollide) world.addCollider(copy, false);   // hidden pieces don't collide (collision.js)
         this.stretched.push([m, copy]);
       }
@@ -49,7 +51,7 @@ export class BossSet {
     this.isOn = on;
     for (const [m, copy] of this.stretched) { m.visible = !on; copy.visible = on; }
     for (const [name, d] of Object.entries(this.set.move || {})) {
-      for (const o of named(this.scene, name)) { o.position.x += on ? d[0] : -d[0]; o.position.y += on ? d[1] : -d[1]; o.position.z += on ? d[2] : -d[2]; o.updateMatrixWorld(true); }
+      for (const o of named(this.scene, name)) { o.position.x += on ? d[0] : -d[0]; o.position.y += on ? d[1] : -d[1]; o.position.z += on ? d[2] : -d[2]; markMoved(o); }
     }
     for (const name of this.set.hide || []) for (const o of named(this.scene, name)) o.visible = !on;
     for (const name of this.set.show || []) for (const o of named(this.scene, name)) o.visible = on;
