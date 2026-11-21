@@ -1,0 +1,1 @@
+gives Fairy Lights a sagging wire, trails and twinkling bulbs, the Magnifying Glass a lens that tilts at its target with a narrowing beam and scorch marks, and the Disco Ball sweeping light dots, pastel colours on the beat and a dip as it picks.
