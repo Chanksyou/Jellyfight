@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v606 The overdraw budget story no longer counts the apartment's own glass, prints and camera-faded furniture, so it measures what a fight adds instead of where the view sits. Measured with the room left out (heaviest of four views, after the other engine stories ran): Controller crowd 1.65, bubble storm 0.40, Vacuum fight 0.63 (its force fields and traversal markers left by earlier stories); ceilings sit about 10% above. The arena keeps its old ceilings, since there the whole room is the arena and nothing is left out.
+
 v605 adds an Overdraw view to the dev tools (Check group) and a count of how many layers each pixel is drawn over to the phone measuring tool, and stops drawing the Encore stage edge's shock flash and the stage door's glow while they have nothing to show, which takes about half of the see-through layers off the Encore's arena on a phone.
 
 v604 lets the furniture's batches check what's in view only when the camera has moved 5 cm or turned 4 degrees, in a view padded by both so nothing in sight is left out, instead of every frame; solid furniture stops being sorted too, so a still camera sends phones none of the 66 draw lists a frame it used to.
