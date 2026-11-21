@@ -64,13 +64,14 @@ story('buff-looks/baby-bottle-sips-capped', {
 });
 
 story('buff-looks/pizza-cutter-slash-once', {
-  about: 'Pizza Cutter: finishing a bug off sends one enemy_sliced (the slash and two halves); a hit that leaves it above 15% sends none. SLICED and the kill are unchanged.',
+  about: 'Pizza Cutter: finishing a bug off sends one enemy_sliced (the slash and two halves, in the bug\'s own body colour, not a neutral one); a hit that leaves it above 15% sends none. SLICED and the kill are unchanged.',
   setup() { ready('pizzaCutter'); roachAt(0.2, 0); roachAt(-0.2, 0); },
   play() {
     const [a, b] = G().enemies.list, log = record('enemy_sliced');
     bus.emit('damage_taken', { targetId: a.id, amount: a.maxHp * 0.9, source: 'story' });
     bus.emit('damage_taken', { targetId: b.id, amount: b.maxHp * 0.8, source: 'story' });
-    return ok(a.dead && !b.dead && log.length === 1, { sliced: log.length });
+    const c = log[0]?.color, tinted = !!c && (Math.abs(c.r - c.g) > 0.02 || Math.abs(c.g - c.b) > 0.02);   // a roach's brown, not grey
+    return ok(a.dead && !b.dead && log.length === 1 && tinted, { sliced: log.length, color: c && c.getHexString() });
   },
 });
 

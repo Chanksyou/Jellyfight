@@ -34,7 +34,7 @@ const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where 
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
 const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting
-const SOFT = {}, SOFT_AT = new THREE.Vector3();   // a soft hit's glow colour by the hit's colour (glow.emit keeps the Color), and where
+const SOFT = {}, SOFT_AT = new THREE.Vector3(), BODY = {};   // BODY: a bug type's body colour (sliced), read once from its model   // a soft hit's glow colour by the hit's colour (glow.emit keeps the Color), and where
 const SLICE = new THREE.Color(LOOK.color('slice', '#f4fbff'));   // execute (Pizza Cutter): the slash that finishes a low bug
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
 const SLOWED = new THREE.Color(LOOK.color('slowed', '#9fe4ff'));          // frost drifting up off any slowed bug
@@ -546,12 +546,26 @@ export class Enemies {
     bus.emit('bonus_damage', { pos: this.center(e), r: e.r });
   }
 
+  // a bug type's body colour: the average over its model's vertices, read once per type (null: no model, an Elite's or the boss's proxy)
+  bodyColor(e) {
+    if (!e.mesh) return null;
+    if (BODY[e.type] !== undefined) return BODY[e.type];
+    const sum = new THREE.Color(0, 0, 0); let n = 0;
+    e.mesh.traverse((o) => {   // each vertex: its colour (if painted) times its material's, eyes and legs weighed by their share
+      const P = o.geometry?.attributes?.position, c = o.geometry?.attributes?.color, m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!P || !m?.color) return;
+      for (let i = 0; i < P.count; i++) { sum.r += (c ? c.getX(i) : 1) * m.color.r; sum.g += (c ? c.getY(i) : 1) * m.color.g; sum.b += (c ? c.getZ(i) : 1) * m.color.b; }
+      n += P.count;
+    });
+    return (BODY[e.type] = n ? sum.multiplyScalar(1 / n) : null);
+  }
+
   // execute: the moment a low bug is finished off, a white slash across it
   sliced(e) {
     const c = this.center(e);
     this.fx.impact(c, SLICE, e.r * 0.7, 6);
     this.fx.number(c.clone().setY(c.y + e.r * 2), 'SLICED', '#ffffff', 15);
-    bus.emit('enemy_sliced', { pos: c, r: e.r });   // buff-looks.js: the slash and the halves
+    bus.emit('enemy_sliced', { pos: c, r: e.r, color: this.bodyColor(e) });   // buff-looks.js: the slash and the halves (in the bug's colour)
     sfx.crit();
   }
 

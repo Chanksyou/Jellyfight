@@ -177,7 +177,7 @@
   --cradle-delay: 0.06;          /* s between a bug dying and its leftover damage landing on the next (Newton's Cradle) */
   --gadget-silver: #d3eaff;
   --gadget-cotton: #e8e5ff;
-  --gadget-duck: #a8e9ce;
+  --gadget-duck: #ffe27a;
   --gadget-disco: #d8beff;
   --gadget-crystals: 32;
   --gadget-foam: 24;
@@ -206,7 +206,7 @@
   /* A Treasure's own colour (friendly: cool or pastel, never a --hostile-* hue), one per Treasure id */
   --treasure-glowStick: #6aff8a;     /* Glow Stick: its floor glow, the stick circling the bell and its sparks */
   --treasure-nightLight: #bfe2ff;    /* Night-Light: the lamp dome, its pool on the floor and the motes (glowing meshes, not a real light) */
-  --treasure-iceCube: #7cc8ff;       /* Ice Cube: the slippery puddle (water, with a frosty rim) */
+  --treasure-iceCube: #5ab4ff;       /* Ice Cube: the slippery puddle (water, with a frosty rim) */
   --treasure-discoBall: #d8beff;     /* Disco Ball: the spotlight cone and its pool on the picked bug */
   --treasure-bloodyFangs: #ffb8c8;  /* Bloody Fangs: the fangs' enamel glow (adornments.js); its heartbeat and trail are --bleed, the game's own red for the jelly's Health loss */
   --fangs-beat: 1;                   /* s between Bloody Fangs' heartbeats while Health seeps away (the bell pulse, a small red ring, the Health bar's rim) */
@@ -227,7 +227,11 @@
   --treasure-clock-ring: 0.6;        /* s (real time) it rings and shakes */
   --save-slow: 0.6 0.3;              /* Snooze's save: s (real time) of slow motion, and the game's speed meanwhile */
   --save-grey: 0.85;                 /* how much colour drains from the screen as it saves you (none when Reduce effects is on) */
-  --treasure-rubberDuck: #a8e9ce;
+  --treasure-rubberDuck: #ffe27a;   /* Rubber Duck: the duck and its arcs, the same soft yellow as SQUEAK and XP (friendly, softer than the hot hostile yellows) */
+  --treasure-duck-beak: #ffcf9e;     /* its beak: soft apricot */
+  --treasure-duck-forward: 0.045;    /* m: how far in front of the bell (toward the camera) the duck pops up */
+  --treasure-pick-size: 0.02;        /* m: the Guitar Pick flicking across the bell */
+  --treasure-note-size: 1.8;         /* the Guitar Pick's notes, times their first size */
   --treasure-cactus: #b8f5c0;
   --treasure-guitarPick: #e0c8ff;
   --treasure-fairyLights: #ffe7a8;

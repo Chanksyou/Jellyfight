@@ -52,8 +52,8 @@ const base = new THREE.ShaderMaterial({
       } else if (uKind < 2.5) {     // wet: a puddle; a sheen that drifts over it, a frosty rim, ripples where bugs skid
         float sheen = smoothstep(0.62, 0.92, noise(vP * 2.2 + vec2(uTime * 0.35, 0.0)) * 0.6 + noise(vP * 5.0 - uTime * 0.2) * 0.4);
         float frost = rim * (0.6 + 0.4 * noise(vP * 18.0));
-        col = mix(uColor * 0.8, vec3(1.0), sheen * 0.15 + frost * 0.5 + ripple * 0.5);
-        a = 0.16 + sheen * 0.14 + frost * 0.4 + ripple * 0.4; cover = 1.0;
+        col = mix(uColor * 0.45, vec3(1.0), sheen * 0.3 + frost * 0.55 + ripple * 0.5);   // deep: water darkens the floor, so it reads blue, not a grey film
+        a = 0.42 + sheen * 0.12 + frost * 0.35 + ripple * 0.3; cover = 1.0;
       } else if (uKind < 3.5) {     // spot: a stage light's pool, glittering
         float glint = step(0.93, noise(vP * 14.0 + uTime * 1.5));
         a = fall * 0.35 + 0.1 + rim * 0.45 + glint * fall * 0.5; col += vec3(glint * 0.3); cover = 0.3;

@@ -83,3 +83,15 @@ story('treasure-companions/no-shader-when-each-shows', {
     return ok(built === 0 && g.companions.wire.visible && g.companions.rim.visible, { built });
   },
 });
+
+story('treasure-companions/magnifier-burn-never-strobes-white', {
+  about: 'The Magnifying Glass burns nonstop, so its ticks are soft: the bug glows in the beam\'s colour instead of flashing white four times a second. The damage per tick is what it was.',
+  setup() { ready('magnifier'); roachAt(0.1, 0); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], log = record('damage_taken');
+    let white = 0;
+    for (let i = 0; i < 90; i++) { step(1); if (e.flashT > 0) white++; }
+    const burns = log.filter((d) => d.source === 'beam');
+    return ok(burns.length >= 4 && burns.every((d) => d.feedback?.soft && d.feedback?.tick && d.amount === run.power * run.mods.beam.dmg) && white === 0, { burns: burns.length, white });
+  },
+});
