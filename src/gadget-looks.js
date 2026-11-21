@@ -14,7 +14,7 @@ export class GadgetLooks {
       crystal:new THREE.OctahedronGeometry(1), foam:new THREE.SphereGeometry(1,10,6), tag:new THREE.BoxGeometry(1,1,.06),
       spring:new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil),72,.12,5,false),
       hurt:new THREE.RingGeometry(.78,1,20,1,-.9,1.8)};
-    this.mat=new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+    this.mat=new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,forceSinglePass:true});   // see-through two-sided, drawn once (engine/see-through-pieces-draw-once)
     this.mat.userData.perInstance=true;
     this.pools=Object.fromEntries(Object.keys(this.geo).map(k=>[k,[]]));
     this.caps={arc:LOOK.num('gadget-arcs',16),rod:LOOK.num('gadget-streaks',64),needle:LOOK.num('gadget-needles',32),stud:LOOK.num('gadget-studs',24),spring:2,hurt:4,crystal:LOOK.num('gadget-crystals',32),foam:LOOK.num('gadget-foam',16),tag:LOOK.num('gadget-tags',24)};

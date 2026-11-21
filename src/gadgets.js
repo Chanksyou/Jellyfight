@@ -48,7 +48,7 @@ export class Gadgets {
     this.group.add(this.beam);
     const focusColor=LOOK.color('gadget-focus','#c6f6ff');
     this.beam.material.color.set(focusColor);
-    const focusMat=new THREE.MeshBasicMaterial({color:focusColor,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide});
+    const focusMat=new THREE.MeshBasicMaterial({color:focusColor,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true});
     this.focus=new THREE.Group();
     this.focusRing=new THREE.Mesh(new THREE.RingGeometry(.8,1,32).rotateX(-Math.PI/2),focusMat);
     this.focusCore=new THREE.Mesh(new THREE.CircleGeometry(1,24).rotateX(-Math.PI/2),focusMat);
