@@ -1,1 +1,0 @@
-lets the furniture's batches check what's in view only when the camera has moved 5 cm or turned 4 degrees, in a view padded by both so nothing in sight is left out, instead of every frame; solid furniture stops being sorted too, so a still camera sends phones none of the 66 draw lists a frame it used to.
