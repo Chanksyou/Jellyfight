@@ -1,0 +1,1 @@
+adds a test link, `?rt=packed`, that draws the picture and glow buffers at 32 bits a pixel instead of 64 where the phone's graphics chip can, so the phone bench can measure whether it helps (nothing changes without the link).
