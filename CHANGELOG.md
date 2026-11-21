@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v620 The Headphones' shove wave is narrower (0.2 m, was 0.4 m) and pushes less (0.3 m, was 0.4 m); the Singing Bowl's rings are lower (0.05 m tall, was 0.1 m) and thinner (0.04 m, was 0.06 m).
+
 v619 makes three Legendary Treasures look the part (looks only): Snooze Button rings an alarm clock over the jelly as it saves you, slowing the world for a moment while the colour drains and comes back; Newton's Cradle throws a steel ball from bug to bug with each passed hit, the bug it lands on swinging back from it, a "×3" on a full chain, and the ball dropping and rolling away after; Bloody Fangs gives the jelly two fangs under its rim, a heartbeat once a second (a bell pulse and a small red ring) while Health seeps away, a dim red trail at full speed, and a Health bar whose rim beats with it.
 
 v618 gives the Treasures that only change numbers a visible sign: Coffee Bean, Dustpan and Meatball tint your shots and wisp round the bell while their buff lasts, Dry Sock wisps and wind lines while you're airborne, Oven Mitt's full Shield burns brighter and puffs when chipped, Baby Bottle sends a green sip to the bell, Pizza Cutter slashes the bug it finishes, Rolling Pin and Can Opener flash and thud on their extra damage, and Thimble flecks silver when it soaks a hit. Looks only, no number changes.
