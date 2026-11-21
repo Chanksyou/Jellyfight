@@ -230,6 +230,7 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   On the game's own site the Leaderboard opens on Champions: the best run with each jelly type this season, a Season chip, and a note of how many of the eight types you hold.
   The All tab and one tab per jelly type show the top 10 of that board, each row saying whether the run was won or how far it got, and, when a run cleared any acts untouched, how many.
   Your own row always shows, with its real place when it's outside the top 10.
+  Once a season has ended, a **Past seasons** button on the board opens each finished season's Champions and the top three of All, read-only (`docs/agents/seasons.md`).
   The end screen offers **📤 Submit score** when the run beats your best run of its own jelly type and makes that type's top 10, so a second type's run isn't judged against your best run with another type.
   The end screen also has **🏠 Main menu** (from a later act it reloads into act 1's menu).
   Who can post: anyone signed in to claude.ai in the page owner's organization who opens it by link, or anyone shared in as Contributor or above.
