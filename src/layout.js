@@ -31,6 +31,7 @@
 import * as THREE from 'three';
 import { BAKED_LAYOUT, HIDDEN_SHELL } from './layout-baked.js';
 import { HIDDEN } from './batch.js';
+import { markMoved } from './static-batch.js';
 import { loadProps } from './props.js';
 import { LayoutUi } from './layout-ui.js';
 import { DRESSED } from './set-dressing.js';
@@ -136,7 +137,7 @@ function applyEdit(node, e) {
   if (e.q) node.quaternion.fromArray(e.q);
   if (e.s) { node.scale.setScalar(e.s); if (node.userData.prop) node.userData.s = e.s; }
   node.visible = !(e.hidden || e.deleted);
-  node.updateMatrixWorld(true);
+  markMoved(node);
 }
 
 const VENT = (v) => `vent:${v.name}`;
@@ -318,7 +319,7 @@ export class LayoutEditor {
     if (snap) this.undoStack.push(snap);
     if (this.undoStack.length > 100) this.undoStack.shift();
     saveLayout(this.act, this.data);
-    n.updateMatrixWorld(true);
+    markMoved(n);
     this.onChange?.();
   }
 
@@ -379,7 +380,7 @@ export class LayoutEditor {
   }
   // things applyLayout just made, made part of the room: solid, drawn in the batches, listed
   place(nodes) {
-    for (const node of nodes) { node.updateMatrixWorld(true); this.world.addObjects([node]); this.statics?.add(node); }
+    for (const node of nodes) { markMoved(node); this.world.addObjects([node]); this.statics?.add(node); }
     this.refreshItems();
   }
   freeKey(base) {
@@ -432,7 +433,7 @@ export class LayoutEditor {
     it.deleted = false;
     n.position.fromArray(h.p); n.quaternion.fromArray(h.q); n.visible = h.v;
     if (h.s) { n.userData.s = h.s; n.scale.setScalar(h.s); }
-    n.updateMatrixWorld(true);
+    markMoved(n);
   }
   putBack() {
     const it = this.sel; if (!it) return;
@@ -562,7 +563,7 @@ export class LayoutEditor {
         g.last.copy(p);
         const n = this.sel.node;
         n.position.add(delta.applyMatrix3(new THREE.Matrix3().setFromMatrix4(n.parent.matrixWorld).invert()));   // world move -> parent space
-        n.updateMatrixWorld(true);
+        markMoved(n);
         g.moved = true;
         this.refresh();
       } else if (g.view) {

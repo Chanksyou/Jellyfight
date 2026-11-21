@@ -38,7 +38,7 @@ import { reportError, enableDebug } from './errors.js';
 import { shadeWithBakedAO } from './baked-ao.js';
 import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
-import { StaticBatches } from './static-batch.js';
+import { StaticBatches, freeze } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
@@ -291,7 +291,7 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
 });
 if (APT.bakedAO || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun
 const statics = new StaticBatches(scene);   // the furniture drawn a material at a time (static-batch.js)
-if (!ARENA) statics.add(APT.root);
+if (!ARENA) { statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
 function setNight(minutes) {
   cityTime?.(minutes);

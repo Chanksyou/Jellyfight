@@ -18,6 +18,7 @@ import { TYPES } from '../enemies.js';
 import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
 import { FieldPerf } from '../field-perf.js';
+import { markMoved } from '../static-batch.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
 story('engine/field-numbers-ride-the-summary', {
@@ -428,7 +429,7 @@ story('dev/layout-editor-acts-and-delete', {
     // applyLayout honours the act it is given: a crafted act-2 edit moves the object
     await applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
     const moved = it.node.position.x === 9;
-    it.node.position.fromArray(it.node.userData.home.p);
+    it.node.position.fromArray(it.node.userData.home.p); markMoved(it.node);
     try { localStorage.removeItem('jf-layout-v1'); } catch {}
     L.onDone();
     return ok(L.act === 1 && acts.join() === wantActs && slots && picked && gone && scoped && back && moved,
@@ -1175,13 +1176,35 @@ story('engine/furniture-drawn-in-batches', {
     tpc.unfade(o, tpc._fades.get(o)); statics.sync();
     const back = visibleAt() && o.layers.mask !== 1;
     const m = new THREE.Matrix4(), was = o.position.clone();
-    o.position.x += 0.1; o.updateMatrixWorld(true); statics.sync(); b.batch.getMatrixAt(p.id, m);
+    o.position.x += 0.1; markMoved(o); statics.sync(); b.batch.getMatrixAt(p.id, m);
     const moved = Math.abs(m.elements[12] - o.matrixWorld.elements[12]) < 1e-6;
-    o.position.copy(was); o.updateMatrixWorld(true);
+    o.position.copy(was); markMoved(o);
     o.visible = false; statics.sync();
     const hidden = !visibleAt();
     o.visible = true; statics.sync();
     return ok(pieces > 300 && start && faded && back && moved && hidden && visibleAt(), { pieces, batches: statics.batches.length, start, faded, back, moved, hidden });
+  },
+});
+
+story('engine/still-furniture-skips-matrix-updates', {
+  about: "The apartment holds still, so a frame's matrix update skips its 2,000-odd pieces; a door that swings (markMoved) still moves, solid and in its batch, and every piece's stored matrices match where it stands.",
+  setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
+  play() {
+    const { APT, statics } = G(), scene = APT.scene;
+    let pieces = 0, visited = 0, inApt = 0;
+    APT.root.traverse(() => pieces++);
+    const own = THREE.Object3D.prototype.updateMatrixWorld, under = (o) => { for (; o; o = o.parent) if (o === APT.root) return true; return false; };   // (the apartment's root has its own, which stops there)
+    THREE.Object3D.prototype.updateMatrixWorld = function (f) { visited++; if (under(this)) inApt++; return own.call(this, f); };
+    try { scene.updateMatrixWorld(); } finally { THREE.Object3D.prototype.updateMatrixWorld = own; }
+    const door = Object.values(APT.doors)[0], node = door.node, before = node.matrixWorld.clone();
+    door.set(door.open); statics.sync();
+    const swung = !node.matrixWorld.equals(before);
+    const p = statics.batches.flatMap((b) => b.pieces.map((q) => ({ b, q }))).find(({ q }) => { for (let x = q.mesh; x; x = x.parent) if (x === node) return q.inBatch; return false; });
+    const m = new THREE.Matrix4();   // (a closed door's batch copy has to swing with it)
+    p?.b.batch.getMatrixAt(p.q.id, m);
+    const batchFollows = !p || m.elements.every((v, i) => Math.abs(v - p.q.mesh.matrixWorld.elements[i]) < 1e-5);   // (the batch keeps 32-bit floats)
+    door.set(0); statics.sync();
+    return ok(pieces > 1000 && inApt === 0 && swung && batchFollows, { pieces, visited, inApt, door: node.name, swung, batched: !!p, batchFollows });
   },
 });
 
