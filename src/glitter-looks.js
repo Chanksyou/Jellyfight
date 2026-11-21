@@ -9,18 +9,18 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 
-const FLAKES = 420;
+const FLAKES = 420;   // (in play; the pick screen's stage asks for more)
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _c = new THREE.Color(), _n = new THREE.Vector3(), _to = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0), NORMAL = new THREE.Vector3(0, 0, 1), _e = new THREE.Euler();
 
 export class GlitterLooks {
-  constructor(scene, camera) {
-    this.camera = camera;
+  constructor(scene, camera, flakes = FLAKES) {
+    this.camera = camera; this.count = flakes;
     // a flake: a little flat hexagon (a 6-sided disc), facing +z
-    this.mesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false }), FLAKES);
+    this.mesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false }), flakes);
     this.mesh.name = 'Glitter flakes'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true;
-    this.list = Array.from({ length: FLAKES }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), spin: new THREE.Vector3(), col: new THREE.Color(), size: 0, t: 0, life: 0, floor: 0, down: false, seed: 0, g: 0.6, drag: 6 }));
-    for (let i = 0; i < FLAKES; i++) { this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.mesh.setColorAt(i, _c.set(0)); }
+    this.list = Array.from({ length: flakes }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), spin: new THREE.Vector3(), col: new THREE.Color(), size: 0, t: 0, life: 0, floor: 0, down: false, seed: 0, g: 0.6, drag: 6 }));
+    for (let i = 0; i < flakes; i++) { this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.mesh.setColorAt(i, _c.set(0)); }
     this.next = 0; this.busy = false;
     scene.add(this.mesh);
   }
@@ -30,7 +30,7 @@ export class GlitterLooks {
     const cols = LOOK.list('glitter-flakes', ['#ff2ab0', '#ffc81a', '#2ae0ff', '#b04aff', '#6aff6a', '#ffffff']), size = LOOK.num('glitter-flake-size', 0.0022);
     const life = LOOK.num('glitter-linger', 2.6);
     for (let k = 0; k < n; k++) {
-      const f = this.list[this.next]; this.next = (this.next + 1) % FLAKES;
+      const f = this.list[this.next]; this.next = (this.next + 1) % this.count;
       f.p.copy(pos); f.v.randomDirection(); f.v.y = Math.abs(f.v.y) * 0.8 + 0.2;
       f.v.normalize().multiplyScalar(radius * (2 + Math.random() * 3));   // with the heavy drag below, they spread to about the splash's edge
       f.q.setFromEuler(_e.set(Math.random() * 6, Math.random() * 6, Math.random() * 6));
@@ -49,7 +49,7 @@ export class GlitterLooks {
     const first = this.next;
     this.burst(pos, n, radius, floor);
     for (let k = 0; k < n; k++) {
-      const f = this.list[(first + k) % FLAKES];
+      const f = this.list[(first + k) % this.count];
       f.drag = 12;
       f.v.randomDirection().multiplyScalar(f.drag * radius * Math.cbrt(0.15 + 0.85 * Math.random()));   // spread through the volume, a few near the middle
       f.g = LOOK.num('glitter-cloud-fall', 0.2);
@@ -92,7 +92,7 @@ export class GlitterLooks {
 
   clear() {
     for (const f of this.list) f.life = 0;
-    for (let i = 0; i < FLAKES; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
+    for (let i = 0; i < this.count; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
     this.mesh.instanceMatrix.needsUpdate = true;
     this.busy = false;
   }

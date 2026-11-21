@@ -27,7 +27,7 @@ import { Batcher, batchingInto } from './batch.js';
 import { Fx } from './fx.js';
 import { Bubbles } from './bubbles.js';
 import { Lash } from './combat.js';
-import { FLASH } from './enemies.js';
+import { FLASH, standOut } from './enemies.js';
 import { showKill } from './feedback.js';
 import { buildRoach } from './critters.js';
 import { buildCharacter } from './character.js';
@@ -68,6 +68,16 @@ function onBug(P, type, p) {
   P.scene.remove(bug.root);
   showKill(P.fx, (id) => (P.bubbles.burning.get(bug)?.t > 0 && id === bug.id), {
     targetId: bug.id, type: 'roach', pos: P.enemies.center(bug), floor: 0, r: bug.r, element: bug.lastElement, dir: bug.lastDir, body: bug.root });
+}
+
+// the roaches' shell on the stage: the glow and warm rim that make a bug stand out in the dark room,
+// and the water's sheen, wash a roach out to near white under the stage's lights, so here it takes
+// less of each, and its colours are deepened toward brown (--preview-bug-tone), so its own brown reads (made once; only this preview uses it)
+let SHELL = null;
+function stageShell() {
+  SHELL ||= standOut(new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(LOOK.color('preview-bug-tone', '#a07a60')), roughness: LOOK.num('preview-bug-roughness', 0.5), metalness: 0.1,
+    envMapIntensity: LOOK.num('preview-bug-sheen', 0.35) }), { base: LOOK.num('preview-bug-glow', 0.08), rim: LOOK.num('preview-bug-rim', 0.3) });
+  return SHELL;
 }
 
 // run fn as part of the preview: its meshes drawn by the preview's batcher, its events kept to the
@@ -117,8 +127,7 @@ export class AttackPreview {
     };
     const P = this.P = { scene, camera, batch, world, enemies, stage, deadT: 0 };
     quietly(P, () => {
-      P.fx = new Fx(scene, camera);
-      P.fx.showcase = true;
+      P.fx = new Fx(scene, camera, { showcase: true });
       P.bubbles = new Bubbles(scene, enemies, P.fx, world);
       P.bubbles.grace = CONFIG.player.radius;
       P.lash = new Lash(scene, enemies, P.fx);
@@ -169,7 +178,9 @@ export class AttackPreview {
 
   // A fresh roach (its own model: a dead one's body may still be busy dying) standing at `home`, facing the jelly
   roach(i, home) {
-    const P = this.P, T = CONTENT.enemies.roach, look = buildRoach();
+    const P = this.P, T = CONTENT.enemies.roach, look = buildRoach(), shell = stageShell();
+    let own = null;   // the game's shell (the first mesh: the body; its legs share it): swapped for the stage's
+    look.body.traverse((o) => { if (o.isMesh) { own ||= o.material; if (o.material === own) o.material = shell; } });
     const bug = { id: `preview-roach-${i}`, type: 'roach', T: { fly: false, words: [] }, r: T.r, hp: T.hp, dead: false, home,
       push: new THREE.Vector3(), vel: new THREE.Vector3(), flashT: 0, pop: 0, root: new THREE.Group(), mesh: look.body, anim: look.anim };
     look.body.scale.multiplyScalar(bug.r);
@@ -245,15 +256,17 @@ export class AttackPreview {
     F.out.prepare(R);
     const builds = [];
     // the scene and the bloom for the stage's own picture (a half-float target takes other shaders
-    // than the screen): every half second of the fight (shots, hits, bodies flying apart come and go)
+    // than the screen): every fifth of a second of the fight (shots, hits, bodies flying apart come and go)
     // and again fresh (by then the first roaches have died and left the scene); then the pass that
     // puts it on the screen
     const scene = (...more) => {
       P.batch.sync();
       try { R.setRenderTarget(F.rt); builds.push(R.compileAsync?.(P.scene, P.camera), ...more.map((s) => R.compileAsync?.(s, P.camera))); } finally { R.setRenderTarget(was); }
     };
+    for (const b of P.enemies.list) b.flashT = 1;   // a hit's white flash: a few frames long, so it's caught here rather than by chance
+    this.simulate(1 / 30);
     scene(quads([F.bloom.bright, F.bloom.halve, F.bloom.widen]));
-    for (let i = 1; i <= 75; i++) { this.simulate(1 / 30); if (i % 15 === 0) scene(); }
+    for (let i = 1; i <= 75; i++) { this.simulate(1 / 30); if (i % 6 === 0) scene(); }   // (every 0.2 s: a pop's ring and burst last only a quarter second)
     this.reset();
     scene();
     try { R.setRenderTarget(null); builds.push(R.compileAsync?.(quads([F.out.material]), P.camera)); } finally { R.setRenderTarget(was); }

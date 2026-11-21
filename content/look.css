@@ -370,7 +370,7 @@
   --type-normal: #8fd9ff;
   --type-fire: #ff8a3d;
   --type-lightning: #ffe45c;
-  --type-ice: #9fe8ff;
+  --type-ice: #9cc4ff;   /* (bluer than Normal's sky cyan, so the two cards read apart) */
   --type-poison: #8be36a;
   --type-wind: #c4f0e0;
   --type-glitter: #ff9ae8;
@@ -421,7 +421,15 @@
   --preview-shadow-jelly: 0.11;        /* m across, the jelly's shadow */
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
+  --preview-bug-tone: #a07a60;         /* the stand-in roaches' colours multiplied by this (a warm brown: they read pale under the stage's lights) */
+  --preview-bug-roughness: 0.5;        /* their shell's gloss (the game's: 0.22) */
+  --preview-bug-sheen: 0.35;           /* how much of the water they reflect */
+  --preview-bug-glow: 0.08;            /* their own glow and warm rim (the game's: --bug-glow, --bug-rim, for the dark room) */
+  --preview-bug-rim: 0.3;
   --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
+  --preview-grade-fire: #ff9060;       /* Fire: the water behind it warmed, a fire's glow low in it */
+  --preview-backdrop-fire: #ff6a20;
+  --preview-backdrop-tint-fire: 18;
   --preview-grade-wind: #c9f5e6;       /* Wind: the water behind it, minty */
   --preview-stun-twitch: 0.25;         /* radians a stunned roach twitches (Lightning), none with Reduce effects */
   --preview-backdrop-lightning: #4a38c8;   /* Lightning: a storm's violet in the water (a type may set --preview-backdrop-<id>, */
@@ -546,6 +554,12 @@
   --fire-scorch-glow: 0.9;       /* seconds the scorch glows ember-hot before it has cooled */
   --fire-burn-flame: 2.6;        /* and a burning bug's flames, how tall, in its radii */
   --fire-tail-flame: 6;          /* and a fireball's flame tail, how long, in its radii */
+  --fire-haze: 5.5;              /* and the heat haze round a fireball in flight, in its radii */
+  --fire-scorch-size: 3;         /* and the scorch a hit leaves, in the fireball's radii */
+  --fire-churn-core: 2.2 2.5 0.35 0 1.7;   /* and a fireball's boiling surface, per part: noise cells across, flow back, cool patches' darkness, edge torn away, hot patches past white */
+  --fire-churn-flame: 1.6 4 0.6 0.7 1.4;
+  --fire-churn-edge: 1.3 5 0.5 0.85 1.3;
+  --fire-churn-spread: 10;       /* how far apart (noise cells a metre) two fireballs boil, so they never boil in step */
   --fire-blast: #ff8a3a;          /* Fire Attack upgrades: a burning bug's hit bursting (Flashpoint), the flame cone (Fire Breath) */
   --wind-core: #d9f6ff;
   --wind-gather-radius: 0.022;
@@ -1056,6 +1070,8 @@
   --glitter-cloud-flakes: 110;   /* Glitter jelly: flakes in its burst, thrown out to fill its 10 cm hit sphere (more for a wider one) */
   --glitter-cloud-fall: 0.2;     /* how fast they sink while they hang there, m/s a second (a plain bomb's flakes: 0.6) */
   --glitter-showcase-more: 1.8;  /* the pick screen's stage only: a burst throws this many times the flakes */
+  --puff-showcase-soft: 0.8;     /* the pick screen's stage only: how far in from its edge a puff (gas, smoke, a pop) fades in (0: a hard ball) */
+  --glitter-showcase-pool: 1000; /* and how many flakes it holds (a crit burst there throws ~420: two overlap whole) */
   --glitter-cloud-life: 0.5;     /* s a burst counts as showing (stories) */
   /* ice (Freezer Pack): its shards, the frost flower where one strikes, a chilled bug's crown (ice-looks.js, enemies.js) */
   --ice-shard: #cfefff;          /* the crystal shards that burst out of a hit and a chilled bug's shatter */

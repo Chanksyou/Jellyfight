@@ -1,7 +1,7 @@
 // Glitter's side card (aura="glitter"): a party in the water. Big out-of-focus discs of coloured light
 // swell and fade far behind the jelly (bokeh, brighter at their rims); glitter flakes fall through three
 // depths, each a tumbling facet that is dull until it turns face on, then flashes white with a tiny star;
-// a few big soft flakes drift in front. The jelly is lit pink and violet with a slowly turning rainbow
+// a few big soft flakes drift in front. The jelly is lit a little pink (its own colour still reads) with a slowly turning rainbow
 // rim and a disco glint sliding over the bell, glitter clings along its edge, four-point stars wink round
 // it (few inside the bell: nothing is drawn on it) and a drift of flakes glitters low across the card.
 // kit.js says what paint() can call.
@@ -86,9 +86,9 @@ vec3 paint(vec2 uv) {
   // the jelly
   vec4 p = portrait(uv), j = jelly(uv);
   c = c * (1.0 - min(p.a, j.x)) + p.rgb;
-  // lit by the party: its light turns pink, a rainbow rim turning slowly on one side and pink on the other
+  // lit by the party: its light warms toward pink, a rainbow rim turning slowly on one side and pink on the other
   float lum = dot(c, vec3(0.3, 0.5, 0.2));
-  c = mix(c, min(lum, 2.0) * pink / max(pink.g, 1e-3) * 0.9, j.x * 0.5 * s);
+  c = mix(c, min(lum, 2.0) * pink / max(pink.g, 1e-3) * 0.9, j.x * 0.18 * s);   // (lightly: the player's own colour still reads)
   float ang = t * 0.25;
   c += spectrum(fract(t * 0.06)) * rim(uv, vec2(cos(ang), sin(ang)), 0.035) * 1.5 * s;
   c += pink * rim(uv, vec2(-cos(ang), -sin(ang) * 0.6 - 0.4), 0.035) * 1.3 * s;
@@ -107,11 +107,15 @@ vec3 paint(vec2 uv) {
   c += stars(uv, t, 5.0, 1.0, 0.4) * 1.6 * s;
   if (rich) c += stars(uv, t * 1.3, 9.0, 2.0, 0.25) * 1.1 * s;
   if (rich) {
-    // a drift of glitter low across the card: the pile the flakes land on
-    float h = 0.05 + 0.07 * fbm(vec2(uv.x * 5.0, 3.0), 3);
-    float pile = 1.0 - smoothstep(h - 0.015, h + 0.02, uv.y);
-    f = flakes(uv, t * 0.1, 70.0, 0.0, 0.25, 11.0, 0.8);
-    c = c * (1.0 - pile * 0.5 * s) + (f.rgb * 1.4 + violet * 0.12) * pile * s;
+    // a drift of glitter low across the card: the pile the flakes land on, its top torn by noise, its
+    // flakes at two sizes in grids turned against each other, so no rows show
+    float h = 0.045 + 0.075 * fbm(vec2(uv.x * 4.0, 3.0), 3) + 0.02 * (noise(uv * vec2(40.0, 12.0)) - 0.5);
+    float pile = 1.0 - smoothstep(h - 0.03, h + 0.02, uv.y);
+    vec2 r1 = mat2(0.8, 0.6, -0.6, 0.8) * uv, r2 = mat2(0.6, -0.8, 0.8, 0.6) * uv + 0.37;
+    f = flakes(r1, t * 0.1, 53.0, 0.0, 0.25, 11.0, 0.35);
+    vec4 f2 = flakes(r2, t * 0.13, 87.0, 0.0, 0.22, 17.0, 0.3);
+    float patchy = 0.4 + 0.9 * noise(uv * vec2(9.0, 30.0) + 4.0);
+    c = c * (1.0 - pile * 0.45 * s) + ((f.rgb + f2.rgb * 0.8) * 1.4 * patchy + violet * 0.12) * pile * s;
     // a few big soft flakes in front, out of focus
     f = flakes(uv, t * 0.9, 5.0, 0.35, 0.3, 13.0, 0.25);
     c = mix(c, c + f.rgb * 0.9, f.a * 0.55 * s);

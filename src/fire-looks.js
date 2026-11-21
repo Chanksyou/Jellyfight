@@ -27,15 +27,18 @@ float fn(vec3 p) {
 float fbm2(vec3 p) { return fn(p) * 0.65 + fn(p * 2.1 + 7.0) * 0.35; }
 `;
 
-// A fireball part's material boiling. o.scale: noise cells across the part; o.flow: how fast it streams
-// back (toward the tail, local -z); o.dark: how dark the cooler patches go (0-1); o.tear: how much of its
-// edge burns away (0: none). Its colour is the material's own; hot patches are pushed past white so they bloom.
-export function churn(material, { scale = 2.5, flow = 3, dark = 0.5, tear = 0, hot = 1.6 } = {}) {
+// A fireball part's material boiling. part: its look.css line (--fire-churn-<part>: scale flow dark tear
+// hot): noise cells across the part; how fast it streams back (toward the tail, local -z); how dark the
+// cooler patches go (0-1); how much of its edge burns away (0: none); how far past white its hot patches
+// go (so they bloom). Its colour is the material's own. Each fireball boils on its own (the noise is
+// offset by where it is, --fire-churn-spread), never in step with the others.
+export function churn(material, part) {
+  const [scale, flow, dark, tear, hot] = LOOK.nums(`fire-churn-${part}`, [2.5, 3, 0.5, 0, 1.6]), spread = LOOK.num('fire-churn-spread', 10);
   material.onBeforeCompile = (sh) => {
     sh.uniforms.uFireT = TIME;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFireP;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFireP = position;');
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvFireP = position;\n#ifdef USE_INSTANCING\nvFireP += instanceMatrix[3].xyz * ${spread.toFixed(2)};\n#endif`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>\nvarying vec3 vFireP;\nuniform float uFireT;\n${NOISE}`)
       .replace('#include <opaque_fragment>', `
@@ -44,7 +47,7 @@ export function churn(material, { scale = 2.5, flow = 3, dark = 0.5, tear = 0, h
         diffuseColor.a *= 1.0 - ${tear.toFixed(2)} * (1.0 - smoothstep(0.25, 0.6, fireN));
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `fireChurn${scale}/${flow}/${dark}/${tear}/${hot}`;
+  material.customProgramCacheKey = () => `fireChurn${scale}/${flow}/${dark}/${tear}/${hot}/${spread}`;
   return material;
 }
 
@@ -66,7 +69,7 @@ export function hit(fx, F, pos, r, floorY) {
   }
   if (floorY === undefined) return;
   _p.set(pos.x, floorY, pos.z);
-  fx.splat(_p, LOOK.color('fire-scorch', '#1c1410'), r * 3, 'scorch');
+  fx.splat(_p, LOOK.color('fire-scorch', '#1c1410'), r * LOOK.num('fire-scorch-size', 3), 'scorch');
   _p.y += 0.002;
   glow.emit(_p, F.edge, r * 3.4, r * 0.6, LOOK.num('fire-scorch-glow', 0.9), 0.55);
   glow.emit(_p, F.flame, r * 1.6, 0, LOOK.num('fire-scorch-glow', 0.9) * 0.6, 0.7);
@@ -88,7 +91,7 @@ export function burn(fx, F, pos, r) {
 // a fireball in flight on the stage: a wider heat haze round it and a longer, thicker flame tail
 export function fly(fx, F, at, tail, dir, r, tick) {
   const glow = fx.glow;
-  glow.hold(at, F.edge, r * 5.5, 0.22);
+  glow.hold(at, F.edge, r * LOOK.num('fire-haze', 5.5), 0.22);
   if (!tick) return;
   for (let k = 0; k < 3; k++) {
     _v.copy(dir).multiplyScalar(-0.06).add(_p.set(0, 0.03, 0));

@@ -1,9 +1,12 @@
-// The Tentacle's side card (aura="sting"): lashes cracking round the jelly in a violet dusk. Each lash
-// is a whip: a ribbon trail that is thin and dim at its tail, wider and white at its leading edge, flung
-// along a curve from the tentacles out past the bell (some pass behind the jelly, some in front), a
-// second thinner ribbon twisting with it. At the end of the swing it snaps: a star flash, a thin ring
-// of shock and a few venom drops thrown off that fall with a wet highlight. Each snap lights the
-// jelly's edge on the side it came from; a dim violet light on the bell never quite goes out.
+// The Tentacle's side card (aura="sting"): lashes cracking round the jelly in a violet dusk. Far behind,
+// big dim tentacles curl up out of the deep, swaying, suckers along their inner edge and a lilac rim on
+// the side the light comes from; venom motes drift at two depths. Each lash is a whip: a ribbon trail
+// that is thin and dim at its tail, wider and white at its leading edge, flung along a curve from the
+// tentacles out past the bell (some pass behind the jelly, some in front), a second thinner ribbon
+// twisting with it. At the end of the swing it snaps: a star flash, a thin ring of shock and a few
+// venom drops thrown off that fall with a wet highlight. Each snap lights the jelly's edge on the side
+// it came from; a violet light on the bell never quite goes out. One near tentacle, out of focus,
+// sweeps across a lower corner in front of everything.
 // kit.js says what paint() can call.
 export const RAMP = 'aura-sting-ramp';
 export const RAMP_FALLBACK = ['#ffffff', '#e9d4ff', '#a468ff', '#3b1b7c'];
@@ -64,20 +67,55 @@ vec3 lash(vec2 uv, float k, float a, out vec2 tip, out float snap, out vec2 away
   return light;
 }
 
+// a big tentacle rising from below: x its mask (soft, its edge torn by noise), y across it (-1 .. 1,
+// + toward the light), z how far up it is (0-1). x0 where it roots, sway how far it curls, w its width at
+// the root, top how high it reaches, soft how out of focus it is
+vec3 frond(vec2 uv, float x0, float sway, float w, float top, float seed, float t, float soft) {
+  float y = clamp(uv.y / top, 0.0, 1.0);
+  float cx = x0 + sway * y * y * sin(y * 2.6 + t * 0.45 + seed) + 0.025 * sin(uv.y * 9.0 - t * 0.9 + seed * 2.0) * y;
+  float wd = w * (1.0 - 0.8 * pow(y, 1.4)) + 0.004;
+  float across = (uv.x - cx) / wd;
+  float torn = 0.3 * (fbm(vec2(uv.y * 9.0 + seed * 4.0, t * 0.15 + seed), 2) - 0.5);
+  float m = (1.0 - smoothstep(1.0 - soft, 1.0, abs(across) + torn)) * (1.0 - smoothstep(top - 0.12, top, uv.y));
+  return vec3(m, across, y);
+}
+
+// motes of venom drifting up at one depth: soft discs in some of a jittered grid's cells, brighter
+// where a slow cloud of them passes. sc: cells across, r: their size in cells
+float motes(vec2 uv, float t, float sc, float r, float rise, float seed) {
+  vec2 g = vec2(uv.x * sc + sin(uv.y * 4.0 + t * 0.3 + seed) * 0.4, uv.y * sc - t * rise + seed * 3.1), id = floor(g);
+  if (hash(id + seed) > 0.3) return 0.0;
+  vec2 at = 0.2 + 0.6 * hash2(id + seed + 1.3);
+  float d = length(fract(g) - at) / (r * (0.6 + 0.4 * hash(id + seed + 2.0)));
+  float twinkle = 0.55 + 0.45 * sin(t * (0.8 + hash(id + seed + 4.0)) + hash(id) * 30.0);
+  return (1.0 - smoothstep(0.35, 1.0, d)) * twinkle * cut(fbm(uv * 2.0 + vec2(seed, -t * 0.05), 2), 0.3, 0.45);
+}
+
 vec3 paint(vec2 uv) {
   float t = uTime + 0.75,   // (so Reduce effects' one frozen frame is mid-snap)
        s = uStrength;
   vec3 lilac = uRamp[1], violet = uRamp[2], deep = uRamp[3];
-  // -- behind: violet dusk, slow haze, a few motes drifting up
-  vec3 c = water(uv) * 0.7;
-  c = mix(c, c * vec3(1.3, 0.45, 1.7), 0.85 * s);
+  // -- behind: violet dusk (the water's light, recoloured), a glow round the jelly, slow haze
+  vec3 c = water(uv);
+  c = mix(c, dot(c, vec3(0.3, 0.5, 0.2)) * vec3(0.75, 0.42, 1.25) * 1.4, 0.9 * s);
+  c += violet * 0.1 * (1.0 - smoothstep(0.1, 0.6, length((uv - vec2(0.5, 0.56)) * vec2(1.0, 1.1)))) * s;
   float haze = cut(fbm(uv * 2.4 + vec2(t * 0.04, -t * 0.03), 4), 0.4, 0.4);
   c += deep * haze * 0.35 * s;
-  c += violet * 0.05 * smoothstep(0.4, 0.0, uv.y) * s;
-  vec2 g = vec2(uv.x * 18.0, uv.y * 18.0 - t * 0.5);
-  vec2 id = floor(g);
-  if (hash(id) < 0.22) c += lilac * 0.25 * (1.0 - smoothstep(0.0, 0.14, length(fract(g) - 0.3 - 0.4 * hash2(id)))) * s;
-
+  c += violet * 0.06 * smoothstep(0.4, 0.0, uv.y) * s;
+  // far tentacles curling up out of the deep, dim and swaying, lit lilac on their right edges
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    if (fi >= uLayers) break;
+    vec3 f = frond(uv, 0.1 + 0.4 * fi + 0.06 * sin(t * 0.2 + fi), 0.24 - 0.05 * fi, 0.07 - 0.012 * fi, 0.66 + 0.14 * hash(vec2(fi, 3.0)), fi * 7.3, t, 0.4);
+    if (f.x <= 0.0) continue;
+    vec3 body = deep * (0.35 + 0.25 * f.z) + violet * 0.05;
+    body += mix(violet, lilac, 0.4) * smoothstep(0.35, 0.95, f.y) * 0.55;                              // the lit edge
+    float row = uv.y * 24.0 + fi, size = 0.3 * (1.0 - 0.6 * f.z) * (0.6 + 0.4 * hash(vec2(floor(row), fi)));
+    float sucker = 1.0 - smoothstep(size * 0.5, size, length(vec2((f.y + 0.5) * 1.4, fract(row) - 0.5)));
+    body += lilac * sucker * 0.07 * (1.0 - f.z) * smoothstep(0.5, 0.9, f.x);                            // faint suckers on the dark side
+    c = mix(c, body, f.x * 0.8 * s);
+  }
+  c += lilac * motes(uv, t, 14.0, 0.12, 0.35, 1.0) * 0.25 * s;   // far motes
   // -- the lashes: three at once, each a third of a cycle behind the last; even ones pass behind the jelly
   vec3 behind = vec3(0.0), front = vec3(0.0), flash = vec3(0.0);
   vec2 lit = vec2(0.0);
@@ -122,15 +160,22 @@ vec3 paint(vec2 uv) {
   vec4 j = jelly(uv);
   c = c * (1.0 - min(p.a, j.x)) + p.rgb;
   float lum = dot(c, vec3(0.3, 0.5, 0.2));
-  c = mix(c, min(lum, 2.0) * (violet / max(violet.b, 1e-3)) * 0.95, j.x * 0.5 * s);   // violet through the whole jelly
+  c = mix(c, min(lum, 2.0) * (violet / max(violet.b, 1e-3)) * 0.95, j.x * 0.3 * s);   // violet through the whole jelly
   float sn = min(snapSum, 1.5);
   vec2 toward = normalize(lit + vec2(0.0, 1e-3) + vec2(0.0, 0.3));
-  c += mix(violet, lilac, 0.5) * rim(uv, vec2(-0.5, 0.8), 0.02) * 1.0 * (0.8 + 0.2 * sin(t * 2.1)) * s;
+  c += mix(violet, lilac, 0.5) * rim(uv, vec2(-0.5, 0.8), 0.02) * 1.3 * (0.8 + 0.2 * sin(t * 2.1)) * s;
   c += mix(lilac, uRamp[0], 0.4) * rim(uv, toward, 0.022) * sn * 2.0 * s;
   c += violet * j.x * sn * 0.35 * s;
-  c += deep * j.x * smoothstep(0.55, 0.2, uv.y) * 0.5 * s;   // a violet underlight on the tentacles
+  c += violet * j.x * smoothstep(0.55, 0.15, uv.y) * 0.45 * s;   // a violet underlight on the tentacles
   // -- in front
   c += (front + flash) * s;
+  c += mix(lilac, uRamp[0], 0.3) * motes(uv, t * 1.3, 6.0, 0.16, 0.25, 5.0) * 0.5 * s;   // near motes
+  // one near tentacle, out of focus, sweeping up across the lower left corner in front of it all
+  if (uLayers > 2.0) {
+    vec3 f = frond(vec2(uv.x, uv.y + 0.08), -0.02 + 0.03 * sin(t * 0.3), 0.18, 0.11, 0.55, 11.0, t * 0.8, 0.7);
+    vec3 body = deep * 0.12 + mix(violet, lilac, 0.6) * smoothstep(0.3, 0.95, f.y) * 0.7;   // a dark shape, its edge lit
+    c = mix(c, body, f.x * 0.85 * s);
+  }
   return c;
 }
 `;
