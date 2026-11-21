@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v618 gives the Treasures that only change numbers a visible sign: Coffee Bean, Dustpan and Meatball tint your shots and wisp round the bell while their buff lasts, Dry Sock wisps and wind lines while you're airborne, Oven Mitt's full Shield burns brighter and puffs when chipped, Baby Bottle sends a green sip to the bell, Pizza Cutter slashes the bug it finishes, Rolling Pin and Can Opener flash and thud on their extra damage, and Thimble flecks silver when it soaks a hit. Looks only, no number changes.
+
 v617 gives the Rubber Duck, Windowsill Cactus, Guitar Pick and Bath Salt Treasures bodies: a duck pops from under the bell and stars circle the Stunned bugs, Cactus needles fly to their bugs and stick, the Guitar Pick flicks across the bell and sends notes up, and chained Bath Salt bursts grow with the chain. Only how they look changes.
 
 v616 gives Fairy Lights a sagging wire, trails and twinkling bulbs, the Magnifying Glass a lens that tilts at its target with a narrowing beam and scorch marks, and the Disco Ball sweeping light dots, pastel colours on the beat and a dip as it picks.
