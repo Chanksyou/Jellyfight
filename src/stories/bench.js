@@ -97,17 +97,19 @@ story('bench/packed-buffers-fall-back', {
     gfx.build();
     const plain = all(HALF) && gfx.bufferType === HALF;
     EXPERIMENTS.rt = 'packed';
+    const target = R.getRenderTarget();
     const supported = canPack.call(gfx);
+    const restored = R.getRenderTarget() === target;   // the probe leaves the renderer as it found it
     gfx.build();
     gfx.render();
     const programs = R.info.programs.length;
     gfx.render();
     const steady = R.info.programs.length === programs;
-    const packed = supported && all(PACKED) && gfx.composer.renderTarget1.texture.format === THREE.RGBFormat;   // SwiftShader draws to it
+    const packed = !supported || (all(PACKED) && gfx.composer.renderTarget1.texture.format === THREE.RGBFormat);   // a GPU that can't pack keeps half floats (fellBack covers it)
     gfx.canPack = () => false;   // a GPU that fails the check
     gfx.build();
     gfx.render();
     const fellBack = all(HALF) && gfx.bufferType === HALF;
-    return ok(plain && packed && steady && fellBack, { plain, supported, packed, steady, fellBack, types: types() });
+    return ok(plain && packed && steady && fellBack && restored, { plain, restored, supported, packed, steady, fellBack, types: types() });
   },
 });
