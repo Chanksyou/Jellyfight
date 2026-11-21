@@ -4,6 +4,8 @@
 import { G, offs, ok, story } from './kit.js';
 import { runBench, showResults, sendable } from '../bench.js';
 import { MOMENTS } from '../bench-moments.js';
+import { readExperiments, experimentQuery } from '../experiments.js';
+import { LOOK } from '../look.js';
 
 const SHORT = { settle: 0.05, secs: 0.25 };
 
@@ -60,5 +62,23 @@ story('bench/never-sends-from-a-story', {
     const has = (k) => !!el.querySelector(`[data-bench=${k}]`);   // the test runner's own page has no ?story, so it shows Send
     const rule = !sendable('?story=bench/x') && !sendable('?stories') && sendable('?bench&act=3') && sendable('');
     return ok(has('copy') && has('back') && has('send') && rule, { copy: has('copy'), back: has('back'), send: has('send'), rule });
+  },
+});
+
+story('bench/experiment-switches-read-once', {
+  phone: true,
+  about: 'The experiment links (?lights=3|4|6, ?rt=packed, ?msaa=0|2|4, ?lite=1) are read once at boot: a good value is kept, a bad one is ignored, none given changes nothing, and the lamp slots on this phone are the --phone-lights number the page shipped with.',
+  setup() {},
+  async play() {
+    const none = readExperiments('');
+    const all = readExperiments('?lights=4&rt=packed&msaa=2&lite=1');
+    const bad = readExperiments('?lights=5&rt=half&msaa=8&lite=2');
+    const absent = Object.values(none).every((v) => v === null) && experimentQuery(none) === '';
+    const kept = all.lights === 4 && all.rt === 'packed' && all.msaa === 2 && all.lite === 1 && experimentQuery(all) === '&lights=4&rt=packed&msaa=2&lite=1';
+    const ignored = Object.values(bad).every((v) => v === null);
+    const slots = G().pacing.lightSlots?.count;
+    const res = await runBench({ ...SHORT, only: ['quiet room'], switches: [] });
+    return ok(absent && kept && ignored && slots === LOOK.num('phone-lights', 6) && res.env.lights === slots && res.env.experiments === '',
+      { absent, kept, ignored, slots, env: res.env.lights, words: res.env.experiments });
   },
 });

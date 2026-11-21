@@ -175,6 +175,17 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 .jf-board .jf-rank[data-place="3"] { color: var(--ui-bronze); }
 .jf-board .jf-jelly { width: var(--board-jelly-size, 80px); height: var(--board-jelly-size, 80px); border-radius: 50%; box-shadow: 0 0 0 2px var(--ui-line), 0 4px 14px var(--ui-shade); flex: none; }
 .jf-board .jf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
+.jf-board .jf-who .jf-sub { display: block; font-weight: 500; color: var(--ui-ink-dim); overflow: hidden; text-overflow: ellipsis; }
+.jf-board .jf-gap { color: var(--ui-ink-dim); letter-spacing: .3em; padding-left: .6em; }
+.jf-board-tabs { display: flex; max-width: 100%; overflow-x: auto; margin: 0 auto var(--ui-space-2); scrollbar-width: none; justify-content: flex-start; }
+.jf-board-tabs::-webkit-scrollbar { display: none; }
+.jf-board-tabs > button { flex: none; padding: 0 var(--ui-space-3); font-size: var(--ui-size-body); }
+.jf-board .jf-season { margin-left: var(--ui-space-2); vertical-align: middle; }
+.jf-board-body.jf-fade { animation: ui-fade-in var(--ui-mid) var(--ui-ease-settle) both; }
+.jf-champs .jf-type-ic { font-style: normal; font-size: 1.3em; flex: none; width: 1.4em; text-align: center; }
+.jf-champs .jf-jelly { width: var(--board-champion-jelly-size, 56px); height: var(--board-champion-jelly-size, 56px); }
+.jf-champs .jf-nobody, .jf-champs .jf-none { color: var(--ui-ink-dim); }
+@media (min-width: 640px) { .jf-champs .jf-stats { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; column-gap: var(--ui-space-4); } }
 .jf-score { font-size: 1.5em; color: var(--ui-gold); }
 .jf-name { box-sizing: border-box; min-height: var(--ui-target); font: 600 16px var(--ui-font-text); width: 11em; max-width: 100%; padding: 6px 10px; border-radius: var(--ui-radius-s); border: 1px solid var(--ui-line); background: var(--ui-glass); color: var(--ui-ink); text-align: right; }
 .jf-name::placeholder { color: var(--ui-ink-dim); }
@@ -210,6 +221,8 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
   .jf-board .jf-stats { font-size: 16px; gap: 6px 20px; }
   .jf-board .jf-stats > b { font-size: 17px; }
   .jf-board .jf-jelly { width: var(--board-jelly-size-phone, 56px); height: var(--board-jelly-size-phone, 56px); }
+  .jf-champs .jf-jelly { width: var(--board-champion-jelly-size-phone, 44px); height: var(--board-champion-jelly-size-phone, 44px); }
+  .jf-champs .jf-stats { gap: 4px 12px; }
   .jf-pop { top: 12%; padding: var(--ui-space-2) var(--ui-space-3); }
   .jf-award .face { width: 120px; height: 120px; margin: 2px 0 4px; }
   .jf-award .face img { width: 100px; height: 100px; }
@@ -527,6 +540,41 @@ export class UI {
     };
     this.keyHandler = (e) => { if (e.code === 'Enter' && e.target?.tagName !== 'TEXTAREA') { const btn = buttons.find((b) => b.enter) || buttons.find((b) => b.go) || buttons[0], vals = this.values(); this.close(); btn.onClick(vals); } };
     if (!matchMedia('(pointer: coarse)').matches) this.modal.querySelector('input, textarea')?.focus({ preventScroll: true });   // not on phones: it would pop the keyboard up
+  }
+
+  // The leaderboard with a tab for each board (run.showBoard, on the game's own site): tabs [{ id, label, name? }]
+  // (name: what a screen reader says for an icon-only tab), buttons as in message(). The tab strip stays put while
+  // boardBody() swaps what is under it.
+  board({ title, season, tabs, active, buttons, onTab }) {
+    this._gen++;
+    this.modal.innerHTML = `<div class="ui-panel jf-panel jf-board jf-tabbed"><div class="ui-header"><h2>${bare(title)} <span class="ui-chip jf-season">Season ${season}</span></h2></div>
+      <div class="ui-seg jf-board-tabs" role="group" aria-label="Boards">${tabs.map((t) => `<button data-tab="${esc(t.id)}" aria-pressed="${t.id === active}"${t.name ? ` aria-label="${esc(t.name)}" title="${esc(t.name)}"` : ''}>${t.label}</button>`).join('')}</div>
+      <div class="jf-board-body"></div>
+      <div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="ui-btn${b.go ? ' ui-btn--primary go' : ''}">${b.label}</button>`).join('')}</div></div>`;
+    this.modal.hidden = false;
+    this.modal.querySelector('[aria-pressed="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    this.modal.onclick = (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      sfx.tap();
+      if ('tab' in b.dataset) { if (b.getAttribute('aria-pressed') !== 'true') onTab(b.dataset.tab); return; }
+      const btn = buttons[+b.dataset.i], vals = this.values();
+      this.close();
+      btn.onClick(vals);
+    };
+    this.keyHandler = (e) => { if (e.code === 'Escape') { e.preventDefault(); const btn = buttons.find((b) => b.go) || buttons[0]; this.close(); btn.onClick({}); } };
+  }
+
+  // Mark a tab as the one showing
+  setTab(id) { this.modal.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.tab === id))); }
+
+  // What is under the tabs: a note and rows [[label, value]]; fade: a tab change fades it in (opacity only)
+  boardBody(note, rows, { cls = '', fade = false } = {}) {
+    const el = this.modal.querySelector('.jf-board-body');
+    if (!el) return;
+    el.className = `jf-board-body ${cls}`;
+    el.innerHTML = `${note ? `<p class="sub">${note}</p>` : ''}${rows.length ? `<div class="jf-stats">${rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('')}</div>` : ''}`;
+    if (fade) { void el.offsetWidth; el.classList.add('jf-fade'); }
   }
 
   // Golden awards earned (run.endRun), each revealed in turn over the end screen before its tally:

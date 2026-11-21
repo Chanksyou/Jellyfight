@@ -123,13 +123,18 @@ export class PickStage {
   }
   unreflect() { this.env?.dispose(); this.env = null; }
 
-  // the type's colour: the rim, the attack's light, the water low behind and the specks; `grade`
-  // shifts the whole water toward the type's own (--preview-grade-<id> in look.css; white: as it is)
-  setType(color, grade = '#ffffff') {
+  // the type's colour: the rim, the attack's light, the water low behind and the specks. A type `id` may
+  // shift the whole water toward its own (--preview-grade-<id>; white or unset: as it is), and give its
+  // water its own colour, how much of it, and how bright it is (--preview-backdrop-<id>,
+  // --preview-backdrop-tint-<id>, --preview-backdrop-bright-<id>)
+  setType(color, id = '') {
+    const U = this.back.material.uniforms;
     this.rim.color.set(color);
     this.glow.color.set(color);
-    this.back.material.uniforms.uTint.value.set(color);
-    this.back.material.uniforms.uGrade.value.set(grade);
+    U.uTint.value.set(LOOK.color(`preview-backdrop-${id}`, color));
+    U.uGrade.value.set(LOOK.color(`preview-grade-${id}`, '#ffffff'));
+    U.uTintK.value = LOOK.num(`preview-backdrop-tint-${id}`, LOOK.num('preview-backdrop-tint', 1));
+    U.uBright.value = LOOK.num(`preview-backdrop-bright-${id}`, LOOK.num('preview-backdrop', 0.5));
     this.speckColor.set(LOOK.color('menu-water-glow', '#70ddc7')).lerp(new THREE.Color(color), 0.4);
   }
 

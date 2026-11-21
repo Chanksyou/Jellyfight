@@ -11,6 +11,7 @@
 // never reaches the leaderboard or the run log, earns nothing and keeps nothing.
 import * as K from './stories/kit.js';
 import { MOMENTS, PAGES, busiest, pageFor } from './bench-moments.js';
+import { experimentQuery, experimentWords } from './experiments.js';
 import { currentAct, currentScene, goToAct, nav } from './stages.js';
 
 const G = window;
@@ -72,7 +73,7 @@ async function environment(R, timer) {
     build: G.JF_BUILD, act: currentAct(), scene: currentScene(), ua: navigator.userAgent, dpr: devicePixelRatio, screen: `${screen.width}x${screen.height}`,
     cores: navigator.hardwareConcurrency || null, memory: navigator.deviceMemory ?? null,
     gpu: (info && gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER), multiDraw: !!gl.getExtension('WEBGL_multi_draw'),
-    gpuTime: timer ? 'offered' : 'not offered', tier: G.gfx.quality, framed, raf: await cadence(),
+    gpuTime: timer ? 'offered' : 'not offered', tier: G.gfx.quality, framed, raf: await cadence(), experiments: experimentWords(), lights: G.pacing?.lightSlots?.count ?? 0,
   };
 }
 
@@ -183,7 +184,7 @@ export function showResults(res) {
   const el = card(`<div class="ui-header"><h2 class="ui-title">Phone bench</h2>
     <div class="acts"><button class="ui-btn ui-btn--primary" data-bench="copy">Copy results</button>${sendable() ? '<button class="ui-btn" data-bench="send">Send to the developer</button>' : ''}<button class="ui-btn" data-bench="back">Back to the game</button></div></div>
     <p class="ui-text" data-bench="note">Copy the results and paste them in a message.</p>
-    <p class="ui-label" style="text-transform:none">${e.build || ''} · act ${e.act || 1}${e.scene === 2 ? ' arena' : ''} · ${e.tier || ''} · ${e.screen || ''} at ${e.dpr || ''}x · browser frames ${e.raf ? `${e.raf.fps} a second` : '–'} · GPU time ${e.gpuTime || '–'}</p>
+    <p class="ui-label" style="text-transform:none">${e.build || ''} · act ${e.act || 1}${e.scene === 2 ? ' arena' : ''} · ${e.tier || ''} · ${e.screen || ''} at ${e.dpr || ''}x · browser frames ${e.raf ? `${e.raf.fps} a second` : '–'} · GPU time ${e.gpuTime || '–'} · lamp slots ${e.lights ?? '–'}${e.experiments ? ` · ${e.experiments}` : ''}</p>
     <div class="wide"><table><thead><tr><th>Moment</th><th>Frame ms</th><th>p95</th><th>&gt;33 ms</th><th>&gt;50 ms</th><th>Step ms</th><th>Draw ms</th><th>GPU ms</th><th>Draws</th></tr></thead><tbody>${rows}</tbody></table></div>
 `);
   const json = JSON.stringify(res);
@@ -220,7 +221,7 @@ export function offer() {
   const el = card(`<div class="ui-header"><h2 class="ui-title">Phone bench</h2></div>
     <p class="ui-text">Plays ${n} moments of this act for about ${SETTLE + SECS} seconds each and shows how fast this device draws them. About ${mins} minutes.
     Keep the screen on and stay in the game. Nothing here counts as a run.</p>
-    <div class="acts">${LINKS.map(([t, s, k]) => `<a class="ui-btn${k === p ? '' : ' ui-btn--ghost'}" href="?bench${s}"${k === p ? ' aria-current="page"' : ''}>${t}</a>`).join('')}</div>
+    <div class="acts">${LINKS.map(([t, s, k]) => `<a class="ui-btn${k === p ? '' : ' ui-btn--ghost'}" href="?bench${s}${experimentQuery()}"${k === p ? ' aria-current="page"' : ''}>${t}</a>`).join('')}</div>
     <div class="acts"><button class="ui-btn ui-btn--primary" data-bench="start">Start</button><button class="ui-btn" data-bench="back">Back to the game</button></div>`);
   el.querySelector('[data-bench=back]').onclick = leave;
   el.querySelector('[data-bench=start]').onclick = async () => {
