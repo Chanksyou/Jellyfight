@@ -43,7 +43,7 @@ function laserMaterial(color) {
         float a = (ray * 0.85 + sheet + burn) * uOn;
         gl_FragColor = vec4(uColor * a * 1.6, a);
       }`,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending, toneMapped: false,
   });
 }
 

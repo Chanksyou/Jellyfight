@@ -100,7 +100,7 @@ export class Traversal {
       const h = v.land[1] + 0.06 - y;
       const col = new THREE.Mesh(
         new THREE.CylinderGeometry(v.radius * 0.9, v.radius, h, 24, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
+        new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending }),
       );
       col.position.set(x, y + h / 2, z);
       this.group.add(col);

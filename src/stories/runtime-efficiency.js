@@ -296,3 +296,29 @@ story('engine/crowd-hits-keep-their-flash', {
     return ok(glow === budget * 11 + 4 && rings === 0 && fullAgain, { budget, glow, rings, fullAgain });
   },
 });
+
+// A see-through two-sided piece is drawn twice (back faces, then front) unless it sets forceSinglePass: a
+// program-state change and a draw each, on a phone's CPU. Every moment the phone bench plays has none left
+// shown but the exceptions named here (src/apartment.js TWO_PASS: folded curtains sort wrong in one pass).
+const twoPass = async (page) => {
+  const K = await import('./kit.js'), { nav } = await import('../stages.js'), { MOMENTS } = await import('../bench-moments.js');
+  const found = {};
+  for (const name of Object.keys(MOMENTS[page])) {
+    MOMENTS[page][name]({ K, G: G(), nav }); step(30);
+    const on = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    G().APT.scene.traverse((o) => {
+      if (!(o.isMesh || o.isPoints || o.isLine) || !on(o) || !o.layers.test(G().APT.camera.layers)) return;
+      for (const m of [].concat(o.material)) if (m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass) (found[name] ||= new Set()).add(o.name || o.parent?.name || m.type);
+    });
+  }
+  return Object.fromEntries(Object.entries(found).map(([k, v]) => [k, [...v]]));
+};
+const draw = (page, exceptions) => async () => {
+  const found = await twoPass(page), bad = Object.values(found).flat().filter((n) => !exceptions.test(n));
+  return ok(!bad.length, { found, unexpected: bad });
+};
+const ABOUT = 'No see-through two-sided piece shown in any phone-bench moment of this act is drawn twice, except the named exceptions (folded sheer curtains).';
+story('engine/see-through-pieces-draw-once', { about: ABOUT, setup() {}, play: draw('act1', /^$/) });
+story('engine/see-through-pieces-draw-once-act3', { act: 3, about: ABOUT, setup() {}, play: draw('act3', /^Sheer_curtain/) });
+story('engine/see-through-pieces-draw-once-act4', { act: 4, about: ABOUT, setup() {}, play: draw('night4', /^$/) });
+story('engine/see-through-pieces-draw-once-arena', { act: 4, scene: 2, about: ABOUT, setup() {}, play: draw('arena', /^$/) });

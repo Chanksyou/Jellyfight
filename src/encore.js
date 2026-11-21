@@ -689,7 +689,7 @@ function spotlight(A, who) {
     SPOT_GEO.setAttribute('color', new THREE.BufferAttribute(col, 3));
   }
   const m = new THREE.Mesh(SPOT_GEO, new THREE.MeshBasicMaterial({ color: LOOK.color('encore-spotlight', '#fff1d0'), vertexColors: true, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false }));
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false, fog: false }));
   A.root.updateMatrixWorld(true);
   body.getWorldPosition(m.position); A.root.worldToLocal(m.position); m.position.y += 0.02;
   m.name = `Encore ${who} spotlight`; m.userData.noCollide = true; m.visible = false; m.renderOrder = 5;
