@@ -481,6 +481,7 @@ treasure "pedometer" name="Pedometer" icon="📟" rarity="rare" text="Every 2 m 
 }
 treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="You lose 1 Health a second (never your last), but swim 25% faster, attack 50% faster and get +1 mid-air jump." {
     health-drain 1 least=1
+    adorn "fangs"
     stat move-speed 25 percent=#true
     stat fire-rate 50 percent=#true
     extra-jumps 1

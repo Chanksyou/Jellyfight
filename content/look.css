@@ -208,9 +208,25 @@
   --treasure-nightLight: #bfe2ff;    /* Night-Light: the lamp dome, its pool on the floor and the motes (glowing meshes, not a real light) */
   --treasure-iceCube: #7cc8ff;       /* Ice Cube: the slippery puddle (water, with a frosty rim) */
   --treasure-discoBall: #d8beff;     /* Disco Ball: the spotlight cone and its pool on the picked bug */
-  --treasure-bloodyFangs: #ffb8c8;
-  --treasure-newtonsCradle: #9ff3ff;
-  --treasure-snooze: #d3eaff;
+  --treasure-bloodyFangs: #ffb8c8;  /* Bloody Fangs: the fangs' enamel glow (adornments.js); its heartbeat and trail are --bleed, the game's own red for the jelly's Health loss */
+  --fangs-beat: 1;                   /* s between Bloody Fangs' heartbeats while Health seeps away (the bell pulse, a small red ring, the Health bar's rim) */
+  --fangs-beat-pulse: 0.25;          /* how hard the bell squeezes on each beat */
+  --fangs-beat-glow: 0.5;            /* how bright the heartbeat's ring is: small and dim */
+  --fangs-trail-glow: 0.25;          /* how bright the trail is while swimming flat out (none on Low) */
+  --fangs-size: 1;                   /* the fangs, x their usual size under the bell's rim */
+  --treasure-newtonsCradle: #9ff3ff; /* Newton's Cradle: the steel ball carrying each pass */
+  --treasure-cradle-ball: 0.0055;    /* m: the ball's radius */
+  --treasure-cradle-arc: 0.012;      /* m: how high it swings between two bugs */
+  --treasure-cradle-rest: 0.12;      /* s it sits on a bug in case that one passes too */
+  --treasure-cradle-roll: 0.4;       /* s it rolls on the floor after the last pass, fading */
+  --cradle-swing: 0.5;               /* how far a bug the ball knocks swings away, x its radius (a look: it never moves) */
+  --cradle-swing-speed: 4;           /* how fast it swings back (1/s) */
+  --treasure-snooze: #d3eaff;        /* Snooze Button: the alarm clock over the jelly and its "Zzz" */
+  --treasure-snooze-ink: #4a5d80;    /* its hands, feet and hammer */
+  --treasure-clock-size: 0.02;       /* m: the clock's radius */
+  --treasure-clock-ring: 0.6;        /* s (real time) it rings and shakes */
+  --save-slow: 0.6 0.3;              /* Snooze's save: s (real time) of slow motion, and the game's speed meanwhile */
+  --save-grey: 0.85;                 /* how much colour drains from the screen as it saves you (none when Reduce effects is on) */
   --treasure-rubberDuck: #a8e9ce;
   --treasure-cactus: #b8f5c0;
   --treasure-guitarPick: #e0c8ff;
@@ -1204,6 +1220,7 @@
   --feel-kill-big: 0.3 0.06;   /* a bigger bug finished off */
   --feel-impact-big: 0.4 0;    /* a heavy Elite or bug attack landing */
   --feel-hurt: 0.55 0;         /* the jelly takes a hit */
+  --feel-save: 0.8 0.3;        /* Snooze Button saving you from your last hit */
   --feel-elite-kill: 0.7 0.15;
   --feel-boss-kill: 1 0.25;
   --boss-kill-slow: 0.7 0.25;  /* after its hit-stop the boss's last blow plays on in slow motion: real seconds, speed */

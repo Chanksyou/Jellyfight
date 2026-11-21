@@ -13,6 +13,7 @@ import { knockFor } from './stats.js';
 import { HouseGadgets } from './house-gadgets.js';
 import { glowPool } from './treasure-glow.js';
 import { TreasureProps } from './treasure-props.js';
+import { TreasureLegends } from './treasure-legends.js';
 
 const _white = new THREE.Color(1, 1, 1), _to = new THREE.Vector3(), _up = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
 
@@ -127,6 +128,7 @@ export class Gadgets {
     this.group.add(this.bountyMark);
     this.ghostColor = LOOK.color('ghost', '#b4ffd6');   // glow-in-the-dark green: friendly and cool, never a hostile colour
     this.house = new HouseGadgets(this);   // the swatter, bath bombs, puddles and the disco ball
+    this.legends = new TreasureLegends(this);   // the Snooze clock, the Cradle's steel ball, Bloody Fangs' heartbeat
     this.reset();
   }
 
@@ -153,6 +155,7 @@ export class Gadgets {
     this.props.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
     this.house?.reset();
+    this.legends?.reset();
     this.lampPool.forEach((g) => { g.visible = false; });
     this.bountyId = null; this.bountyBug = null; this.bountyMark.visible = false;
     for (const g of this.ghosts || []) this.fx.free(g.m);
@@ -376,6 +379,7 @@ export class Gadgets {
   animate(dt, active = true) {
     if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
+    this.legends.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
     if(!active){this.stick.visible=false;this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
     if(!this.mouseRun&&this.mouseAfter>0){

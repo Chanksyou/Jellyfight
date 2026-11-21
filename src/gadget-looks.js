@@ -141,12 +141,6 @@ export class GadgetLooks {
       p.m.scale.set(.009,.011,.009);p.m.rotation.x=-.5;
     }
   }
-  snooze(at){
-    this.arc(at,.055,this.silver,.6);this.arc(at,.035,this.silver,.45);
-    this.streak(at,at.clone().add(new THREE.Vector3(.02,0,0)),this.silver,.0018,.5);
-    this.streak(at,at.clone().add(new THREE.Vector3(0,0,-.03)),this.silver,.0018,.5);
-    this.salt(at,.03);
-  }
   // Hot water: a wisp of steam rising off the jelly; burst=true when the boost starts (a ring and a cloud)
   steam(at,burst=false){
     if(burst)this.arc(at,LOOK.num('gadget-steam-ring',.06),this.mist,.4);

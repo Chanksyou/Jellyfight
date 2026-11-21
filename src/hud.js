@@ -45,6 +45,11 @@ body.touch #hud .combo { top: 30%; right: calc(env(safe-area-inset-right, 0px) +
 #hud .hp-delta.heal { color: var(--hp-heal-color); }
 #hud .hp-delta[hidden] { display: none; }
 @keyframes jf-hp-breathe { from { opacity: .4; } to { opacity: 1; } }
+/* Bloody Fangs: while Health seeps away the bar's rim beats once a second in the bleed red (opacity only; still when calm) */
+#hud .player-health.draining:not(.critical) .hp-glow { box-shadow: 0 0 0 1px var(--hp-drain-color), 0 0 8px var(--hp-drain-color); animation: jf-hp-drain var(--hp-drain-beat) var(--ui-ease-float) infinite; }
+@keyframes jf-hp-drain { 0%, 100% { opacity: .15; } 18% { opacity: .75; } }
+body.calm #hud .player-health.draining:not(.critical) .hp-glow { animation: none; opacity: .4; }
+@media (prefers-reduced-motion: reduce) { #hud .player-health.draining:not(.critical) .hp-glow { animation: none; opacity: .4; } }
 /* Reduce effects: nothing squashes or slides (bars and the edge jump to their value), the low-Health glow holds still */
 body.calm #hud .player-health, body.calm #hud .hp-delta, body.calm #hud .hp-edge { transform: none !important; }
 body.calm #hud .hp-edge { transform: translate(-50%, -50%) !important; }
@@ -147,6 +152,8 @@ body.calm #hud :is(.items span.pop, .items sub.bump, .combo.punch b) { animation
 #hud .hurt { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px #ff6a20; opacity: 0; transition: opacity var(--ui-slow); }
 #hud .hurt.on { opacity: .5; transition: none; }
 body.calm #hud .hurt.on { opacity: .25; }
+/* Snooze Button's colour drain on Low graphics (Medium and High grey the frame itself): a cold veil, opacity only */
+#hud .veil { position: absolute; inset: 0; box-shadow: inset 0 0 160px 60px #2a3242; background: #3a4252; opacity: 0; pointer-events: none; }
 #hud .debug { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 18px); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); font: 12px/1.4 ui-monospace, monospace; white-space: pre; text-shadow: var(--hud-outline); opacity: .8; }
 /* phones: smaller, and keep the bottom corners free for the thumbs */
 @media (max-height: 520px), (max-width: 700px) {
@@ -189,7 +196,7 @@ export class Hud {
       <div class="boss" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
       <div class="elite" hidden><div class="nm"></div><div class="bar ui-bar" data-kind="boss"><i></i></div></div>
       <canvas class="map"></canvas>
-      <div class="hint"></div><div class="toast ui-toast" role="status"></div><div class="hurt"></div><div class="debug" hidden></div>
+      <div class="hint"></div><div class="toast ui-toast" role="status"></div><div class="hurt"></div><div class="veil"></div><div class="debug" hidden></div>
       <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
     this.$ = (s) => this.el.querySelector(s);
     this.map = this.$('.map');
@@ -208,7 +215,7 @@ export class Hud {
       settle: LOOK.vars['ui-ease-settle'] || 'ease-out', leave: LOOK.vars['ui-ease-leave'] || 'ease-in' };
     for (const [key, value] of Object.entries({
       'hp-trail-color': LOOK.color('hp-trail', '#ffc0a0'), 'hp-heal-color': LOOK.color('hp-heal', '#9dffd9'),
-      'hp-critical-color': LOOK.color('hp-critical', '#ff7068'), 'hp-drain': this.hpLook.drain + 'ms',
+      'hp-critical-color': LOOK.color('hp-critical', '#ff7068'), 'hp-drain-color': LOOK.color('bleed', '#ff2a4a'), 'hp-drain-beat': LOOK.num('fangs-beat', 1) + 's', 'hp-drain': this.hpLook.drain + 'ms',
       'hp-breathe': LOOK.num('hp-breathe-time', 1400) + 'ms',
     })) this.el.style.setProperty('--' + key, value);
     this.resetHealth();
@@ -263,6 +270,11 @@ export class Hud {
     c.querySelector('i').style.transform = `scaleX(${frac})`;
   }
 
+  // Bloody Fangs: Health seeping away (run.js drain)
+  setDraining(on) { if (this.cache.draining !== on) { this.cache.draining = on; this.hpNodes['player-health'].classList.toggle('draining', on); } }
+  // Snooze Button's colour drain on Low: 0..1
+  setVeil(k) { k = Math.round(k * 50) / 50; if (this.cache.veil !== k) { this.cache.veil = k; this.$('.veil').style.opacity = String(k * 0.6); } }
+
   resetHealth() {
     clearTimeout(this.hpTrailTimer); clearTimeout(this.hpNumberTimer);
     for (const a of Object.values(this.hpAnimations || {})) a.cancel();
@@ -298,19 +310,22 @@ export class Hud {
     this.hpNumberTimer = setTimeout(() => { node.hidden = true; this.hpGroup = null; }, this.hpLook.group);
   }
 
-  setHealth(v, max, { heal = true } = {}) {
+  // seep: Health is seeping away (Bloody Fangs): a small loss is no hit, so no hurt flash, kick or number (the bar's draining beat shows it)
+  setHealth(v, max, { heal = true, seep = false } = {}) {
     v = Math.max(0, Math.min(max, v));
     const N = this.hpNodes, frac = max > 0 ? v / max : 0, now = performance.now();
     const initial = this.cache.hp === undefined || max !== this.cache.hpMax;
     const previous = this.cache.hp, delta = initial ? 0 : v - previous;
     if (!initial && delta === 0) return;   // don't interrupt a healing transition on the next HUD frame
     if (initial) this.resetHealth();
-    if (delta < -0.01) {
+    const seeping = seep && delta < 0 && delta > -0.1;
+    if (seeping && this.hpTrailFrac > frac && !this.hpTrailTimer) { this.hpTrailFrac = frac; N['hp-trail'].style.transitionDuration = '0ms'; N['hp-trail'].style.transform = `scaleX(${frac})`; }
+    if (delta < -0.01 && !seeping) {
       const h = this.$('.hurt');
       h.classList.add('on');
       requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove('on')));
     }
-    if (delta < 0) {
+    if (delta < 0 && !seeping) {
       this.healthNumber(-delta, false, now); this.hpDamage -= delta;
       if (this.hpTrailFrac < previous / max) {
         this.hpTrailFrac = previous / max;
