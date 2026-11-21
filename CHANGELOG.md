@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v614 turns the XP spheres into small spinning gold crystals, so they read as experience.
+
 v613 lets a run that took its opening Attack upgrade plus one after each of the first three bosses post its score; the score check allowed only three, so those runs showed "this run couldn't be checked".
 
 v612 brings the jelly type pick screen's eight cards together as a set: the Tentacle card gains big curling tentacles in the dusk behind, drifting venom motes and a near tentacle in front; Glitter's floor of flakes no longer reads as a dot grid and the jelly keeps its own colour; the stand-in roaches on the centre card read brown instead of near white; Fire's stage water glows warm; Ice's colour is bluer so it reads apart from Normal; a pale jelly is warmed by Fire's light too; the stage's puffs fade at their edges (gas, not balls); each fireball boils on its own; a second Glitter crit burst no longer cuts the first short; Normal's first hit no longer builds a shader mid-fight; and the Fire and Lightning cards skip work where nothing can show.
