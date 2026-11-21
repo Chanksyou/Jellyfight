@@ -1,1 +1,0 @@
-gives the Tentacle jelly's sting a violet ribbon trail that fades from its root, a flash at the tip as it snaps and a few venom drops thrown off the stung bug, and its barbs a venom glow with a glint running down each tentacle.
