@@ -1189,6 +1189,8 @@
   --lite-fill: 1.6;            /* Low graphics: the spotlights are off, the room's fill light is this many times brighter (lite-materials.js) */
   --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
   --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
+  --batch-cull-move: 0.05;     /* meters the camera moves before the furniture batches re-check what's in view (src/static-batch.js) */
+  --batch-cull-turn: 4;        /* degrees it turns before they do; the view is padded by both, so nothing in view is missed */
   --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
 
   /* --- the camera ------------------------------------------------------------ */
