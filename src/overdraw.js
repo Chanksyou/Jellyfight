@@ -17,7 +17,7 @@ export const VIEW_STEP = 0.012;   // on screen: 1 layer is dark grey, 10 layers 
 
 // Runs `draw` with every mesh wearing a flat layer of its own side (and pass count), the background out of the way.
 const MATS = new Map();   // kept for good (a few): a disposed material would drop its shader program, rebuilt every frame of the view
-function withOverdraw(renderer, scene, step, seeThrough, draw) {
+function withOverdraw(renderer, scene, step, seeThrough, draw, room = null) {
   const undo = [], bg = scene.background, clear = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha();
   const swap = (m) => {
     const twoPass = m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass, k = `${step}|${m.side}|${twoPass}`;
@@ -28,7 +28,9 @@ function withOverdraw(renderer, scene, step, seeThrough, draw) {
   scene.traverse((o) => {
     if (!o.visible) return;
     const own = o.isMesh ? (Array.isArray(o.material) ? o.material : [o.material]) : null;
-    if (!own || (seeThrough && !own.some((m) => m.transparent))) { if (o.isPoints || o.isSprite || o.isLine || own) { undo.push([o, 'visible', true]); o.visible = false; } return; }
+    let inRoom = false;
+    if (seeThrough && room && own) for (let a = o; a && !inRoom; a = a.parent) inRoom = a === room;
+    if (!own || (seeThrough && (inRoom || !own.some((m) => m.transparent)))) { if (o.isPoints || o.isSprite || o.isLine || own) { undo.push([o, 'visible', true]); o.visible = false; } return; }
     undo.push([o, 'material', o.material]);
     o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
   });
@@ -48,14 +50,15 @@ export function drawOverdrawView(renderer, scene, camera) {
 let target = null;
 // How many layers the scene stacks on each pixel of the canvas, as the camera sees it now.
 // seeThrough: count only see-through pieces (the Warnings, flames, smoke, pools: what the fight adds to the room).
+// room: the apartment's own pieces (glass, prints, furniture the camera has faded) are left out of that count: they come with the view, not the fight.
 // Returns { avg: layers a pixel gets on average (the whole canvas), covered: share of the canvas with any, worst, p99 }.
-export function measureOverdraw(renderer, scene, camera, { seeThrough = false } = {}) {
+export function measureOverdraw(renderer, scene, camera, { seeThrough = false, room = null } = {}) {
   const size = renderer.getDrawingBufferSize(new THREE.Vector2()), w = size.x, h = size.y;
   if (!target || target.width !== w || target.height !== h) { target?.dispose(); target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false }); }
   const px = new Uint8Array(w * h * 4), was = renderer.getRenderTarget();
   withOverdraw(renderer, scene, STEP, seeThrough, () => {
     try { renderer.setRenderTarget(target); renderer.clear(); renderer.render(scene, camera); } finally { renderer.setRenderTarget(was); }
-  });
+  }, room);
   renderer.readRenderTargetPixels(target, 0, 0, w, h, px);
   const hist = new Uint32Array(256);
   for (let i = 0; i < px.length; i += 4) hist[px[i]]++;
