@@ -494,6 +494,8 @@
   --swat-speed: 1.5;
   --swat-life: 1.5;
   --swat-spare-reach: 0.3;
+  --map-fps: 15;                /* how often the minimap is redrawn (at once when a mark appears, moves or goes) */
+  --map-max-dpr: 2;             /* the most pixels per CSS pixel the minimap is drawn with */
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;

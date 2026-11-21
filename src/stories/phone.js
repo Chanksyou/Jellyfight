@@ -145,6 +145,23 @@ phone('light-slots-follow-the-jelly', {
       { slots: S.slots.length, lamps: S.lamps.length, lit: S.lit().length, eastLit, westLit, fading, programs, lights, nowPrograms: APT.renderer.info.programs.length });
   },
 });
+phone('light-slots-rank-when-the-jelly-moves', {
+  about: 'The lamps that win the 6 shared lights are ranked again only when the jelly has moved 5 cm (or a quarter second has passed), so a frame spent standing still allocates no arrays; moving more than 5 cm ranks them at once.',
+  setup() { fresh({ elites: false }); tp(4.2, 0.05, 3.5, 0); },
+  play() {
+    const { pacing, GAME, player } = G(), S = pacing.lightSlots, P = player.position;
+    step(40);
+    const ranked = () => S.picked.x;
+    const at = S.picked.clone(), want = S.want;
+    P.x += 0.01; GAME.step(1 / 240);                  // 1 cm, a short frame: no new ranking
+    const still = S.picked.x === at.x && S.want === want;
+    P.x += 0.08; GAME.step(1 / 240);                  // 9 cm in all: ranked again
+    const moved = ranked() === P.x;
+    const before = S.since; GAME.step(0.3);           // a quarter second passes: ranked again though still
+    const timed = S.since < before + 0.3 && S.picked.distanceTo(P) < 1e-9 && S.lit().length <= 6;
+    return ok(still && moved && timed && S.want.length <= 6, { still, moved, timed, wanted: S.want.length });
+  },
+});
 phone('glass-loses-its-clearcoat', {
   about: 'On a phone the apartment\'s glass (the coffee table and side table tops) is softened when the apartment loads: no clearcoat (a whole second specular lobe against every lamp) and roughness at least 0.15, look kept. Desktops keep the full glass.',
   setup() { fresh({ elites: false }); },

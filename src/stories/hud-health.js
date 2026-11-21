@@ -131,6 +131,31 @@ story('hud/minimap-marks-what-matters', {
   },
 });
 
+story('hud/minimap-redraws-on-its-own-clock', {
+  about: 'The minimap repaints at --map-fps, not every frame, but at once when a mark appears, moves or goes, and when it is shown or the window changes size; its canvas never draws past --map-max-dpr.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { hud, player } = G(), P = player.position, c = hud.map;
+    hud.showMap(false); hud.showMap(true);
+    let draws = 0; const was = hud.ctx.clearRect; hud.ctx.clearRect = function (...a) { draws++; return was.apply(this, a); };
+    const frame = (markers = []) => hud.update(P, 0, 0, markers);
+    try {
+      frame(); const first = draws;                                                    // shown: drawn at once
+      for (let i = 0; i < 20; i++) frame();                                            // the same instant: no repaint
+      const held = draws - first;
+      hud.mapAt -= 1000;                                                               // the clock runs out
+      frame(); const ticked = draws - first - held;
+      frame([{ kind: 'treasure', x: P.x + 0.3, y: P.y, z: P.z }]); const marked = draws - first - held - ticked;   // a mark appeared: at once
+      frame([{ kind: 'treasure', x: P.x + 0.3, y: P.y, z: P.z }]); const same = draws - first - held - ticked - marked;
+      frame([{ kind: 'treasure', x: P.x + 0.4, y: P.y, z: P.z }]); const moved = draws - first - held - ticked - marked - same;
+      const before = draws; hud.fit(); frame(); const resized = draws - before;
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      const css = c.clientWidth * (hud.scale || 1), sharp = c.width <= Math.round(css * dpr) + 1;
+      return ok(first === 1 && held === 0 && ticked === 1 && marked === 1 && same === 0 && moved === 1 && resized === 1 && sharp, { first, held, ticked, marked, same, moved, resized, size: [c.width, css] });
+    } finally { hud.ctx.clearRect = was; }
+  },
+});
+
 story('hud/reads-on-any-floor', {
   phone: true,
   about: 'On a phone the HUD\'s small words are at least 12 px (the night\'s time and boss, the Health number, a Treasure\'s count) and wear a dark outline; damage numbers are outlined too, the toast is the kit\'s toast, and the jump button is mint glass with the jump icon.',

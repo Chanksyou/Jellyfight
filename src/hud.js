@@ -238,6 +238,7 @@ export class Hud {
     this.el.style.zoom = this.scale === 1 ? '' : String(this.scale);
     this.touch = document.body.classList.contains('touch');
     this.mapPx = 0;   // (the minimap's size is read again on the next draw)
+    this.mapAt = undefined;
   }
 
   set(key, sel, fn) { // only touch the DOM when a value changes
@@ -512,7 +513,23 @@ export class Hud {
   }
 
   // the minimap on or off (a player's first run hides it until the first Treasure: first-run.js)
-  showMap(on) { if (this.map.hidden === !on) return; this.map.hidden = !on; }
+  showMap(on) { if (this.map.hidden === !on) return; this.map.hidden = !on; this.mapAt = undefined; }
+
+  // Is the minimap due a redraw? It repaints at --map-fps (a canvas up to 855 px square is a lot to clear
+  // and fill every frame), at once when what it marks changes, and when it was just shown. Reading the
+  // clock here, not in update(), keeps the draw itself plain.
+  mapDue(markers) {
+    const now = performance.now(), last = this.mapMarks || (this.mapMarks = []);
+    let changed = last.length !== markers.length || this.mapAt === undefined;
+    for (let i = 0; !changed && i < markers.length; i++) {
+      const a = last[i], b = markers[i];
+      changed = a.kind !== b.kind || a.x !== b.x || a.y !== b.y || a.z !== b.z;
+    }
+    if (!changed && now - this.mapAt < 1000 / Math.max(1, LOOK.num('map-fps', 15))) return false;
+    this.mapAt = now;
+    if (changed) { last.length = markers.length; for (let i = 0; i < markers.length; i++) { const m = markers[i]; const a = last[i] || (last[i] = {}); a.kind = m.kind; a.x = m.x; a.y = m.y; a.z = m.z; } }
+    return true;
+  }
 
   // The minimap: a glass disc centred on you and turned so up is where the camera looks (the way
   // "forward" moves you). The rooms are outlines; marks only for what's worth going to, each its own
@@ -522,8 +539,9 @@ export class Hud {
   // markers: [{ kind: 'treasure' | 'elite' | 'boss' | 'exit', x, y, z, color? }]
   update(pos, facing, cameraYaw, markers = []) {
     if (this.map.hidden) return;
+    if (!this.mapDue(markers)) return;
     const c = this.map, g = this.ctx, C = this.mapLook;
-    const dpr = Math.min(3, devicePixelRatio || 1);
+    const dpr = Math.min(LOOK.num('map-max-dpr', 2), devicePixelRatio || 1);
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
     const css = (this.mapPx ||= c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
