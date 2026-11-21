@@ -39,6 +39,7 @@ export class Batcher {
     this.scene = scene;
     this.roots = new Set();
     this.groups = new Map();     // geometry.id -> Map(material.id -> group): no arithmetic key, so no collision however large the ids grow (material clones mint new ids all session)
+    this.all = [];               // every group in one list, so a frame walks an array, not two Maps' iterators
     this.drawn = 0;              // instances drawn last sync (for the debug readout)
     this._visit = (o) => this.collect(o);
   }
@@ -54,7 +55,7 @@ export class Batcher {
     if (!g) {
       const per = !!mat.userData.perInstance;
       g = { geo, src: mat, per, mat: per ? withInstanceOpacity(mat) : mat, mesh: null, cap: 0, n: 0, list: [] };
-      byMat.set(mat.id, g);
+      byMat.set(mat.id, g); this.all.push(g);
     }
     return g;
   }
@@ -89,16 +90,18 @@ export class Batcher {
   }
 
   // Gather this frame's instances. Call once per frame, right before rendering.
-  sync() {
-    for (const byMat of this.groups.values()) for (const g of byMat.values()) g.n = 0;
+  // current: this.scene's matrices are already this frame's (updateShown just ran), so a root in it isn't walked again
+  sync(current = false) {
+    for (let i = 0; i < this.all.length; i++) this.all[i].n = 0;
     for (const root of this.roots) {
       if (!root.parent) { this.roots.delete(root); continue; }
       if (!root.visible) continue;
-      root.updateMatrixWorld();
+      if (!current || top(root) !== this.scene) root.updateMatrixWorld();
       root.traverseVisible(this._visit);
     }
     let drawn = 0;
-    for (const byMat of this.groups.values()) for (const g of byMat.values()) {
+    for (let k = 0; k < this.all.length; k++) {
+      const g = this.all[k];
       g.list.length = g.n; // release removed model subtrees; retain the reusable GPU batch
       if (g.n > g.cap || (g.n && !g.mesh)) this.grow(g, g.n);
       if (!g.mesh) continue;
@@ -122,6 +125,30 @@ export class Batcher {
       drawn += g.n;
     }
     this.drawn = drawn;
+  }
+}
+
+const top = (o) => { while (o.parent) o = o.parent; return o; };
+
+// The frame's one matrix pass (systems.js RenderSystem), in place of the renderer's own scene.updateMatrixWorld():
+// the same, except a hidden piece one or two levels down (a pooled effect, shot or Warning not in use, a hidden
+// group's parts) is left as it was while it's hidden. Nobody draws it, and the frame it shows it's brought current.
+const PLAIN = THREE.Object3D.prototype.updateMatrixWorld;
+export function updateShown(o, force = false, depth = 0) {
+  if (o.matrixAutoUpdate) o.updateMatrix();
+  if (o.matrixWorldNeedsUpdate || force) {
+    if (o.matrixWorldAutoUpdate) { if (o.parent) o.matrixWorld.multiplyMatrices(o.parent.matrixWorld, o.matrix); else o.matrixWorld.copy(o.matrix); }
+    o.matrixWorldNeedsUpdate = false;
+    force = true;
+  }
+  const kids = o.children;
+  for (let i = 0; i < kids.length; i++) {
+    const c = kids[i];
+    if (!c.visible) { c.staleWhileHidden = true; continue; }
+    const f = force || c.staleWhileHidden === true;
+    c.staleWhileHidden = false;
+    if (depth > 0 || c.updateMatrixWorld !== PLAIN) c.updateMatrixWorld(f);   // deeper down (a bug's own parts, the jelly's rig), and anything with its own (a frozen apartment, a camera): as three does it
+    else updateShown(c, f, 1);
   }
 }
 

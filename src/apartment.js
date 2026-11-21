@@ -3,6 +3,7 @@
 // materials and textures, plus door nodes a stage can swing open or shut.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { markMoved } from './static-batch.js';
 
 // The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
 // the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
@@ -60,8 +61,7 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
     } else {
       // move this part's objects into the Apartment node we already have (same place in the world)
       const into = apt.root.getObjectByName('Apartment');
-      apt.root.updateMatrixWorld(true);
-      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.updateMatrixWorld(true);   // (attach reads the frozen apartment's own matrices: static-batch.js freeze)
       for (const o of [...from.children]) { into.attach(o); added.push(o); }
     }
     addLights(scene, meta.lights.filter((L) => (L.act || 'act1') === part));
@@ -93,6 +93,9 @@ export function floatPositions(geometry) {
   geometry.computeBoundingSphere();
 }
 
+// Folded sheer curtains keep three.js's back-then-front draw: in one pass their folds sort wrong (checked in act 3 screenshots)
+const TWO_PASS = /^Sheer_curtain/;
+
 function prepareMeshes(root, meta, renderer) {
   const unpacked = new Set(), opaque = new Map();
   const coarse = matchMedia('(pointer: coarse)').matches;
@@ -121,6 +124,7 @@ function prepareMeshes(root, meta, renderer) {
     if (!unpacked.has(o.geometry)) { floatPositions(o.geometry); unpacked.add(o.geometry); }
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
+      if (m.transparent && m.side === THREE.DoubleSide && !TWO_PASS.test(o.name)) m.forceSinglePass = true;   // glass and shades draw once, not back then front (camera.js faded() does the same)
       // Sharp textures at grazing angles: the jelly looks along the floor, and without
       // anisotropic filtering floor tiles and wood grain blur away. glTF doesn't store it.
       for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap']) if (m[k]) m[k].anisotropy = aniso;
@@ -182,7 +186,7 @@ function findDoors(apt, objects) {
     apt.doors[id] = {
       node: o,
       open: apt.meta.doors[id]?.open ?? 1.5,
-      set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); o.updateMatrixWorld(true); },
+      set(angle) { o.quaternion.copy(base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle)); markMoved(o); },
     };
   });
 }

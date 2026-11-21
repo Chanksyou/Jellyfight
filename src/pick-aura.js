@@ -20,12 +20,16 @@
 //   3. Its numbers and colours go in content/look.css (--aura-<kind>-*); shoot it with
 //      node tools/pick-shots.mjs --only=<type> and compare against the plan's row.
 
+import * as bubbles from './pick-auras/bubbles.js';
 import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
-import * as glitter from './pick-auras/glitter.js';
 import * as sparks from './pick-auras/sparks.js';
+import * as glitter from './pick-auras/glitter.js';
+import * as gust from './pick-auras/gust.js';
+import * as sting from './pick-auras/sting.js';
+import * as toxic from './pick-auras/toxic.js';
 
-export const SHADERS = { flames, sparks, frost, glitter };
+export const SHADERS = { flames, sparks, frost, glitter, gust, bubbles, toxic, sting };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -47,13 +51,6 @@ function halo(ctx, S, col, a) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
 }
 
-// light rising off the bottom of the card
-function floorGlow(ctx, S, col, a, high = 0.34) {
-  const g = ctx.createLinearGradient(0, S, 0, S * (1 - high));
-  g.addColorStop(0, rgba(col, 0.55 * a)); g.addColorStop(1, rgba(col, 0));
-  ctx.fillStyle = g; ctx.fillRect(0, S * (1 - high), S, S * high);
-}
-
 function dot(ctx, x, y, r, fill) { ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
 
 // a mark that rises up one side of the jelly: [x, y, life 0-1]
@@ -64,62 +61,6 @@ function riser(S, i, t, speed) {
 }
 
 export const AURAS = {
-  // Normal: plain bubbles rising up both sides
-  bubbles(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.5);
-    ctx.lineWidth = S * 0.012;
-    for (let i = 0; i < 12; i++) {
-      const [x, y, life] = riser(S, i, t, 0.22), r = S * (0.018 + 0.03 * rnd(i, 5)) * (0.6 + life * 0.6), fade = Math.min(1, life * 6, (1 - life) * 4) * a;
-      ctx.strokeStyle = rgba(col, 0.9 * fade); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
-      dot(ctx, x - r * 0.35, y - r * 0.35, r * 0.25, rgba('#ffffff', 0.8 * fade));
-    }
-  },
-
-  // Poison: a green mist pooled at the bottom, toxic bubbles rising out of it and popping
-  toxic(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.55);
-    floorGlow(ctx, S, col, a * 0.9, 0.42);
-    ctx.lineWidth = S * 0.01;
-    for (let i = 0; i < 14; i++) {
-      const [x, y, life] = riser(S, i + 60, t, 0.3), r = S * (0.02 + 0.035 * rnd(i, 5)) * (0.5 + life * 0.7);
-      const pop = life > 0.88, fade = (pop ? (1 - life) * 8 : Math.min(1, life * 5)) * a;
-      ctx.fillStyle = rgba(col, 0.35 * fade); ctx.strokeStyle = rgba(col, 0.95 * fade);
-      ctx.beginPath(); ctx.arc(x, y, pop ? r * (1 + (life - 0.88) * 6) : r, 0, TAU); pop ? ctx.stroke() : (ctx.fill(), ctx.stroke());
-      if (!pop) dot(ctx, x - r * 0.3, y - r * 0.35, r * 0.22, rgba('#eaffdc', 0.8 * fade));
-    }
-  },
-
-  // Wind: streaks of air sweeping round the jelly, thick at the head and thinning to nothing
-  gust(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.45);
-    ctx.lineCap = 'round';
-    for (let s = 0; s < 6; s++) {
-      const head = t * (2.4 + 0.5 * rnd(s, 1)) + s * TAU / 6, len = 1.1 + 0.5 * rnd(s, 2), out = 0.96 + 0.16 * rnd(s, 3);
-      const tilt = (s % 2 ? 0.08 : -0.08);
-      for (let k = 0; k < 10; k++) {
-        const a0 = head - len * k / 10, a1 = head - len * (k + 1) / 10, f = 1 - k / 10;
-        const [x0, y0] = ring(S, a0, out + tilt * Math.sin(a0)), [x1, y1] = ring(S, a1, out + tilt * Math.sin(a1));
-        ctx.strokeStyle = rgba(k < 3 ? '#ffffff' : col, (0.4 + 0.6 * f) * a); ctx.lineWidth = S * 0.028 * f + 1;
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      }
-    }
-  },
-
-  // Tentacle: sting crescents flashing in the reach all round the jelly
-  sting(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.6);
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 6; i++) {
-      const period = 1.1, age = fract(t / period + i / 6), n = Math.floor(t / period + i / 6);
-      if (age > 0.5) continue;
-      const f = 1 - age / 0.5, angle = TAU * rnd(n * 7 + i, 50);
-      const [x, y] = ring(S, angle, 0.98), r = S * (0.1 + 0.05 * rnd(n + i, 51)) * (1 + age * 0.5);
-      ctx.strokeStyle = rgba(col, 0.7 * f * a); ctx.lineWidth = S * 0.05 * f;
-      ctx.beginPath(); ctx.arc(x, y, r, angle + Math.PI - 1, angle + Math.PI + 1); ctx.stroke();
-      ctx.strokeStyle = rgba('#ffffff', 0.95 * f * a); ctx.lineWidth = S * 0.016 * f;
-      ctx.beginPath(); ctx.arc(x, y, r, angle + Math.PI - 0.8, angle + Math.PI + 0.8); ctx.stroke();
-    }
-  },
 };
 
 // draw `kind` onto a canvas (cleared first), its size in pixels; false if there is no such kind

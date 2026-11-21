@@ -144,7 +144,9 @@ export class Adornments {
   // backward-hooked barbs sit along every tentacle so the type reads from far away
   make_barbs() {
     const group = new THREE.Group(), per = 3;
-    const mat = glowMat('barb', '#f4e9ff', { emissiveIntensity: 0.9 });
+    // (glossy with a venom glow inside, so each barb picks up the rim light instead of glowing flat white)
+    const mat = glowMat('barb', '#f4e9ff', { emissive: new THREE.Color(LOOK.color('barb-glow', '#a468ff')), emissiveIntensity: 0.7, roughness: 0.12, metalness: 0.3 });
+    const glintCol = new THREE.Color(LOOK.color('barb-glint-colour', '#e9d4ff')), at = new THREE.Vector3();
     const geo = new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0);
     const barbs = Array.from({ length: 8 * per }, () => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
     this.batch.track(group);
@@ -164,6 +166,13 @@ export class Adornments {
         m.quaternion.setFromUnitVectors(Y, d);
         const r = rig.thick * rig.barbThick * (1 - 0.72 * j / n) * unit;
         m.scale.set(r, r * size, r);
+      });
+      // a venom glint runs down each tentacle, one after another, passing its barbs
+      const glintSize = LOOK.num('barb-glint', 1.1);
+      if (on && glintSize > 0 && run.fx?.glow) rig.list.forEach((T, i) => {
+        const p = (this.t * LOOK.num('barb-glint-speed', 0.7) + i * 0.37) % 1, n = T.pts.length - 1;
+        rig.parent.localToWorld(at.copy(T.pts[Math.min(n, Math.round(p * n))]));
+        run.fx.glow.hold(at, glintCol, rig.thick * unit * glintSize, 0.8 * Math.sin(p * Math.PI));
       });
     } };
   }
@@ -213,13 +222,26 @@ export class Adornments {
   // Wind jelly: thin air streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
   make_gale() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
-    const airMat = glowMat('gale-streak', '#e6f8ff', { emissiveIntensity: 1.6, transparent: true, opacity: 0.7, depthWrite: false });
-    // air streaks: short thin arcs round the bell at different heights and radii, two rings turning opposite ways
+    const airMat = new THREE.MeshBasicMaterial({ color: LOOK.color('gale-streak', '#e6f8ff'), vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false });
+    // air ribbons: soft bands of air that climb a little as they curl round the bell, bright in the middle and fading to
+    // nothing at both ends and along both edges (vertex colour), their face tilted up like a cone so they read from above and the side
+    const ribbon = (radius, y, rise, a0, arc, width) => {
+      const N = 14, pos = [], col = [], idx = [];
+      for (let i = 0; i <= N; i++) {
+        const u = i / N, a = a0 + arc * u, fade = Math.sin(u * Math.PI) ** 0.8, r = radius * (1 + 0.1 * u);
+        for (let k = -1; k <= 1; k++) {
+          pos.push(Math.cos(a) * (r + k * width * 0.7), y + rise * u + k * width * 0.7, Math.sin(a) * (r + k * width * 0.7));
+          const f = k ? 0 : fade; col.push(f, f, f);
+        }
+        if (i) for (let k = 0; k < 2; k++) { const q = (i - 1) * 3 + k; idx.push(q, q + 3, q + 1, q + 1, q + 3, q + 4); }
+      }
+      return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)).setAttribute('color', new THREE.Float32BufferAttribute(col, 3)).setIndex(idx);
+    };
     const ring = (n, radius, y0, dy, len, seed) => {
       const parts = [];
       for (let i = 0; i < n; i++) {
-        const g = new THREE.TorusGeometry(h * radius * (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4), h * 0.008, 3, 10, len * (0.7 + 0.5 * ((i * 3 + seed) % 4) / 3)).rotateX(Math.PI / 2).rotateY(i / n * Math.PI * 2 + seed);
-        parts.push(g.translate(0, h * (y0 + dy * ((i * 5 + seed) % 4) / 3), 0));
+        const spread = (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4) * h * radius, up = h * (y0 + dy * ((i * 5 + seed) % 4) / 3);
+        parts.push(ribbon(spread, up, h * 0.05 * ((i + seed) % 3 - 1), i / n * Math.PI * 2 + seed, len * (1.6 + 0.9 * ((i * 3 + seed) % 4) / 3), h * 0.02));
       }
       const m = new THREE.Mesh(mergeGeometries(parts), airMat);
       group.add(m);
@@ -245,7 +267,7 @@ export class Adornments {
   // roots). Everything moves with the jelly but the falling drops, which keep falling where they let go
   make_toxin() {
     const group = new THREE.Group(), L = (k, f) => LOOK.num('toxin-' + k, f);
-    const dropMat = glowMat('toxin-drop', '#3ee68c', { emissiveIntensity: 1.6 });
+    const dropMat = glowMat('toxin-drop', '#3ee68c', { emissiveIntensity: L('drop-glow', 0.9), roughness: 0.08 });   // glossy: the lights catch a highlight on it
     const ball = new THREE.SphereGeometry(1, 10, 8);
     const make = (mat, n) => Array.from({ length: n }, () => { const m = new THREE.Mesh(ball, mat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     const tips = make(dropMat, 8), drips = make(dropMat, L('drips', 6));
@@ -257,7 +279,10 @@ export class Adornments {
       m.userData.vy -= L('drop-gravity', 1.2) * dt;
       m.position.y += m.userData.vy * dt;
       if (m.position.y <= floor) { m.visible = false; return false; }
-      G?.hold(m.position, dropCol, m.scale.x * 4, 0.5);
+      const r = m.userData.r ??= m.scale.x;
+      m.scale.set(r * 0.85, r * (1.2 + Math.min(1, -m.userData.vy * 6)), r * 0.85);   // stretched long as it speeds up
+      G?.hold(m.position, dropCol, r * 4, 0.5);
+      if (G && Math.random() < 0.25) G.emit(m.position, dropCol, r * 0.9, 0, 0.3, 0.35);   // a thin trail behind it
       return true;
     };
     return { group, free: true, tick: (dt, run) => {
@@ -274,13 +299,13 @@ export class Adornments {
         const u = Math.min(1, (U.t += dt) / U.hang), r = rig.thick * unit * L('drop-size', 1.3) * (0.3 + 0.7 * u);
         T.tip.getWorldPosition(m.position); m.position.y -= r * 0.8;
         m.scale.set(r, r * (1 + 0.4 * u), r);
-        if (u >= 1) { U.falling = true; U.vy = 0; U.t = 0; U.hang = null; }
+        if (u >= 1) { U.falling = true; U.vy = 0; U.t = 0; U.hang = null; U.r = r; }
       });
       // now and then a drip runs off the rim and falls
       if (on && (nextDrip -= dt) <= 0) {
         nextDrip = L('drip-every', 0.35);
         const m = drips.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
-        if (m && T?.pts?.length) { rig.parent.localToWorld(m.position.copy(T.pts[0])); m.scale.setScalar(rig.thick * unit * L('drop-size', 1.3) * 0.7); m.userData.vy = 0; m.visible = true; }
+        if (m && T?.pts?.length) { rig.parent.localToWorld(m.position.copy(T.pts[0])); m.scale.setScalar(m.userData.r = rig.thick * unit * L('drop-size', 1.3) * 0.7); m.userData.vy = 0; m.visible = true; }
       }
       for (const m of drips) if (m.visible) fall(m, dt, floor, G);
     } };
@@ -344,11 +369,11 @@ export class Adornments {
     const fleckMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-fleck', '#cfeaff'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8), bar = new THREE.CylinderGeometry(0.5, 0.5, 1, 4);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, tipMat); group.add(m); return m; });
-    const SEG = 6, segs = Array.from({ length: SEG }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
+    const SEG = 6, FORK = 2, segs = Array.from({ length: SEG + FORK }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
     const flecks = Array.from({ length: LOOK.num('storm-flecks', 8) }, () => { const m = new THREE.Mesh(ball, fleckMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
     const tipCol = tipMat.color.clone();
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), fork = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     let arcIn = LOOK.num('storm-arc-every', 2.5), arcT = 0, arcA = 0, arcB = 1;
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
@@ -372,17 +397,30 @@ export class Adornments {
         arcT -= dt;
         rig.list[arcA].tip.getWorldPosition(a); rig.list[arcB].tip.getWorldPosition(b);
         const w = rig.thick * unit * LOOK.num('storm-arc-width', 0.35), kink = a.distanceTo(b) * 0.18;
-        prev.copy(a);
-        segs.forEach((m, k) => {
-          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+        // a bar from prev to next, `k` wide
+        const lay = (m, k) => {
           m.visible = true;
           m.position.copy(prev).add(next).multiplyScalar(0.5);
           d.copy(next).sub(prev);
-          m.scale.set(w, d.length(), w);
+          m.scale.set(w * k, d.length(), w * k);
           m.quaternion.setFromUnitVectors(Y, d.normalize());
           prev.copy(next);
-        });
-        G?.hold(a, tipCol, w * 12, 0.8); G?.hold(b, tipCol, w * 12, 0.8);
+        };
+        // the arc, thickest in the middle and thin where it leaves and reaches each tip
+        prev.copy(a);
+        for (let k = 0; k < SEG; k++) {
+          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+          if (k === 2) fork.copy(next);
+          lay(segs[k], 0.45 + 0.75 * Math.sin(Math.PI * (k + 0.5) / SEG));
+        }
+        // a fork off its middle kink, thinning to nothing
+        prev.copy(fork);
+        next.copy(fork).add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.22));
+        lay(segs[SEG], 0.55);
+        next.add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.12));
+        lay(segs[SEG + 1], 0.3);
+        // the two tips it joins light up
+        G?.hold(a, tipCol, w * 16, 1); G?.hold(b, tipCol, w * 16, 1);
       } else for (const m of segs) m.visible = false;
       // static flecks: tiny points blinking on and off round the bell
       const P = this.player.position, life = LOOK.num('storm-fleck-life', 0.18), size = LOOK.num('storm-fleck-size', 0.0018);
@@ -431,7 +469,7 @@ export class Adornments {
   // Man o' War: a translucent sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;
-    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, depthWrite: false });
+    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
     const s = new THREE.Shape();
     s.moveTo(-1, 0); s.bezierCurveTo(-0.9, 0.9, -0.2, 1.2, 0.3, 0.9); s.bezierCurveTo(0.7, 0.7, 0.9, 0.5, 1, 0); s.lineTo(-1, 0);
     const sail = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), mat);
@@ -507,7 +545,7 @@ export class Adornments {
 
   // Upside-down Jelly: fronds on the floor round you that grow out while you're rooted
   make_fronds() {
-    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 1 });
+    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, emissiveIntensity: 1 });
     const leaf = new THREE.Shape();
     leaf.moveTo(0, 0); leaf.quadraticCurveTo(0.5, 0.4, 0, 1); leaf.quadraticCurveTo(-0.5, 0.4, 0, 0);
     const parts = [];

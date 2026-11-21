@@ -19,11 +19,22 @@ const STREAKS = 120, FLECKS = 160, SWIRLS = 12, BLOWN = 8;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _c = new THREE.Color();
 const FWD = new THREE.Vector3(0, 0, 1), UP = new THREE.Vector3(0, 1, 0);
 
+// two crossed bands, unit long (z -0.5..0.5) and two wide (x or y -1..1), brightest on the middle line and in the middle of their length
+function ribbonGeometry() {
+  const N = 8, pos = [], col = [], idx = [];
+  for (let b = 0; b < 2; b++) for (let i = 0; i <= N; i++) {
+    const u = i / N, f = Math.sin(u * Math.PI) ** 0.8;
+    for (let k = -1; k <= 1; k++) { pos.push(b ? 0 : k, b ? k : 0, u - 0.5); const c = k ? 0 : f; col.push(c, c, c); }
+    if (i) for (let k = 0; k < 2; k++) { const q = b * (N + 1) * 3 + (i - 1) * 3 + k; idx.push(q, q + 3, q + 1, q + 1, q + 3, q + 4); }
+  }
+  return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)).setAttribute('color', new THREE.Float32BufferAttribute(col, 3)).setIndex(idx);
+}
+
 export class WindLooks {
   constructor(scene, fx) {
     Object.assign(this, { scene, fx });
-    // speed lines: a thin box along +z, additive, faded by its instance colour
-    this.lines = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), STREAKS);
+    // speed lines: soft ribbons of air along +z (two crossed bands, each fading to nothing at both ends and along its edges), additive, faded by its instance colour
+    this.lines = new THREE.InstancedMesh(ribbonGeometry(), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, vertexColors: true, side: THREE.DoubleSide, forceSinglePass: true }), STREAKS);
     this.lines.name = 'Wind streaks'; this.lines.frustumCulled = false; this.lines.userData.noCollide = true; this.lines.renderOrder = 2;
     this.streakList = Array.from({ length: STREAKS }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), len: 0, w: 0, t: 0, life: 0 }));
     // flecks of dust and lint: little flat squares, matte
@@ -43,12 +54,13 @@ export class WindLooks {
 
   // n streaks from about pos, rushing along dir at about `speed` m/s, each up to `len` m long
   streaks(pos, dir, n, speed, len) {
+    if (this.fx.showcase) n = Math.ceil(n * 1.6);   // (the pick screen's stage: more air)
     _q.setFromUnitVectors(FWD, _v.copy(dir).normalize());
     for (let k = 0; k < n; k++) {
       const s = this.streakList[this.nextStreak]; this.nextStreak = (this.nextStreak + 1) % STREAKS;
       s.p.copy(pos).add(_w.randomDirection().multiplyScalar(len * 0.35));
       s.v.copy(_v).multiplyScalar(speed * (0.7 + Math.random() * 0.6));
-      s.q.copy(_q); s.len = len * (0.5 + Math.random() * 0.6); s.w = len * 0.025; s.t = 0; s.life = 0.18 + Math.random() * 0.14;
+      s.q.copy(_q); s.len = len * (0.5 + Math.random() * 0.6); s.w = len * 0.04; s.t = 0; s.life = 0.18 + Math.random() * 0.14;
     }
     this.busy = true;
   }

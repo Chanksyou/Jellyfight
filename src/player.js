@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { strokeRate } from './swim.js';
+import { hitSpot } from './collision.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
+const GROUND_HIT = hitSpot();   // the ground under a foot, written each frame (World.cast `out`)
 
 // position = the player's feet. The mesh is built so its origin is at the feet too.
 export class Player {
@@ -318,7 +320,7 @@ export class Player {
     let groundY = -Infinity;
     for (const [ox, oz] of this.groundOffsets) {
       this._o.set(this.position.x + ox, this.position.y + half, this.position.z + oz);
-      const hit = this.world.cast(this._o, DOWN, far);
+      const hit = this.world.cast(this._o, DOWN, far, null, false, GROUND_HIT);
       if (hit) groundY = Math.max(groundY, this._o.y - hit.distance);
     }
 

@@ -1,0 +1,1 @@
+adds a Past seasons page to the leaderboard: once the owner ends a season, its Champions and top 3 stay readable there, and the board's Back and Change name buttons now stay in view on a phone held sideways (the Champions portraits are a little smaller there).

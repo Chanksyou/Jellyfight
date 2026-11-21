@@ -2,6 +2,52 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v607 makes act 4 run much lighter on phones: the sun's direction is read from look.css as numbers (a stray piece of text had put the whole act's 3D maths on a slow path), and on Low the act 3 Alligator no longer builds a shader when its fight starts.
+
+v606 The overdraw budget story no longer counts the apartment's own glass, prints and camera-faded furniture, so it measures what a fight adds instead of where the view sits. Measured with the room left out (heaviest of four views, after the other engine stories ran): Controller crowd 1.65, bubble storm 0.40, Vacuum fight 0.63 (its force fields and traversal markers left by earlier stories); ceilings sit about 10% above. The arena keeps its old ceilings, since there the whole room is the arena and nothing is left out.
+
+v605 adds an Overdraw view to the dev tools (Check group) and a count of how many layers each pixel is drawn over to the phone measuring tool, and stops drawing the Encore stage edge's shock flash and the stage door's glow while they have nothing to show, which takes about half of the see-through layers off the Encore's arena on a phone.
+
+v604 lets the furniture's batches check what's in view only when the camera has moved 5 cm or turned 4 degrees, in a view padded by both so nothing in sight is left out, instead of every frame; solid furniture stops being sorted too, so a still camera sends phones none of the 66 draw lists a frame it used to.
+
+v603 adds a `?msaa=2|4` test link that smooths edges in the graphics chip on Medium and draws a phone at pixel ratio 1.25 instead of 1.5, so the phone bench can compare the two; nothing changes without the link.
+
+v602 makes bug crowds cheaper on phones: a far or off-screen bug that's only walking moves on alternate frames with both frames' time (same distance, walls still hold), a frame works out each moving piece's place once instead of twice, hidden pooled effects wait until they show, and the collision world re-checks furniture only after it moves.
+
+v601 gives the Tentacle jelly's sting a violet ribbon trail that fades from its root, a flash at the tip as it snaps and a few venom drops thrown off the stung bug, and its barbs a venom glow with a glint running down each tentacle.
+
+v600 makes the Poison jelly's attack look thicker on the pick screen: its blob shows a dark core through a glossy, wobbling body with a wet highlight, the burst leaves a soft green cloud that thins from the middle and droplets that fall, Poisoned roaches fume, and the water turns murky green. In play the blob and burst read the same, a little greener, and the tentacle drops are glossy and stretch as they fall.
+
+v599 adds a test link, `?rt=packed`, that draws the picture and glow buffers at 32 bits a pixel instead of 64 where the phone's graphics chip can, so the phone bench can measure whether it helps (nothing changes without the link).
+
+v598 makes your plain bubble glassier (clearer, with a bright rim) and its pop clearer too: on the pick screen it bursts as a ring and a double splash of droplets; in play the soft puff is mostly clear water.
+
+v597 makes Low graphics really low on phones: the apartment draws with plain diffuse materials (no shine), the three spotlights go dark with the room's fill light lifted for them, and clearcoat, iridescence and sheen are off. Low looks plainer and should run lighter; Medium and High are unchanged. `?lite=1` tries the same look on any tier.
+
+v596 draws the Tentacle jelly's pick card in a shader: whip lashes with ribbon trails crack round the jelly in a violet dusk, snapping with a star flash, a ring and venom drops, lighting the jelly's edge as they land.
+
+v595 lets the apartment's furniture hold still: three.js no longer recomputes its 1,100-odd pieces' positions every frame (doors, the layout editor and boss sets update the pieces they move), so phones spend less of each frame on bookkeeping.
+
+v594 makes the game churn less memory on phones: floor checks under bugs and the jelly's feet, the lamp ranking and the batch walk reuse what they have instead of making new objects each frame, and the minimap repaints 15 times a second (at once when a mark appears or moves) at no more than 2 pixels per CSS pixel.
+
+v593 makes the Fire Jelly's attack on the type pick screen's live card look like fire: the fireball boils and trails a flame tail, a burning roach wears real flames, and a hit smokes and leaves a scorch that cools. Play looks the same.
+
+v592 redraws the Poison jelly's pick card: thick glossy bubbles of poison wobble up and flow together when they touch, goo lines the card's glass and swells into drips that fall, vapour curls up behind, and a sickly green light from below lights the jelly, replacing the outlined circles.
+
+v591 draws glass, window shades, bug wings, the jelly's oral arms and the additive glow pieces once instead of twice, a little less work on a phone's processor each frame (no change to how they look, except sheer curtains, which keep two passes).
+
+v590 softens Wind's air on the jelly type pick screen and in play: the gust's speed lines and the Wind jelly's circling streaks are now soft ribbons of air that fade at both ends instead of hard thin bars and arcs, and the pick screen shows more of them with a minty backdrop.
+
+v589 gives Normal's side card on the pick screen glassy bubbles drawn in a shader: three depths rising through rippling light, each a lens that bends the jelly and water behind it, with a rainbow film on its rim and a window highlight.
+
+v588 repaints the Fire Jelly's card on the type pick screen: one rolling fire with torn tips and loose licks instead of separate spikes, and its warm light now falls on the jelly's bell and tentacles.
+
+v587 gives the leaderboard tabs: Champions (the best run with each jelly type, and how many you hold), All, and a board for each jelly type, with a Season chip, a second line saying Won or the act reached and acts untouched, and your own row pinned with its real place when you are outside the top 10. Submit score is now offered when a run makes its own jelly type's top 10, so a second type's run is no longer held back by your best run with another.
+
+v586 makes the Lightning jelly's attack look sharper: its shot is ball lightning with arcs crawling over it, each chain bolt holds one jagged channel per flicker and forks, the arc between its tentacle tips tapers and forks, and on the pick screen stunned bugs twitch and the stage turns a dark storm violet.
+
+v585 repaints Wind's card on the jelly type pick screen: soft ribbons of air circle the jelly (the near ones bend the bell and tentacles as they cross it), with dust and three small leaves riding the spiral and the tentacles streaming sideways in the breeze, instead of hard white arcs.
+
 v584 adds experiment links for phone measuring (?lights=3|4|6 sets the lamp slots, ?rt, ?msaa and ?lite are ready for later tasks); the bench shows which are on. Nothing changes without them.
 
 v583 gives the Ice jelly's attack more bite: in play and on the pick screen its frost flower on the floor is now a shaded crystal instead of a line drawing, its shards are solid ice, its tentacle tip crystals catch the light and its cold mist is softer; on the pick screen a Chilled roach glints with rime and breathes cold and the water behind turns a cold blue.

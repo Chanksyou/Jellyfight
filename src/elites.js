@@ -148,6 +148,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
+import { followLite } from './lite-materials.js';
 import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
@@ -571,8 +572,9 @@ class Elite {
       this.holder.rotation.y = w.yaw;
     }
     standOut(m.group, { base: LOOK.num('elite-glow', 0.2), rim: LOOK.num('elite-rim', 0.6) });   // readable in the dark room
+    followLite(m.group);   // Low's plain extras (lite-materials.js): it may be built after the graphics were prepared
     owner.scene.add(this.holder);
-    for (const o of m.loose || []) owner.scene.add(o);   // what it sends out into the room (the Coffer's tongue and jewels), hidden till then
+    for (const o of m.loose || []) { followLite(o); owner.scene.add(o); }   // what it sends out into the room (the Coffer's tongue and jewels), hidden till then
     // its health bar over it, facing the camera: big, outlined and drawn over everything, going
     // green -> yellow -> red as it loses health (the HUD shows it too while it fights you)
     this.bar = new THREE.Group();
@@ -700,7 +702,7 @@ export class Elites {
     this._beadDir = new THREE.Vector3(); this._beadAt = new THREE.Vector3();
     this.rings = [];         // and its rings rolling out (the clock's chimes, the Singing Bowl's rim rings)
     this.halfGeo = new THREE.CircleGeometry(1, 48, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);   // a half circle pointing +z
-    this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+    this.ringMat = new THREE.MeshBasicMaterial({ color: hostile('clock').clone().multiplyScalar(1.6), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true });
     this.ringMats = {};      // the ring walls' bands, one per hostile colour (all one program: ringMat's)
     this.bandGeo = new THREE.RingGeometry(0.5, 1, 64, 1).rotateX(-Math.PI / 2);   // a thick band (ring()): each copy's inner edge moves
     this._probe = new THREE.Vector3(); this._ringAt = new THREE.Vector3(); this._glowAt = new THREE.Vector3();   // scratch for the rings

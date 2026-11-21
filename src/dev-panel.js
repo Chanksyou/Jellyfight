@@ -7,7 +7,7 @@ const GROUPS = [
   ['build', 'Build', [['layout', '🛠 Layout']]],
   ['check', 'Check', [['diag', '🩺 Diagnostics']]],
 ];
-const PASSES = [['ao', 'AO'], ['bloom', 'Bloom'], ['lamps', 'Lamps']];   // costly parts of drawing, switched off to feel what they cost on a phone
+const PASSES = [['ao', 'AO'], ['bloom', 'Bloom'], ['lamps', 'Lamps'], ['overdraw', 'Overdraw']];   // costly parts of drawing, switched off to feel what they cost on a phone; Overdraw On shows how many layers each pixel gets (overdraw.js)
 
 export function devSheetHtml(icon) {
   const pane = ([id, , tools]) => `<div class="dev-pane" data-pane="${id}" hidden>${tools.map(([act, text]) => `<button class="ui-btn" data-act="${act}">${text}</button>`).join('')}${id === 'check'

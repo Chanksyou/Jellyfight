@@ -270,3 +270,24 @@ act3('every-elite-chest-reachable', {
   setup() { fresh({ treasures: false }); },
   play: eliteChestsReachable,
 });
+
+act3('low-alligator-fight-builds-no-shader', {
+  about: 'On Low graphics the Alligator made for a fight follows Low\'s plain look like everything already in the room (lite-materials.js followLite): its plush sheen is off, so starting its fight builds no shader in play. Back on Medium the sheen returns.',
+  setup() {},
+  async play() {
+    const { gfx, APT, GAME } = G(), was = gfx.choice;
+    try {
+      gfx.setQuality('low'); await gfx.ready;
+      const before = new Set(APT.renderer.info.programs);
+      const { e } = startCroc(0, { angry: true });
+      step(30); GAME.render();
+      const mats = [], mine = new Set();
+      e.holder.traverse((o) => { for (const m of [].concat(o.material || [])) { mine.add(APT.renderer.properties.get(m).currentProgram); if (m.isMeshPhysicalMaterial) mats.push(m); } });
+      const built = APT.renderer.info.programs.filter((p) => !before.has(p) && mine.has(p)).length;   // the Alligator's own (the restart may build others)
+      const lowSheen = Math.max(0, ...mats.map((m) => m.sheen));
+      gfx.setQuality('medium'); await gfx.ready;
+      const mediumSheen = Math.max(0, ...mats.map((m) => m.sheen));
+      return ok(mats.length > 0 && built === 0 && lowSheen === 0 && mediumSheen > 0, { physical: mats.length, built, lowSheen, mediumSheen });
+    } finally { gfx.setQuality(was); await gfx.ready; }
+  },
+});

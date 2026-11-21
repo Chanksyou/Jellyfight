@@ -458,6 +458,58 @@ story('types/pick-stage-ice', {
   },
 });
 
+story('types/pick-stage-fire', {
+  about: 'On the centre card (fx.showcase) the Fire jelly\'s fireballs boil (their parts\' materials churn) and trail a flame tail, and a burning roach wears real flames (fire-looks.js BurnFlames: one quad each, gone when it stops burning); in play the same parts keep their plain materials and no flames are added.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('fire');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks;
+      let flames = 0, tails = 0;
+      for (let i = 0; i < 4 * 30; i++) {
+        live.simulate(1 / 30);
+        flames = Math.max(flames, looks.burnFlames?.on.size || 0);
+        tails = Math.max(tails, (looks.pools.fire || []).concat(P.bubbles.list.map((b) => b.m)).filter((m) => m?.userData.tail?.visible).length);
+      }
+      const boils = looks.parts.fire.slice(0, 3).every(([, m]) => m.customProgramCacheKey?.().startsWith('fireChurn'));
+      P.bubbles.reset();
+      const tailsLeft = (looks.pools.fire || []).filter((m) => m.userData.tail?.visible).length;
+      const gone = (!looks.burnFlames || looks.burnFlames.on.size === 0) && tailsLeft === 0;
+      const play = G().run.bubbles.looks, plain = !play.fx.showcase && play.parts.fire.every(([, m]) => !m.onBeforeCompile || m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) && !play.burnFlames;
+      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, tailsLeft, boils, gone, plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-stage-poison', {
+  about: 'On the centre card the Poison jelly\'s blob is a darker core inside a see-through glossy body with a wet highlight; its burst leaves a cloud of green gas puffs (normal blending, so it stays green, not glow that whitens) and falling droplets; the water behind takes a sickly green grade (--preview-grade-poison). In play the blob keeps its plain unlit body.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('poison');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks, puffs = spy(P.fx, 'puff'), bursts = spy(looks, 'poisonBurst');
+      let wet = false;
+      for (let i = 0; i < 4 * 30; i++) { live.simulate(1 / 30); P.scene.traverse((o) => { if (o.userData.look === 'poison' && o.visible && o.userData.core && o.userData.blob.material === looks.wetPoison) wet = true; }); }
+      const cloud = bursts.length > 0 && puffs.length >= bursts.length * 8;   // its gas: a middle and a cloud of puffs round it
+      const grade = P.stage.back.material.uniforms.uGrade.value.clone(), green = grade.g > grade.b + 0.15 && grade.g > grade.r + 0.1;
+      const plain = !G().run.bubbles.looks.wetPoison;
+      return ok(wet && cloud && green && plain, { wet, bursts: bursts.length, puffs: puffs.length, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
@@ -517,41 +569,6 @@ story('types/pick-stage-films-through-bloom', {
   },
 });
 
-story('types/pick-side-cards-show-their-element', {
-  about: 'Every card but the live centre one shows the player\'s own jelly as it is (no type piece drawn on it) with its type\'s element moving round it (pick-aura.js, aura= in content/jellies.kdl): every type a different kind, the neighbours drawn and moving; Reduce motion holds them still.',
-  setup() {},
-  play() {
-    const { picker } = G(), back = asPlayer(true);
-    try {
-      // a card whose neighbours are both still drawn in 2D (the shader kinds have their own stories)
-      const flat = (k) => k >= 0 && k < picker.ids.length && !SHADERS[CONTENT.jellies[picker.ids[k]].aura];
-      const centre = picker.ids.find((id, k) => flat(k - 1) && flat(k + 1));
-      if (!centre) return ok(false, { why: 'no card has two 2D neighbours left: retire this story for the shader stories' });
-      pressPlay(centre);
-      stub(picker, 'live', null);   // no live centre card (its own story): every card shows its element
-      stub(picker, 'portrait', () => '');   // the still portraits: a software renderer takes ~40 s to build their shaders
-      stub(picker, 'painter', null);   // the shader kinds (their own stories): every kind drawn in 2D or not at all
-      stub(picker, 'calm', () => false);
-      let t = picker.last;
-      const tick = (n) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
-      tick(2);
-      const kinds = picker.ids.map((id) => CONTENT.jellies[id].aura);
-      const distinct = kinds.every(Boolean) && new Set(kinds).size === kinds.length;
-      // a canvas's lit pixels (anything drawn on its transparent field)
-      const lit = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let k = 3; k < d.length; k += 4) n += d[k] > 8; return n / (d.length / 4); };
-      const i = picker.index, side = [i - 1, i + 1].map((k) => picker.auras[k]);
-      const drawn = side.every((c) => c.width > 0 && lit(c) > 0.02);
-      const hash = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let k = 0; k < d.length; k += 97) h = (h * 31 + d[k]) | 0; return h; };
-      const before = hash(side[0]); tick(4);
-      const moves = hash(side[0]) !== before;
-      stub(picker, 'calm', () => true); picker.measure(); tick(1);
-      const held = hash(side[0]); tick(4);
-      const still = hash(side[0]) === held && lit(side[0]) > 0.02;
-      return ok(distinct && drawn && moves && still, { kinds, distinct, drawn, moves, still });
-    } finally { back(); picker.close(); G().mainMenu.home = false; }
-  },
-});
-
 story('types/pick-side-card-shader', {
   about: 'A kind with a shader (pick-auras/: Fire\'s flames, Lightning\'s sparks) paints its card\'s whole picture with the game\'s renderer: the player\'s jelly (jelly-portrait.js portraitLayers, kept on the GPU) relit in the element, once its still portrait is drawn and its shader built; a kind without one still draws in 2D over its portrait; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
   setup() {},
@@ -560,24 +577,24 @@ story('types/pick-side-card-shader', {
     let t = picker.last;
     const tick = (n = 1) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
     try {
-      pressPlay('fire');
-      stub(picker, 'live', null);   // no live centre card: the Fire card shows its element in the centre
+      pressPlay('ice');
+      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
       stub(picker, 'calm', () => false);
       stub(gfx, 'quality', 'medium');
       const card = (id) => picker.auras[picker.ids.indexOf(id)];
-      const fire = card('fire'), storm = card('lightning');
-      const flatId = picker.ids.find((id) => !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a kind still drawn in 2D (while any is)
+      const fire = card('ice'), storm = card('lightning');
+      const flatId = [picker.index - 1, picker.index + 1].map((k) => picker.ids[k]).find((id) => id && !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a neighbour still drawn in 2D (while any is)
       // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader;
       // Lightning (the next card) comes alive beside it
       for (let i = 0; i < 400 && !(fire.classList.contains('lit') && storm.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = fire.classList.contains('lit') && P.built.flames === true && storm.classList.contains('lit') && P.built.sparks === true;
+      const lit = fire.classList.contains('lit') && P.built.frost === true && storm.classList.contains('lit') && P.built.sparks === true;
       const draws = spy(P, 'draw'), flat = bolt ? spy(bolt, 'getContext') : [];
       picker.auraAt = -1; tick();
-      const shader = draws.some(([c, kind]) => c === fire && kind === 'flames') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
+      const shader = draws.some(([c, kind]) => c === fire && kind === 'frost') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
       const twoD = !bolt || (flat.length > 0 && !bolt.classList.contains('lit'));
-      const medium = P.mats.flames.uniforms.uLayers.value;
+      const medium = P.mats.frost.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
-      const low = P.mats.flames.uniforms.uLayers.value;
+      const low = P.mats.frost.uniforms.uLayers.value;
       const R = P.renderer, textures = R.info.memory.textures;
       picker.close();
       const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
@@ -610,6 +627,106 @@ story('types/pick-side-card-frost', {
   },
 });
 
+story('types/pick-side-card-gust', {
+  about: 'Wind\'s card (aura="gust", pick-auras/gust.js) is painted by its shader, with no 2D drawing left: soft ribbons of air, dust and leaves round the jelly, which stays lit in the middle and dark in the corners.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('wind');
+      stub(picker, 'live', null);   // no live centre card: the Wind card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const wind = picker.auras[picker.ids.indexOf('wind')];
+      for (let i = 0; i < 400 && !wind.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = wind.classList.contains('lit') && P.built.gust === true && P.has('gust') && !AURAS.gust;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: the jelly's middle is lit, the corners dark water)
+      const S = wind.width, ctx = wind.getContext('2d');
+      const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
+      const middle = lum(0.46, 0.4), corners = Math.max(lum(0, 0.92), lum(0.92, 0.92));
+      return ok(lit && middle > corners + 20, { lit, middle: Math.round(middle), corners: Math.round(corners) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-bubbles', {
+  about: 'Normal\'s card (aura="bubbles", pick-auras/bubbles.js) is painted by its shader, with no 2D drawing left: glassy bubbles rise through the water and the picture moves from one frame to the next.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('normal');
+      stub(picker, 'live', null);   // no live centre card: the Normal card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('normal')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.bubbles === true && P.has('bubbles') && !AURAS.bubbles;
+      // (a few small reads of the card's own 2D canvas, once: the same patch of it a few frames on)
+      const S = card.width, ctx = card.getContext('2d');
+      const grab = () => ctx.getImageData(0, 0, S, S).data;
+      const before = grab();
+      for (let i = 0; i < 20; i++) { picker.auraAt = -1; tick(); }
+      const after = grab();
+      let changed = 0;
+      for (let k = 0; k < before.length; k += 16) changed += Math.abs(before[k] - after[k]) > 6;
+      const moves = changed / (before.length / 16) > 0.02;
+      return ok(lit && moves, { lit, moves, changed: Math.round(1000 * changed / (before.length / 16)) / 1000 });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-toxic', {
+  about: 'Poison\'s card (aura="toxic", pick-auras/toxic.js) is painted by its shader, with no 2D drawing left: goo lines the top of the card\'s glass and pools along its bottom, sickly green, with the murky water darker between.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('poison');
+      stub(picker, 'live', null);   // no live centre card: the Poison card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('poison')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic') && !AURAS.toxic;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
+      const S = card.width, ctx = card.getContext('2d');
+      const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
+      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
+      return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-sting', {
+  about: 'The Tentacle\'s card (aura="sting", pick-auras/sting.js) is painted by its shader, with no 2D drawing left: whip ribbons and snaps in a violet dusk, so the open water on the card leans violet, not teal.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('tentacle');
+      stub(picker, 'live', null);
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('tentacle')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting') && !AURAS.sting;
+      picker.auraAt = -1; tick();
+      // (one small read of the card's own 2D canvas: the dusk in its top left corner, violet where Ice's water is teal)
+      const S = card.width, d = card.getContext('2d').getImageData(0, 0, Math.ceil(S * 0.1), Math.ceil(S * 0.1)).data;
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; }
+      return ok(lit && b > g * 1.8, { lit, r: Math.round(r / (d.length / 4)), g: Math.round(g / (d.length / 4)), b: Math.round(b / (d.length / 4)) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-side-card-glitter', {
   about: 'Glitter\'s card (aura="glitter", pick-auras/glitter.js) is painted by its shader, with no 2D drawing left, and moves: out-of-focus lights, falling flakes that flash and winking stars glitter all over the card.',
   setup() {},
@@ -632,7 +749,10 @@ story('types/pick-side-card-glitter', {
       const a = grab(); picker.auraAt = -1; tick(); tick(); tick(); tick(); tick(); tick();
       const b = grab();
       let moved = 0; for (let k = 0; k < a.length; k += 16) moved += Math.abs(a[k] - b[k]) > 30;
-      return ok(lit && bright(a) > 20 && moved > 50, { lit, bright: bright(a), moved });
+      // every type now has its own shader kind (the last 2D one is gone)
+      const kinds = picker.ids.map((id) => CONTENT.jellies[id].aura);
+      const distinct = kinds.every((k) => k && P.has(k)) && new Set(kinds).size === kinds.length;
+      return ok(lit && distinct && bright(a) > 20 && moved > 50, { lit, distinct, kinds, bright: bright(a), moved });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

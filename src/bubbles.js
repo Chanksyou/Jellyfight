@@ -107,12 +107,13 @@ export class Bubbles {
     this.main = null;                  // the Element a jelly type's main attack fires (update), else null
     this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
     this.geo = new THREE.SphereGeometry(1, 20, 14);
-    const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
-      color: tint, transparent: true, opacity: 0.6, roughness: 0.02, metalness: 0, clearcoat: 1,
+    const film = (tint, glow, opacity = 0.6, boost = 0.6) => new THREE.MeshPhysicalMaterial({
+      color: tint, transparent: true, opacity, roughness: 0.02, metalness: 0, clearcoat: 1,
       iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [150, 600],
-      emissive: glow, emissiveIntensity: 0.6, depthWrite: false,
+      sheen: 1, sheenRoughness: LOOK.num('bubble-sheen-roughness', 0.35), sheenColor: new THREE.Color(LOOK.color('bubble-sheen', '#e8f8ff')),   // the bright rim of a glassy bubble
+      emissive: glow, emissiveIntensity: boost, depthWrite: false,
     });
-    this.mat = film(0xcfeeff, 0x4aa8ff);
+    this.mat = film(0xcfeeff, 0x4aa8ff, LOOK.num('bubble-opacity', 0.28), LOOK.num('bubble-glow', 0.15));   // (gold and trap bubbles keep their old film, with the new rim)
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
@@ -647,7 +648,7 @@ export class Bubbles {
       if (was && mods.refreshAll.includes('burning')) this.refreshBurns(e);   // refresh-all (Flare Up)
       if (!was) this.enemies.freshBurn = e;   // this hit lit it: status-damage doesn't count it as a hit on a Burning bug
       b.stopFireAudio?.();
-      this.looks.fireHit(c, b.r, b.vel);
+      this.looks.fireHit(c, b.r, b.vel, this.fx.showcase ? this.enemies.floorBelow(c, c.y - e.r) : undefined);
       sfx.fire(b.fireWeight);
     }
     if (el.has('ice') && !e.proxy) {
@@ -792,6 +793,7 @@ export class Bubbles {
       }
       if (f.t <= 0) this.burning.delete(e);
     }
+    if (this.fx.showcase) this.looks.burnShow(this.burning, E, this.clock);   // (the pick screen's stage: real flames on a burning bug)
     this.poisonTick(dt, mods);
     if (this.gilded.length) this.gildTick(dt);
     for (const p of this.puddles) {
@@ -1065,12 +1067,13 @@ export class Bubbles {
     b.done = !keep;
     const p = b.m.position;
     const fire = b.tint === 'fire';
-    if (!fire) this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25);
+    if (!fire) this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25, b.tint ? 0.55 : LOOK.num('bubble-pop-puff', 0.2));   // a plain pop is mostly clear water, not a grey ball
     if (!hitEnemy) return;
     if (!fire) {
       this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
       // pop: a splash of droplets, a plip, a tiny kick
-      this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], b.big ? 10 : 4, b.r * 0.35, 0.25, p.y - 0.03);
+      this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], (b.big ? 10 : 4) * (!b.tint && this.fx.showcase ? 2 : 1), b.r * 0.35, 0.25, p.y - 0.03);
+      if (!b.tint && this.fx.showcase) this.fx.ring(p, b.golden ? GOLD : 0xdff4ff, b.r * (b.big ? 4 : 3), 0.3);   // the film bursting outward (the pick screen's stage only)
       if (b.tint && b.tint !== 'wind') {   // each element lands its own way (ice: its shards skip off the floor under it)
         const floor = b.tint === 'ice' || b.tint === 'acid' || b.tint === 'poison' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;
         this.looks.contact(b.tint, p, b.r, floor); sfx.elementHit(b.tint);

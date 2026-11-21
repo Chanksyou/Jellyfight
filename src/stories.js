@@ -9,7 +9,7 @@
 // When you add a behaviour, add a story that proves it. When a story breaks, the game did.
 
 import { currentAct, currentScene, goToAct } from './stages.js';
-import { G, STORIES, restore } from './stories/kit.js';
+import { G, STORIES, restore, stillMismatch } from './stories/kit.js';
 import { DEFAULT_SEED, seededRandom, seedFor } from './story-random.mjs';
 import './stories/traversal.js';
 import './stories/camera.js';
@@ -17,6 +17,7 @@ import './stories/treasures-in-room.js';
 import './stories/first-run.js';
 import './stories/easy.js';
 import './stories/achievements.js';
+import './stories/board.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/bug-collision.js';
@@ -81,6 +82,7 @@ import './stories/sunrise.js';
 import './stories/dressing.js';
 import './stories/act4-perf.js';
 import './stories/bench.js';
+import './stories/overdraw.js';
 import './stories/phone.js';
 import './stories/nests.js';
 import './stories/types.js';
@@ -107,6 +109,8 @@ export async function runStory(name, baseSeed = DEFAULT_SEED) {
   try {
     s.setup();
     const r = await s.play();
+    const moved = stillMismatch();   // a furniture mover that skipped markMoved (static-batch.js)
+    if (moved) return { name, seed, ok: false, info: { ...r.info, movedWithoutMarkMoved: moved }, ms: Math.round(performance.now() - t0) };
     return { name, seed, ok: r.ok, info: r.info, ms: Math.round(performance.now() - t0) };
   } catch (e) {
     return { name, seed, ok: false, info: { error: String(e && e.stack || e).split('\n').slice(0, 3).join(' | ') }, ms: Math.round(performance.now() - t0) };

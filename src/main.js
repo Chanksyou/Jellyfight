@@ -9,6 +9,7 @@ import { Graphics, CHOICES } from './graphics.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
 import { EXPERIMENTS } from './experiments.js';
+import { setLite, liteOn } from './lite-materials.js';
 import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { TestKit } from './test-kit.js';
@@ -38,11 +39,11 @@ import { reportError, enableDebug } from './errors.js';
 import { shadeWithBakedAO } from './baked-ao.js';
 import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
-import { StaticBatches } from './static-batch.js';
+import { StaticBatches, freeze } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v584';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v607';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -290,8 +291,8 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 if (APT.bakedAO || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun
-const statics = new StaticBatches(scene);   // the furniture drawn a material at a time (static-batch.js)
-if (!ARENA) statics.add(APT.root);
+const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
+if (!ARENA) { statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
 function setNight(minutes) {
   cityTime?.(minutes);
@@ -879,8 +880,8 @@ const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
   overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
-  passOn: (pass) => (pass === 'lamps' ? lampsOn : !gfx.off.has(pass)),
-  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : gfx.toggle(pass)),
+  passOn: (pass) => (pass === 'lamps' ? lampsOn : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
+  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
 });
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;
@@ -1040,6 +1041,9 @@ async function warmUp() {
 // Switching between them in the pause menu prepares the other set then (retier), from the scene
 // and the shelf of what warmUp showed.
 async function prepareGraphics(progress) {
+  const lite = gfx.quality === 'low' || EXPERIMENTS.lite === 1;   // Low's plain materials (lite-materials.js)
+  if (lite !== liteOn()) tpc.unfadeAll();   // a fade puts back the material it took, from the other set
+  setLite(lite, { scene, shelf, apartment: APT.root, batches: statics.batches });
   const programs = new Set(), was = renderer.getRenderTarget(), layers = camera.layers.mask;
   try {
     camera.layers.enable(0);   // as uploadAll draws it: the home portrait may have isolated its own layer
@@ -1186,7 +1190,9 @@ export const ready = warmUp().then(() => {
 // everything draws slowly behind a menu, and the governor lowers the pixel ratio when frames run
 // long and raises it back with headroom.
 const pacer = new FramePacer({ fps: IS_TOUCH ? phoneFps : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
-const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2));
+// ?msaa=2|4 (src/experiments.js) trades pixels for smooth edges: a phone then draws at most --msaa-pixel-ratio
+const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2),
+  IS_TOUCH && EXPERIMENTS.msaa ? LOOK.num('msaa-pixel-ratio', 1.25) : Infinity);
 const governor = new FrameGovernor({
   fps: pacer.fps || 60, scale: maxRatio, max: maxRatio, min: Math.min(maxRatio, LOOK.num('min-pixel-ratio', 1)),
 });

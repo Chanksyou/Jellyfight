@@ -1,8 +1,8 @@
 // Experiment switches for measuring on a phone: index.html?lights=4, ?rt=packed, ?msaa=4, ?lite=1.
 // Read once at boot like a dev option: never saved, never in a run, and absent means the game as shipped.
 // The bench (src/bench.js) shows them in its results. Each is a load-time choice, so none builds a shader in play.
-// lights: lamp slots on a phone (overrides --phone-lights); rt, msaa, lite: the switch exists, the task
-// that owns it (picture buffers, edge smoothing, plain Low materials) reads it from here.
+// lights: lamp slots on a phone (overrides --phone-lights); lite: Low's plain materials on any tier (lite-materials.js);
+// rt: packed picture buffers (graphics.js); msaa: smooth edges on Medium, at --msaa-pixel-ratio on a phone (graphics.js, main.js).
 export function readExperiments(search) {
   const q = new URLSearchParams(search);
   const pick = (k, ok) => (ok.includes(q.get(k)) ? q.get(k) : null);

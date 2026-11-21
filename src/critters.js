@@ -41,7 +41,7 @@ const MAT = {};
 function mats() {
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });
   MAT.matte ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
-  MAT.wing ||= new THREE.MeshStandardMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, roughness: 0.1, depthWrite: false });
+  MAT.wing ||= new THREE.MeshStandardMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.1, depthWrite: false });
   const lit = { base: LOOK.num('bug-glow', 0.35), rim: LOOK.num('bug-rim', 0.8) };   // content/look.css
   standOut(MAT.shell, lit);     // brighter bugs: readable in the dark room
   standOut(MAT.matte, lit);
@@ -868,7 +868,7 @@ export function buildHouseFly() {
   M.flyThorax ||= skin(G.thorax, 0.45);
   M.flyAbdomen ||= skin(G.abdomen, 0.3);
   if (!M.flyEye) { M.flyEye = skin(G.eye, 0.18, { base: 0.35, rim: 0.5 }); M.flyEye.emissive = new THREE.Color(0x3a0a02); }
-  M.flyWing ||= new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.15, depthWrite: false });
+  M.flyWing ||= new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.15, depthWrite: false });
   if (!M.flyLeg) { M.flyLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.flyLeg, { base: 0.1, rim: 0.25 }); }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
@@ -1272,7 +1272,7 @@ export function buildLadybug() {
     M.lbInside = new THREE.MeshStandardMaterial({ color: 0x2a0c08, side: THREE.BackSide, roughness: 0.6 });
     M.lbCream = new THREE.MeshStandardMaterial({ color: 0xf4e8c8, roughness: 0.4 });
     M.lbLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.1 });
-    M.lbWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.2, depthWrite: false });
+    M.lbWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.2, depthWrite: false });
     standOut(M.lbRed, { base: 0.22, rim: 0.5 }); standOut(M.lbBlack, { base: 0.08, rim: 0.35 }); standOut(M.lbCream, { base: 0.2, rim: 0.3 }); standOut(M.lbLeg, { base: 0.06, rim: 0.25 });
   }
   const outer = new THREE.Group(), body = new THREE.Group();
@@ -1568,7 +1568,7 @@ export function buildDragonfly() {
     M.dfEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
     M.dfThorax = new THREE.MeshStandardMaterial({ map: G.thorax, roughness: 0.5 });
     M.dfAbdomen = new THREE.MeshStandardMaterial({ map: G.abdomen, roughness: 0.3, metalness: 0.1 });
-    M.dfWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.12, metalness: 0.2, depthWrite: false });
+    M.dfWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.12, metalness: 0.2, depthWrite: false });
     M.dfLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 });
     standOut(M.dfEye, { base: 0.3, rim: 0.5 }); standOut(M.dfThorax, { base: 0.2, rim: 0.45 }); standOut(M.dfAbdomen, { base: 0.25, rim: 0.45 });
     standOut(M.dfWing, { base: 0.25, rim: 0.4 }); standOut(M.dfLeg, { base: 0.12, rim: 0.3 });
@@ -1777,7 +1777,7 @@ export function buildMantis({ dead = false } = {}) {
   const G = (GEO.mantis ||= mantisParts()), M = mats();
   if (!M.mtAbdomen) {
     M.mtAbdomen = new THREE.MeshStandardMaterial({ map: G.abdomen, roughness: 0.4 });
-    M.mtWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.35, depthWrite: false });
+    M.mtWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.35, depthWrite: false });
     M.mtEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08 });
     M.mtBody = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35 });
     standOut(M.mtAbdomen, { base: 0.25, rim: 0.5 }); standOut(M.mtWing, { base: 0.25, rim: 0.4 }); standOut(M.mtEye, { base: 0.3, rim: 0.4 }); standOut(M.mtBody, { base: 0.2, rim: 0.45 });
@@ -2378,7 +2378,7 @@ export function buildWasp() {
     M.wpGaster = new THREE.MeshPhysicalMaterial({ map: G.gaster, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
     M.wpThorax = new THREE.MeshStandardMaterial({ map: G.thorax, roughness: 0.6 });
     M.wpEye = new THREE.MeshPhysicalMaterial({ map: G.eye, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.05 });
-    M.wpWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, roughness: 0.15, depthWrite: false });
+    M.wpWing = new THREE.MeshStandardMaterial({ map: G.wing, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.15, depthWrite: false });
     M.wpBody = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4 });
     for (const [m, l] of [[M.wpGaster, { base: 0.25, rim: 0.5 }], [M.wpThorax, { base: 0.2, rim: 0.5 }], [M.wpEye, { base: 0.15, rim: 0.4 }], [M.wpWing, { base: 0.25, rim: 0.4 }], [M.wpBody, { base: 0.2, rim: 0.45 }]]) standOut(m, l);
   }

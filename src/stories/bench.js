@@ -1,10 +1,11 @@
 // Stories: the phone bench (src/bench.js, index.html?bench). It plays this act's moments in real frames,
 // replays the busiest once per switch and ends on a results card, and leaves the game as it found it.
 // Here each moment is cut to a fraction of a second: these prove the bench works, not how fast anything is.
+import * as THREE from 'three';
 import { G, offs, ok, story } from './kit.js';
 import { runBench, showResults, sendable } from '../bench.js';
 import { MOMENTS } from '../bench-moments.js';
-import { readExperiments, experimentQuery } from '../experiments.js';
+import { EXPERIMENTS, readExperiments, experimentQuery } from '../experiments.js';
 import { LOOK } from '../look.js';
 
 const SHORT = { settle: 0.05, secs: 0.25 };
@@ -80,5 +81,64 @@ story('bench/experiment-switches-read-once', {
     const res = await runBench({ ...SHORT, only: ['quiet room'], switches: [] });
     return ok(absent && kept && ignored && slots === LOOK.num('phone-lights', 6) && res.env.lights === slots && res.env.experiments === '',
       { absent, kept, ignored, slots, env: res.env.lights, words: res.env.experiments });
+  },
+});
+
+story('bench/packed-buffers-fall-back', {
+  phone: true,
+  about: 'With ?rt=packed the picture buffers and the bloom chain are R11G11B10 (32 bits a pixel instead of 64), built without a new shader in play; if the GPU can\'t draw to that format the half-float buffers stay; without the option nothing changes.',
+  setup() {},
+  play() {
+    const gfx = G().gfx, R = G().APT.renderer, canPack = gfx.canPack;
+    const types = () => [gfx.composer.renderTarget1.texture.type, gfx.composer.renderTarget2.texture.type, ...gfx.bloom.down.map((t) => t.texture.type)];
+    const all = (t) => types().every((x) => x === t);
+    offs.push(() => { EXPERIMENTS.rt = null; gfx.canPack = canPack; gfx.build(); });
+    const HALF = THREE.HalfFloatType, PACKED = THREE.UnsignedInt101111Type;
+    gfx.build();
+    const plain = all(HALF) && gfx.bufferType === HALF;
+    EXPERIMENTS.rt = 'packed';
+    const target = R.getRenderTarget();
+    const supported = canPack.call(gfx);
+    const restored = R.getRenderTarget() === target;   // the probe leaves the renderer as it found it
+    gfx.build();
+    gfx.render();
+    const programs = R.info.programs.length;
+    gfx.render();
+    const steady = R.info.programs.length === programs;
+    const packed = !supported || (all(PACKED) && gfx.composer.renderTarget1.texture.format === THREE.RGBFormat);   // a GPU that can't pack keeps half floats (fellBack covers it)
+    gfx.canPack = () => false;   // a GPU that fails the check
+    gfx.build();
+    gfx.render();
+    const fellBack = all(HALF) && gfx.bufferType === HALF;
+    return ok(plain && packed && steady && fellBack && restored, { plain, restored, supported, packed, steady, fellBack, types: types() });
+  },
+});
+
+story('bench/msaa-smooths-edges-on-one-target', {
+  phone: true,
+  about: 'With ?msaa=4 the scene is drawn into one multisampled target (the other buffer stays plain), built without a new shader in play, and it still holds after many frames; without the option, or with msaa=0, no target has samples.',
+  setup() {},
+  play() {
+    const gfx = G().gfx, R = G().APT.renderer;
+    const samples = () => [gfx.composer.renderTarget1.samples, gfx.composer.renderTarget2.samples];
+    offs.push(() => { EXPERIMENTS.msaa = null; EXPERIMENTS.rt = null; gfx.build(); });
+    EXPERIMENTS.msaa = null; gfx.build();
+    const plain = samples().every((s) => s === 0) && gfx.msaa === 0;
+    EXPERIMENTS.msaa = 0; gfx.build();
+    const zero = samples().every((s) => s === 0);
+    EXPERIMENTS.msaa = 4; gfx.build();
+    gfx.render();
+    const programs = R.info.programs.length;
+    const first = gfx.composer.readBuffer;
+    for (let i = 0; i < 4; i++) gfx.render();
+    const steady = R.info.programs.length === programs && gfx.composer.readBuffer === first;   // the scene lands in the same target every frame
+    const one = first.samples === 4 && samples().filter((s) => s === 4).length === 1;
+    EXPERIMENTS.rt = 'packed'; gfx.build(); gfx.render();
+    const both = samples().filter((s) => s === 4).length === 1;   // packed buffers or the half-float fallback, either way smoothed
+    EXPERIMENTS.rt = null;
+    const baked = gfx.baked; offs.push(() => { gfx.baked = baked; });
+    gfx.baked = false; gfx.build(); gfx.render();   // a room without baked shadows: N8AO draws the scene into its own target
+    const n8ao = !!gfx.ao && gfx.ao.beautyRenderTarget.samples === 4 && samples().every((s) => s === 0);
+    return ok(plain && zero && one && steady && both && n8ao, { plain, zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
   },
 });

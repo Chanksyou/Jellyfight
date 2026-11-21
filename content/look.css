@@ -307,19 +307,28 @@
   --xp-bar-pulse: 1.35;
   --xp-bar-time: 180;
   --lash-coil: 0.18;
-  --lash-trace: #2ee9ff;          /* the glow along a striking tentacle and the streak behind its tip */
+  --lash-trace: #a468ff;          /* the glow along a striking tentacle and the streak behind its tip (the Tentacle type's violet) */
   --lash-glow-dots: 6;            /* glow points along the arc while a tentacle is out */
   --lash-glow-size: 0.03;         /* m */
   --lash-arc: 0.3;                /* how high that glow arcs over, as a share of the strike's length */
   --lash-streak-dots: 4;          /* glow dots per frame along the tip's path */
   --lash-streak-size: 0.018;      /* m */
   --lash-streak-life: 0.2;        /* s */
-  --lash-strike: #e9fdff;         /* a striking tentacle burns this white-hot colour, */
+  --lash-strike: #f3e6ff;         /* a striking tentacle burns this white-hot colour, */
   --lash-strike-thickness: 2.4;   /* swells to this many times its width, */
   --lash-strike-glow: 2.6;        /* and glows this bright at full reach */
+  --lash-ribbon-dots: 7;          /* the arc the lash leaves hanging when it snaps: glow points along it (2x on the pick screen), */
+  --lash-ribbon-size: 0.014;      /* m */
+  --lash-ribbon-life: 0.26;       /* s: its tip end lasts this long, its root end a third as long */
+  --lash-snap-size: 0.06;         /* m, the flash at the tip as it snaps */
+  --lash-snap-life: 0.09;         /* s */
+  --lash-drop: #d9c2ff;           /* venom drops thrown off a stung bug, */
+  --lash-drops: 3;                /* this many (3x on the pick screen), */
+  --lash-drop-size: 0.007;        /* m */
+  --lash-drop-gravity: 0.7;       /* m/s2 */
   --lash-contact-in: 0.3;         /* where the tip lands: this share of the bug's radius in from its centre toward the jelly, */
   --lash-contact-up: 1;           /* and this share up its back (stays in sight from above) */
-  --lash-impact: #5ff0ff;         /* the flash, sparks and ring where a sting lands */
+  --lash-impact: #c79bff;         /* the flash, sparks and ring where a sting lands */
   --lash-impact-size: 0.016;
   --lash-slash-width: 2;          /* the crescent swept across a stung bug: half its width, in bug radii, */
   --lash-slash-dots: 15;
@@ -341,6 +350,8 @@
   --creator-camera-distance-narrow: 0.26;
   --board-jelly-size: 80px;
   --board-jelly-size-phone: 56px;
+  --board-champion-jelly-size: 56px;        /* the Champions tab's portraits (eight rows at once) */
+  --board-champion-jelly-size-phone: 40px;
   /* Main menu: presentation only. Distances are multiples of the jelly's height. */
   --menu-camera-distance: 1.74;          /* was 2.35: shrinking distance by 1.35 draws the jelly 35% bigger */
   --menu-camera-distance-portrait: 2.96; /* was 4 */
@@ -374,8 +385,13 @@
   /* the side cards' elements drawn in shaders (src/pick-auras/<kind>.js): each kind's colour ramp, white hot to its deep edge */
   --aura-flames-ramp: #fff6dc #ffc85a #ff6a1f #8a1a0a;
   --aura-frost-ramp: #ffffff #dcf6ff #86d3f4 #245f92;
+  --aura-bubbles-ramp: #ffffff #d9f4ff #7fd0e8 #2a6f9a;   /* Normal: white glints, pale blue rim, the water's blue */
+  --aura-gust-ramp: #f4fffb #c4f0e0 #6fbfae #1f5a5a;   /* Wind: white air, pale mint, sage teal, deep */
+  --aura-gust-leaves: #9fc46a #d1a455;                  /* Wind: the two leaf colours riding its spiral */
+  --aura-toxic-ramp: #f4ffd8 #c4ff6a #5fcf3c #0e3a1a;   /* Poison: the highlight, the sickly glow, the goo, its dark edge */
   --aura-sparks-ramp: #ffffff #fff3a6 #ffd23c #5a46c8;   /* Lightning: white core, yellow glow, the afterimage's violet */
   --aura-glitter-ramp: #ffffff #ff9ae8 #9a5cff #2a1458;   /* Glitter: white flash, pink, violet, the deep party water */
+  --aura-sting-ramp: #ffffff #e9d4ff #a468ff #3b1b7c;   /* Tentacle: white-hot lash tip, lilac, venom violet, deep dusk */
   --pick-portrait-room: 1.3;   /* how far back a card's portrait stands from the jelly (1: as close as the leaderboard's), leaving room round it for the element */
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */
   /* the centre card's live picture (src/attack-preview.js): the jelly firing its attack at a bug */
@@ -405,6 +421,13 @@
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
   --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
+  --preview-grade-wind: #c9f5e6;       /* Wind: the water behind it, minty */
+  --preview-stun-twitch: 0.25;         /* radians a stunned roach twitches (Lightning), none with Reduce effects */
+  --preview-backdrop-lightning: #4a38c8;   /* Lightning: a storm's violet in the water (a type may set --preview-backdrop-<id>, */
+  --preview-backdrop-tint-lightning: 30;   /* --preview-backdrop-tint-<id>, */
+  --preview-backdrop-bright-lightning: 0.2;  /* --preview-backdrop-bright-<id>: darker, so each strike stands out */
+  --preview-grade-tentacle: #ff6aff;       /* Tentacle: its dusk violet */
+  --preview-grade-poison: #a8e07c;     /* Poison: murky sickly green water */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -484,6 +507,8 @@
   --swat-speed: 1.5;
   --swat-life: 1.5;
   --swat-spare-reach: 0.3;
+  --map-fps: 15;                /* how often the minimap is redrawn (at once when a mark appears, moves or goes) */
+  --map-max-dpr: 2;             /* the most pixels per CSS pixel the minimap is drawn with */
   --map-treasure-scale: 1.33;   /* a treasure's dot (and its glow) on the minimap, next to an elite's */
   /* Player HUD Health feedback only; boss/elite bars retain their own appearance. */
   --hp-trail: #ffc0a0;
@@ -514,6 +539,11 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
+  --fire-smoke-dark: #2a201c;    /* the pick screen's stage only (fire-looks.js): the top of the smoke a hit curls up into */
+  --fire-scorch: #1c1410;        /* and the scorch it leaves on the floor */
+  --fire-scorch-glow: 0.9;       /* seconds the scorch glows ember-hot before it has cooled */
+  --fire-burn-flame: 2.6;        /* and a burning bug's flames, how tall, in its radii */
+  --fire-tail-flame: 6;          /* and a fireball's flame tail, how long, in its radii */
   --fire-blast: #ff8a3a;          /* Fire Attack upgrades: a burning bug's hit bursting (Flashpoint), the flame cone (Fire Breath) */
   --wind-core: #d9f6ff;
   --wind-gather-radius: 0.022;
@@ -975,6 +1005,11 @@
   --dress-door-beat: 0.35;
   --dress-door-beats: 8;         /* beats between time-up and the door opening (about 3.75 s at 128 BPM) */
   --dress-door-beats-calm: 2;    /* the same under Reduce effects, which also keeps the glow steady */
+  --bubble-opacity: 0.28;        /* how solid your plain bubble is (the rest is the water seen through it) */
+  --bubble-glow: 0.15;           /* its inner glow */
+  --bubble-sheen: #e8f8ff;       /* the light on its rim */
+  --bubble-sheen-roughness: 0.35; /* lower is a thinner, brighter rim */
+  --bubble-pop-puff: 0.2;        /* how solid the soft puff at a plain bubble's pop is (the droplets and ring carry it) */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
@@ -982,6 +1017,7 @@
   --bolt-halo: #ffd21a;         /* the yellow halo round it, */
   --bolt-flash: #fff6c8;        /* and the flash where one lands */
   --bolt-life: 0.2;             /* s a chain bolt flickers before it's gone */
+  --bolt-hold: 0.05;            /* s a bolt keeps one shape (a return stroke) before it re-strikes in a new one */
   --bolt-width: 0.005;          /* m, a bolt at its thickest (the middle; it tapers to both ends) */
   --bolt-jag: 0.22;             /* how far a bolt bends off the straight line, as a share of its length */
   --bolt-most: 12;              /* chain bolts and forks flickering at once (more are skipped) */
@@ -1050,7 +1086,12 @@
   --barbed-tentacle-length: 1.35; /* and this many times as long */
   --barb: #f4e9ff;                /* the barbs along them */
   --barb-size: 3;                 /* a barb's length, in tentacle widths */
+  --barb-glow: #a468ff;           /* the venom light inside each barb, */
+  --barb-glint: 1.1;              /* and the glint that runs down every tentacle (glow size, in tentacle widths; 0 turns it off) */
+  --barb-glint-colour: #e9d4ff;
+  --barb-glint-speed: 0.7;        /* tentacle lengths a second */
   --toxin-drop: #3ee68c;          /* Poison jelly: the drops on the tentacle tips and the drips off the rim */
+  --toxin-drop-glow: 0.9;         /* how much it glows (low enough that its highlight shows) */
   --toxin-drop-size: 1.3;         /* a full drop's radius, in tentacle widths */
   --toxin-drop-hang: 0.9;         /* about how long a tip's drop swells before it falls, seconds */
   --toxin-drop-gravity: 1.2;      /* how fast a drop falls through the water, m/s a second */
@@ -1061,7 +1102,7 @@
   --sparkle-twinkle-every: 0.16;  /* seconds between them */
   --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
   --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
-  --gale-streak: #e6f8ff;         /* Wind jelly: the thin air streaks circling the bell */
+  --gale-streak: #e6f8ff;         /* Wind jelly: the soft air ribbons circling the bell */
   --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
   --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
   --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
@@ -1142,11 +1183,15 @@
   --menu-fps: 20;              /* how often the game behind a menu redraws */
   --phone-pixel-ratio: 1.5;    /* the sharpest a phone draws (an iPhone's screen is 3) */
   --desktop-pixel-ratio: 2;
+  --msaa-pixel-ratio: 1.25;    /* the sharpest a phone draws with ?msaa=2|4 (smooth edges instead of more pixels) */
   --min-pixel-ratio: 1;        /* the governor never draws blurrier than this */
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
   --desktop-lights: 0;
+  --lite-fill: 1.6;            /* Low graphics: the spotlights are off, the room's fill light is this many times brighter (lite-materials.js) */
   --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
   --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
+  --batch-cull-move: 0.05;     /* meters the camera moves before the furniture batches re-check what's in view (src/static-batch.js) */
+  --batch-cull-turn: 4;        /* degrees it turns before they do; the view is padded by both, so nothing in view is missed */
   --gpu-restore-wait: 4;       /* seconds to wait for the graphics to come back before offering a reload */
 
   /* --- the camera ------------------------------------------------------------ */

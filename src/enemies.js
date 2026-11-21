@@ -3,6 +3,7 @@ import { ModelPool } from './model-pool.js';
 // mosquitoes that dart in to bite, and the act 2 bugs. The hair
 // tangle is the one dust type: the Clog sheds them.
 import * as THREE from 'three';
+import { hitSpot } from './collision.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildMoth, buildFirefly, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
@@ -77,6 +78,7 @@ export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
 export const TYPES = CONTENT.enemies;
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const FLOOR_HIT = hitSpot();   // where the floor under a bug is written each frame (World.cast `out`)
 
 // Angry eyes: white eyeballs with small red-rimmed pupils and thick brows slanted down toward
 // the middle. Built in "radius units" (the body is about 1 across) facing +z. The face sits on the
@@ -590,7 +592,7 @@ export class Enemies {
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
     bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, golden: !!e.lastGolden, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, by: e.lastBy, statuses: this.statusesOf(e), body: e.proxy ? null : e.root,
       remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
-        floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3)?.point.y ?? e.pos.y } : null });
+        floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3, null, false, FLOOR_HIT)?.point.y ?? e.pos.y } : null });
     this.models.release(e.model);
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)
   }
@@ -700,7 +702,7 @@ export class Enemies {
   // ---------------------------------------------------------------- ladybugs (the sortie word)
   // the floor under a point (or `fallback`)
   floorBelow(p, fallback) {
-    const h = this.world.cast(S.o.set(p.x, p.y + 0.3, p.z), DOWN, 0.6);
+    const h = this.world.cast(S.o.set(p.x, p.y + 0.3, p.z), DOWN, 0.6, null, false, FLOOR_HIT);
     return h ? h.point.y : fallback;
   }
   ladyLand(e) { this.fx.puff(e.pos.clone().setY(e.pos.y - 0.7 * e.r), 0xd8c8b4, e.r * 1.5, 0.35); sfx.ladyLand(); }
@@ -781,7 +783,7 @@ export class Enemies {
         if ((m.hissT -= dt) <= 0) { m.hissT = 0.22; sfx.missileHiss(); }
         const step = m.vel.length() * dt;
         if (P.distanceTo(pc) < radius + 0.014) { this.boom(m, pc, radius); continue; }
-        if (m.t > 0.15 && this.world.cast(P, dir, step + 0.008)) { this.boom(m, pc, radius); continue; }
+        if (m.t > 0.15 && this.world.cast(P, dir, step + 0.008, null, false, FLOOR_HIT)) { this.boom(m, pc, radius); continue; }
         P.addScaledVector(m.vel, dt);
         m.m.lookAt(S.spot.copy(P).add(m.vel));
         if (m.t >= m.fuel) { m.state = 'sputter'; m.coughT = 0; sfx.missileSputter(); }
@@ -795,7 +797,7 @@ export class Enemies {
         if ((m.coughT -= dt) <= 0) { m.coughT = 0.15 + Math.random() * 0.2; sfx.missileCough(); }
         dir.copy(m.vel).normalize();
         const step = m.vel.length() * dt;
-        const hit = this.world.cast(P, dir, step + 0.004);
+        const hit = this.world.cast(P, dir, step + 0.004, null, false, FLOOR_HIT);
         if (hit) {
           // down: it lies on the floor, smoking, then fizzles out
           P.copy(hit.point).addScaledVector(hit.normal, 0.004);
@@ -961,7 +963,7 @@ export class Enemies {
       const color = hostile('dragonfly');
       this.whirlMats = {
         blade: new THREE.MeshBasicMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.6), transparent: true, opacity: LOOK.num('whirl-blade-opacity', 1), side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
-        blur: new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.6), transparent: true, opacity: LOOK.num('whirl-blur-opacity', 0.1), side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+        blur: new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.6), transparent: true, opacity: LOOK.num('whirl-blur-opacity', 0.1), side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
       };
       this.whirls = [];
     }
@@ -1564,10 +1566,16 @@ export class Enemies {
       const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
       e.groundLocked = lock;
       if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
+      const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
-        this.moveGround(e, dt, near);
+        // a far bug that's only walking sweeps on alternate frames, with both frames' time (the sweep takes any length, so walls still hold).
+        // By distance only, never by what the camera sees: a replayed fight (tests/balance) must move the same whatever the view
+        e.moveDt = (e.moveDt || 0) + dt;
+        const lazy = dist > animFar && !e.elite && e.state === 'approach' && e.grounded && !e.airborne && (!e.atk || e.atk.phase === 'idle') && dist > e.T.reach + 0.25;
+        e.moveOdd = !e.moveOdd;   // (its own count, from its spawn: a replayed fight sweeps on the same frames)
+        if (!lazy || e.moveOdd) { this.moveGround(e, e.moveDt, near); e.moveDt = 0; }
       }
       for (const z of this.keepOut) {      // a safe glow (night-light safe=#true): ordinary bugs stop at its edge
         const dx = e.pos.x - z.x, dz = e.pos.z - z.z, d = Math.hypot(dx, dz), r = z.r + e.r;
@@ -1614,7 +1622,6 @@ export class Enemies {
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
         e.animDt = (e.animDt || 0) + dt;
-        const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
         const w0 = WORK.n;
         if (e.atk) attackClock(e, slow > 0 ? dt : 0, unseen ? null : this.fx, calm, dist / e.r);   // every frame: its pose is a function of this clock
         if (!unseen || (this.frame + e.id) % 2 === 0) { e.anim(e.animDt, e); e.animDt = 0; }

@@ -2,7 +2,7 @@
 import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import worker, { checkRun, WAVES } from '../worker/index.js';
+import worker, { checkRun, WAVES, top, seasonOf } from '../worker/index.js';
 import { readFileSync } from 'node:fs';
 import { ACHIEVEMENTS } from '../src/achievements.js';
 import { SEASON, actScore } from '../src/score.js';
@@ -548,4 +548,22 @@ test('the dev password is checked against the secret, slowly, and never opens wi
   assert.equal(await unlock(' sea-secret ', 'sea-secret'), true);
   assert.equal((await request('/api/dev', { pass: 'sea-secret' })).status, 429);
   delete env.DEV_PASSWORD;
+});
+
+test('a past season is read-only: its Champions, or the top 3 of All', async () => {
+  const add = sqlite.prepare('INSERT INTO board (season, id, jelly, name, score, won, acts, clean, at) VALUES (?, ?, ?, ?, ?, 0, 1, 0, ?)');
+  for (let i = 1; i <= 5; i++) add.run(7, 'player-old' + i, 'normal', 'O' + i, 1000 * i, i);
+  add.run(7, 'player-old1', 'fire', 'O1', 9000, 1);
+  add.run(8, 'player-old9', 'normal', 'Now', 99000, 1);                  // the current season (now = 8) is never in a past read
+  const read = (tab, season, me = 'player-old1') => top(db, me, tab, seasonOf(season, 8), 8);
+  const champs = await read('champions', 7);
+  assert.deepEqual([champs.season, champs.mine, champs.top.map(r => [r.jelly, r.score])], [7, null, [['fire', 9000], ['normal', 5000]]]);
+  const all = await read('all', 7);
+  assert.deepEqual(all.top.map(r => r.name), ['O1', 'O5', 'O4']);   // top 3 only, each player's best row
+  assert.equal(all.mine, null);                                      // no place on a past board
+  assert.equal(all.top[0].id, 'player-old1');                              // your own id, nobody else's
+  assert.ok(all.top.slice(1).every(r => r.id === undefined));
+  assert.equal((await read('fire', 7)).tab, 'all');                  // a type tab reads as all in a past season
+  assert.equal((await read('all', 8)).top[0].name, 'Now');            // the current season keeps its own rules
+  assert.deepEqual([seasonOf('0', 8), seasonOf('abc', 8), seasonOf('9', 8), seasonOf('3', 8)], [8, 8, 8, 3]);
 });

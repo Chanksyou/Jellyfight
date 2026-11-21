@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { STAGES, nav } from '../stages.js';
 import { serverBuild, reloadIfStale } from '../fresh.js';
 import { FramePacer, FrameGovernor } from '../pacing.js';
-import { World, checkBvhLayout } from '../collision.js';
+import { World, checkBvhLayout, hitSpot } from '../collision.js';
 import { loadLayout, applyLayout, visibleBox } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
@@ -18,6 +18,7 @@ import { TYPES } from '../enemies.js';
 import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
 import { FieldPerf } from '../field-perf.js';
+import { markMoved } from '../static-batch.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
 
 story('engine/field-numbers-ride-the-summary', {
@@ -428,7 +429,7 @@ story('dev/layout-editor-acts-and-delete', {
     // applyLayout honours the act it is given: a crafted act-2 edit moves the object
     await applyLayout(APT.root, 2, { [it.key]: { p: [9, 0, 9], q: [0, 0, 0, 1] } });
     const moved = it.node.position.x === 9;
-    it.node.position.fromArray(it.node.userData.home.p);
+    it.node.position.fromArray(it.node.userData.home.p); markMoved(it.node);
     try { localStorage.removeItem('jf-layout-v1'); } catch {}
     L.onDone();
     return ok(L.act === 1 && acts.join() === wantActs && slots && picked && gone && scoped && back && moved,
@@ -842,6 +843,38 @@ story('engine/graphics-switch-prepares-shaders', {
     }
   },
 });
+story('engine/low-draws-plain-materials', {
+  about: 'Low graphics draw the apartment with plain diffuse materials (no shine maths per lamp) and its spotlights dark, the room fill lifted for them, and shiny extras (clearcoat, iridescence) off; a lamp glow set on a piece still shows. Back on Medium every piece has its own material again. Both switches build their shaders behind the menu, and play then builds none.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { gfx, APT, GAME, statics, batcher } = G(), was = gfx.choice;
+    const pieces = () => { const a = []; APT.root.traverse((o) => { if (o.isMesh) a.push(o); }); return a; };
+    const standard = () => pieces().filter((o) => [].concat(o.material).some((m) => m.isMeshStandardMaterial)).length + statics.batches.filter((b) => b.batch.material.isMeshStandardMaterial).length;
+    const lights = (k) => { const a = []; APT.scene.traverse((o) => { if (o[k]) a.push(o); }); return a; };
+    const shiny = () => { let n = 0; APT.scene.traverse((o) => { for (const m of [].concat(o.material || [])) if (m.isMeshPhysicalMaterial && (m.clearcoat > 0 || m.iridescence > 0)) n++; }); return n; };
+    const drawn = async () => { await gfx.ready; batcher.sync(); statics.sync(); const n = APT.renderer.info.programs.length; GAME.render(); GAME.render(); return APT.renderer.info.programs.length - n; };
+    try {
+      gfx.setQuality('medium'); await gfx.ready;
+      const mats = new Map(pieces().map((o) => [o, o.material])), hemi = lights('isHemisphereLight')[0].intensity;
+      const medium = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length };
+      gfx.setQuality('low');
+      const lowNew = await drawn();
+      const lamp = pieces().find((o) => !Array.isArray(o.material) && o.material.isMeshLambertMaterial && mats.get(o).isMeshStandardMaterial);
+      const own = mats.get(lamp), glowWas = own.emissiveIntensity;
+      own.emissiveIntensity = 3.5;   // what act 4's beat does to a lamp's own material
+      const follows = lamp.material.emissiveIntensity === 3.5 && lamp.material.emissive === own.emissive;
+      own.emissiveIntensity = glowWas;
+      const low = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, inBatches: statics.count, follows, built: lowNew };
+      gfx.setQuality('medium');
+      const backNew = await drawn();
+      const restored = pieces().every((o) => o.material === mats.get(o));
+      const back = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, restored, built: backNew };
+      const pass = medium.standard > 100 && medium.spots > 0 && low.standard === 0 && low.shiny === 0 && low.spots === 0 && low.hemi > 1 && low.inBatches > 100 && follows && lowNew === 0
+        && restored && back.standard === medium.standard && back.shiny === medium.shiny && back.spots === medium.spots && back.hemi === 1 && backNew === 0;
+      return ok(pass, { medium, low, back });
+    } finally { gfx.setQuality(was); await gfx.ready; }
+  },
+});
 story('engine/reversed-depth', {
   about: 'With EXT_clip_control the game draws with a reversed depth buffer: the camera keeps its 2 mm near plane without log depth, and depth of field reads depth the reversed way.',
   setup() { fresh({ elites: false }); },
@@ -920,6 +953,26 @@ story('engine/raycast-matches-reference', {
       }
     }
     return ok(same === rays && maxD < 1e-6 && normals === 0, { rays, same, maxD, normals });
+  },
+});
+story('engine/raycast-into-a-hit-record-matches', {
+  about: 'world.cast written into a reused hit record (the floor under a bug, the jelly\'s feet, every frame) gives the same hit as one that returns a new object, and a miss leaves the record alone.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { world } = G(), out = hitSpot();
+    world.focus(V(3.2, 0.05, 3.0), 1); world._focusAge = Infinity; world.focus(V(3.2, 0.05, 3.0), 1);
+    let rays = 0, same = 0, reused = 0, hits = 0;
+    for (let k = 0; k < 300; k++) {
+      const o = V(3.2 + (Math.random() - 0.5) * 0.6, 0.05 + Math.random() * 0.3, 3.0 + (Math.random() - 0.5) * 0.6);
+      const d = k % 3 ? V(0, 0, 0).randomDirection() : V(0, -1, 0), far = [0.05, 0.3, 3][k % 3];
+      const A = world.cast(o, d, far), B = world.cast(o, d, far, null, false, out);
+      rays++;
+      if (!A && !B) { same++; continue; }
+      hits++;
+      if (B === out) reused++;
+      if (A && B && Math.abs(A.distance - B.distance) < 1e-9 && A.point.distanceTo(B.point) < 1e-9 && A.normal.distanceTo(B.normal) < 1e-9 && A.mesh === B.mesh) same++;
+    }
+    return ok(same === rays && reused === hits && hits > 20, { rays, same, hits, reused });
   },
 });
 story('engine/fight-draw-calls', {
@@ -1148,22 +1201,116 @@ story('engine/furniture-drawn-in-batches', {
   setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   play() {
     const { statics, tpc } = G(), b = statics.batches.find((x) => x.pieces.length > 2 && x.pieces.some((q) => !q.mesh.userData.structural)), p = b.pieces.find((q) => !q.mesh.userData.structural), o = p.mesh;   // (a wall never fades: it is structural)
-    const visibleAt = () => b.batch.getVisibleAt(p.id);
+    const visibleAt = () => b.batch.getVisibleAt(p.id) || (p.inBatch && !p.inView);   // (in the batch, though maybe culled out of view)
     const pieces = statics.count, start = visibleAt() && o.layers.mask !== 1;
     tpc.startFade(o); statics.sync();
     const faded = !visibleAt() && o.layers.mask === 1;
     tpc.unfade(o, tpc._fades.get(o)); statics.sync();
     const back = visibleAt() && o.layers.mask !== 1;
     const m = new THREE.Matrix4(), was = o.position.clone();
-    o.position.x += 0.1; o.updateMatrixWorld(true); statics.sync(); b.batch.getMatrixAt(p.id, m);
+    o.position.x += 0.1; markMoved(o); statics.sync(); b.batch.getMatrixAt(p.id, m);
     const moved = Math.abs(m.elements[12] - o.matrixWorld.elements[12]) < 1e-6;
-    o.position.copy(was); o.updateMatrixWorld(true);
+    o.position.copy(was); markMoved(o);
     o.visible = false; statics.sync();
     const hidden = !visibleAt();
     o.visible = true; statics.sync();
     return ok(pieces > 300 && start && faded && back && moved && hidden && visibleAt(), { pieces, batches: statics.batches.length, start, faded, back, moved, hidden });
   },
 });
+
+story('engine/still-furniture-skips-matrix-updates', {
+  about: "The apartment holds still, so a frame's matrix update skips its 2,000-odd pieces; a door that swings (markMoved) still moves, solid and in its batch, and every piece's stored matrices match where it stands.",
+  setup() { fresh({ elites: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
+  play() {
+    const { APT, statics } = G(), scene = APT.scene;
+    let pieces = 0, visited = 0, inApt = 0;
+    APT.root.traverse(() => pieces++);
+    const own = THREE.Object3D.prototype.updateMatrixWorld, under = (o) => { for (; o; o = o.parent) if (o === APT.root) return true; return false; };   // (the apartment's root has its own, which stops there)
+    THREE.Object3D.prototype.updateMatrixWorld = function (f) { visited++; if (under(this)) inApt++; return own.call(this, f); };
+    try { scene.updateMatrixWorld(); } finally { THREE.Object3D.prototype.updateMatrixWorld = own; }
+    const door = Object.values(APT.doors)[0], node = door.node, before = node.matrixWorld.clone();
+    door.set(door.open); statics.sync();
+    const swung = !node.matrixWorld.equals(before);
+    const p = statics.batches.flatMap((b) => b.pieces.map((q) => ({ b, q }))).find(({ q }) => { for (let x = q.mesh; x; x = x.parent) if (x === node) return q.inBatch; return false; });
+    const m = new THREE.Matrix4();   // (a closed door's batch copy has to swing with it)
+    p?.b.batch.getMatrixAt(p.q.id, m);
+    const batchFollows = !p || m.elements.every((v, i) => Math.abs(v - p.q.mesh.matrixWorld.elements[i]) < 1e-5);   // (the batch keeps 32-bit floats)
+    door.set(0); statics.sync();
+    return ok(pieces > 1000 && inApt === 0 && swung && batchFollows, { pieces, visited, inApt, door: node.name, swung, batched: !!p, batchFollows });
+  },
+});
+
+// The furniture batches (static-batch.js) work out what's in view only when the camera has moved or
+// turned enough: three would cull and upload each batch's draw list every frame.
+const tinyTarget = {};
+const frame = () => {   // a step, then the scene drawn once into a tiny target: the pass the batches' lists serve (the composer's would be slow on desktop High)
+  const { GAME, APT, batcher, statics } = G(), R = APT.renderer, was = R.getRenderTarget();
+  GAME.step(1 / 60); batcher.sync(); statics.sync();
+  tinyTarget.t ||= new THREE.WebGLRenderTarget(4, 4);
+  try { R.setRenderTarget(tinyTarget.t); R.render(APT.scene, APT.camera); } finally { R.setRenderTarget(was); }
+};
+const listVersions = () => G().statics.batches.map((b) => b.batch._indirectTexture.version);
+story('engine/batches-cull-off-the-frame-clock', {
+  about: "While the camera holds still the furniture batches reuse their draw lists: no batch uploads one in 60 frames, and no batch sorts. A turn past the threshold culls again, and pieces behind the camera are left out.",
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(30); frame(); frame(); },
+  play() {
+    const { statics, tpc, APT } = G(), gl = APT.renderer.getContext();
+    const before = listVersions(), culls = statics.culls;
+    let uploads = 0, sorting = 0;
+    const real = gl.texSubImage2D;
+    gl.texSubImage2D = function (...a) { uploads++; return real.apply(this, a); };
+    const still = tpc.yaw;
+    try { for (let i = 0; i < 60; i++) { tpc.yaw = still; frame(); sorting += statics.batches.filter((b) => b.batch.sortObjects).length; } } finally { gl.texSubImage2D = real; }
+    const after = listVersions(), changed = after.filter((v, i) => v !== before[i]).length, stillCulls = statics.culls - culls;
+    const outOfView = statics.batches.reduce((n, b) => n + b.pieces.filter((p) => p.inBatch && !p.inView).length, 0);
+    tpc.yaw = still + Math.PI; frame();   // turn round: past the threshold, so the lists change
+    const turned = listVersions().filter((v, i) => v !== after[i]).length, turnCulls = statics.culls - culls - stillCulls;
+    tpc.yaw = still; frame();
+    const opaqueSort = statics.batches.filter((b) => !b.batch.material.transparent && b.batch.sortObjects).length;
+    return ok(statics.batches.length > 20 && changed === 0 && stillCulls === 0 && sorting === 0 && outOfView > 0 && turned > 0 && turnCulls === 1 && opaqueSort === 0,
+      { batches: statics.batches.length, changed, stillCulls, sorting, uploads, outOfView, turned, turnCulls, opaqueSort });
+  },
+});
+
+// every frame, each batched piece whose bounds touch the camera's true view is in its batch's draw list
+function missingInView() {
+  const { statics, APT } = G(), cam = APT.camera, f = new THREE.Frustum(), s = new THREE.Sphere();
+  f.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
+  const miss = [];
+  for (const { batch, pieces } of statics.batches) {
+    const list = new Set(batch._indirectTexture.image.data.subarray(0, batch._multiDrawCount));
+    for (const p of pieces) {
+      if (!p.inBatch) continue;
+      batch.getBoundingSphereAt(batch.getGeometryIdAt(p.id), s).applyMatrix4(p.matrix);
+      if (f.intersectsSphere(s) && !list.has(p.id)) miss.push(p.mesh.name || p.mesh.uuid);
+    }
+  }
+  return miss;
+}
+const noPieceMissing = (phone) => ({
+  phone,
+  about: `Spinning the camera (slowly, under the re-cull threshold, and fast), walking and riding a vent${phone ? ' in a phone\'s wider view' : ''}: in every frame every batched piece in the camera's view is drawn, though the batches cull only now and then.`,
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(30); frame(); },
+  play() {
+    const { statics, tpc, input, traversal, player } = G();
+    const culls = statics.culls;
+    let frames = 0, missed = 0, first = null, flew = 0;
+    const check = () => { frames++; const m = missingInView(); if (m.length) { missed++; first ||= { frame: frames, pieces: m.slice(0, 3) }; } };
+    for (let i = 0; i < 160; i++) { tpc.yaw += 0.05; tpc.pitch = Math.sin(i / 9) * 0.4; frame(); check(); }   // about 3 degrees a frame: mostly reused lists
+    for (let i = 0; i < 40; i++) { tpc.yaw += 0.35; frame(); check(); }   // as fast as a flick
+    input.keys = new Set(['KeyW']);
+    for (let i = 0; i < 120; i++) { if (i % 30 === 0) tpc.yaw += 0.6; frame(); check(); }
+    input.keys = new Set();
+    const v = traversal.vents[0];
+    tp(v.x + 0.1, v.y + 0.01, v.z, Math.PI / 2); frame(); check();
+    player.position.set(v.x, v.y + 0.005, v.z);
+    for (let i = 0; i < 240; i++) { frame(); check(); if (player.flight) flew++; else if (flew) break; }
+    const reused = frames - (statics.culls - culls);
+    return ok(frames > 350 && missed === 0 && flew > 10 && reused > frames / 3, { frames, culls: statics.culls - culls, reused, missed, first, flew, vent: v.to });
+  },
+});
+story('engine/no-piece-missing-in-view', noPieceMissing(false));
+story('engine/no-piece-missing-in-view-phone', noPieceMissing(true));
 
 story('engine/old-code-reloads-into-the-new-version', {
   about: 'A page running an older BUILD than the server has (a phone holding last version\'s code while content comes fresh: the Soap crash of Nov 15) fetches its files past the cache and reloads, once per version; a matching BUILD plays on.',

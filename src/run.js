@@ -1910,9 +1910,9 @@ export class Run {
       if (earned.length || types.length) rows.unshift([`${icon('star')} Unlocked`, `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
       if (this.newAchievements.length) rows.unshift([`${icon('medal')} Achievements earned`, this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
-      const high = !B || B.qualifies(score), canPost = B && !this.dev && !this.easy && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
+      const high = !B || B.qualifies(score, entry.jelly), canPost = B && !this.dev && !this.easy && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
       if (this.easy) rows.push(['Easy mode', '<small>score not on the leaderboard</small>']);
-      else if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
+      else if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mineOf(entry.jelly)?.score >= score ? `<small>your best on the board${B.web ? ' with this jelly type' : ''} is higher</small>` : `<small>not enough for the top 10${B.web ? ' with this jelly type' : ''} this time (#10: ${B.cutoff(entry.jelly).toLocaleString()})</small>`]);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
@@ -1927,7 +1927,7 @@ export class Run {
         } });
       }
       if (!dead) buttons.push(tryAgain);
-      if (B) buttons.push({ label: `${icon('trophy')} Leaderboard`, onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }) });
+      if (B) buttons.push({ label: `${icon('trophy')} Leaderboard`, onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }, entry.jelly) });
       buttons.push({ label: `${icon('medal')} Achievements`, onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
       if (this.onMainMenu) buttons.push({ label: `${icon('home')} Main menu`, onClick: () => this.onMainMenu() });
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
@@ -1939,6 +1939,17 @@ export class Run {
       dressEnd(this.ui.modal, this, { tiles: !dead });   // time, Level and bugs; the Treasures taken (not on a death)
     };
     show(null);
+    // the game's own site keeps a board for each jelly type: read this run's, and offer Submit score only if it makes that one
+    if (B?.web && !this.dev && !this.easy) {
+      const could = B.qualifies(score, entry.jelly);
+      B.open();
+      B.load(entry.jelly).then(() => {
+        if (this.endView !== 'summary' || B.qualifies(score, entry.jelly) === could) return;
+        const box = this.ui.modal.querySelector('input[name="player"]');
+        if (box) typed = box.value.trim().slice(0, 20);   // what was typed so far survives the redraw
+        show(last);
+      });
+    }
     // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)
     const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);
     this.ui.award(earned.map((a) => ({ name: a.name, need: say(needText(requirement(a.key, a.id))), wear: () => this.onWear?.(a.key, a.id),
@@ -2129,18 +2140,50 @@ export class Run {
     this.ui.message('Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
 
-  showBoard(back) {
+  // tab: the board to open on (a jelly type's id, 'all' or 'champions'); only the game's own site has tabs
+  showBoard(back, tab = 'champions') {
     const B = this.board;
     this.endView = 'board';
+    if (B.web) return this.showTabs(back, tab);
     const draw = () => {
       if (this.endView !== 'board') return;
       const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
-      if (B.web && B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back)); } });
       this.ui.message('Leaderboard', B.note(), B.table(this.jellyFace, (id) => (CONTENT.jellies[id] || CONTENT.jellies.normal).name), buttons, 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)
     B.ready.then(() => B.refresh());
+  }
+
+  // The tabbed board: Champions, All, then a tab for each jelly type (locked ones too: a board is a reason to unlock one)
+  showTabs(back, tab) {
+    const B = this.board;
+    const types = Object.entries(CONTENT.jellies).map(([id, j]) => ({ id, name: j.name, icon: j.icon }));
+    const tabs = [{ id: 'champions', label: `${icon('trophy')} Champions` }, { id: 'all', label: 'All' }, ...types.map((t) => ({ id: t.id, label: t.icon, name: t.name }))];
+    if (!tabs.some((t) => t.id === tab)) tab = 'champions';
+    const body = (fade) => { if (this.endView !== 'board') return; const v = B.view(tab, { face: this.jellyFace, types }); this.ui.boardBody(v.note, v.rows, { cls: v.cls, fade }); };
+    const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
+    if (B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back, tab)); } });
+    if ((B.season ?? SEASON) > 1) buttons.unshift({ label: 'Past seasons', onClick: () => { B.onChange = null; this.showPast(back, tab); } });
+    B.open();                           // this visit reads each tab afresh
+    this.ui.board({ title: 'Leaderboard', season: B.season ?? SEASON, tabs, active: tab, buttons, onTab: (id) => { tab = id; this.ui.setTab(id); body(true); B.load(id); } });
+    body(false);
+    B.onChange = () => body(false);     // redraw as a tab's scores come in
+    B.ready.then(() => B.load(tab));
+  }
+
+  // Past seasons: a tab for each (newest first), its Champions and the top 3 of All. Read-only; back returns to the board on `tab`
+  showPast(back, tab) {
+    const B = this.board;
+    const types = Object.entries(CONTENT.jellies).map(([id, j]) => ({ id, name: j.name, icon: j.icon }));
+    const tabs = Array.from({ length: (B.season ?? SEASON) - 1 }, (_, i) => ({ id: String((B.season ?? SEASON) - 1 - i), label: `Season ${(B.season ?? SEASON) - 1 - i}` }));
+    let at = tabs[0].id;
+    const body = (fade, data = B.past.get(Number(at))) => { if (this.endView !== 'past') return; const n = Number(at), v = B.pastView(n, data, { face: this.jellyFace, types }); this.ui.boardBody(v.note, v.rows, { cls: v.cls, fade }); };
+    const show = async (id) => { at = id; this.ui.setTab(id); body(true); const data = await B.loadPast(Number(id)); if (at === id) body(false, data); };
+    this.endView = 'past';
+    this.ui.board({ title: 'Past seasons', tabs, active: at, buttons: [{ label: 'Back', go: true, onClick: () => this.showBoard(back, tab) }], onTab: show });
+    body(false);
+    show(at);
   }
 
   changeBoardName(back) {
@@ -2234,12 +2277,16 @@ export class Run {
     h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
   }
 
+  // What the minimap marks (hud.js update): no bugs, only what's worth going to. Called every frame, so
+  // the list and its marks are kept and written over: use the result before the next call.
   markers() {
-    const out = [];   // what the minimap marks (hud.js update): no bugs, only what's worth going to
-    if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) out.push({ kind: 'treasure', x: t.pos.x, y: t.pos.y, z: t.pos.z });
-    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ kind: 'elite', x: e.base.x, y: e.base.y, z: e.base.z });
-    if (this.doorOpen) { const { min, max } = this.stage.stageDoor; out.push({ kind: 'exit', x: (min[0] + max[0]) / 2, y: min[1], z: (min[2] + max[2]) / 2 }); }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ kind: 'boss', x: p.x, y: p.y, z: p.z }); }
+    const out = this._markers || (this._markers = []), pool = this._markPool || (this._markPool = []);
+    out.length = 0;
+    const add = (kind, x, y, z) => { const m = pool[out.length] || (pool[out.length] = {}); m.kind = kind; m.x = x; m.y = y; m.z = z; out.push(m); };
+    if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) add('treasure', t.pos.x, t.pos.y, t.pos.z);
+    if (this.phase === 'explore') for (const e of this.elites.alive) add('elite', e.base.x, e.base.y, e.base.z);
+    if (this.doorOpen) { const { min, max } = this.stage.stageDoor; add('exit', (min[0] + max[0]) / 2, min[1], (min[2] + max[2]) / 2); }
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; add('boss', p.x, p.y, p.z); }
     return out;
   }
 }
