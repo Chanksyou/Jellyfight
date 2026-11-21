@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v608 adds a Past seasons page to the leaderboard: once the owner ends a season, its Champions and top 3 stay readable there, and the board's Back and Change name buttons now stay in view on a phone held sideways (the Champions portraits are a little smaller there).
+
 v607 makes act 4 run much lighter on phones: the sun's direction is read from look.css as numbers (a stray piece of text had put the whole act's 3D maths on a slow path), and on Low the act 3 Alligator no longer builds a shader when its fight starts.
 
 v606 The overdraw budget story no longer counts the apartment's own glass, prints and camera-faded furniture, so it measures what a fight adds instead of where the view sits. Measured with the room left out (heaviest of four views, after the other engine stories ran): Controller crowd 1.65, bubble storm 0.40, Vacuum fight 0.63 (its force fields and traversal markers left by earlier stories); ceilings sit about 10% above. The arena keeps its old ceilings, since there the whole room is the arena and nothing is left out.
