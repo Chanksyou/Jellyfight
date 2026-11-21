@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v615 gives the Treasure floor glows one living shader: Glow Stick's glow drifts and quickens as it charges, flashes when it stings and fizzes sparks off its rim at full charge, with the glow stick itself circling the bell; Night-Lights breathe, flicker on and send up motes; Ice Cube puddles shine wet with a frosty rim, ripple where a bug skids and the cube cracks apart as it melts; the Disco spot and Bath Bomb reach glitter and fizz. Glow Stick and Fairy Lights stings no longer flash whole crowds white: a short glow in the sting's colour instead.
+
 v614 turns the XP spheres into small spinning gold crystals, so they read as experience.
 
 v613 lets a run that took its opening Attack upgrade plus one after each of the first three bosses post its score; the score check allowed only three, so those runs showed "this run couldn't be checked".
