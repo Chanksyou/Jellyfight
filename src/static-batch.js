@@ -23,8 +23,10 @@ const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; ret
 // the next sync() move its batch copy. The story runner fails any story that leaves a piece moved
 // without it (stories/kit.js stillMismatch).
 let moved = true;
-export function markMoved(o) { o.updateMatrixWorld(true); moved = true; }
+export let moves = 0;   // counts markMoved and freeze calls: the collision world re-checks a frozen piece's bounds only when it changes (collision.js focus)
+export function markMoved(o) { o.updateMatrixWorld(true); moved = true; moves++; }
 export function freeze(root) {
+  moves++;
   root.updateMatrixWorld(true);
   root.userData.frozen = true;
   root.updateMatrixWorld = () => {};   // also skips an explicit scene.updateMatrixWorld(true): the pieces are already current

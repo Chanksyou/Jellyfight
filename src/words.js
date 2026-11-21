@@ -16,7 +16,9 @@
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
+import { hitSpot } from './collision.js';
 import { STYLES, TIERS, knobs } from './attack-motion.js';
+const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame (World.cast `out`: no hit allocated)
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -680,7 +682,7 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'dive') {
           if (!live) return;
           const step = Math.min(e.diveLeft, p.speed * c.dt);
-          const wall = en.world.cast(e.pos, e.diveDir, step + e.r * 0.5);
+          const wall = en.world.cast(e.pos, e.diveDir, step + e.r * 0.5, null, false, WALL_HIT);
           const blocked = en.move(e, e.diveDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.diveDir).multiplyScalar(p.speed);
           e.diveLeft -= step;
@@ -761,7 +763,7 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'dart') {
           if (!live) return;
           const step = Math.min(e.biteLeft, p.speed * c.dt);
-          const wall = en.world.cast(e.pos, e.biteDir, step + e.r * 0.5);
+          const wall = en.world.cast(e.pos, e.biteDir, step + e.r * 0.5, null, false, WALL_HIT);
           const blocked = en.move(e, e.biteDir, wall ? Math.max(0, wall.distance - e.r * 0.5) : step, false);
           e.vel.copy(e.biteDir).multiplyScalar(p.speed);
           e.biteLeft -= step;
