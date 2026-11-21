@@ -2234,12 +2234,16 @@ export class Run {
     h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
   }
 
+  // What the minimap marks (hud.js update): no bugs, only what's worth going to. Called every frame, so
+  // the list and its marks are kept and written over: use the result before the next call.
   markers() {
-    const out = [];   // what the minimap marks (hud.js update): no bugs, only what's worth going to
-    if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) out.push({ kind: 'treasure', x: t.pos.x, y: t.pos.y, z: t.pos.z });
-    if (this.phase === 'explore') for (const e of this.elites.alive) out.push({ kind: 'elite', x: e.base.x, y: e.base.y, z: e.base.z });
-    if (this.doorOpen) { const { min, max } = this.stage.stageDoor; out.push({ kind: 'exit', x: (min[0] + max[0]) / 2, y: min[1], z: (min[2] + max[2]) / 2 }); }
-    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; out.push({ kind: 'boss', x: p.x, y: p.y, z: p.z }); }
+    const out = this._markers || (this._markers = []), pool = this._markPool || (this._markPool = []);
+    out.length = 0;
+    const add = (kind, x, y, z) => { const m = pool[out.length] || (pool[out.length] = {}); m.kind = kind; m.x = x; m.y = y; m.z = z; out.push(m); };
+    if (this.phase === 'explore') for (const t of this.roomTreasures) if (t.active) add('treasure', t.pos.x, t.pos.y, t.pos.z);
+    if (this.phase === 'explore') for (const e of this.elites.alive) add('elite', e.base.x, e.base.y, e.base.z);
+    if (this.doorOpen) { const { min, max } = this.stage.stageDoor; add('exit', (min[0] + max[0]) / 2, min[1], (min[2] + max[2]) / 2); }
+    if (this.phase === 'boss' && this.boss && !this.boss.dead) { const p = this.boss.position; add('boss', p.x, p.y, p.z); }
     return out;
   }
 }

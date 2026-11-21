@@ -9,6 +9,8 @@ import * as THREE from 'three';
 const BVH_OPTIONS = { indirect: true };
 const CELL = 0.5; // metres: broad phase only; the triangle sweep still decides contact
 const indexOrder = (a, b) => a - b;
+// a hit record to hand to World.cast as `out` (make it once, outside the frame loop)
+export const hitSpot = () => ({ distance: 0, point: new THREE.Vector3(), normal: new THREE.Vector3(), mesh: null });
 
 // Raycast-based collision against the apartment meshes. Rays use each mesh's
 // current transform, so things that move (doors, the cat) still collide.
@@ -193,7 +195,9 @@ export class World {
   // node buffer in three new typed arrays per call). A miss allocates nothing; a hit, the result.
   // skip: a Set of meshes to see straight through (the camera, looking out from under a table)
   // structural: look only at the pieces that seal the rooms (walls, floors, ceilings, window glass: userData.structural)
-  cast(origin, dir, far, skip = null, structural = false) {
+  // out: { distance, point, normal, mesh } with its two vectors made once by the caller (`hitSpot()`): a hit is
+  // written into it and it is returned, so a ray cast every frame (a floor under a bug, the jelly's feet) allocates nothing
+  cast(origin, dir, far, skip = null, structural = false, out = null) {
     const ray = this._ray.set(origin, dir);
     this._best = far;
     this._hit = false;
@@ -210,6 +214,11 @@ export class World {
       if (this._best < was) mesh = m;
     }
     if (!this._hit) return null;
+    if (out) {
+      out.distance = this._best; out.mesh = mesh;
+      out.point.copy(dir).multiplyScalar(this._best).add(origin); out.normal.copy(this._hitN);
+      return out;
+    }
     return { distance: this._best, point: dir.clone().multiplyScalar(this._best).add(origin), normal: this._hitN.clone(), mesh };
   }
 

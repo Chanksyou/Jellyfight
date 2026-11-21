@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { juice } from './juice.js';
 import { batcher } from './batch.js';
+import { hitSpot } from './collision.js';
 import { LOOK } from './look.js';
 
 const IDLE = { speed: 0, walkSpeed: 1, vy: 0 };
@@ -135,6 +136,7 @@ export class ShadowSystem {
     this.blob.renderOrder = 1;
     scene.add(this.blob);
     this.down = new THREE.Vector3(0, -1, 0);
+    this.hit = hitSpot();
     this.from = new THREE.Vector3();
     // the jelly is fluorescent: a small light of its own tints the floor and anything close
     this.glow = new THREE.PointLight(0x2ff0c4, LOOK.num('jelly-light', 0.9), LOOK.num('jelly-light-reach', 0.4), 2);
@@ -146,7 +148,7 @@ export class ShadowSystem {
     const P = this.player.position, blob = this.blob;
     this.glow.position.set(P.x, P.y + this.cfg.height * 0.65, P.z);
     if (this.glowHex !== this.state.look.color) { this.glowHex = this.state.look.color; this.glow.color.set(this.glowHex); }
-    const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3);
+    const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3, null, false, this.hit);
     blob.visible = !!hit;
     if (!hit) return;
     const h = P.y - hit.point.y;
