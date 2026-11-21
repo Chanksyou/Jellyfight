@@ -171,7 +171,8 @@ export class Adornments {
   // Ice jelly: a frost crystal on every tentacle tip, and cold mist drifting off the tips and sinking to the floor
   make_frost() {
     const group = new THREE.Group();
-    const tipMat = glowMat('frost-tip', '#e4f8ff', { emissiveIntensity: 1.6, flatShading: true });
+    // (a cold inner glow under a clear, glossy body, so each facet catches the light rather than glowing flat white)
+    const tipMat = glowMat('frost-tip', '#e4f8ff', { emissive: new THREE.Color(LOOK.color('frost-tip-glow', '#3aa8ff')), emissiveIntensity: LOOK.num('frost-tip-glow-strength', 0.9), roughness: 0.08, metalness: 0.3, flatShading: true });
     const mistMat = new THREE.MeshBasicMaterial({ color: LOOK.color('frost-mist', '#cfeeff'), toneMapped: false });
     const crystal = new THREE.OctahedronGeometry(1, 0).scale(0.55, 1.5, 0.55), ball = new THREE.SphereGeometry(1, 8, 6);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(crystal, tipMat); group.add(m); return m; });
@@ -196,14 +197,14 @@ export class Adornments {
         const m = mists.find((x) => !x.visible), T = rig.list[Math.floor(Math.random() * rig.list.length)];
         if (m && T) { T.tip.getWorldPosition(m.position); Object.assign(m.userData, { t: 0, dx: (Math.random() - 0.5) * 0.015, dz: (Math.random() - 0.5) * 0.015 }); m.visible = true; }
       }
-      const life = LOOK.num('frost-mist-life', 1), sink = LOOK.num('frost-mist-sink', 0.05), size = LOOK.num('frost-mist-size', 0.0038), floor = this.player.position.y + 0.002;
+      const life = LOOK.num('frost-mist-life', 1), sink = LOOK.num('frost-mist-sink', 0.05), size = LOOK.num('frost-mist-size', 0.0038), core = size * LOOK.num('frost-mist-core', 0.4), floor = this.player.position.y + 0.002;
       for (const m of mists) {
         if (!m.visible) continue;
         const u = (m.userData.t += dt) / life;
         if (u >= 1 || !on) { m.visible = false; continue; }
         m.position.x += m.userData.dx * dt; m.position.z += m.userData.dz * dt;
         m.position.y = Math.max(floor, m.position.y - sink / life * dt);
-        m.scale.setScalar(size * (0.6 + u * 0.8));
+        m.scale.setScalar(core * (0.6 + u * 0.8));   // a small core: the soft glow round it is the mist
         G?.hold(m.position, mistCol, size * 4 * (0.6 + u * 0.8), 0.55 * (1 - u));
       }
     } };
@@ -212,13 +213,26 @@ export class Adornments {
   // Wind jelly: thin air streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
   make_gale() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
-    const airMat = glowMat('gale-streak', '#e6f8ff', { emissiveIntensity: 1.6, transparent: true, opacity: 0.7, depthWrite: false });
-    // air streaks: short thin arcs round the bell at different heights and radii, two rings turning opposite ways
+    const airMat = new THREE.MeshBasicMaterial({ color: LOOK.color('gale-streak', '#e6f8ff'), vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
+    // air ribbons: soft bands of air that climb a little as they curl round the bell, bright in the middle and fading to
+    // nothing at both ends and along both edges (vertex colour), their face tilted up like a cone so they read from above and the side
+    const ribbon = (radius, y, rise, a0, arc, width) => {
+      const N = 14, pos = [], col = [], idx = [];
+      for (let i = 0; i <= N; i++) {
+        const u = i / N, a = a0 + arc * u, fade = Math.sin(u * Math.PI) ** 0.8, r = radius * (1 + 0.1 * u);
+        for (let k = -1; k <= 1; k++) {
+          pos.push(Math.cos(a) * (r + k * width * 0.7), y + rise * u + k * width * 0.7, Math.sin(a) * (r + k * width * 0.7));
+          const f = k ? 0 : fade; col.push(f, f, f);
+        }
+        if (i) for (let k = 0; k < 2; k++) { const q = (i - 1) * 3 + k; idx.push(q, q + 3, q + 1, q + 1, q + 3, q + 4); }
+      }
+      return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)).setAttribute('color', new THREE.Float32BufferAttribute(col, 3)).setIndex(idx);
+    };
     const ring = (n, radius, y0, dy, len, seed) => {
       const parts = [];
       for (let i = 0; i < n; i++) {
-        const g = new THREE.TorusGeometry(h * radius * (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4), h * 0.008, 3, 10, len * (0.7 + 0.5 * ((i * 3 + seed) % 4) / 3)).rotateX(Math.PI / 2).rotateY(i / n * Math.PI * 2 + seed);
-        parts.push(g.translate(0, h * (y0 + dy * ((i * 5 + seed) % 4) / 3), 0));
+        const spread = (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4) * h * radius, up = h * (y0 + dy * ((i * 5 + seed) % 4) / 3);
+        parts.push(ribbon(spread, up, h * 0.05 * ((i + seed) % 3 - 1), i / n * Math.PI * 2 + seed, len * (1.6 + 0.9 * ((i * 3 + seed) % 4) / 3), h * 0.02));
       }
       const m = new THREE.Mesh(mergeGeometries(parts), airMat);
       group.add(m);
@@ -343,11 +357,11 @@ export class Adornments {
     const fleckMat = new THREE.MeshBasicMaterial({ color: LOOK.color('storm-fleck', '#cfeaff'), toneMapped: false });
     const ball = new THREE.SphereGeometry(1, 10, 8), bar = new THREE.CylinderGeometry(0.5, 0.5, 1, 4);
     const tips = Array.from({ length: 8 }, () => { const m = new THREE.Mesh(ball, tipMat); group.add(m); return m; });
-    const SEG = 6, segs = Array.from({ length: SEG }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
+    const SEG = 6, FORK = 2, segs = Array.from({ length: SEG + FORK }, () => { const m = new THREE.Mesh(bar, arcMat); m.visible = false; group.add(m); return m; });
     const flecks = Array.from({ length: LOOK.num('storm-flecks', 8) }, () => { const m = new THREE.Mesh(ball, fleckMat); m.visible = false; m.userData.t = 0; group.add(m); return m; });
     this.batch.track(group);
     const tipCol = tipMat.color.clone();
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), fork = new THREE.Vector3(), prev = new THREE.Vector3(), next = new THREE.Vector3(), d = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     let arcIn = LOOK.num('storm-arc-every', 2.5), arcT = 0, arcA = 0, arcB = 1;
     return { group, free: true, tick: (dt, run) => {
       const G = run.fx?.glow;
@@ -371,17 +385,30 @@ export class Adornments {
         arcT -= dt;
         rig.list[arcA].tip.getWorldPosition(a); rig.list[arcB].tip.getWorldPosition(b);
         const w = rig.thick * unit * LOOK.num('storm-arc-width', 0.35), kink = a.distanceTo(b) * 0.18;
-        prev.copy(a);
-        segs.forEach((m, k) => {
-          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+        // a bar from prev to next, `k` wide
+        const lay = (m, k) => {
           m.visible = true;
           m.position.copy(prev).add(next).multiplyScalar(0.5);
           d.copy(next).sub(prev);
-          m.scale.set(w, d.length(), w);
+          m.scale.set(w * k, d.length(), w * k);
           m.quaternion.setFromUnitVectors(Y, d.normalize());
           prev.copy(next);
-        });
-        G?.hold(a, tipCol, w * 12, 0.8); G?.hold(b, tipCol, w * 12, 0.8);
+        };
+        // the arc, thickest in the middle and thin where it leaves and reaches each tip
+        prev.copy(a);
+        for (let k = 0; k < SEG; k++) {
+          if (k < SEG - 1) next.copy(a).lerp(b, (k + 1) / SEG).add(d.randomDirection().multiplyScalar(kink)); else next.copy(b);
+          if (k === 2) fork.copy(next);
+          lay(segs[k], 0.45 + 0.75 * Math.sin(Math.PI * (k + 0.5) / SEG));
+        }
+        // a fork off its middle kink, thinning to nothing
+        prev.copy(fork);
+        next.copy(fork).add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.22));
+        lay(segs[SEG], 0.55);
+        next.add(d.randomDirection().multiplyScalar(a.distanceTo(b) * 0.12));
+        lay(segs[SEG + 1], 0.3);
+        // the two tips it joins light up
+        G?.hold(a, tipCol, w * 16, 1); G?.hold(b, tipCol, w * 16, 1);
       } else for (const m of segs) m.visible = false;
       // static flecks: tiny points blinking on and off round the bell
       const P = this.player.position, life = LOOK.num('storm-fleck-life', 0.18), size = LOOK.num('storm-fleck-size', 0.0018);
@@ -430,7 +457,7 @@ export class Adornments {
   // Man o' War: a translucent sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;
-    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, depthWrite: false });
+    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
     const s = new THREE.Shape();
     s.moveTo(-1, 0); s.bezierCurveTo(-0.9, 0.9, -0.2, 1.2, 0.3, 0.9); s.bezierCurveTo(0.7, 0.7, 0.9, 0.5, 1, 0); s.lineTo(-1, 0);
     const sail = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), mat);
@@ -506,7 +533,7 @@ export class Adornments {
 
   // Upside-down Jelly: fronds on the floor round you that grow out while you're rooted
   make_fronds() {
-    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 1 });
+    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, emissiveIntensity: 1 });
     const leaf = new THREE.Shape();
     leaf.moveTo(0, 0); leaf.quadraticCurveTo(0.5, 0.4, 0, 1); leaf.quadraticCurveTo(-0.5, 0.4, 0, 0);
     const parts = [];

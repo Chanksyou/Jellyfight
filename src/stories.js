@@ -17,6 +17,7 @@ import './stories/treasures-in-room.js';
 import './stories/first-run.js';
 import './stories/easy.js';
 import './stories/achievements.js';
+import './stories/board.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/bug-collision.js';

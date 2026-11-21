@@ -151,7 +151,7 @@ export function buildAct4(scene){
   const spillMat=mat(new THREE.MeshBasicMaterial({map:spillTexture,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:LOOK.num('arena-reflection-opacity',.65),toneMapped:false}));
   const reflection=new THREE.Mesh(geo(new THREE.PlaneGeometry(span,span).rotateX(-Math.PI/2)),spillMat);reflection.position.y=.0003;reflection.userData.noCollide=true;root.add(reflection);
   // Faint translucent shafts, fixed in place: four low-poly draws merged into one.
-  const beamMat=mat(new THREE.MeshBasicMaterial({color:blue,transparent:true,opacity:LOOK.num('arena-beam-opacity',.035),depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+  const beamMat=mat(new THREE.MeshBasicMaterial({color:blue,transparent:true,opacity:LOOK.num('arena-beam-opacity',.035),depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,blending:THREE.AdditiveBlending}));
   const warmBeamMat=mat(beamMat.clone());warmBeamMat.color.set(amber);
   const beamGeo=geo(new THREE.ConeGeometry(.13,.7,12,1,true));
   for(const x of [-.58,-.28,.28,.58])put(beamGeo,x<0?beamMat:warmBeamMat,x,.49,-.575,[1,1,1],[-.4,0,0]);

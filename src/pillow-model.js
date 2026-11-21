@@ -69,7 +69,7 @@ export function buildPillow() {
   };
   const spots = new THREE.Mesh(spotGeo(1.006), new THREE.MeshStandardMaterial({ color: SPOT, roughness: 0.95 }));
   cap.add(spots);
-  const glow = new THREE.Mesh(spotGeo(1.014), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
+  const glow = new THREE.Mesh(spotGeo(1.014), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true }));
   glow.renderOrder = 2;
   cap.add(glow);
 

@@ -34,7 +34,7 @@ export class EncoreWall {
     const geo = new THREE.PlaneGeometry(1, 1, 1, 4).translate(0, 0.5, 0), pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) col.fill(1 - 0.75 * pos.getY(i), i * 3, i * 3 + 3);
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }), COLS * 2);
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false }), COLS * 2);
     this.mesh.name = 'Encore wall of sound'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true; this.mesh.renderOrder = 5;
     for (let i = 0; i < COLS * 2; i++) { this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); this.mesh.setColorAt(i, _c.set(0)); }
     arena.root.add(this.mesh);

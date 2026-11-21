@@ -39,7 +39,7 @@ import { drawToCard } from './pick-auras/painter.js';
 import { MipBloomPass, BloomOutputPass } from './graphics.js';
 
 const H = CONFIG.player.height;
-const _at = new THREE.Vector3();
+const _at = new THREE.Vector3(), _rim = new THREE.Vector3(), _way = new THREE.Vector3(), _from = new THREE.Vector3(), _dir = new THREE.Vector3();
 const QUAD = new THREE.PlaneGeometry(2, 2).deleteAttribute('normal');   // (stands in for the passes' own quads while their shaders are built: no normals, as theirs)
 const IDLE = { speed: 0, walkSpeed: 1, grounded: true, vy: 0, swim: 0 };
 // where the three roaches stand: [metres from the jelly, radians round from straight ahead]. The
@@ -56,6 +56,8 @@ function onBug(P, type, p) {
   const bug = P.enemies.list.find((b) => b.id === p?.targetId);
   if (!bug || bug.dead) return;
   if (type === 'knockback' && p.dir) bug.push.addScaledVector(p.dir, Math.min(0.03, p.force || 0));
+  if (type === 'status_applied' && p.status === 'stun') bug.stunT = Math.max(bug.stunT || 0, p.duration || 0);
+  if (type === 'status_applied' && p.status === 'chill') bug.chillT = Math.max(bug.chillT || 0, p.duration || 0);   // (roachFrame shows it)
   if (type !== 'damage_taken') return;
   P.stage.flash(P.enemies.center(bug, _at));   // the attack's light flares at the hit
   bug.flashT = LOOK.num('hit-flash', 0.07); bug.pop = 1;
@@ -140,7 +142,8 @@ export class AttackPreview {
       if (id !== this.id || key !== this.lookKey) {
         this.clearJelly();
         this.id = id; this.lookKey = key;
-        P.stage.setType(LOOK.color(`type-${id}`, '#8fd9ff'));
+        const own = LOOK.color(`type-${id}`, '#8fd9ff');
+        P.stage.setType(own, id);
         const avatar = P.avatar = buildCharacter(look, H);
         avatar.update?.(0, IDLE);
         P.scene.add(avatar.root);
@@ -319,6 +322,27 @@ export class AttackPreview {
       bug.mesh.traverse((o) => { if (!o.isMesh) return; if (on) { o.userData.mat = o.material; o.material = FLASH; } else if (o.userData.mat) o.material = o.userData.mat; });
     }
     bug.anim?.(dt, bug);
+    // stunned (Lightning): it twitches where it stands, small arcs jumping across it
+    bug.stunT = Math.max(0, (bug.stunT || 0) - dt);
+    const twitch = bug.stunT > 0 && !juice.calm ? LOOK.num('preview-stun-twitch', 0.25) : 0;
+    bug.mesh.rotation.z = twitch * (Math.random() - 0.5);
+    bug.mesh.rotation.x = twitch * 0.6 * (Math.random() - 0.5);
+    if (twitch && Math.random() < dt * 9) {
+      const c = this.P.enemies.center(bug, _at);
+      this.P.bubbles.looks.strike(_from.copy(c).add(_dir.randomDirection().multiplyScalar(bug.r * 1.2)), c.add(_dir.randomDirection().multiplyScalar(bug.r * 1.2)), LOOK.num('bolt-width', 0.005) * 0.4);
+    }
+    if ((bug.chillT = Math.max(0, (bug.chillT || 0) - dt)) > 0) this.chilled(bug, dt);
+  }
+
+  // a Chilled roach: rime glinting on its back and its breath steaming cold toward the jelly
+  chilled(bug, dt) {
+    const G = this.P.fx.glow, c = this.P.enemies.center(bug, _at), r = bug.r;
+    const rime = this.rime ||= new THREE.Color(LOOK.color('ice-shard', '#cfefff')), breath = this.breath ||= new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));
+    if (Math.random() < dt * 45) G.emit(_rim.copy(c).add(_way.randomDirection().multiplyScalar(r * 0.9)).setY(c.y + r * (0.2 + Math.random() * 0.5)), rime, r * 0.28, 0, 0.2, 1.4);
+    if (Math.random() < dt * 10) {
+      const head = _way.subVectors(this.P.player.position, bug.pos).setY(0).normalize();
+      G.emit(_rim.copy(c).addScaledVector(head, r * 1.1), breath, r * 0.3, r * 1.1, 0.8, 0.8, head.multiplyScalar(0.025).setY(0.006), 0);
+    }
   }
 
   // the stage's picture `px` square: a half-float target with smoothed edges (4x MSAA), its bloom

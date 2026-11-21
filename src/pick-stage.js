@@ -47,14 +47,14 @@ function backdrop() {
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       uDeep: { value: col('menu-water-deep', '#06162e') }, uShallow: { value: col('menu-water-shallow', '#175c70') },
-      uTint: { value: new THREE.Color() }, uTintK: { value: LOOK.num('preview-backdrop-tint', 1) },
+      uTint: { value: new THREE.Color() }, uGrade: { value: new THREE.Color(1, 1, 1) }, uTintK: { value: LOOK.num('preview-backdrop-tint', 1) },
       uShafts: { value: LOOK.num('preview-shafts', 0.5) }, uBright: { value: LOOK.num('preview-backdrop', 0.5) }, uTime: { value: 0 },
     },
     vertexShader: /* glsl */`
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uDeep, uShallow, uTint;
+      uniform vec3 uDeep, uShallow, uTint, uGrade;
       uniform float uTintK, uShafts, uBright, uTime;
       varying vec2 vUv;
       void main() {
@@ -70,7 +70,7 @@ function backdrop() {
         }
         c += mix(uShallow, vec3(0.75, 0.95, 1.0), 0.35) * s * uShafts * smoothstep(0.15, 1.0, p.y);
         c *= 1.0 - 0.5 * smoothstep(0.32, 0.78, length((p - 0.5) * vec2(1.0, 1.1)));
-        gl_FragColor = vec4(c * uBright, 1.0);
+        gl_FragColor = vec4(c * uGrade * uBright, 1.0);
       }`,
     depthTest: false, depthWrite: false,
   });
@@ -123,11 +123,18 @@ export class PickStage {
   }
   unreflect() { this.env?.dispose(); this.env = null; }
 
-  // the type's colour: the rim, the attack's light, the water low behind and the specks
-  setType(color) {
+  // the type's colour: the rim, the attack's light, the water low behind and the specks. A type `id` may
+  // shift the whole water toward its own (--preview-grade-<id>; white or unset: as it is), and give its
+  // water its own colour, how much of it, and how bright it is (--preview-backdrop-<id>,
+  // --preview-backdrop-tint-<id>, --preview-backdrop-bright-<id>)
+  setType(color, id = '') {
+    const U = this.back.material.uniforms;
     this.rim.color.set(color);
     this.glow.color.set(color);
-    this.back.material.uniforms.uTint.value.set(color);
+    U.uTint.value.set(LOOK.color(`preview-backdrop-${id}`, color));
+    U.uGrade.value.set(LOOK.color(`preview-grade-${id}`, '#ffffff'));
+    U.uTintK.value = LOOK.num(`preview-backdrop-tint-${id}`, LOOK.num('preview-backdrop-tint', 1));
+    U.uBright.value = LOOK.num(`preview-backdrop-bright-${id}`, LOOK.num('preview-backdrop', 0.5));
     this.speckColor.set(LOOK.color('menu-water-glow', '#70ddc7')).lerp(new THREE.Color(color), 0.4);
   }
 

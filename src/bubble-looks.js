@@ -138,7 +138,7 @@ export class BubbleLooks {
         [crystal, lit(0xffffff), { name: 'core', s: [0.3, 0.3, 1.6] }],           // a white-hot heart inside it
         [crystal, iceMat, { name: 'chip1', s: [0.22, 0.22, 0.6] }],               // two chips of ice orbiting it
         [crystal, iceMat, { name: 'chip2', s: [0.18, 0.18, 0.5] }],
-        [ball, lit(0x2a9aff, 0.25), { s: [1.4, 1.4, 2.4] }],
+        [ball, lit(0x2a9aff, 0.12), { s: [1.1, 1.1, 2.0] }],   // a faint cold haze (the shard itself is what reads)
       ],
       acid: [
         [ball, lit(0x5aee10), { name: 'blob' }],
@@ -182,9 +182,10 @@ export class BubbleLooks {
     this.live = [];
     this.boltPool = [];
     this.path = Array.from({ length: 17 }, () => new THREE.Vector3());
+    this.fork = Array.from({ length: 9 }, () => new THREE.Vector3());
     this.L = {
       core: C(LOOK.color('bolt-core', '#fffbe8')), halo: C(LOOK.color('bolt-halo', '#ffd21a')), flash: C(LOOK.color('bolt-flash', '#fff6c8')),
-      life: LOOK.num('bolt-life', 0.2), width: LOOK.num('bolt-width', 0.005), jag: LOOK.num('bolt-jag', 0.22), most: LOOK.num('bolt-most', 12),
+      life: LOOK.num('bolt-life', 0.2), hold: Math.max(0.01, LOOK.num('bolt-hold', 0.05)), width: LOOK.num('bolt-width', 0.005), jag: LOOK.num('bolt-jag', 0.22), most: LOOK.num('bolt-most', 12),
     };
   }
 
@@ -278,7 +279,7 @@ export class BubbleLooks {
       // a frost flower spreading where it struck, frost settling
       glow.emit(pos, COL.snow, r * 9, r * 3, 0.07, 1.1);
       glow.emit(pos, COL.frost, r * 5, r * 2, 0.22, 0.6);
-      this.fx.ice.shatter(pos, 9, r * 0.55, 0.5, floor);
+      this.fx.ice.shatter(pos, this.fx.showcase ? 16 : 9, r * 0.55, 0.5, floor);   // (the pick screen's stage: a fuller burst)
       this.fx.ice.bloom(_p.set(pos.x, floor, pos.z), r * LOOK.num('ice-bloom', 5), 1.6);
       for (let k = 0; k < 5; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 1.5)), COL.snow, r * 0.5, r * 0.3, 0.8 + Math.random() * 0.5, 0.9, _a.set((Math.random() - 0.5) * 0.03, 0.01, (Math.random() - 0.5) * 0.03), 0.06);   // frost settling
     } else if (el === 'acid') {
@@ -390,12 +391,19 @@ export class BubbleLooks {
 
   // A jagged path from a to b into this.path (midpoint displacement: big bends, then smaller
   // kinks on them), `jag` its sideways reach as a share of its length. Returns the point count.
-  jagged(a, b, jag) {
-    const P = this.path, n = 16, len = a.distanceTo(b);
+  // `seed`: the same seed gives the same shape (a bolt holds its channel for a few frames); none, a new one.
+  // `P`, `n`: where to put it and how many steps (a power of two)
+  jagged(a, b, jag, seed = Math.random() * 1e6, P = this.path, n = 16) {
+    const len = a.distanceTo(b);
+    let q = seed | 0;
+    const rnd = () => ((q = (q * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
     P[0].copy(a); P[n].copy(b);
     for (let step = n; step > 1; step >>= 1) {
       const off = len * jag * (step / n);
-      for (let i = step >> 1; i < n; i += step) P[i].copy(P[i - (step >> 1)]).lerp(P[i + (step >> 1)], 0.5).add(_v.randomDirection().multiplyScalar(off * (0.5 + Math.random() * 0.5)));
+      for (let i = step >> 1; i < n; i += step) {
+        const z = rnd() * 2 - 1, ang = rnd() * 6.2832, rr = Math.sqrt(1 - z * z);
+        P[i].copy(P[i - (step >> 1)]).lerp(P[i + (step >> 1)], 0.5).add(_v.set(rr * Math.cos(ang), z, rr * Math.sin(ang)).multiplyScalar(off * (0.5 + rnd() * 0.5)));
+      }
     }
     return n + 1;
   }
@@ -407,7 +415,7 @@ export class BubbleLooks {
   strike(a, b, w = this.L.width) {
     if (this.live.length >= this.L.most) return;
     const s = this.boltPool.pop() || { a: new THREE.Vector3(), b: new THREE.Vector3() };
-    s.a.copy(a); s.b.copy(b); s.t = 0; s.w = w;
+    s.a.copy(a); s.b.copy(b); s.t = 0; s.w = w; s.seed = (Math.random() * 1e6) | 0;
     this.live.push(s);
     this.fx.glow.emit(b, this.L.flash, w * 9, w * 2, 0.12, 1.4);                           // where it lands
   }
@@ -419,27 +427,39 @@ export class BubbleLooks {
       s.t += dt;
       const k = s.t / L.life;
       if (k >= 1) continue;
-      const flick = k < 0.15 ? 1.4 : (Math.random() < 0.3 ? 0.35 : 1) * (1 - k * 0.8);   // a hard first frame, then it stutters out
-      const n = this.jagged(s.a, s.b, L.jag), P = this.path;
-      let h = 0;
-      for (let i = 1; i < n; i++) {
-        // glow beads packed closely enough along each kink to read as one solid stroke
-        const seg = P[i - 1].distanceTo(P[i]), beads = Math.min(6, Math.max(1, Math.ceil(seg / (s.w * 1.1))));
-        for (let q = 0; q < beads; q++) {
-          const f = (i - 1 + q / beads) / (n - 1), w = s.w * (0.3 + 0.7 * Math.sin(Math.PI * f));
-          _t.copy(P[i - 1]).lerp(P[i], q / beads);
-          glow.hold(_t, L.core, w * 1.3, flick);
-          if (h++ % 2 === 0) glow.hold(_t, L.halo, w * 3.4, 0.4 * flick);
-        }
-        if (this.arcN + 2 <= this.arcMax) { this.arcPos.set([P[i - 1].x, P[i - 1].y, P[i - 1].z, P[i].x, P[i].y, P[i].z], this.arcN * 3); this.arcN += 2; }
-      }
-      if (Math.random() < 0.6) {                                                            // a fork off a random kink
-        const at = P[2 + ((Math.random() * (n - 4)) | 0)];
-        _d.randomDirection().multiplyScalar(s.w * 3);
-        for (let j = 1; j <= 3; j++) glow.hold(_t.copy(at).addScaledVector(_d, j), L.halo, s.w * (1.6 - j * 0.4), 0.7 * flick);
+      // it holds one channel for a few frames at a time (a return stroke), flashing hard on each new
+      // one and stuttering out between them
+      const stroke = Math.floor(s.t / L.hold), fresh = s.t - stroke * L.hold < 0.02;
+      const flick = (fresh ? 1.4 : Math.random() < 0.3 ? 0.35 : 1) * (1 - k * 0.8);
+      const n = this.jagged(s.a, s.b, L.jag, s.seed + stroke * 7919), P = this.path;
+      this.channel(P, n, s.w, flick, 0.3);
+      // forks: a thinner jagged branch off a kink, tapering to nothing (one more on the pick screen)
+      for (let f = 0; f < (this.fx.showcase ? 2 : 1); f++) {
+        const at = P[3 + ((s.seed >> (f * 3)) % (n - 7))], len = s.a.distanceTo(s.b) * (0.25 + 0.1 * f);
+        _d.subVectors(s.b, s.a).normalize().add(_v.set(Math.sin(s.seed + f * 2.1), Math.cos(s.seed * 1.7 + f), Math.sin(s.seed * 0.7 + f * 4.3)).multiplyScalar(0.9)).normalize();
+        const m = this.jagged(at, _a.copy(at).addScaledVector(_d, len), L.jag * 1.3, s.seed + stroke * 7919 + 101 * (f + 1), this.fork, this.fx.showcase ? 8 : 4);   // in play a 4-kink fork: fewer beads a frame
+        this.channel(this.fork, m, s.w * 0.6, flick * 0.85, 0);
       }
     }
     for (let i = this.live.length - 1; i >= 0; i--) if (this.live[i].t >= L.life) this.boltPool.push(this.live.splice(i, 1)[0]);
+  }
+  // one bolt's light along the points P[0..n-1]: a white core inside a yellow halo, `w` thick in the
+  // middle, tapering to `end` times that at its start and to nothing at its tip, plus the bright line
+  channel(P, n, w0, flick, end) {
+    const L = this.L, glow = this.fx.glow;
+    let h = 0;
+    for (let i = 1; i < n; i++) {
+      // glow beads packed closely enough along each kink to read as one solid stroke
+      const seg = P[i - 1].distanceTo(P[i]), beads = Math.min(6, Math.max(1, Math.ceil(seg / (w0 * 1.1))));
+      for (let q = 0; q < beads; q++) {
+        const f = (i - 1 + q / beads) / (n - 1), w = w0 * (f < 0.5 ? end + (1 - end) * Math.sin(Math.PI * f) : Math.sin(Math.PI * f));
+        if (w < w0 * 0.05) continue;
+        _t.copy(P[i - 1]).lerp(P[i], q / beads);
+        glow.hold(_t, L.core, w * 1.3, flick);
+        if (h++ % 2 === 0) glow.hold(_t, L.halo, w * 3.4, 0.4 * flick);
+      }
+      if (this.arcN + 2 <= this.arcMax) { this.arcPos.set([P[i - 1].x, P[i - 1].y, P[i - 1].z, P[i].x, P[i].y, P[i].z], this.arcN * 3); this.arcN += 2; }
+    }
   }
   clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const c of this.clouds || []) c.visible = false; }
 
@@ -539,19 +559,20 @@ export class BubbleLooks {
       case 'lightning': {
         U.halo.scale.setScalar(1.4 + Math.random() * 0.6);              // it flickers
         glow.hold(m.position, COL.bolt, r * (3 + Math.random() * 1.5), 0.45);
-        // 4 jagged arcs out from the core, new every frame, beaded with light so they read thick
-        for (let k = 0; k < 4 && this.arcN + 10 <= this.arcMax; k++) {
+        // ball lightning: small arcs crawling over its skin, each leaping from one spot on it to another
+        // and arching off it on the way, new every frame, thin at both feet (more on the pick screen)
+        for (let k = 0; k < (this.fx.showcase ? 6 : 4) && this.arcN + 10 <= this.arcMax; k++) {
           _a.randomDirection();
-          let x = m.position.x, y = m.position.y, z = m.position.z;
-          const len = r * (3 + Math.random() * 2.5);
+          _b.randomDirection().multiplyScalar(0.9).add(_a).normalize();   // where it lands, a little way round
+          let x = m.position.x + _a.x * r, y = m.position.y + _a.y * r, z = m.position.z + _a.z * r;
+          const lift = r * (0.5 + Math.random() * 0.9);
           for (let s = 1; s <= 5; s++) {
-            const q = len * (s / 5);
-            const nx = m.position.x + _a.x * q + (Math.random() - 0.5) * r * 0.9;
-            const ny = m.position.y + _a.y * q + (Math.random() - 0.5) * r * 0.9;
-            const nz = m.position.z + _a.z * q + (Math.random() - 0.5) * r * 0.9;
+            const f = s / 5, out = r + lift * Math.sin(Math.PI * f) + (s < 5 ? (Math.random() - 0.5) * r * 0.5 : 0);
+            _v.copy(_a).lerp(_b, f).normalize();
+            const nx = m.position.x + _v.x * out, ny = m.position.y + _v.y * out, nz = m.position.z + _v.z * out;
             this.arcPos.set([x, y, z, nx, ny, nz], this.arcN * 3);
             this.arcN += 2;
-            glow.hold(_b.set(nx, ny, nz), COL.bolt, r * 0.75, 0.9);
+            glow.hold(_t.set(nx, ny, nz), COL.bolt, r * (0.35 + 0.4 * Math.sin(Math.PI * f)), 0.9);
             x = nx; y = ny; z = nz;
           }
         }
@@ -565,7 +586,7 @@ export class BubbleLooks {
         U.chip1.position.set(Math.cos(t * 11 + w) * 1.5, Math.sin(t * 11 + w) * 1.5, -0.4); U.chip1.rotation.set(t * 13, t * 7, 0);
         U.chip2.position.set(Math.cos(t * 11 + w + Math.PI) * 1.3, Math.sin(t * 11 + w + Math.PI) * 1.3, -0.9); U.chip2.rotation.set(t * 9, t * 15, 0);
         glow.hold(m.position, COL.frost, r * 3, 0.3);
-        if (Math.random() < dt * 14) glow.emit(_a.copy(m.position).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.snow, r * 0.9, 0, 0.07, 1.4);   // a glint off a facet
+        if (Math.random() < dt * (this.fx.showcase ? 40 : 14)) glow.emit(_a.copy(m.position).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.snow, r * 0.9, 0, 0.07, 1.4);   // a glint off a facet (the pick screen's stage: more)
         if (tick) {
           for (let k = 0; k < steps; k++) glow.emit(along(k), COL.frost, r * 1.8, r * 0.4, 0.45, 0.5);   // the frosty trail hangs in the air
           if (Math.random() < 0.4) glow.emit(tail, COL.snow, r * 0.45, r * 0.3, 0.7, 1, _v.set((Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.04), 0.15);

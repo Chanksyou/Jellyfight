@@ -8,6 +8,7 @@ import { Input } from './input.js';
 import { Graphics, CHOICES } from './graphics.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
+import { EXPERIMENTS } from './experiments.js';
 import { recoverGpu } from './gpu-recovery.js';
 import { buildCharacter, normalizeLook } from './character.js';
 import { TestKit } from './test-kit.js';
@@ -41,7 +42,7 @@ import { StaticBatches, freeze } from './static-batch.js';
 import { LOOK } from './look.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v581';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v592';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -308,7 +309,7 @@ const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', 
 picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick screen's side cards drawn in shaders
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
 // before the shaders are built (warmUp) so they're built for this light count, once.
-const slotCount = ARENA ? 0 : IS_TOUCH ? LOOK.num('phone-lights', 6) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
+const slotCount = ARENA ? 0 : IS_TOUCH ? (EXPERIMENTS.lights ?? LOOK.num('phone-lights', 6)) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
 const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
 if (lightSlots) APT.lights.rescan();
 const enemies = new Enemies(scene, world, fx);

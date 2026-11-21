@@ -48,7 +48,7 @@ import { endStyles, stamp, dressEnd } from './end-screen.js';
 import { ACHIEVEMENTS, newChallenges, earnedAchievements, awardAchievements } from './achievements.js';
 import { balanceChanges } from './balance-editor.js';
 import { loadLayout } from './layout.js';
-import { actParts } from './score.js';
+import { actParts, SEASON } from './score.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
@@ -1872,7 +1872,7 @@ export class Run {
     if (!this.dev) forgetRun();   // a finished run can't be continued (stages.js)
     this.recordRun(this.phase === 'won' ? 'won' : this.phase === 'dead' ? 'died' : 'ended');
     const score = this.score();
-    const entry = { score, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
+    const entry = { score, season: SEASON, run: this.logId, jelly: this.jelly, upgrades: [...this.upgrades], body: this.playerBody?.() || 'nettle', look: this.playerLook?.() || null, level: this.level, kills: this.kills, time: Math.round(this.t), won: this.bossWon, build: (typeof window !== 'undefined' && window.JF_BUILD) || '' };
     const B = this.board;
     const best = B && !this.easy ? B.keepBest(entry) : false;    // your best in this browser, posted or not
     // the run counts toward earned cosmetics; anything it unlocked is shown here (a boss or an Elite
@@ -1910,9 +1910,9 @@ export class Run {
       if (earned.length || types.length) rows.unshift([`${icon('star')} Unlocked`, `<b>${[...types, ...earned.map((a) => a.name)].map(esc).join(', ')}</b>`]);
       if (this.newAchievements.length) rows.unshift([`${icon('medal')} Achievements earned`, this.newAchievements.map(a => esc(a.name)).join(', ')]);
       // only a score that makes the board's top 10 can be entered (leaderboard.js qualifies)
-      const high = !B || B.qualifies(score), canPost = B && !this.dev && !this.easy && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
+      const high = !B || B.qualifies(score, entry.jelly), canPost = B && !this.dev && !this.easy && B.status !== 'offline' && high && !result?.posted && !['readonly', 'lower', 'unverified', 'sending'].includes(result?.why);
       if (this.easy) rows.push(['Easy mode', '<small>score not on the leaderboard</small>']);
-      else if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mine && B.mine.score >= score ? '<small>your best on the board is higher</small>' : `<small>not enough for the top 10 this time (#10: ${B.cutoff().toLocaleString()})</small>`]);
+      else if (B && B.status !== 'offline' && !high && !result) rows.push(['Leaderboard', B.mineOf(entry.jelly)?.score >= score ? `<small>your best on the board${B.web ? ' with this jelly type' : ''} is higher</small>` : `<small>not enough for the top 10${B.web ? ' with this jelly type' : ''} this time (#10: ${B.cutoff(entry.jelly).toLocaleString()})</small>`]);
       // your name for the board: whatever you typed last time, or Guest if you leave it empty
       if (canPost) rows.push(['Name', `<input name="player" class="jf-name" maxlength="20" placeholder="Guest" autocomplete="nickname" value="${esc(typed)}">`]);
       const buttons = [];
@@ -1927,7 +1927,7 @@ export class Run {
         } });
       }
       if (!dead) buttons.push(tryAgain);
-      if (B) buttons.push({ label: `${icon('trophy')} Leaderboard`, onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }) });
+      if (B) buttons.push({ label: `${icon('trophy')} Leaderboard`, onClick: () => this.showBoard(() => { typed = B.mine?.name || typed; show(result); }, entry.jelly) });
       buttons.push({ label: `${icon('medal')} Achievements`, onClick: () => this.showAchievements(() => { typed = B?.mine?.name || savedName() || typed; show(result); }) });
       if (this.onMainMenu) buttons.push({ label: `${icon('home')} Main menu`, onClick: () => this.onMainMenu() });
       // the beta bubble: only the game's own site keeps feedback (leaderboard.js feedback)
@@ -1939,6 +1939,17 @@ export class Run {
       dressEnd(this.ui.modal, this, { tiles: !dead });   // time, Level and bugs; the Treasures taken (not on a death)
     };
     show(null);
+    // the game's own site keeps a board for each jelly type: read this run's, and offer Submit score only if it makes that one
+    if (B?.web && !this.dev && !this.easy) {
+      const could = B.qualifies(score, entry.jelly);
+      B.open();
+      B.load(entry.jelly).then(() => {
+        if (this.endView !== 'summary' || B.qualifies(score, entry.jelly) === could) return;
+        const box = this.ui.modal.querySelector('input[name="player"]');
+        if (box) typed = box.value.trim().slice(0, 20);   // what was typed so far survives the redraw
+        show(last);
+      });
+    }
     // each golden award it earned gets its own reveal over that, your jelly wearing it (ui.js award)
     const say = (t) => t.charAt(0).toUpperCase() + t.slice(1);
     this.ui.award(earned.map((a) => ({ name: a.name, need: say(needText(requirement(a.key, a.id))), wear: () => this.onWear?.(a.key, a.id),
@@ -1982,7 +1993,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { season: SEASON, easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
@@ -2129,18 +2140,35 @@ export class Run {
     this.ui.message('Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
 
-  showBoard(back) {
+  // tab: the board to open on (a jelly type's id, 'all' or 'champions'); only the game's own site has tabs
+  showBoard(back, tab = 'champions') {
     const B = this.board;
     this.endView = 'board';
+    if (B.web) return this.showTabs(back, tab);
     const draw = () => {
       if (this.endView !== 'board') return;
       const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
-      if (B.web && B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back)); } });
       this.ui.message('Leaderboard', B.note(), B.table(this.jellyFace, (id) => (CONTENT.jellies[id] || CONTENT.jellies.normal).name), buttons, 'jf-board');
     };
     draw();
     B.onChange = draw;                  // redraw as the scores come in (and when someone else posts)
     B.ready.then(() => B.refresh());
+  }
+
+  // The tabbed board: Champions, All, then a tab for each jelly type (locked ones too: a board is a reason to unlock one)
+  showTabs(back, tab) {
+    const B = this.board;
+    const types = Object.entries(CONTENT.jellies).map(([id, j]) => ({ id, name: j.name, icon: j.icon }));
+    const tabs = [{ id: 'champions', label: `${icon('trophy')} Champions` }, { id: 'all', label: 'All' }, ...types.map((t) => ({ id: t.id, label: t.icon, name: t.name }))];
+    if (!tabs.some((t) => t.id === tab)) tab = 'champions';
+    const body = (fade) => { if (this.endView !== 'board') return; const v = B.view(tab, { face: this.jellyFace, types }); this.ui.boardBody(v.note, v.rows, { cls: v.cls, fade }); };
+    const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
+    if (B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back, tab)); } });
+    B.open();                           // this visit reads each tab afresh
+    this.ui.board({ title: 'Leaderboard', season: B.season ?? SEASON, tabs, active: tab, buttons, onTab: (id) => { tab = id; this.ui.setTab(id); body(true); B.load(id); } });
+    body(false);
+    B.onChange = () => body(false);     // redraw as a tab's scores come in
+    B.ready.then(() => B.load(tab));
   }
 
   changeBoardName(back) {
