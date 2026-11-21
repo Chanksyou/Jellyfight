@@ -1190,7 +1190,9 @@ export const ready = warmUp().then(() => {
 // everything draws slowly behind a menu, and the governor lowers the pixel ratio when frames run
 // long and raises it back with headroom.
 const pacer = new FramePacer({ fps: IS_TOUCH ? phoneFps : LOOK.num('desktop-fps', 0), menuFps: LOOK.num('menu-fps', 20) });
-const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2));
+// ?msaa=2|4 (src/experiments.js) trades pixels for smooth edges: a phone then draws at most --msaa-pixel-ratio
+const maxRatio = Math.min(devicePixelRatio || 1, IS_TOUCH ? LOOK.num('phone-pixel-ratio', 1.5) : LOOK.num('desktop-pixel-ratio', 2),
+  IS_TOUCH && EXPERIMENTS.msaa ? LOOK.num('msaa-pixel-ratio', 1.25) : Infinity);
 const governor = new FrameGovernor({
   fps: pacer.fps || 60, scale: maxRatio, max: maxRatio, min: Math.min(maxRatio, LOOK.num('min-pixel-ratio', 1)),
 });

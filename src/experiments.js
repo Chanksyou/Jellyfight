@@ -2,7 +2,7 @@
 // Read once at boot like a dev option: never saved, never in a run, and absent means the game as shipped.
 // The bench (src/bench.js) shows them in its results. Each is a load-time choice, so none builds a shader in play.
 // lights: lamp slots on a phone (overrides --phone-lights); lite: Low's plain materials on any tier (lite-materials.js);
-// rt, msaa: the switch exists, the task that owns it (picture buffers, edge smoothing) reads it from here.
+// rt: packed picture buffers (graphics.js); msaa: smooth edges on Medium, at --msaa-pixel-ratio on a phone (graphics.js, main.js).
 export function readExperiments(search) {
   const q = new URLSearchParams(search);
   const pick = (k, ok) => (ok.includes(q.get(k)) ? q.get(k) : null);

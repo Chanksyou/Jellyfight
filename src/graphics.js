@@ -296,9 +296,9 @@ export class Graphics {
   }
 
   // can this GPU draw to an R11G11B10 target? (some phones can't: then the half-float buffers stay)
-  canPack() {
+  canPack(samples = 0) {
     const r = this.renderer, was = r.getRenderTarget();
-    const t = new THREE.WebGLRenderTarget(1, 1, { ...PACKED_BUFFER, depthBuffer: false });
+    const t = new THREE.WebGLRenderTarget(1, 1, { ...PACKED_BUFFER, depthBuffer: false, samples });
     r.setRenderTarget(t);
     const gl = r.getContext();
     const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
@@ -321,8 +321,11 @@ export class Graphics {
     const size = r.getSize(new THREE.Vector2());
     const high = this.quality === 'high';
     // ?rt=packed (src/experiments.js): 32-bit R11G11B10 picture buffers instead of 64-bit half floats, if this GPU can draw to them
-    const buffer = EXPERIMENTS.rt === 'packed' && this.canPack() ? PACKED_BUFFER : HALF_BUFFER;
+    // ?msaa=2|4: smooth the scene's edges in the graphics chip (High already does, through N8AO); the packed probe asks for that many samples too
+    const msaa = high ? 0 : EXPERIMENTS.msaa || 0;
+    const buffer = EXPERIMENTS.rt === 'packed' && this.canPack(msaa) ? PACKED_BUFFER : HALF_BUFFER;
     this.bufferType = buffer.type;
+    this.msaa = msaa;
     const composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, buffer));
 
     // N8AO renders the scene itself (it replaces RenderPass) and keeps the depth buffer we reuse for DOF.
@@ -343,6 +346,10 @@ export class Graphics {
     } else {
       composer.addPass(new RenderPass(this.scene, this.camera));
     }
+    if (msaa) {
+      // the target the scene is drawn into: N8AO's own, or the composer's read buffer (the output pass below stops swapping, so it is always the same one and only one pays for the samples)
+      (ao ? ao.beautyRenderTarget : composer.readBuffer).samples = msaa;
+    }
 
     this.dof = null;
     if (high && ao) {   // depth of field reads N8AO's depth
@@ -356,7 +363,9 @@ export class Graphics {
     const bloom = new MipBloomPass(LOOK.num('bloom', 0.22), 1, buffer);   // only lamps, screens, sunlit glass
     bloom.enabled = !this.off.has('bloom');
     composer.addPass(bloom);
-    composer.addPass(new BloomOutputPass(bloom));
+    const output = new BloomOutputPass(bloom);
+    if (msaa) output.needsSwap = false;   // it draws to the screen: nothing reads the buffer it would swap
+    composer.addPass(output);
     this.bloom = bloom;
 
     this.ao = ao;

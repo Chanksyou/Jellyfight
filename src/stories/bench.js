@@ -113,3 +113,28 @@ story('bench/packed-buffers-fall-back', {
     return ok(plain && packed && steady && fellBack && restored, { plain, restored, supported, packed, steady, fellBack, types: types() });
   },
 });
+
+story('bench/msaa-smooths-edges-on-one-target', {
+  phone: true,
+  about: 'With ?msaa=4 the scene is drawn into one multisampled target (the other buffer stays plain), built without a new shader in play, and it still holds after many frames; without the option, or with msaa=0, no target has samples.',
+  setup() {},
+  play() {
+    const gfx = G().gfx, R = G().APT.renderer;
+    const samples = () => [gfx.composer.renderTarget1.samples, gfx.composer.renderTarget2.samples];
+    offs.push(() => { EXPERIMENTS.msaa = null; EXPERIMENTS.rt = null; gfx.build(); });
+    EXPERIMENTS.msaa = null; gfx.build();
+    const plain = samples().every((s) => s === 0) && gfx.msaa === 0;
+    EXPERIMENTS.msaa = 0; gfx.build();
+    const zero = samples().every((s) => s === 0);
+    EXPERIMENTS.msaa = 4; gfx.build();
+    gfx.render();
+    const programs = R.info.programs.length;
+    const first = gfx.composer.readBuffer;
+    for (let i = 0; i < 4; i++) gfx.render();
+    const steady = R.info.programs.length === programs && gfx.composer.readBuffer === first;   // the scene lands in the same target every frame
+    const one = first.samples === 4 && samples().filter((s) => s === 4).length === 1;
+    EXPERIMENTS.rt = 'packed'; gfx.build(); gfx.render();
+    const both = samples().filter((s) => s === 4).length === 1;   // packed buffers or the half-float fallback, either way smoothed
+    return ok(plain && zero && one && steady && both, { plain, zero, one, steady, both, samples: samples(), type: gfx.bufferType });
+  },
+});
