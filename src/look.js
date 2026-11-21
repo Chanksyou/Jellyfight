@@ -4,7 +4,10 @@
 //
 //   LOOK.num('night-fill', 0.12)       a number
 //   LOOK.color('jelly-color', '#fff')  a colour string ('#rrggbb')
-//   LOOK.list('guts-roach', [...])     space-separated values
+//   LOOK.list('guts-roach', [...])     space-separated values, as strings
+//   LOOK.nums('sun-dir', [0, 1, 0])    space-separated numbers (the fallback if any isn't one)
+// Hand three.js numbers only (LOOK.nums, never LOOK.list): one string in a Vector3 or a fromArray puts
+// every vector and matrix on the page in V8's slow form, and each write then allocates (tests/check.mjs).
 export const LOOK = {
   vars: {},
   has(name) { return name in this.vars; },
@@ -19,6 +22,10 @@ export const LOOK = {
   list(name, fallback) {
     const v = this.vars[name];
     return v ? v.split(/\s+/).filter(Boolean) : fallback;
+  },
+  nums(name, fallback) {
+    const v = this.list(name, null)?.map(Number);
+    return v && v.every(Number.isFinite) ? v : fallback;
   },
 };
 

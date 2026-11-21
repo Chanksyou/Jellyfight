@@ -34,6 +34,24 @@ function plain(mat) {
 export const original = (m) => ORIGINAL.get(m) || m;
 export const liteOn = () => on;
 
+// A Physical material's shiny extras off while lite is on, back on when it isn't
+function shine(o) {
+  for (const m of [].concat(o.material || [])) {
+    if (!m.isMeshPhysicalMaterial) continue;
+    const had = EXTRAS.get(m);
+    if (on && !had && SHINE.some((k) => m[k] > 0)) {
+      EXTRAS.set(m, Object.fromEntries(SHINE.map((k) => [k, m[k]])));
+      for (const k of SHINE) m[k] = 0;
+    } else if (!on && had) {
+      Object.assign(m, had);
+      EXTRAS.delete(m);
+    }
+  }
+}
+// Something built after the graphics were prepared (an Elite made when its fight is set up) follows the lite
+// state too: otherwise its shiny extras build a shader in play (the shelf's copy of it was prepared without them)
+export const followLite = (root) => { if (on) root.traverse(shine); };
+
 // apartment: the rooms' root; shelf: main.js's stand-ins; batches: static-batch.js's
 export function setLite(lite, { scene, shelf, apartment, batches = [] }) {
   on = lite;
@@ -47,17 +65,7 @@ export function setLite(lite, { scene, shelf, apartment, batches = [] }) {
   }
   let spots = false;
   for (const root of [scene, shelf]) root.traverse((o) => {
-    for (const m of [].concat(o.material || [])) {
-      if (!m.isMeshPhysicalMaterial) continue;
-      const had = EXTRAS.get(m);
-      if (on && !had && SHINE.some((k) => m[k] > 0)) {
-        EXTRAS.set(m, Object.fromEntries(SHINE.map((k) => [k, m[k]])));
-        for (const k of SHINE) m[k] = 0;
-      } else if (!on && had) {
-        Object.assign(m, had);
-        EXTRAS.delete(m);
-      }
-    }
+    shine(o);
     if (o.isSpotLight) { o.visible = !on; spots = true; }
   });
   if (spots) scene.traverse((o) => {   // (a scene without spots keeps its fill as it is: act 4's arena sets its own every frame)
