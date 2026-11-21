@@ -525,6 +525,11 @@
   --fire-death-life: 0.75;
   --fire-ash: #382b28;
   --fire-smoke: #74655d;
+  --fire-smoke-dark: #2a201c;    /* the pick screen's stage only (fire-looks.js): the top of the smoke a hit curls up into */
+  --fire-scorch: #1c1410;        /* and the scorch it leaves on the floor */
+  --fire-scorch-glow: 0.9;       /* seconds the scorch glows ember-hot before it has cooled */
+  --fire-burn-flame: 2.6;        /* and a burning bug's flames, how tall, in its radii */
+  --fire-tail-flame: 6;          /* and a fireball's flame tail, how long, in its radii */
   --fire-blast: #ff8a3a;          /* Fire Attack upgrades: a burning bug's hit bursting (Flashpoint), the flame cone (Fire Breath) */
   --wind-core: #d9f6ff;
   --wind-gather-radius: 0.022;

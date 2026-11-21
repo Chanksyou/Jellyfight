@@ -458,6 +458,35 @@ story('types/pick-stage-ice', {
   },
 });
 
+story('types/pick-stage-fire', {
+  about: 'On the centre card (fx.showcase) the Fire jelly\'s fireballs boil (their parts\' materials churn) and trail a flame tail, and a burning roach wears real flames (fire-looks.js BurnFlames: one quad each, gone when it stops burning); in play the same parts keep their plain materials and no flames are added.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('fire');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks;
+      let flames = 0, tails = 0;
+      for (let i = 0; i < 4 * 30; i++) {
+        live.simulate(1 / 30);
+        flames = Math.max(flames, looks.burnFlames?.on.size || 0);
+        tails = Math.max(tails, (looks.pools.fire || []).concat(P.bubbles.list.map((b) => b.m)).filter((m) => m?.userData.tail?.visible).length);
+      }
+      const boils = looks.parts.fire.slice(0, 3).every(([, m]) => m.customProgramCacheKey?.().startsWith('fireChurn'));
+      P.bubbles.reset();
+      const tailsLeft = (looks.pools.fire || []).filter((m) => m.userData.tail?.visible).length;
+      const gone = (!looks.burnFlames || looks.burnFlames.on.size === 0) && tailsLeft === 0;
+      const play = G().run.bubbles.looks, plain = !play.fx.showcase && play.parts.fire.every(([, m]) => !m.onBeforeCompile || m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) && !play.burnFlames;
+      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, tailsLeft, boils, gone, plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
