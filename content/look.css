@@ -379,6 +379,7 @@
   --aura-bubbles-ramp: #ffffff #d9f4ff #7fd0e8 #2a6f9a;   /* Normal: white glints, pale blue rim, the water's blue */
   --aura-gust-ramp: #f4fffb #c4f0e0 #6fbfae #1f5a5a;   /* Wind: white air, pale mint, sage teal, deep */
   --aura-gust-leaves: #9fc46a #d1a455;                  /* Wind: the two leaf colours riding its spiral */
+  --aura-toxic-ramp: #f4ffd8 #c4ff6a #5fcf3c #0e3a1a;   /* Poison: the highlight, the sickly glow, the goo, its dark edge */
   --aura-sparks-ramp: #ffffff #fff3a6 #ffd23c #5a46c8;   /* Lightning: white core, yellow glow, the afterimage's violet */
   --pick-portrait-room: 1.3;   /* how far back a card's portrait stands from the jelly (1: as close as the leaderboard's), leaving room round it for the element */
   --pick-spin-step: 1.4;       /* seconds the centre portrait takes to turn to its next view (eight views make a full turn) */

@@ -662,6 +662,30 @@ story('types/pick-side-card-bubbles', {
   },
 });
 
+story('types/pick-side-card-toxic', {
+  about: 'Poison\'s card (aura="toxic", pick-auras/toxic.js) is painted by its shader, with no 2D drawing left: goo lines the top of the card\'s glass and pools along its bottom, sickly green, with the murky water darker between.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('poison');
+      stub(picker, 'live', null);   // no live centre card: the Poison card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('poison')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic') && !AURAS.toxic;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
+      const S = card.width, ctx = card.getContext('2d');
+      const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
+      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
+      return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-side-card-shader-holds-still-calm', {
   about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
   setup() {},
