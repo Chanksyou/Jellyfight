@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v610 paints Glitter's card on the jelly type pick screen in a shader: out-of-focus lights far behind, tumbling glitter flakes that flash white as they turn face on, winking stars, a pink and rainbow light on the jelly and glitter along its edge.
+
 v609 makes the XP spheres twice as big, so they're easier to spot and chase.
 
 v608 adds a Past seasons page to the leaderboard: once the owner ends a season, its Champions and top 3 stay readable there, and the board's Back and Change name buttons now stay in view on a phone held sideways (the Champions portraits are a little smaller there).
