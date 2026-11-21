@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v607 makes act 4 run much lighter on phones: the sun's direction is read from look.css as numbers (a stray piece of text had put the whole act's 3D maths on a slow path), and on Low the act 3 Alligator no longer builds a shader when its fight starts.
+
 v606 The overdraw budget story no longer counts the apartment's own glass, prints and camera-faded furniture, so it measures what a fight adds instead of where the view sits. Measured with the room left out (heaviest of four views, after the other engine stories ran): Controller crowd 1.65, bubble storm 0.40, Vacuum fight 0.63 (its force fields and traversal markers left by earlier stories); ceilings sit about 10% above. The arena keeps its old ceilings, since there the whole room is the arena and nothing is left out.
 
 v605 adds an Overdraw view to the dev tools (Check group) and a count of how many layers each pixel is drawn over to the phone measuring tool, and stops drawing the Encore stage edge's shock flash and the stage door's glow while they have nothing to show, which takes about half of the see-through layers off the Encore's arena on a phone.

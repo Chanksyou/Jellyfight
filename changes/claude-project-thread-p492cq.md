@@ -1,1 +1,0 @@
-makes act 4 run much lighter on phones: the sun's direction is read from look.css as numbers (a stray piece of text had put the whole act's 3D maths on a slow path), and on Low the act 3 Alligator no longer builds a shader when its fight starts.
