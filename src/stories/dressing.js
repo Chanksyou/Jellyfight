@@ -8,7 +8,7 @@ const lightCount = (scene) => { let n = 0; scene.traverse((o) => { if (o.isLight
 const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
 
 night4('the-room-is-dressed-as-a-show-and-nothing-is-in-the-way', {
-  about: 'The wristband barrier and the console cables are one flat mesh of a few thousand triangles (the console\'s glow plate the one other draw), lying within centimetres of the floor with no collider; no vent landing, chest spot, Elite stand or vent floor spot has dressing on it, and it sits behind where the sun stops.',
+  about: 'The wristband barrier and the console cables are one flat mesh of a few thousand triangles (the console\'s glow plate the one other draw, not drawn until the door moment lights it), lying within centimetres of the floor with no collider; no vent landing, chest spot, Elite stand or vent floor spot has dressing on it, and it sits behind where the sun stops.',
   setup() { fresh(); },
   play() {
     const { run } = G(), D = run.dress, m = D.mesh, g = D.glow;
@@ -25,7 +25,7 @@ night4('the-room-is-dressed-as-a-show-and-nothing-is-in-the-way', {
     }
     const solid = run.world.colliders.includes(m) || run.world.colliders.includes(g);
     const behindSun = pos.count > 0 && Array.from({ length: pos.count }, (_, i) => pos.getZ(i)).filter((z) => z > STAGE4.sun.to).length > pos.count * 0.5;
-    return ok(m.visible && g.visible && m.userData.noCollide && !solid && n < 15000 && n > 200 && maxY < 0.05 && near === 0 && behindSun && g.material.opacity === 0 && g.position.y > STAGE4.stageDoor.min[1] && g.position.y < 0.75,
+    return ok(m.visible && !g.visible && m.userData.noCollide && !solid && n < 15000 && n > 200 && maxY < 0.05 && near === 0 && behindSun && g.material.opacity === 0 && g.position.y > STAGE4.stageDoor.min[1] && g.position.y < 0.75,
       { glowY: g.position.y, tris: n, maxY, near, hit: [...hit].map((i) => taken[i]), solid, behindSun, glow: g.material.opacity });
   },
 });

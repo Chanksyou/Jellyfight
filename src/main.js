@@ -880,8 +880,8 @@ const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
   overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
-  passOn: (pass) => (pass === 'lamps' ? lampsOn : !gfx.off.has(pass)),
-  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : gfx.toggle(pass)),
+  passOn: (pass) => (pass === 'lamps' ? lampsOn : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
+  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
 });
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;

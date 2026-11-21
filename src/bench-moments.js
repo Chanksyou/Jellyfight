@@ -64,3 +64,24 @@ export const MOMENTS = {
   },
 };
 export const busiest = (page) => Object.keys(MOMENTS[page]).find((n) => n !== 'quiet room');
+
+// The heaviest stacks of see-through marks, for the Overdraw view (src/overdraw.js, tools/perf-phone.mjs --overdraw): not in
+// MOMENTS, so the bench never plays them. Same shape and same pages; the Vacuum (its spin), Firefly pools and bass + sun moments above count too.
+export const STACKS = {
+  act1: {
+    'bubble storm + Bubble Bath': (c) => {
+      const { K, G } = c;
+      K.fresh({ elites: false }); K.give('bubbleBath'); immortal(c); crowd(c, ['roach', 'ants']);
+      Object.assign(G.run.S, { bubbles: 5, fireRate: 8, range: 0.6 });
+      K.step(120);
+    },
+  },
+  arena: {
+    'Encore Pyro, six lanes': (c) => {
+      const B = c.K.encoreFight({ beat: 96 }); immortal(c); c.K.step(5);
+      const b = B.pyro.beat, set = (n) => [0, 1, 2].map((i) => i * 2 + n);
+      B.pyro.cast(b + 5, { lanes: set(0), warn: 5 }); B.pyro.cast(b + 6, { lanes: set(1), warn: 6 });   // both Warnings up and filling for the whole sample (the flames come after)
+      c.K.step(5);
+    },
+  },
+};

@@ -12,6 +12,7 @@
 //   node tools/perf-phone.mjs --tiers=medium        one tier
 //   node tools/perf-phone.mjs --only=night4,arena   some pages (act1, act3, night4, arena)
 //   node tools/perf-phone.mjs --profile             also profile the CPU (top 30 functions, time by file)
+//   node tools/perf-phone.mjs --overdraw            instead of the timings: layers drawn per pixel (src/overdraw.js) at each moment and the heaviest stacks of see-through marks (STACKS)
 //   node tools/perf-phone.mjs --json=out.json       also write everything as JSON (counts, uploads, scene, profile)
 //
 // Headless Chromium draws with SwiftShader (software WebGL): counts are real, times are not a
@@ -19,11 +20,11 @@
 // plays the same moments (src/bench-moments.js).
 import fs from 'node:fs';
 import { start, openGame } from '../tests/lib.mjs';
-import { PAGES, MOMENTS } from '../src/bench-moments.js';
+import { PAGES, MOMENTS, STACKS } from '../src/bench-moments.js';
 
 const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
 const TIERS = arg('tiers', 'medium,low').split(','), ONLY = arg('only', '').split(',').filter(Boolean), JSON_OUT = arg('json', '');
-const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4), PROFILE = args.includes('--profile');
+const FRAMES = +arg('frames', 240), THROTTLE = +arg('throttle', 4), PROFILE = args.includes('--profile'), OVERDRAW = args.includes('--overdraw');
 
 // The moments, and the pages they play in, are shared with the phone bench (src/bench-moments.js): each
 // sets its moment up in the page with the story kit; the frames after it are measured.
@@ -117,6 +118,26 @@ async function measure(env, pageKey, tier) {
     return { tier: gfx.quality, programs: APT.renderer.info.programs.length, lights: lights.length, pointLights: lights.filter((t) => t === 'PointLight').length, phone: matchMedia('(pointer: coarse)').matches };
   });
   const out = { page: pageKey, tier, ...base, moments: {} };
+  if (OVERDRAW) {
+    // layers a pixel gets (overdraw.js): all pieces, and the see-through ones alone (what the fight adds to the room)
+    const moments = { ...MOMENTS[pageKey], ...STACKS[pageKey] };
+    for (const name of Object.keys(moments)) {
+      out.moments[name] = await page.evaluate(async ([p, n]) => {
+        const { measureOverdraw } = await import('/src/overdraw.js');
+        const all = window.BM.STACKS[p]?.[n] || window.BM.MOMENTS[p][n];
+        all({ K, G: window, nav: NAV }); K.step(30); GAME.render();
+        const R = APT.renderer, args = [R, APT.scene, APT.camera], yaw0 = tpc.yaw, rows = { all: [], seeThrough: [] };
+        for (let i = 0; i < 4; i++) { tpc.yaw = yaw0 + i * Math.PI / 2; K.step(6); GAME.render(); rows.all.push(measureOverdraw(...args)); rows.seeThrough.push(measureOverdraw(...args, { seeThrough: true })); }
+        const worst = (a, k) => a.reduce((m, x) => (x[k] > m ? x[k] : m), 0), mean = (a, k) => +(a.reduce((s, x) => s + x[k], 0) / a.length).toFixed(2);
+        const sum = (a) => ({ avg: mean(a, 'avg'), worst: worst(a, 'worst'), p99: worst(a, 'p99'), covered: mean(a, 'covered') });
+        return { all: sum(rows.all), seeThrough: sum(rows.seeThrough) };
+      }, [pageKey, name]);
+      const m = out.moments[name];
+      console.log(`${pageKey} | ${name}: all avg ${m.all.avg} worst ${m.all.worst} p99 ${m.all.p99} | see-through avg ${m.seeThrough.avg} worst ${m.seeThrough.worst} p99 ${m.seeThrough.p99} covered ${m.seeThrough.covered}`);
+    }
+    await page.close();
+    return out;
+  }
   for (const name of Object.keys(MOMENTS[pageKey])) {
     const pre = await page.evaluate(([p, n]) => {
       BM.MOMENTS[p][n]({ K, G: window, nav: NAV });
