@@ -30,7 +30,7 @@ export class BuffLooks {
     this.half = color('buff-slice-half', '#e8d9c0');
     this.flies = Array.from({ length: FLIES }, () => ({ t: -1, from: new THREE.Vector3() }));
     this.wispT = this.windT = this.pulseT = 0;
-    bus.on('enemy_sliced', ({ pos, r }) => this.slice(pos, r));
+    bus.on('enemy_sliced', ({ pos, r, color }) => this.slice(pos, r, color));
     bus.on('bonus_damage', ({ pos, r }) => this.bonus(pos, r));
   }
 
@@ -81,13 +81,13 @@ export class BuffLooks {
     if (f) { f.t = 0; f.from.copy(at); }
   }
 
-  // Pizza Cutter: a bright slash across the bug, and two halves sliding apart
-  slice(pos, r) {
+  // Pizza Cutter: a bright slash across the bug, and two halves sliding apart in its colour (`color`; none: a pale crust)
+  slice(pos, r, color) {
     const L = this.run.gadgets.looks, fx = this.run.fx;
     _a.set(pos.x - r * 1.6, pos.y + r, pos.z); _b.set(pos.x + r * 1.6, pos.y - r, pos.z);
     L.streak(_a, _b, L.mist, LOOK.num('buff-slash-width', 0.002), 0.1);
     const slide = this.quiet ? 0 : r * 3;
-    for (const k of [-1, 1]) fx.glow.emit(_p.set(pos.x, pos.y + k * r * 0.4, pos.z), this.half, r * 2.2, r * 1.4, 0.35, 0.8, _v.set(k * slide, k * slide * 0.3, 0));
+    for (const k of [-1, 1]) fx.glow.emit(_p.set(pos.x, pos.y + k * r * 0.4, pos.z), color || this.half, r * 1.6, r * 1.1, 0.35, 0.8, _v.set(k * slide, k * slide * 0.3, 0));
   }
 
   // Rolling Pin / Can Opener: a flat, heavy flash where the extra damage landed

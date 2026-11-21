@@ -60,9 +60,9 @@ export class TreasureCompanions {
     if (this.wire.visible) {
       for (let i = 0; i < n; i++) {
         const b = g.bulbs[i].position, c = g.bulbs[(i + 1) % n].position;
-        P.set([b.x, b.y, b.z], i * 6);
         _a.copy(b).add(c).multiplyScalar(0.5).addScaledVector(_b.copy(this.lag).sub(center), 0.7);   // the sag trails behind a swim
-        P.set([_a.x, _a.y - 0.004, _a.z], i * 6 + 3);
+        const k = i * 6;   // written in place: nothing allocated a frame
+        P[k] = b.x; P[k + 1] = b.y; P[k + 2] = b.z; P[k + 3] = _a.x; P[k + 4] = _a.y - 0.004; P[k + 5] = _a.z;
       }
       this.wire.geometry.setDrawRange(0, n * 2); this.wire.geometry.attributes.position.needsUpdate = true;
     }

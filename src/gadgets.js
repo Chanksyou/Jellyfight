@@ -473,7 +473,7 @@ export class Gadgets {
         this.beam.material.opacity = LOOK.num('gadget-focus-opacity',.12) + .02*Math.sin(this.orbit*3);
         if (this.every('beam', dt, Bm.tick)) {
           ticked=true;this.focusKick=1;sfx.gadgetFocus();ctx.pulse?.(.08);
-          bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam', feedback:{tick:true} });
+          bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam', feedback:{tick:true,soft:true} });   // soft: a steady burn, so no white strobe (a glow in its colour)
           fx.impact(c, 0xfff0a0, Math.max(0.006, e.r * 0.7), 4);   // every burn shows where it lands
           if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4);
         }

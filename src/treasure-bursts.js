@@ -16,9 +16,10 @@ export class TreasureBursts {
     const { props, looks } = gadgets, fx = gadgets.fx, geo = looks.geo;
     const piece = (g, size) => () => { const m = fx.piece(g, looks.mat); m.userData.size = size; return m; };
     const duck = new THREE.Color(LOOK.color('treasure-rubberDuck', '#a8e9ce'));
-    this.duck = [props.prop('duck-body', piece(geo.foam, 0.016)), props.prop('duck-head', piece(geo.foam, 0.01)), props.prop('duck-beak', piece(geo.needle, 0.004))];
+    this.duck = [props.prop('duck-body', piece(geo.foam, 0.02)), props.prop('duck-head', piece(geo.foam, 0.012)), props.prop('duck-beak', piece(geo.needle, 0.004))];
     this.duck.forEach((m) => m.userData.color.copy(duck));
-    this.pick = props.prop('pick', piece(new THREE.CylinderGeometry(1, 1, 0.25, 3), 0.012));
+    this.duck[2].userData.color.set(LOOK.color('treasure-duck-beak', '#ffcf9e'));
+    this.pick = props.prop('pick', piece(new THREE.CylinderGeometry(1, 1, 0.25, 3), LOOK.num('treasure-pick-size', 0.02)));
     this.pick.userData.color.set(LOOK.color('treasure-guitarPick', '#e0c8ff'));
     this.reset();
   }
@@ -91,10 +92,11 @@ export class TreasureBursts {
     for (let i = 0; i < n; i++) this.at(i * 0.06, () => L.arc(_a.copy(feet).setY(feet.y + 0.004), radius, col, life));
   }
   note(at, col) {
-    const L = this.looks, q = L.quiet, head = L.take('stud', _a.copy(at).setY(at.y + 0.012), col, 0.7); if (!head) return;
-    head.kind = 'drift'; head.m.scale.set(0.009, 0.0035, 0.0065); head.m.rotation.z = 0.35; head.v.set(0, q ? 0 : 0.03, 0);
-    const stem = L.take('rod', head.m.position, col, 0.7); if (!stem) return;
-    stem.kind = 'drift'; stem.m.position.add(_d.set(0.0078, 0.017, 0)); stem.m.scale.set(0.0017, 0.034, 0.0017); stem.v.copy(head.v);
+    const L = this.looks, q = L.quiet, k = LOOK.num('treasure-note-size', 1.8);   // above the bug and its damage number, big enough to read on a phone
+    const head = L.take('stud', _a.copy(at).setY(at.y + 0.03), col, 0.8); if (!head) return;
+    head.kind = 'drift'; head.m.scale.set(0.009 * k, 0.0035 * k, 0.0065 * k); head.m.rotation.z = 0.35; head.v.set(0, q ? 0 : 0.04, 0);
+    const stem = L.take('rod', head.m.position, col, 0.8); if (!stem) return;
+    stem.kind = 'drift'; stem.m.position.add(_d.set(0.0078 * k, 0.017 * k, 0)); stem.m.scale.set(0.0017 * k, 0.034 * k, 0.0017 * k); stem.v.copy(head.v);
   }
 
   // Bath Salt: a burst that follows another within 0.5 s is deeper in the chain: more, bigger crystals
