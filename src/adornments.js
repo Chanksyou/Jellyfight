@@ -16,6 +16,7 @@
 //               running off the rim
 //   gale        the Wind jelly type: thin air streaks circling the bell, its tentacles streaming back
 //               as if in a breeze
+//   fangs       Bloody Fangs (a Treasure): two fangs hanging under the front of the bell's rim
 //   storm       the Lightning jelly type: tentacle tips glowing faintly, a small arc jumping between two
 //               tips every few seconds, static flecks
 // (no type puts anything inside the bell: a core there pokes out of a flat species' bell, and Chan
@@ -494,6 +495,34 @@ export class Adornments {
         });
       },
     };
+  }
+
+  // Bloody Fangs: two fangs under the front of the rim, found from the tentacles' roots so they sit on every species'
+  // rim (in the room, following the bell's flex); a jelly with no tentacles wears them at its usual rim height
+  make_fangs() {
+    const group = new THREE.Group(), h = this.h, mat = glowMat('treasure-bloodyFangs', '#ffb8c8', { emissiveIntensity: 0.5, roughness: 0.25 });
+    const geo = new THREE.ConeGeometry(1, 1, 6).rotateX(Math.PI).translate(0, -0.5, 0);   // tip down, hanging from its top
+    const fangs = [-1, 1].map(() => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
+    this.batch.track(group);
+    const c = this._v, f = new THREE.Vector3(), s = new THREE.Vector3(), r = new THREE.Vector3();
+    return { group, free: true, tick: () => {
+      const P = this.player, rig = P.avatar?.tentacles, k = LOOK.num('fangs-size', 1);
+      f.set(Math.sin(P.facing), 0, Math.cos(P.facing)); s.set(f.z, 0, -f.x);
+      let R = h * 0.33;
+      c.set(P.position.x, P.position.y + h * 0.5, P.position.z);
+      if (rig?.list?.length && rig.parent) {
+        c.set(0, 0, 0); R = 0;
+        for (const T of rig.list) c.add(rig.parent.localToWorld(r.copy(T.pts[0])));
+        c.multiplyScalar(1 / rig.list.length);
+        for (const T of rig.list) R = Math.max(R, Math.hypot(rig.parent.localToWorld(r.copy(T.pts[0])).x - c.x, r.z - c.z));
+      }
+      R = Math.max(R * 1.1, h * 0.3);   // (the roots sit a little inside the rim)
+      const len = h * 0.18 * k, w = h * 0.04 * k;
+      fangs.forEach((m, i) => {
+        m.position.copy(c).addScaledVector(f, R * 0.9).addScaledVector(s, (i ? 1 : -1) * R * 0.3);
+        m.scale.set(w, len, w);
+      });
+    } };
   }
 
   // Immortal Jelly: a gold ring over the bell; once the rebirth is spent this act it goes dim

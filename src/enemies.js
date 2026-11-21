@@ -518,7 +518,10 @@ export class Enemies {
       const d = this.center(n, S.o).distanceTo(from);
       if (d <= bestD) { best = n; bestD = d; }
     }
-    if (best) this.passes.push({ at: (this.now ?? 0) + LOOK.num('cradle-delay', 0.06), from, to: best.id, amount: left, depth: depth + 1 });
+    if (!best) return;
+    const delay = LOOK.num('cradle-delay', 0.06);
+    this.passes.push({ at: (this.now ?? 0) + delay, from, to: best.id, amount: left, depth: depth + 1, full: depth + 1 >= O.passes,
+      ball: this.treasureLegends?.cradleLaunch(from, e.id, best, delay) });   // the steel ball carrying it lands as it does
   }
   deliverPasses() {
     for (let i = 0; i < this.passes.length; i++) {
@@ -526,9 +529,10 @@ export class Enemies {
       if (p.at > this.now) continue;
       this.passes.splice(i--, 1);
       const n = this.byId.get(p.to);
-      if (!n || n.dead) continue;
+      if (!n || n.dead) { this.treasureLegends?.cradleLand(p.ball, null); continue; }
       const c = this.center(n, S.o);
-      this.treasureLooks?.signal(p.from, c);
+      this.treasureLegends?.cradleLand(p.ball, n, c, p.depth, p.full);
+      n.swingT = 1; n.swingX = c.x - p.from.x; n.swingZ = c.z - p.from.z;   // the ball knocks it: it swings away and back (a look; e.pos stays)
       this.fx.impact(c, FRIENDLY(), n.r * 0.5, 5);
       sfx.cradle(p.depth);
       bus.emit('damage_taken', { targetId: n.id, amount: p.amount, color: '#9ff3ff', source: 'cradle', feedback: { pass: p.depth } });
@@ -1625,6 +1629,14 @@ export class Enemies {
         e.recoil = Math.max(0, e.recoil - dt * 5);
         const q = e.recoil * e.recoil;
         e.mesh.scale.y *= 1 - 0.28 * q; e.mesh.scale.x *= 1 + 0.14 * q; e.mesh.scale.z *= 1 + 0.14 * q;
+      }
+      if (e.swingT > 0 || e.swung) {         // a Newton's Cradle ball knocked it (deliverPasses): the body swings away and back
+        e.swingT = Math.max(0, (e.swingT || 0) - dt * LOOK.num('cradle-swing-speed', 4));
+        const n = Math.hypot(e.swingX, e.swingZ) || 1, k = calm ? 0 : Math.sin(e.swingT * Math.PI) * e.r * LOOK.num('cradle-swing', 0.5) / n;
+        const a = -e.root.rotation.y, x = e.swingX * k, z = e.swingZ * k, lx = x * Math.cos(a) + z * Math.sin(a), lz = -x * Math.sin(a) + z * Math.cos(a);
+        const o = e.swung ||= { x: 0, z: 0 };
+        e.mesh.position.x += lx - o.x; e.mesh.position.z += lz - o.z; o.x = lx; o.z = lz;
+        if (e.swingT === 0) e.swung = null;
       }
       if (e.squashT > 0) {                   // stomped: squashed flat, springing back
         e.squashT = Math.max(0, e.squashT - dt);

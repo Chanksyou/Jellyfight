@@ -14,6 +14,8 @@ export const juice = {
   stop: 0,
   slowT: 0,
   slowK: 1,
+  scale: 1,         // this frame's game speed (systems.js Clock): hit-stop and slow motion make it less than 1
+  grey: 0,          // 0..1: how much colour the screen has lost (Snooze Button's save; graphics.js output pass, the HUD veil on Low)
   combo: 0,
   comboT: 0,
   best: 0,
@@ -42,7 +44,7 @@ export const juice = {
     this.comboT = Math.max(0, this.comboT - dt);
     if (this.comboT === 0) this.combo = 0;
   },
-  reset() { this.trauma = this.stop = this.combo = this.comboT = this.slowT = 0; this.best = 0; },
+  reset() { this.trauma = this.stop = this.combo = this.comboT = this.slowT = this.grey = 0; this.best = 0; },
 
   // camera offset for this frame (meters): shake grows with the square of trauma
   offset(out, scale = 0.012) {

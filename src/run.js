@@ -104,6 +104,7 @@ export class Run {
     this.bubbles.treasureLooks=this.gadgets.looks;
     this.gadgets.bubbles = this.bubbles;   // the flame cone sets Burn and draws with the Fire looks
     this.enemies.treasureLooks=this.gadgets.looks;
+    this.enemies.treasureLegends=this.gadgets.legends;
     this.bubbles.grace = this.cfg.radius;
     // treasures waiting in the room as golden chests: on a schedule (stage.treasures) and where elites fall
     this.roomTreasures = [new RoomTreasure(ctx.scene, ctx.fx)];
@@ -987,11 +988,15 @@ export class Run {
   // health-drain (Bloody Fangs): Health (never the Shield) seeps away, never below its least, red drops falling off the bell
   drain(dt) {
     const D = this.mods.drain;
+    this.draining = false;
     if (!(D?.dps > 0) || this.polypT > 0) return;
     const take = Math.min(D.dps * dt, this.health - D.least);
     if (take <= 0) return;
     this.health -= take;
     this.lost.drain = (this.lost.drain || 0) + take;
+    this.draining = true;   // the Health bar shows it seeping (refreshHud)
+    const Pl = this.player;
+    this.gadgets.legends.heartbeat(dt, Pl.position, this.cfg.height, this.cfg.radius, (k) => Pl.avatar?.pulse(k), Pl.fullSpeed);
     if ((this.drainDripT = (this.drainDripT ?? 0) - dt) > 0) return;
     this.drainDripT = LOOK.num('drain-drip', 0.4);
     const P = this.player.position, c = LOOK.color('bleed', '#ff2a4a');
@@ -1064,7 +1069,7 @@ export class Run {
       const P = this.player.position;
       this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.12, 0.6);
       this.fx.impact(P.clone().setY(P.y + this.cfg.height * 0.5), this.friendly, 0.05, 16);
-      this.gadgets.looks.snooze(P.clone().setY(P.y+.008));sfx.gadgetSnooze();this.player.avatar?.pulse(.6);
+      this.gadgets.legends.snooze(P, this.cfg.height);sfx.gadgetSnooze();this.player.avatar?.pulse(.6);
       this.hud.toast('⏰ Snooze! Back up with half your Health.', 2400);
       return;
     }
@@ -2261,7 +2266,9 @@ export class Run {
   refreshHud() {
     this.hud.showMap(this.firstRun.mapShown);   // a first run: hidden until the first Treasure (first-run.js)
     const h = this.hud;
-    h.setHealth(this.health, this.S.health, { heal: !!this.healthPulse });
+    h.setHealth(this.health, this.S.health, { heal: !!this.healthPulse, seep: !!this.draining });
+    h.setDraining(!!this.draining && (this.phase === 'explore' || this.phase === 'boss'));
+    h.setVeil(this.fx.low() ? juice.grey : 0);   // Snooze's colour drain on Low (no output pass to grey the frame)
     h.setEasy(this.easy);
     h.setShield(this.shield); this.shield.state = null;
     this.healthPulse = false;

@@ -33,6 +33,7 @@ import './stories/buff-looks.js';
 import './stories/treasure-glow.js';
 import './stories/treasure-bursts.js';
 import './stories/treasure-companions.js';
+import './stories/treasure-legends.js';
 import './stories/treasure-house.js';
 import './stories/arena4.js';
 import './stories/encore.js';

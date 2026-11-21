@@ -4,6 +4,7 @@
 import { drawOverdrawView } from './overdraw.js';
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { juice } from './juice.js';
 import { EXPERIMENTS } from './experiments.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -208,11 +209,11 @@ export class BloomOutputPass extends Pass {
     super();
     this.bloom = bloom;
     this.material = new THREE.ShaderMaterial({
-      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 } },
+      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 }, grey: { value: 0 } },
       vertexShader: QUAD_VERTEX,
       fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse, tBloom;
-        uniform float bloomStrength;
+        uniform float bloomStrength, grey;
         #include <tonemapping_pars_fragment>
         varying vec2 vUv;
         ${FINITE}
@@ -222,6 +223,7 @@ export class BloomOutputPass extends Pass {
           #ifdef TONE
             c.rgb = TONE(c.rgb);
           #endif
+          c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), grey);   // the colour draining (juice.grey: Snooze Button's save)
           #ifdef SRGB_TRANSFER
             c = sRGBTransferOETF(c);
           #endif
@@ -238,6 +240,7 @@ export class BloomOutputPass extends Pass {
     u.tBloom.value = b.texture;
     u.bloomStrength.value = b.enabled ? b.strength : 0;
     u.toneMappingExposure.value = renderer.toneMappingExposure;
+    u.grey.value = juice.grey;
     this.prepare(renderer);
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);

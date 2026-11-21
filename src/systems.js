@@ -27,6 +27,7 @@ export class Clock {
     const slow = juice.stop > 0 ? this.hitStopScale : juice.slowT > 0 ? juice.slowK : 1;
     juice.stop = Math.max(0, juice.stop - dt);
     juice.slowT = Math.max(0, juice.slowT - dt);
+    juice.scale = slow;   // what this frame's time was scaled by (effects that keep real time read it)
     return dt * slow;
   }
 }
