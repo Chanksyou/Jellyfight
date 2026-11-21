@@ -1,1 +1,0 @@
-adds a `?msaa=2|4` test link that smooths edges in the graphics chip on Medium and draws a phone at pixel ratio 1.25 instead of 1.5, so the phone bench can compare the two; nothing changes without the link.

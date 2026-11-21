@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v603 adds a `?msaa=2|4` test link that smooths edges in the graphics chip on Medium and draws a phone at pixel ratio 1.25 instead of 1.5, so the phone bench can compare the two; nothing changes without the link.
+
 v602 makes bug crowds cheaper on phones: a far or off-screen bug that's only walking moves on alternate frames with both frames' time (same distance, walls still hold), a frame works out each moving piece's place once instead of twice, hidden pooled effects wait until they show, and the collision world re-checks furniture only after it moves.
 
 v601 gives the Tentacle jelly's sting a violet ribbon trail that fades from its root, a flash at the tip as it snaps and a few venom drops thrown off the stung bug, and its barbs a venom glow with a glint running down each tentacle.
