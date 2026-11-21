@@ -135,6 +135,10 @@ story('bench/msaa-smooths-edges-on-one-target', {
     const one = first.samples === 4 && samples().filter((s) => s === 4).length === 1;
     EXPERIMENTS.rt = 'packed'; gfx.build(); gfx.render();
     const both = samples().filter((s) => s === 4).length === 1;   // packed buffers or the half-float fallback, either way smoothed
-    return ok(plain && zero && one && steady && both, { plain, zero, one, steady, both, samples: samples(), type: gfx.bufferType });
+    EXPERIMENTS.rt = null;
+    const baked = gfx.baked; offs.push(() => { gfx.baked = baked; });
+    gfx.baked = false; gfx.build(); gfx.render();   // a room without baked shadows: N8AO draws the scene into its own target
+    const n8ao = !!gfx.ao && gfx.ao.beautyRenderTarget.samples === 4 && samples().every((s) => s === 0);
+    return ok(plain && zero && one && steady && both && n8ao, { plain, zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
   },
 });

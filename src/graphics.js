@@ -347,7 +347,7 @@ export class Graphics {
       composer.addPass(new RenderPass(this.scene, this.camera));
     }
     if (msaa) {
-      // the target the scene is drawn into: N8AO's own, or the composer's read buffer (the output pass below stops swapping, so it is always the same one and only one pays for the samples)
+      // the target the scene is drawn into: N8AO's own, or else the composer's read buffer (the output pass below stops swapping, so on that path it is always the same one and only one pays for the samples)
       (ao ? ao.beautyRenderTarget : composer.readBuffer).samples = msaa;
     }
 
