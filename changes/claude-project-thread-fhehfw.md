@@ -1,0 +1,1 @@
+makes the Fire Jelly's attack on the type pick screen's live card look like fire: the fireball boils and trails a flame tail, a burning roach wears real flames, and a hit smokes and leaves a scorch that cools. Play looks the same.
