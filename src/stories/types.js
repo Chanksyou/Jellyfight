@@ -458,6 +458,35 @@ story('types/pick-stage-ice', {
   },
 });
 
+story('types/pick-stage-fire', {
+  about: 'On the centre card (fx.showcase) the Fire jelly\'s fireballs boil (their parts\' materials churn) and trail a flame tail, and a burning roach wears real flames (fire-looks.js BurnFlames: one quad each, gone when it stops burning); in play the same parts keep their plain materials and no flames are added.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    const settle = () => picker.tick(picker.last + 16);
+    try {
+      pressPlay('fire');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      settle();
+      const P = live.P, looks = P.bubbles.looks;
+      let flames = 0, tails = 0;
+      for (let i = 0; i < 4 * 30; i++) {
+        live.simulate(1 / 30);
+        flames = Math.max(flames, looks.burnFlames?.on.size || 0);
+        tails = Math.max(tails, (looks.pools.fire || []).concat(P.bubbles.list.map((b) => b.m)).filter((m) => m?.userData.tail?.visible).length);
+      }
+      const boils = looks.parts.fire.slice(0, 3).every(([, m]) => m.customProgramCacheKey?.().startsWith('fireChurn'));
+      P.bubbles.reset();
+      const tailsLeft = (looks.pools.fire || []).filter((m) => m.userData.tail?.visible).length;
+      const gone = (!looks.burnFlames || looks.burnFlames.on.size === 0) && tailsLeft === 0;
+      const play = G().run.bubbles.looks, plain = !play.fx.showcase && play.parts.fire.every(([, m]) => !m.onBeforeCompile || m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) && !play.burnFlames;
+      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, tailsLeft, boils, gone, plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
 story('types/pick-stage-films-through-bloom', {
   about: 'The centre card films its attack on a stage (pick-stage.js) into its own picture: through bloom on Medium graphics, without it on Low; its first frame builds no shader (they were all built ahead, the bloom and the pass to the screen too); the stage keeps one set of lights whatever the type (only their colours change), so going to another type and back builds no shader; the stage\'s pictures are freed when the screen closes; the room behind the screen is not drawn while it is open; Reduce effects keeps the still portrait.',
   setup() {},
@@ -658,6 +687,30 @@ story('types/pick-side-card-bubbles', {
       for (let k = 0; k < before.length; k += 16) changed += Math.abs(before[k] - after[k]) > 6;
       const moves = changed / (before.length / 16) > 0.02;
       return ok(lit && moves, { lit, moves, changed: Math.round(1000 * changed / (before.length / 16)) / 1000 });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-side-card-toxic', {
+  about: 'Poison\'s card (aura="toxic", pick-auras/toxic.js) is painted by its shader, with no 2D drawing left: goo lines the top of the card\'s glass and pools along its bottom, sickly green, with the murky water darker between.',
+  setup() {},
+  async play() {
+    const { picker } = G(), back = asPlayer(true), P = picker.painter;
+    let t = picker.last;
+    const tick = () => picker.tick(t += 50);
+    try {
+      pressPlay('poison');
+      stub(picker, 'live', null);   // no live centre card: the Poison card shows its element in the centre
+      stub(picker, 'calm', () => false);
+      const card = picker.auras[picker.ids.indexOf('poison')];
+      for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic') && !AURAS.toxic;
+      picker.auraAt = -1; tick();
+      // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
+      const S = card.width, ctx = card.getContext('2d');
+      const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
+      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
+      return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

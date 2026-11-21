@@ -25,8 +25,9 @@ import * as flames from './pick-auras/flames.js';
 import * as frost from './pick-auras/frost.js';
 import * as sparks from './pick-auras/sparks.js';
 import * as gust from './pick-auras/gust.js';
+import * as toxic from './pick-auras/toxic.js';
 
-export const SHADERS = { flames, sparks, frost, gust, bubbles };
+export const SHADERS = { flames, sparks, frost, gust, bubbles, toxic };
 
 const TAU = Math.PI * 2;
 const fract = (x) => x - Math.floor(x);
@@ -48,13 +49,6 @@ function halo(ctx, S, col, a) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
 }
 
-// light rising off the bottom of the card
-function floorGlow(ctx, S, col, a, high = 0.34) {
-  const g = ctx.createLinearGradient(0, S, 0, S * (1 - high));
-  g.addColorStop(0, rgba(col, 0.55 * a)); g.addColorStop(1, rgba(col, 0));
-  ctx.fillStyle = g; ctx.fillRect(0, S * (1 - high), S, S * high);
-}
-
 function dot(ctx, x, y, r, fill) { ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
 
 // a mark that rises up one side of the jelly: [x, y, life 0-1]
@@ -65,20 +59,6 @@ function riser(S, i, t, speed) {
 }
 
 export const AURAS = {
-  // Poison: a green mist pooled at the bottom, toxic bubbles rising out of it and popping
-  toxic(ctx, S, t, col, a) {
-    halo(ctx, S, col, a * 0.55);
-    floorGlow(ctx, S, col, a * 0.9, 0.42);
-    ctx.lineWidth = S * 0.01;
-    for (let i = 0; i < 14; i++) {
-      const [x, y, life] = riser(S, i + 60, t, 0.3), r = S * (0.02 + 0.035 * rnd(i, 5)) * (0.5 + life * 0.7);
-      const pop = life > 0.88, fade = (pop ? (1 - life) * 8 : Math.min(1, life * 5)) * a;
-      ctx.fillStyle = rgba(col, 0.35 * fade); ctx.strokeStyle = rgba(col, 0.95 * fade);
-      ctx.beginPath(); ctx.arc(x, y, pop ? r * (1 + (life - 0.88) * 6) : r, 0, TAU); pop ? ctx.stroke() : (ctx.fill(), ctx.stroke());
-      if (!pop) dot(ctx, x - r * 0.3, y - r * 0.35, r * 0.22, rgba('#eaffdc', 0.8 * fade));
-    }
-  },
-
   // Glitter: rainbow stars winking on and off round the jelly
   glitter(ctx, S, t, col, a) {
     halo(ctx, S, col, a * 0.55);

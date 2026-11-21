@@ -647,7 +647,7 @@ export class Bubbles {
       if (was && mods.refreshAll.includes('burning')) this.refreshBurns(e);   // refresh-all (Flare Up)
       if (!was) this.enemies.freshBurn = e;   // this hit lit it: status-damage doesn't count it as a hit on a Burning bug
       b.stopFireAudio?.();
-      this.looks.fireHit(c, b.r, b.vel);
+      this.looks.fireHit(c, b.r, b.vel, this.fx.showcase ? this.enemies.floorBelow(c, c.y - e.r) : undefined);
       sfx.fire(b.fireWeight);
     }
     if (el.has('ice') && !e.proxy) {
@@ -792,6 +792,7 @@ export class Bubbles {
       }
       if (f.t <= 0) this.burning.delete(e);
     }
+    if (this.fx.showcase) this.looks.burnShow(this.burning, E, this.clock);   // (the pick screen's stage: real flames on a burning bug)
     this.poisonTick(dt, mods);
     if (this.gilded.length) this.gildTick(dt);
     for (const p of this.puddles) {
