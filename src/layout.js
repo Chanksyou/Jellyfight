@@ -545,7 +545,7 @@ export class LayoutEditor {
         if (!p) return;
         const it = this.sel;
         it.node.position.copy(p).y += it.end === 'at' ? 0.003 : 0.018;
-        it.node.updateMatrixWorld(true);
+        markMoved(it.node);
         this.setVent(it.vi, this.ventFromHandles(it));
         g.moved = true;
         this.refresh();
@@ -553,7 +553,7 @@ export class LayoutEditor {
         const n = this.sel.node, p = this.surfaceHit(e, { exclude: n, up: true });
         if (!p) return;
         n.position.copy(n.parent.worldToLocal(new THREE.Vector3(p.x + g.stick.dx, p.y + g.stick.dy, p.z + g.stick.dz)));
-        n.updateMatrixWorld(true);
+        markMoved(n);
         g.moved = true;
         this.refresh();
       } else if (g.move) {
