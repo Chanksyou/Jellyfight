@@ -13,6 +13,7 @@ import { knockFor } from './stats.js';
 import { HouseGadgets } from './house-gadgets.js';
 import { glowPool } from './treasure-glow.js';
 import { TreasureProps } from './treasure-props.js';
+import { TreasureCompanions } from './treasure-companions.js';
 
 const _white = new THREE.Color(1, 1, 1), _to = new THREE.Vector3(), _up = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
 
@@ -29,6 +30,7 @@ export class Gadgets {
     this.looks = new GadgetLooks(fx);
     this.props = new TreasureProps();   // the bodies Treasures show, built here and warmed up front
     this.brickPool = []; this.marblePool = [];
+    this.companions = new TreasureCompanions(this);   // Fairy Lights' wire, the Magnifying Glass's lens, the Disco Ball's dots (treasure-companions.js)
 
     const glow = (color, k = 1.6) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
     // Fairy Lights: three warm bulbs that circle you
@@ -151,6 +153,7 @@ export class Gadgets {
     this.beam.visible = this.aura.visible = false;
     this.auraCharge = 0; this.auraPulse = 1;
     this.props.reset();
+    this.companions.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
     this.house?.reset();
     this.lampPool.forEach((g) => { g.visible = false; });
@@ -279,6 +282,7 @@ export class Gadgets {
     this.lampPool[0].visible = this.bountyMark.visible = on;   // night-light and bounty shaders, compiled up front too
     this.house.warm(on, at);
     this.props.warm(on, at);
+    this.companions.warm(on);
     if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
     if (on) {
       this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at);
@@ -377,7 +381,7 @@ export class Gadgets {
     if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
-    if(!active){this.stick.visible=false;this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
+    if(!active){this.stick.visible=false;this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;this.companions.hide();return;}
     if(!this.mouseRun&&this.mouseAfter>0){
       const k=this.mouseAfter/LOOK.num('gadget-mouse-after',.24),z=this.mouseSize||1;
       this.mouse.scale.set(z*(1+.2*k),z*(1-.35*k),z*(1-.2*k));this.mouseNose.scale.set(1,1,.5);this.mouse.visible=true;
@@ -432,17 +436,19 @@ export class Gadgets {
       b.position.set(center.x + Math.cos(a) * O.radius, center.y + Math.sin(this.orbit * 2 + i) * 0.006, center.z + Math.sin(a) * O.radius);
       for (const e of this.near(b.position, 0.008)) {
         if ((e.fairyT || 0) > 0) continue;
-        e.fairyT = 0.4;
+        e.fairyT = 0.4;this.companions.pop(b);
         this.looks.contact(E.center(e),this.looks.color,.007);sfx.gadgetFairy();ctx.pulse?.(.06);
         bus.emit('damage_taken', { targetId: e.id, amount: power * O.dmg, color: '#ffe7a8', source: 'orbit-lights', feedback: { soft: true } });
       }
     });
     if (n) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
+    this.companions.fairy(n, center, dt);
 
     // beam: focused moonlight burns the nearest enemy
     this.beam.visible = false;
     this.focus.visible=false;this.focusKick=Math.max(0,this.focusKick-dt*8);
     const Bm = M.beam;
+    let ticked = false;
     if (Bm) {
       const e = this.near(center, Bm.range)[0];
       if (e) {
@@ -458,14 +464,15 @@ export class Gadgets {
         this.beam.scale.y=LOOK.num('gadget-focus-height',.22)/.5;
         this.beam.material.opacity = LOOK.num('gadget-focus-opacity',.12) + .02*Math.sin(this.orbit*3);
         if (this.every('beam', dt, Bm.tick)) {
-          this.focusKick=1;sfx.gadgetFocus();ctx.pulse?.(.08);
+          ticked=true;this.focusKick=1;sfx.gadgetFocus();ctx.pulse?.(.08);
           bus.emit('damage_taken', { targetId: e.id, amount: power * Bm.dmg, color: '#ffd27a', source: 'beam', feedback:{tick:true} });
           fx.impact(c, 0xfff0a0, Math.max(0.006, e.r * 0.7), 4);   // every burn shows where it lands
           if (Math.random() < 0.4) fx.puff(c, 0x8a8078, 0.006, 0.4);
         }
+        this.companions.magnify(center, c, e, this.focusAge, dt, ticked);
       }
     }
-    if(!this.focus.visible){this.focusTarget=null;this.focusAge=0;}
+    if(!this.focus.visible){this.focusTarget=null;this.focusAge=0;this.companions.magnify(center,null);}
 
     // aura: a soft glow around you that stings anything inside it
     const A = M.aura;
