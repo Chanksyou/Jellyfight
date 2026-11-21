@@ -14,8 +14,9 @@ export const HIDDEN = 31;          // the layer tracked meshes move to; the came
 const WHITE = new THREE.Color(1, 1, 1);
 
 // instanced copy of a per-instance material: multiplies the output alpha by an instance attribute
+// (a material with userData.soft also fades toward its silhouette: a soft puff, not a ball)
 function withInstanceOpacity(src) {
-  const m = src.clone(), hold = src.userData.holdout;
+  const m = src.clone(), hold = src.userData.holdout, soft = src.userData.soft;
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;')
@@ -23,13 +24,19 @@ function withInstanceOpacity(src) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vInstanceOpacity;')
       .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= vInstanceOpacity;' + (hold ? '\ngl_FragColor.a *= smoothstep(uHold.w, uHold.w * 1.6, distance(vHold, uHold.xyz));' : ''));
+    if (soft) {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFacing;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFacing = abs(dot(normalize(mat3(modelViewMatrix * instanceMatrix) * normal), normalize(-(modelViewMatrix * instanceMatrix * vec4(position, 1.0)).xyz)));');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFacing;')
+        .replace('gl_FragColor.a *= vInstanceOpacity;', `gl_FragColor.a *= vInstanceOpacity * smoothstep(0.0, ${soft.toFixed(2)}, vFacing);`);
+    }
     if (hold) {   // a material can keep a hole round one point (userData.holdout = { value: Vector4(x, y, z, radius) }): the jelly shows through the smoke
       sh.uniforms.uHold = hold;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHold;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vHold; uniform vec4 uHold;');
     }
   };
-  m.customProgramCacheKey = () => (hold ? 'instanceOpacityHold' : 'instanceOpacity');
+  m.customProgramCacheKey = () => (hold ? 'instanceOpacityHold' : 'instanceOpacity') + (soft ? `Soft${soft}` : '');
   m.transparent = true;
   return m;
 }

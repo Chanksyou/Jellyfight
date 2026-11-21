@@ -7,7 +7,7 @@ import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
 import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
-import { AURAS, SHADERS } from '../pick-aura.js';
+import { SHADERS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
@@ -434,7 +434,7 @@ story('types/pick-screen-centre-card-attacks', {
 });
 
 story('types/pick-stage-ice', {
-  about: 'On the centre card the Ice jelly\'s shards Chill the roaches (attack-preview.js reads status_applied), and a Chilled roach shows it: rime glints and cold breath (fx glow); its shards stay solid ice (not see-through) and the water behind takes a cold blue grade (--preview-grade-ice), which Fire\'s does not.',
+  about: 'On the centre card the Ice jelly\'s shards Chill the roaches (attack-preview.js reads status_applied), and a Chilled roach shows it: rime glints and cold breath (fx glow); its shards stay solid ice (not see-through) and the water behind takes a cold blue grade (--preview-grade-ice), and Fire\'s a warm one.',
   setup() {},
   play() {
     const { picker } = G(), live = picker.live, back = asPlayer(true);
@@ -452,14 +452,14 @@ story('types/pick-stage-ice', {
       const solid = !P.fx.ice.shards.material.transparent;
       const grade = P.stage.back.material.uniforms.uGrade.value.clone(), cold = grade.b > grade.r + 0.2;
       picker.go(picker.ids.indexOf('fire')); picker.pos = picker.target; settle();
-      const plain = P.stage.back.material.uniforms.uGrade.value.equals(new THREE.Color(1, 1, 1));
-      return ok(shown && solid && cold && plain, { chilled, frames: chills.length, solid, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });
+      const fire = P.stage.back.material.uniforms.uGrade.value, warm = fire.r > fire.b + 0.2;
+      return ok(shown && solid && cold && warm, { chilled, frames: chills.length, solid, grade: grade.toArray().map((v) => +v.toFixed(2)), warm });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 
 story('types/pick-stage-fire', {
-  about: 'On the centre card (fx.showcase) the Fire jelly\'s fireballs boil (their parts\' materials churn) and trail a flame tail, and a burning roach wears real flames (fire-looks.js BurnFlames: one quad each, gone when it stops burning); in play the same parts keep their plain materials and no flames are added.',
+  about: 'On the centre card (fx.showcase) the Fire jelly\'s fireballs boil (their parts\' materials churn, each fireball out of step with the others) and trail a flame tail, and a burning roach wears real flames (fire-looks.js BurnFlames: one quad each, gone when it stops burning); in play the same parts keep their plain materials and no flames are added.',
   setup() {},
   play() {
     const { picker } = G(), live = picker.live, back = asPlayer(true);
@@ -478,11 +478,39 @@ story('types/pick-stage-fire', {
         tails = Math.max(tails, (looks.pools.fire || []).concat(P.bubbles.list.map((b) => b.m)).filter((m) => m?.userData.tail?.visible).length);
       }
       const boils = looks.parts.fire.slice(0, 3).every(([, m]) => m.customProgramCacheKey?.().startsWith('fireChurn'));
+      // each fireball boils on its own: the noise is offset by where it is (not in step with the others)
+      const sh = { uniforms: {}, vertexShader: '#include <common>\n#include <begin_vertex>', fragmentShader: '#include <common>\n#include <opaque_fragment>' };
+      looks.parts.fire[0][1].onBeforeCompile(sh);
+      const ownBoil = sh.vertexShader.includes('instanceMatrix[3].xyz');
       P.bubbles.reset();
       const tailsLeft = (looks.pools.fire || []).filter((m) => m.userData.tail?.visible).length;
       const gone = (!looks.burnFlames || looks.burnFlames.on.size === 0) && tailsLeft === 0;
       const play = G().run.bubbles.looks, plain = !play.fx.showcase && play.parts.fire.every(([, m]) => !m.onBeforeCompile || m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) && !play.burnFlames;
-      return ok(flames >= 1 && tails >= 1 && boils && gone && plain, { flames, tails, tailsLeft, boils, gone, plain });
+      return ok(flames >= 1 && tails >= 1 && boils && ownBoil && gone && plain, { flames, tails, tailsLeft, boils, ownBoil, gone, plain });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
+  },
+});
+
+story('types/pick-stage-roaches-keep-their-brown', {
+  about: 'On the centre card the stand-in roaches wear the stage\'s own shell (less of the glow, warm rim and water sheen that wash a bug out to near white under the stage lights), the stage\'s puffs fade to their edges (gas, not balls), and its Glitter pool holds two crit bursts whole; in play the roach shell, the puffs and the 420-flake pool are as they were.',
+  setup() {},
+  play() {
+    const { picker } = G(), live = picker.live, back = asPlayer(true);
+    try {
+      pressPlay('glitter');   // (fresh() takes back stubs: these come after it)
+      stub(live, 'draw', () => {});
+      stub(live.renderer, 'compileAsync', () => Promise.resolve());
+      stub(picker, 'portrait', () => '');
+      picker.tick(picker.last + 16);
+      const P = live.P, game = G().run.bubbles.looks.fx;
+      const shells = new Set();
+      for (const b of P.enemies.list) { let first = null; b.mesh.traverse((o) => { if (o.isMesh) first ||= o.material; }); shells.add(first); }   // (its body's material, as roach() swaps it)
+      const shell = [...shells][0], stage = shells.size === 1 && shell.envMapIntensity < 1 && shell.customProgramCacheKey().startsWith('standOut0.08');
+      const soft = P.fx.puffMat.userData.soft > 0 && !game.puffMat.userData.soft;
+      const at = new THREE.Vector3(0.1, 0.05, 0), n = 420;
+      P.fx.glitter.clear(); P.fx.glitter.cloud(at, n, 0.1, 0); P.fx.glitter.cloud(at, n, 0.1, 0);
+      const whole = P.fx.glitter.live === 2 * n, pool = game.glitter.count === 420;
+      return ok(stage && soft && whole && pool, { stage, key: shell?.customProgramCacheKey(), soft, live: P.fx.glitter.live, pool });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
@@ -616,7 +644,7 @@ story('types/pick-side-card-frost', {
       stub(picker, 'calm', () => false);
       const ice = picker.auras[picker.ids.indexOf('ice')];
       for (let i = 0; i < 400 && !ice.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost') && !AURAS.frost;
+      const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost');
       picker.auraAt = -1; tick();
       // (a few small reads of the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
       const S = ice.width, ctx = ice.getContext('2d');
@@ -640,7 +668,7 @@ story('types/pick-side-card-gust', {
       stub(picker, 'calm', () => false);
       const wind = picker.auras[picker.ids.indexOf('wind')];
       for (let i = 0; i < 400 && !wind.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = wind.classList.contains('lit') && P.built.gust === true && P.has('gust') && !AURAS.gust;
+      const lit = wind.classList.contains('lit') && P.built.gust === true && P.has('gust');
       picker.auraAt = -1; tick();
       // (a few small reads of the card's own 2D canvas, once: the jelly's middle is lit, the corners dark water)
       const S = wind.width, ctx = wind.getContext('2d');
@@ -664,7 +692,7 @@ story('types/pick-side-card-bubbles', {
       stub(picker, 'calm', () => false);
       const card = picker.auras[picker.ids.indexOf('normal')];
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = card.classList.contains('lit') && P.built.bubbles === true && P.has('bubbles') && !AURAS.bubbles;
+      const lit = card.classList.contains('lit') && P.built.bubbles === true && P.has('bubbles');
       // (a few small reads of the card's own 2D canvas, once: the same patch of it a few frames on)
       const S = card.width, ctx = card.getContext('2d');
       const grab = () => ctx.getImageData(0, 0, S, S).data;
@@ -692,7 +720,7 @@ story('types/pick-side-card-toxic', {
       stub(picker, 'calm', () => false);
       const card = picker.auras[picker.ids.indexOf('poison')];
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic') && !AURAS.toxic;
+      const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic');
       picker.auraAt = -1; tick();
       // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
       const S = card.width, ctx = card.getContext('2d');
@@ -716,7 +744,7 @@ story('types/pick-side-card-sting', {
       stub(picker, 'calm', () => false);
       const card = picker.auras[picker.ids.indexOf('tentacle')];
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting') && !AURAS.sting;
+      const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting');
       picker.auraAt = -1; tick();
       // (one small read of the card's own 2D canvas: the dusk in its top left corner, violet where Ice's water is teal)
       const S = card.width, d = card.getContext('2d').getImageData(0, 0, Math.ceil(S * 0.1), Math.ceil(S * 0.1)).data;
@@ -740,7 +768,7 @@ story('types/pick-side-card-glitter', {
       stub(picker, 'calm', () => false);
       const card = picker.auras[picker.ids.indexOf('glitter')];
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = card.classList.contains('lit') && P.built.glitter === true && P.has('glitter') && !AURAS.glitter;
+      const lit = card.classList.contains('lit') && P.built.glitter === true && P.has('glitter');
       picker.auraAt = -1; tick();
       // (a few small reads of the card's own 2D canvas: some pixel bright over the open water, the card changing from frame to frame)
       const S = card.width, ctx = card.getContext('2d');

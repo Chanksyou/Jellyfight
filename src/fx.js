@@ -18,7 +18,7 @@ const NUMBER_ACCENTS = { fire: '· ˙', ice: '◇ ·', lightning: 'ϟ', acid: '�
 
 const SMOKE_BLACK = new THREE.Color('#0a0807');   // shortcut: not in look.css; the smoke is plain black, its warm ember is smoke-ember
 export class Fx {
-  constructor(scene, camera) {
+  constructor(scene, camera, { showcase = false } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.layer = document.createElement('div');
@@ -28,10 +28,10 @@ export class Fx {
     this.numberClock = 0; this.numberSerial = 0;
     this.hitsThisFrame = 0; this.hitBudget = LOOK.num('fx-hits-per-frame', 8);
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    // The pick screen's centre card (attack-preview.js) is the only Fx that sets this. An effect may read
+    // The pick screen's centre card (attack-preview.js) is the only Fx made with this. An effect may read
     // it (as this.fx.showcase from Bubbles, Lash and their looks) to emit more or use a richer material
     // there; in play it stays false and an effect keeps today's budget: no added draws, lights or programs.
-    this.showcase = false;
+    this.showcase = showcase;
     this.numberLook = {
       cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
       hitWindow: LOOK.num('number-hit-window', 0.3),
@@ -49,7 +49,7 @@ export class Fx {
     this.chunks = [];
     this.fireCorpses = [];
     this.ice = new IceLooks(scene);   // the ice Element's shards and frost flowers (ice-looks.js)
-    this.glitter = new GlitterLooks(scene, camera);   // the glitter Element's flakes (glitter-looks.js)
+    this.glitter = new GlitterLooks(scene, camera, showcase ? LOOK.num('glitter-showcase-pool', 1000) : undefined);   // the glitter Element's flakes (glitter-looks.js; the stage's fuller bursts need a bigger pool)
     this.acid = new AcidLooks(scene, this);           // the acid Element's drops and melting bugs (acid-looks.js)
     this.wind = new WindLooks(scene, this);           // the wind Element's streaks, dust and blown-away bugs (wind-looks.js)
     this.deaths = new DeathRemains(scene);
@@ -62,6 +62,7 @@ export class Fx {
     // along as userData.color / userData.opacity
     const per = (m) => { m.userData.perInstance = true; return m; };
     this.puffMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+    if (showcase) this.puffMat.userData.soft = LOOK.num('puff-showcase-soft', 0.8);   // (the pick screen's stage: puffs fade to their edges, gas not balls)
     this.smokeMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
     this.smokeMat.userData.holdout = { value: new THREE.Vector4(0, -99, 0, 0.08) };   // the jelly's middle: no smoke over it (enemies.js sets it each frame)
     this.smokeMat.userData.renderOrder = 1;   // over bugs, XP and pools, under the jelly (2) and every Warning (3, 4)

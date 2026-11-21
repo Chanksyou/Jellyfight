@@ -80,7 +80,7 @@ vec3 scene(vec2 uv, float t, float s) {
 }
 
 vec3 paint(vec2 uv) {
-  float t = uTime, s = uStrength;
+  float t = uTime + 1.3, s = uStrength;   // (so Reduce effects' one frozen frame has no near bubble over the face)
   vec3 cold = uRamp[2];
   vec3 c = scene(uv, t, s);
   vec2 off; float cover; vec3 add;

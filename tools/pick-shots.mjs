@@ -8,6 +8,8 @@
 //   node tools/pick-shots.mjs --phone | --desktop | --wide    one size
 //   node tools/pick-shots.mjs --side              side cards only (skips the slow live centre card)
 //   node tools/pick-shots.mjs --out=DIR           somewhere else
+//   node tools/pick-shots.mjs --color=#f2f2f2     the player's jelly that colour (a pale look, say)
+//   node tools/pick-shots.mjs --low | --calm       on Low graphics | with Reduce effects on (the cards' one still frame)
 //
 // Uses the test runner's Playwright and three.js (tests/lib.mjs). In a software renderer the first
 // picture of each kind takes a while (its shaders build): give it a few minutes.
@@ -17,7 +19,7 @@ import { start, openGame, ROOT } from '../tests/lib.mjs';
 
 const args = process.argv.slice(2), arg = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const only = arg('only')?.split(',').filter(Boolean);
-const sideOnly = args.includes('--side');
+const sideOnly = args.includes('--side'), color = arg('color'), low = args.includes('--low'), calm = args.includes('--calm');
 const out = path.resolve(arg('out') || path.join(ROOT, '.wrangler/pick-shots'));
 const SIZES = [
   { name: 'phone', opts: { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
@@ -33,13 +35,18 @@ try {
   for (const device of DEVICES) {
     const { page, errors } = await openGame(env, device.opts);
     await page.evaluate(() => APT.renderer.setAnimationLoop(null));   // only the pick screen draws
-    const ids = await page.evaluate(async () => {
-      const { asPlayer, fresh } = await import('/src/stories/kit.js');
+    const ids = await page.evaluate(async ({ color, low, calm }) => {
+      const { asPlayer, fresh, G } = await import('/src/stories/kit.js');
       asPlayer(true);   // every type open
       fresh({ types: 'normal' });
-      window.mainMenu.home = true; window.picker.close(); window.GAME.startRun();
+      const gfx = G().gfx;
+      if (low && gfx.quality !== 'low') { gfx.setQuality('low'); await gfx.ready; }
+      if (calm) window.picker.calm = () => true;
+      window.mainMenu.home = true; window.picker.close();
+      if (color) { const P = window.picker, own = P.look; P.look = () => ({ ...own(), color }); }
+      window.GAME.startRun();
       return window.picker.ids;
-    });
+    }, { color, low, calm });
     const unknown = (only || []).filter((n) => !ids.includes(n));
     if (unknown.length) throw new Error(`no type called ${unknown.join(', ')} (have: ${ids.join(', ')})`);
     const shots = [];

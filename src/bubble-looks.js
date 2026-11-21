@@ -127,9 +127,9 @@ export class BubbleLooks {
     this.parts = {
       // (on the pick screen's stage, fx.showcase, its surface boils and its flames tear: fire-looks.js)
       fire: [
-        [ball, boil(lit(F.core), { scale: 2.2, flow: 2.5, dark: 0.35, hot: 1.7 }), { name: 'core', s: [0.8, 0.8, 1.05] }],
-        [ball, boil(lit(F.flame, 0.72, true), { scale: 1.6, flow: 4, dark: 0.6, tear: 0.7, hot: 1.4 }), { name: 'flame', s: [1.05, 1.05, F.length * 0.45], at: [0, 0, -0.7] }],
-        [tongue, boil(lit(F.edge, 0.4, true), { scale: 1.3, flow: 5, dark: 0.5, tear: 0.85, hot: 1.3 }), { name: 'flame2', s: [1.45, 1.45, F.length * 1.4] }],
+        [ball, boil(lit(F.core), 'core'), { name: 'core', s: [0.8, 0.8, 1.05] }],
+        [ball, boil(lit(F.flame, 0.72, true), 'flame'), { name: 'flame', s: [1.05, 1.05, F.length * 0.45], at: [0, 0, -0.7] }],
+        [tongue, boil(lit(F.edge, 0.4, true), 'edge'), { name: 'flame2', s: [1.45, 1.45, F.length * 1.4] }],
         [tongue, lit(F.core, 0.7, true), { name: 'tongue', s: [0.35, 0.35, F.length * 0.85], at: [0.45, 0.1, -0.2] }],
       ],
       lightning: [

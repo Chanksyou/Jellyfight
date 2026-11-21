@@ -14,6 +14,10 @@ float reach(float x, float tall) { float s = abs(x - 0.5) * 2.0; return tall * (
 
 // the fire at uv: x how much flame (> 0 inside, ~1 in its heart), y the fine noise inside it (veins)
 vec2 fireAt(vec2 uv, float t, float seed, float tall) {
+  // above where any flame can reach (the noise below can lift a tongue at most ~2.4 times its reach,
+  // and moves it < 0.07 across or up): none of the noise
+  float sMax = min(1.0, abs(uv.x - 0.5) * 2.0 + 0.18);
+  if (uv.y - 0.07 > 2.4 * tall * (0.13 + 0.62 * pow(sMax, 2.2))) return vec2(-1.0, 0.0);
   // the air rolls: the whole field is pushed about by slow noise rising with it
   vec2 p = uv * vec2(3.0, 1.8) - vec2(0.0, t * 1.1);
   vec2 w = vec2(fbm(p + seed, 3), fbm(p + vec2(5.2, 1.3) + seed, 3)) - 0.5;
@@ -71,8 +75,9 @@ vec3 paint(vec2 uv) {
   float facing = 0.65 + 0.35 * max(0.0, dot(j.zw, toward));
   float lit = clamp(light * facing * 1.6 + 0.3, 0.0, 0.9) * uStrength;
   float hi = max(p.r, max(p.g, p.b)), sat = (hi - min(p.r, min(p.g, p.b))) / max(hi, 1e-3);
-  float tinted = mix(0.05, 1.0, smoothstep(0.45, 0.7, sat));
-  lit *= tinted;                              // (white eyes and glints stay white, lit only a little)
+  float raw = dot(p.rgb, vec3(0.3, 0.5, 0.2));
+  float tinted = mix(0.75 * (1.0 - smoothstep(2.5, 4.0, raw)), 1.0, smoothstep(0.45, 0.7, sat));
+  lit *= tinted;                              // (a pale jelly still warms; its brightest whites, eyes and glints, stay white)
   vec3 jl = mix(p.rgb, lum * (0.3 + 1.1 * light * facing) * warm, lit);
   jl = mix(jl, lum * 0.45 * warm, (1.0 - max(j.x, smoothstep(0.3, 0.9, p.a))) * 0.85 * uStrength);   // its glow round it, warmed (not its eyes)
   c = c * (1.0 - min(p.a, j.x)) + jl;
