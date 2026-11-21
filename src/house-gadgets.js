@@ -173,7 +173,7 @@ export class HouseGadgets {
       const u = p.disc.material.uniforms, rip = u.uRipple.value;
       if (!quiet) u.uTime.value += dt;
       if (rip.z >= 0) rip.z = rip.z + dt > 0.6 ? -1 : rip.z + dt;
-      if (p.cube.visible && grow >= 1) fx.ice.shatter(_a.copy(p.cube.position).setY(p.cube.position.y + 0.004), quiet ? 3 : 6, 0.003, 0.25, p.cube.position.y);   // the last of the cube cracks apart
+      if (p.cube.visible && grow >= 1 && !fx.low()) fx.ice.shatter(_a.copy(p.cube.position).setY(p.cube.position.y + 0.004), quiet ? 3 : 6, 0.003, 0.25, p.cube.position.y);   // the last of the cube cracks apart
       p.cube.visible = grow < 1; p.cube.scale.set(1 - grow * 0.8, 1 - grow, 1 - grow * 0.8);
       p.disc.scale.multiplyScalar(Math.max(0.001, fade));
       const at = p.disc.position;

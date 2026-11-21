@@ -25,8 +25,8 @@ story('treasure-glow/every-pool-shares-one-program', {
 });
 
 story('treasure-glow/soft-hits-same-damage', {
-  about: 'A soft hit (the aura\'s and Fairy Lights\' steady stings) deals exactly what a plain hit does, status-damage included (Thunderclap on a Stunned bug), but the bug doesn\'t flash white: a short glow in the hit\'s colour instead.',
-  setup() { ready('glowStick'); G().run.upgrades.push('thunderclap'); step(1); },
+  about: 'A soft hit (the aura\'s and Fairy Lights\' steady stings) deals exactly what a plain hit does, status-damage (Thunderclap on a Stunned bug) and fresh-damage (Rolling Pin) included, but the bug doesn\'t flash white: a short glow in the hit\'s colour instead.',
+  setup() { ready('glowStick', 'rollingPin'); G().run.upgrades.push('thunderclap'); step(1); },
   play() {
     const { fx } = G(), a = roachAt(0.2, 0), b = roachAt(-0.2, 0), log = record('enemy_hit');
     for (const e of [a, b]) bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: 2 });
@@ -35,7 +35,7 @@ story('treasure-glow/soft-hits-same-damage', {
     const soft = { dmg: log[0]?.amount, flash: a.flashT || 0, glow: fx.glow.parts.length - glows };
     bus.emit('damage_taken', { targetId: b.id, amount: 1, color: '#8aff9f', source: 'aura' });
     const plain = { dmg: log[1]?.amount, flash: b.flashT || 0 };
-    return ok(soft.dmg === plain.dmg && soft.dmg > 1.4 && soft.flash === 0 && plain.flash > 0 && soft.glow === 1, { soft, plain });
+    return ok(soft.dmg === plain.dmg && soft.dmg > 2 && soft.flash === 0 && plain.flash > 0 && soft.glow === 1, { soft, plain });
   },
 });
 
@@ -72,7 +72,7 @@ story('treasure-glow/no-shader-when-each-fires', {
 });
 
 story('treasure-glow/quiet-holds-pools-still', {
-  about: 'With Reduce effects the pools hold still (their clocks stop, the dome doesn\'t flicker), the Night-Light sends up no motes and the aura no sparks; the sting\'s flash (information) stays. On Low there are no motes either.',
+  about: 'With Reduce effects the pools hold still (their clocks stop, the dome doesn\'t flicker), the Night-Light sends up no motes and the aura no sparks or sting flash (no strobe; the bug\'s own glow still marks the hit). On Low there are no motes either.',
   setup() { ready('glowStick', 'nightLight'); },
   play() {
     const { run, fx, player } = G(), g = run.gadgets, u = g.aura.material.uniforms;
@@ -82,7 +82,7 @@ story('treasure-glow/quiet-holds-pools-still', {
     let flicker = false;
     for (let i = 0; i < 240; i++) { g.update(1 / 60, ctx(true)); flicker ||= L.g.userData.dome.userData.color.r < g.lampColor.r * 0.5; }
     const still = u.uTime.value === t0[0] && lu.uTime.value === t0[1], none = fx.glow.parts.length <= parts;
-    roachAt(0.03, 0); g.t.aura = 0; g.update(1 / 60, ctx(true)); const flash = u.uPulse.value >= 0;
+    roachAt(0.03, 0); g.t.aura = 0; g.update(1 / 60, ctx(true)); const flash = u.uPulse.value === -1;
     stub(fx, 'reducedMotion', { matches: false }); stub(fx, 'low', () => true);
     const parts2 = fx.glow.parts.length; L.mote = 0; g.tickLights(1, run.mods, player.position);
     const lowNone = fx.glow.parts.length === parts2;

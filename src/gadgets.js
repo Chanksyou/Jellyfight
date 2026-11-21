@@ -482,7 +482,7 @@ export class Gadgets {
       this.auraPulse += dt;
       if (this.every('aura', dt, A.tick)) {
         const stung = this.near(center, r);
-        if (stung.length) this.auraPulse = 0;   // the sting: the whole glow flashes at once (it hits everything inside together)
+        if (stung.length && !quiet) this.auraPulse = 0;   // the sting: the whole glow flashes at once (it hits everything inside together); never a strobe when quiet
         for (const e of stung) {this.looks.contact(E.center(e),this.stickColor,.005);sfx.gadgetAura(k);bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg * r / A.radius, color: '#8aff9f', source: 'aura', feedback: { soft: true } });}
       }
       u.uPulse.value = this.auraPulse < 0.25 ? this.auraPulse / 0.25 : -1;

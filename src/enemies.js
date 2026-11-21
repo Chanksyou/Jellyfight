@@ -497,7 +497,7 @@ export class Enemies {
     // flashes white for a moment, then can't again for a beat: under steady fire a big bug blinks with
     // the hits instead of staying a solid white shape
     // (a soft hit, a Treasure's steady sting: no white flash, so a crowd under it doesn't strobe; a short glow in the hit's colour round the bug instead)
-    if (feedback.soft) this.fx.glow.emit(this.center(e, SOFT_AT), SOFT[color] ||= new THREE.Color(color), e.r * 2, e.r * 2.6, LOOK.num('soft-hit-life', 0.14), LOOK.num('soft-hit-glow', 0.3));
+    if (feedback.soft) this.fx.glow.emit(this.center(e, SOFT_AT), SOFT[color] ||= new THREE.Color(color), (e.r || 0.03) * 2, (e.r || 0.03) * 2.6, LOOK.num('soft-hit-life', 0.14), LOOK.num('soft-hit-glow', 0.3));
     else if (!(e.flashCd > 0)) { e.flashT = LOOK.num('hit-flash', 0.07); e.flashCd = LOOK.num('hit-flash-gap', 0.2); }
     bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound, feedback });
     const X = this.mods?.execute;
