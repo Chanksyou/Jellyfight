@@ -41,7 +41,7 @@ export class LightSlots {
       if (!o.isPointLight || !o.userData.lamp || known.has(o)) return;
       o.visible = false;
       this.lamps.push({ light: o, w: 0, slot: null, score: 0, on: false });
-    this.since = Infinity;                // a new lamp: rank again next frame
+      this.since = Infinity;                // a new lamp: rank again next frame
     });
   }
 
@@ -102,6 +102,6 @@ export class LightSlots {
   dispose() {
     for (const s of this.slots) this.scene.remove(s.light);
     for (const l of this.lamps) l.light.visible = true;
-    this.slots = []; this.lamps = [];
+    this.slots = []; this.lamps = []; this.want = [];
   }
 }
