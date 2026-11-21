@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { World } from '../collision.js';
 import { hostile } from '../vfx.js';
 import { Batcher } from '../batch.js';
-import { G, V, act2, fresh, give, ok, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
+import { G, V, act2, fresh, give, near, ok, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
 
 story('collision/scenery-grid-refreshes-before-focus-early-return', {
   about: 'A static apartment prop crossing cells is reindexed on the next focus tick even while the jelly stands still; newly loaded scenery joins immediately.',
@@ -322,3 +322,94 @@ story('engine/see-through-pieces-draw-once', { about: ABOUT, setup() {}, play: d
 story('engine/see-through-pieces-draw-once-act3', { act: 3, about: ABOUT, setup() {}, play: draw('act3', /^Sheer_curtain/) });
 story('engine/see-through-pieces-draw-once-act4', { act: 4, about: ABOUT, setup() {}, play: draw('night4', /^$/) });
 story('engine/see-through-pieces-draw-once-arena', { act: 4, scene: 2, about: ABOUT, setup() {}, play: draw('arena', /^$/) });
+
+// C4 (phone perf): a far or off-screen bug that's only walking sweeps on alternate frames with both frames' time
+// walk a Cockroach from 2.2 m off for `secs` at `fps`; lazy: false makes it sweep every frame (its attack words reach that far)
+// open floor 2.2 m from the jelly, with nothing in the way: where a far bug walks in from
+function openFloor() {
+  const { world, player } = G(), P = player.position, eye = V(P.x, P.y + 0.02, P.z), dir = V();
+  for (let a = 0; a < 32; a++) {
+    dir.set(Math.cos(a / 32 * Math.PI * 2), 0, Math.sin(a / 32 * Math.PI * 2));
+    if (world.castAll(eye, dir, 2.5)) continue;
+    const at = eye.clone().addScaledVector(dir, 2.2), floor = world.castAll(at, V(0, -1, 0), 0.1);
+    if (floor) return at.setY(floor.point.y + 0.001);
+  }
+  return null;
+}
+function farWalk(fps, secs, lazy, at) {
+  const { enemies, GAME } = G();
+  const e = spawn('roach', at);
+  e.phase = 0;
+  if (!lazy) e.T = { ...e.T, reach: Infinity };
+  for (let i = 0; i < Math.round(fps / 3); i++) GAME.step(1 / fps);   // up to speed first (a third of a second)
+  const from = e.pos.clone().addScaledVector(e.vel, e.moveDt || 0).setY(0), was = enemies.moveGround;
+  let sweeps = 0;
+  enemies.moveGround = function (b, ...a) { if (b === e) sweeps++; return was.call(this, b, ...a); };
+  try { for (let i = 0; i < Math.round(secs * fps); i++) GAME.step(1 / fps); } finally { enemies.moveGround = was; }
+  // (a skipped frame's step is still to come: it's at most one frame behind, so count where that step takes it)
+  const k = e.moveDt || 0, r = { went: Math.hypot(e.pos.x + e.vel.x * k - from.x, e.pos.z + e.vel.z * k - from.z), behind: k, sweeps, frames: Math.round(secs * fps) };
+  enemies.kill(e, true);
+  return r;
+}
+for (const fps of [30, 60]) story(`engine/far-bugs-walk-as-far-on-alternate-sweeps-${fps}fps`, {
+  about: `At ${fps} fps a Cockroach walking 2 m off sweeps on alternate frames with both frames' time, and covers the same distance in the same time (within 1%) as one that sweeps every frame.`,
+  setup() { setupFight({ bubbles: false, lash: false, waves: false }); step(5); },
+  play() {
+    const at = openFloor();
+    if (!at) return ok(false, { error: 'no open floor 2.2 m off' });
+    const half = farWalk(fps, 1, true, at), every = farWalk(fps, 1, false, at);
+    const same = every.went > 0.2 && Math.abs(half.went - every.went) / every.went < 0.01;
+    return ok(same && half.behind <= 1 / fps + 1e-6 && every.sweeps === every.frames && half.sweeps <= Math.ceil(half.frames / 2) + 3, { half, every });
+  },
+});
+
+story('engine/far-bug-sweeping-alternate-frames-stays-behind-a-wall', {
+  about: 'A Cockroach on the far side of a wall from the jelly, too far to be drawn up close, walks into the wall on alternate frames with twice the step, and never comes through it.',
+  setup() { setupFight({ bubbles: false, lash: false, waves: false }); step(5); },
+  play() {
+    const { world, player, enemies, GAME } = G(), P = player.position, eye = V(P.x, P.y + 0.02, P.z);
+    // the first wall more than 1.6 m off, looking round the jelly
+    let wall = null, dir = V();
+    for (let a = 0; a < 32 && !wall; a++) {
+      dir.set(Math.cos(a / 32 * Math.PI * 2), 0, Math.sin(a / 32 * Math.PI * 2));
+      const h = world.castAll(eye, dir, 4);
+      if (h && h.distance > 1.7 && h.normal && Math.abs(h.normal.y) < 0.3) wall = h;
+    }
+    if (!wall) return ok(false, { error: 'no wall found' });
+    const at = wall.point.clone().addScaledVector(dir, 0.12).setY(P.y + 0.02);
+    const e = spawn('roach', at);
+    let sweeps = 0, frames = 0, through = false;
+    const was = enemies.moveGround;
+    enemies.moveGround = function (b, ...a) { if (b === e) sweeps++; return was.call(this, b, ...a); };
+    try {
+      for (; frames < 240; frames++) {
+        GAME.step(1 / 60);
+        if ((e.pos.x - wall.point.x) * dir.x + (e.pos.z - wall.point.z) * dir.z < -0.005) through = true;
+      }
+    } finally { enemies.moveGround = was; }
+    return ok(!through && !e.dead && sweeps < frames * 0.6, { wallAt: +wall.distance.toFixed(2), sweeps, frames, through });
+  },
+});
+
+story('engine/hidden-pieces-wait-to-be-placed-until-they-show', {
+  about: "A frame's matrix pass walks every bug's parts once (not again for its batch) and leaves a hidden pooled piece as it was; the frame it shows, it's drawn where it stands.",
+  setup() { setupFight({ bubbles: false, lash: false, waves: false }); step(2); },
+  play() {
+    const { APT, GAME } = G(), scene = APT.scene, e = roachAt(0.2, 0);
+    step(1);
+    const piece = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshBasicMaterial());
+    piece.visible = false; scene.add(piece);
+    GAME.render();
+    piece.position.set(1, 2, 3);
+    let bugPart = 0;
+    const part = e.mesh.children[0] || e.mesh, own = part.updateMatrixWorld;
+    part.updateMatrixWorld = function (f) { bugPart++; return own.call(this, f); };
+    try { GAME.render(); } finally { delete part.updateMatrixWorld; }
+    const waited = piece.matrixWorld.elements[12] === 0;
+    piece.visible = true;
+    GAME.render();
+    const placed = piece.matrixWorld.elements[12] === 1 && piece.matrixWorld.elements[13] === 2 && piece.matrixWorld.elements[14] === 3;
+    scene.remove(piece); piece.geometry.dispose(); piece.material.dispose();
+    return ok(bugPart === 1 && waited && placed, { bugPart, waited, placed });
+  },
+});

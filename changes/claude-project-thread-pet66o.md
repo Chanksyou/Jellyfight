@@ -1,0 +1,1 @@
+makes bug crowds cheaper on phones: a far or off-screen bug that's only walking moves on alternate frames with both frames' time (same distance, walls still hold), a frame works out each moving piece's place once instead of twice, hidden pooled effects wait until they show, and the collision world re-checks furniture only after it moves.
