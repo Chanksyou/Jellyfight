@@ -1,10 +1,11 @@
 // Stories: the phone bench (src/bench.js, index.html?bench). It plays this act's moments in real frames,
 // replays the busiest once per switch and ends on a results card, and leaves the game as it found it.
 // Here each moment is cut to a fraction of a second: these prove the bench works, not how fast anything is.
+import * as THREE from 'three';
 import { G, offs, ok, story } from './kit.js';
 import { runBench, showResults, sendable } from '../bench.js';
 import { MOMENTS } from '../bench-moments.js';
-import { readExperiments, experimentQuery } from '../experiments.js';
+import { EXPERIMENTS, readExperiments, experimentQuery } from '../experiments.js';
 import { LOOK } from '../look.js';
 
 const SHORT = { settle: 0.05, secs: 0.25 };
@@ -80,5 +81,33 @@ story('bench/experiment-switches-read-once', {
     const res = await runBench({ ...SHORT, only: ['quiet room'], switches: [] });
     return ok(absent && kept && ignored && slots === LOOK.num('phone-lights', 6) && res.env.lights === slots && res.env.experiments === '',
       { absent, kept, ignored, slots, env: res.env.lights, words: res.env.experiments });
+  },
+});
+
+story('bench/packed-buffers-fall-back', {
+  phone: true,
+  about: 'With ?rt=packed the picture buffers and the bloom chain are R11G11B10 (32 bits a pixel instead of 64), built without a new shader in play; if the GPU can\'t draw to that format the half-float buffers stay; without the option nothing changes.',
+  setup() {},
+  play() {
+    const gfx = G().gfx, R = G().APT.renderer, canPack = gfx.canPack;
+    const types = () => [gfx.composer.renderTarget1.texture.type, gfx.composer.renderTarget2.texture.type, ...gfx.bloom.down.map((t) => t.texture.type)];
+    const all = (t) => types().every((x) => x === t);
+    offs.push(() => { EXPERIMENTS.rt = null; gfx.canPack = canPack; gfx.build(); });
+    const HALF = THREE.HalfFloatType, PACKED = THREE.UnsignedInt101111Type;
+    gfx.build();
+    const plain = all(HALF) && gfx.bufferType === HALF;
+    EXPERIMENTS.rt = 'packed';
+    const supported = canPack.call(gfx);
+    gfx.build();
+    gfx.render();
+    const programs = R.info.programs.length;
+    gfx.render();
+    const steady = R.info.programs.length === programs;
+    const packed = supported && all(PACKED) && gfx.composer.renderTarget1.texture.format === THREE.RGBFormat;   // SwiftShader draws to it
+    gfx.canPack = () => false;   // a GPU that fails the check
+    gfx.build();
+    gfx.render();
+    const fellBack = all(HALF) && gfx.bufferType === HALF;
+    return ok(plain && packed && steady && fellBack, { plain, supported, packed, steady, fellBack, types: types() });
   },
 });
