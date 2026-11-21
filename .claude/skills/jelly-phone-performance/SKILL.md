@@ -38,7 +38,7 @@ Use the smallest relevant evidence source already available:
 
 - **The bench** (`src/bench.js`, moments in `src/bench-moments.js`): `index.html?bench` for act 1,
   `?bench&act=3`, `?bench&act=4`, and `?bench&act=4&scene=2` for the Encore arena. One tap on Start
-  (about 2 minutes for act 1). Each busiest moment gets a 2 s settle and 8 s of measured frames, then
+  (a few minutes per act; the screen shows the time left). Each busiest moment gets a 2 s settle and 8 s of measured frames, then
   again under each switch: bloom off, pixel ratio 1.0, lamps off, AO off, Low. The bench draws its own
   frames, so the pacer and governor don't see them. Results can be copied, or sent to `perf_reports`
   (no player id, one per address every 30 s). Story pages never send.
@@ -49,14 +49,14 @@ Use the smallest relevant evidence source already available:
 - **The headless tool**: `node tools/perf-phone.mjs`. Useful flags: `--tiers=medium,low`,
   `--only=act1,act3,night4,arena`, `--profile` (top 30 functions and time by file),
   `--overdraw` (layers per pixel and the heaviest see-through stacks), `--json=out.json`,
-  `--frames=N`, `--throttle=N` (CPU slowdown, 4 by default). A medium page takes about 6 minutes.
+  `--frames=N`, `--throttle=N` (CPU slowdown, 4 by default). A full run takes several minutes per page and tier.
 - **Real play**: each act summary carries `details.perf` and `details.settings` (`src/field-perf.js`).
   Read them with the queries in `docs/agents/run-data.md`.
 
 Everything the headless tool reports is headless Chromium with SwiftShader at 4x CPU slowdown.
 Draw calls, triangles, programs, lights and uploads are real counts. Times only rank costs. Never
-report a phone's frame rate, heat or GPU time from them. The bench's GPU timer has never run, and
-iPhones never offer it.
+report a phone's frame rate, heat or GPU time from them. The bench records whether GPU time was
+offered on each run (`gpuTime` in its environment: "offered" or "not offered"); check that field before reporting GPU numbers.
 
 Budgets and rules that the code now relies on:
 
