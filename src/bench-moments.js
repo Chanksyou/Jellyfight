@@ -32,6 +32,16 @@ export const MOMENTS = {
       const e = c.G.run.elites.list.find((x) => x.kind === 'controller'); e.hp = e.maxHp * 0.5;
     },
     'Vacuum fight': (c) => { c.K.startVacuum('spin'); immortal(c); },
+    // the jelly holding the 13 Treasures the Treasure juice plan dressed up, in a 14-bug crowd, two Night-Lights plugged in
+    'treasure storm': (c) => {
+      const { K, G } = c;
+      K.fresh({ elites: false }); immortal(c);
+      K.give('glowStick', 'bloodyFangs', 'newtonsCradle', 'snooze', 'rubberDuck', 'cactus', 'guitarPick', 'fairyLights', 'magnifier', 'discoBall', 'bathSalt', 'nightLight', 'iceCube');
+      crowd(c, ['roach', 'ants', 'mosquito', 'lanternfly']);
+      const P = G.player.position;
+      for (const dx of [-0.15, 0.15]) G.run.gadgets.plugIn(P.clone().setX(P.x + dx), G.run.mods.nightLight);
+      K.step(120);
+    },
   },
   act3: {
     'bugs + Alligator angry': (c) => { c.K.startCroc(0, { angry: true }); immortal(c); crowd(c, ['dragonfly', 'mantis', 'beetle']); },

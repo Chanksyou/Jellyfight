@@ -90,7 +90,7 @@ export class Batcher {
   }
 
   collect(o) {
-    if (!o.isMesh || o.isInstancedMesh) return;
+    if (!o.isMesh || o.isInstancedMesh || o.userData.ownDraw) return;   // ownDraw: a mesh with uniforms of its own (a Treasure's floor glow) draws itself
     if (o.layers.mask !== 1 << HIDDEN) o.layers.set(HIDDEN);
     const g = this.group(o.geometry, o.material);
     g.list[g.n++] = o;

@@ -357,7 +357,7 @@ export class Clog {
     this.water.renderOrder = 2;
     this.water.visible = false;
     scene.add(this.water);
-    this.acidFloor = new THREE.Mesh(sheet(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+    this.acidFloor = new THREE.Mesh(sheet(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide, forceSinglePass: true }));   // one pass: never drawn, but its program must match the one the warm-up builds
     this.acidFloor.name = 'Acid surface';
     this.acidFloor.position.copy(this.mid);
     this.acidFloor.visible = false;

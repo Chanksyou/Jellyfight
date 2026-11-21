@@ -34,6 +34,7 @@ const SCORCH = LOOK.color('beetle-scorch', '#2a1a12');                 // where 
 const FIRE_CORE = new THREE.Color(LOOK.color('beetle-fire', '#ffd060'));   // the yellow heart of its ball's explosion
 const STUN = new THREE.Color(LOOK.color('stunned', '#fff27a'));      // the sparks crackling over a stunned bug (lightning's colour)
 const BLAST = new THREE.Color(LOOK.color('fire-blast', '#ff8a3a'));   // status-damage blast= (Flashpoint): a burning bug's hit bursting
+const SOFT = {}, SOFT_AT = new THREE.Vector3();   // a soft hit's glow colour by the hit's colour (glow.emit keeps the Color), and where
 const SLICE = new THREE.Color(LOOK.color('slice', '#f4fbff'));   // execute (Pizza Cutter): the slash that finishes a low bug
 const FROST = new THREE.Color(LOOK.color('ice-frost', '#9fe4ff'));        // frost drifting up off a chilled bug (ice)
 const SLOWED = new THREE.Color(LOOK.color('slowed', '#9fe4ff'));          // frost drifting up off any slowed bug
@@ -495,7 +496,9 @@ export class Enemies {
     e.pop = 1;
     // flashes white for a moment, then can't again for a beat: under steady fire a big bug blinks with
     // the hits instead of staying a solid white shape
-    if (!(e.flashCd > 0)) { e.flashT = LOOK.num('hit-flash', 0.07); e.flashCd = LOOK.num('hit-flash-gap', 0.2); }
+    // (a soft hit, a Treasure's steady sting: no white flash, so a crowd under it doesn't strobe; a short glow in the hit's colour round the bug instead)
+    if (feedback.soft) this.fx.glow.emit(this.center(e, SOFT_AT), SOFT[color] ||= new THREE.Color(color), (e.r || 0.03) * 2, (e.r || 0.03) * 2.6, LOOK.num('soft-hit-life', 0.14), LOOK.num('soft-hit-glow', 0.3));
+    else if (!(e.flashCd > 0)) { e.flashT = LOOK.num('hit-flash', 0.07); e.flashCd = LOOK.num('hit-flash-gap', 0.2); }
     bus.emit('enemy_hit', { targetId: e.id, amount, color, pos: this.center(e), sound, feedback });
     const X = this.mods?.execute;
     if (X && e.hp > 0 && e.hp < e.maxHp * X.under) { this.sliced(e); e.hp = 0; }   // execute (Pizza Cutter)

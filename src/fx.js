@@ -32,6 +32,7 @@ export class Fx {
     // it (as this.fx.showcase from Bubbles, Lash and their looks) to emit more or use a richer material
     // there; in play it stays false and an effect keeps today's budget: no added draws, lights or programs.
     this.showcase = showcase;
+    this.low = () => false;   // Low graphics (main.js sets it): effects drop their trails, sparks and motes
     this.numberLook = {
       cap: LOOK.num('number-cap', 40), group: LOOK.num('number-tick-window', 0.6),
       hitWindow: LOOK.num('number-hit-window', 0.3),

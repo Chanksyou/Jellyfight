@@ -11,8 +11,10 @@ import { juice } from './juice.js';
 import { batcher } from './batch.js';
 import { knockFor } from './stats.js';
 import { HouseGadgets } from './house-gadgets.js';
+import { glowPool } from './treasure-glow.js';
+import { TreasureProps } from './treasure-props.js';
 
-const _to = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
+const _white = new THREE.Color(1, 1, 1), _to = new THREE.Vector3(), _up = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
 
 export class Gadgets {
   constructor(scene, enemies, fx, world) {
@@ -25,6 +27,7 @@ export class Gadgets {
     scene.add(this.group);
     batcher.track(this.group);
     this.looks = new GadgetLooks(fx);
+    this.props = new TreasureProps();   // the bodies Treasures show, built here and warmed up front
     this.brickPool = []; this.marblePool = [];
 
     const glow = (color, k = 1.6) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
@@ -45,7 +48,7 @@ export class Gadgets {
     this.group.add(this.beam);
     const focusColor=LOOK.color('gadget-focus','#c6f6ff');
     this.beam.material.color.set(focusColor);
-    const focusMat=new THREE.MeshBasicMaterial({color:focusColor,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide});
+    const focusMat=new THREE.MeshBasicMaterial({color:focusColor,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true});
     this.focus=new THREE.Group();
     this.focusRing=new THREE.Mesh(new THREE.RingGeometry(.8,1,32).rotateX(-Math.PI/2),focusMat);
     this.focusCore=new THREE.Mesh(new THREE.CircleGeometry(1,24).rotateX(-Math.PI/2),focusMat);
@@ -67,12 +70,13 @@ export class Gadgets {
     this.mirrorShell.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshBasicMaterial({color:silver,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false})),
       new THREE.Mesh(new THREE.IcosahedronGeometry(1.01,1),new THREE.MeshBasicMaterial({color:silver,wireframe:true,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false})));
     this.group.add(this.mirrorShards,this.mirrorShell);this.mirrorPop=0;
-    // Glow Stick: a green glow on the floor around you
-    this.aura = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x6aff8a, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.auraLip=new THREE.Mesh(this.looks.geo.arc,focusMat);this.aura.add(this.auraLip);this.auraLip.scale.setScalar(.99);
-    this.aura.visible = false;
+    // Glow Stick: a living green glow on the floor around you (its rim the sting's real reach), and the
+    // stick itself circling the bell, brighter the more it's charged
+    this.stickColor = new THREE.Color(LOOK.color('treasure-glowStick', '#6aff8a'));
+    this.aura = glowPool('glow', this.stickColor);
     this.group.add(this.aura);
+    this.auraPulse = 1;
+    this.stick = this.props.prop('glow-stick', () => { const m = fx.piece(new THREE.CapsuleGeometry(0.15, 1, 2, 6), this.looks.mat); m.userData.size = LOOK.num('treasure-stick-size', 0.024); return m; });
     // Lego bricks and marbles
     this.brickGeo = new THREE.BoxGeometry(0.02, 0.012, 0.01).translate(0, 0.006, 0);
     this.studGeo = new THREE.CylinderGeometry(0.0028, 0.0028, 0.003, 10).translate(0, 0.0135, 0);
@@ -100,15 +104,17 @@ export class Gadgets {
 
     // Night-Light: a little dome lamp on the floor, its glow (and the edge of it) showing where it helps.
     // Glowing meshes only: never a real light (a new light rebuilds every shader, CLAUDE.md rule 7)
-    const lampC = LOOK.color('night-light', '#bfe2ff');
+    const lampC = this.lampColor = new THREE.Color(LOOK.color('treasure-nightLight', '#bfe2ff'));
     this.lampBase = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.5 });
-    this.lampDome = new THREE.MeshBasicMaterial({ color: lampC, toneMapped: false });
+    this.lampDome = new THREE.MeshBasicMaterial({ toneMapped: false });
+    this.lampDome.userData.perInstance = true;   // each dome its own brightness: it flickers on as it's plugged in
     this.lampPool = Array.from({ length: 5 }, () => {
       const g = new THREE.Group();
       g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.006, 16).translate(0, 0.003, 0), this.lampBase));
-      g.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.006, 0), this.lampDome));
-      const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lampC, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending }));
-      pool.position.y = 0.002;   // a soft pool, no rim: floor rings are for Warnings and area hits
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.006, 0), this.lampDome);
+      dome.userData.color = lampC.clone(); g.add(dome); g.userData.dome = dome;
+      const pool = glowPool('lamp', lampC);
+      pool.position.y = 0.002; pool.visible = true;   // a soft pool, its faint edge where bugs stop
       g.add(pool); g.userData.pool = pool;
       g.visible = false; this.group.add(g);
       return g;
@@ -143,7 +149,8 @@ export class Gadgets {
     this.mouseReady.visible=false;
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
-    this.auraCharge = 0;
+    this.auraCharge = 0; this.auraPulse = 1;
+    this.props.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
     this.house?.reset();
     this.lampPool.forEach((g) => { g.visible = false; });
@@ -159,19 +166,30 @@ export class Gadgets {
     g.position.set(at.x, this.enemies.floorBelow(at, at.y), at.z);
     g.userData.pool.scale.setScalar(N.radius);
     g.visible = true;
-    this.lamps.push({ g, r: N.radius, age: 0 });
+    this.lamps.push({ g, r: N.radius, age: 0, mote: 0 });
     sfx.gadgetLamp();
   }
   tickLights(dt, M, feet) {
+    const quiet = this.looks.quiet;
     if (!M.nightLight && this.lamps.length) { for (const L of this.lamps) L.g.visible = false; this.lamps = []; }
     this.lit = false;
     for (const L of this.lamps) {
       L.age += dt;
       const p = L.g.position, u = Math.min(1, L.age / 0.4);   // it fades up as it's plugged in, then breathes
-      L.breathe = (0.06 + 0.015 * (this.looks.quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
+      L.breathe = (0.06 + 0.015 * (quiet ? 1 : 1 + Math.sin(L.age * 2))) * u;
       if (Math.hypot(feet.x - p.x, feet.z - p.z) <= L.r && Math.abs(feet.y - p.y) < 0.15) this.lit = true;
+      // the dome flickers on as it's plugged in (steady when quiet)
+      const flick = quiet || L.age > 0.35 || (L.age * 20 | 0) % 3 !== 1;
+      L.g.userData.dome.userData.color.copy(this.lampColor).multiplyScalar(flick ? 1 : 0.3);
+      if (!quiet) L.g.userData.pool.material.uniforms.uTime.value += dt * 0.25;
+      // motes drifting up out of the glow, a couple a second
+      if (!quiet && !this.fx.low() && (L.mote -= dt) <= 0) {
+        L.mote = LOOK.num('treasure-lamp-mote-gap', 0.4) * (0.7 + Math.random() * 0.6);
+        const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * L.r * 0.7;
+        this.fx.glow.emit(_to.set(p.x + Math.cos(a) * d, p.y + 0.004, p.z + Math.sin(a) * d), this.lampColor, 0.004, 0.001, 1.6, 0.55, _up.set(0, 0.02, 0));
+      }
     }
-    for (const L of this.lamps) L.g.userData.pool.material.opacity = L.breathe * (this.lit ? 1.8 : 1);   // the pool brightens while you're inside
+    for (const L of this.lamps) L.g.userData.pool.material.uniforms.uOpacity.value = L.breathe * (this.lit ? 1.8 : 1) * LOOK.num('treasure-lamp-glow', 2);   // the pool brightens while you're inside
     // safe=#true: ordinary bugs stop at the glow's edge (enemies.js keepOut)
     const K = this.enemies.keepOut; K.length = 0;
     if (M.nightLight?.safe) for (const L of this.lamps) K.push({ x: L.g.position.x, y: L.g.position.y, z: L.g.position.z, r: L.r });
@@ -260,6 +278,7 @@ export class Gadgets {
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
     this.lampPool[0].visible = this.bountyMark.visible = on;   // night-light and bounty shaders, compiled up front too
     this.house.warm(on, at);
+    this.props.warm(on, at);
     if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
     if (on) {
       this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at);
@@ -358,7 +377,7 @@ export class Gadgets {
     if(this.warming)return;   // loader animations must not expire the meshes before compilation finishes
     this.looks.update(dt);
     this.mouseAfter=Math.max(0,this.mouseAfter-dt);
-    if(!active){this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
+    if(!active){this.stick.visible=false;this.bathReady.visible=this.mirrorReady.visible=this.mirrorSheen.visible=this.mirrorShards.visible=this.mirrorShell.visible=false;this.focus.visible=this.chordReady.visible=this.mouseReady.visible=this.mouse.visible=this.beam.visible=false;return;}
     if(!this.mouseRun&&this.mouseAfter>0){
       const k=this.mouseAfter/LOOK.num('gadget-mouse-after',.24),z=this.mouseSize||1;
       this.mouse.scale.set(z*(1+.2*k),z*(1-.35*k),z*(1-.2*k));this.mouseNose.scale.set(1,1,.5);this.mouse.visible=true;
@@ -415,7 +434,7 @@ export class Gadgets {
         if ((e.fairyT || 0) > 0) continue;
         e.fairyT = 0.4;
         this.looks.contact(E.center(e),this.looks.color,.007);sfx.gadgetFairy();ctx.pulse?.(.06);
-        bus.emit('damage_taken', { targetId: e.id, amount: power * O.dmg, color: '#ffe7a8', source: 'orbit-lights' });
+        bus.emit('damage_taken', { targetId: e.id, amount: power * O.dmg, color: '#ffe7a8', source: 'orbit-lights', feedback: { soft: true } });
       }
     });
     if (n) for (const e of E.list) if (e.fairyT > 0) e.fairyT -= dt;
@@ -456,9 +475,32 @@ export class Gadgets {
       const k = this.auraCharge = A.grow ? Math.min(1, Math.max(0, (this.auraCharge || 0) + (ctx.moving ? dt : -dt) / A.grow)) : 1;
       const r = (A.min ?? A.radius) + (A.radius - (A.min ?? A.radius)) * k;
       this.aura.position.copy(feet).setY(feet.y + 0.002);
-      this.aura.scale.setScalar(r); this.aura.material.opacity = 0.1 + 0.14 * k;
-      if (this.every('aura', dt, A.tick)) {for (const e of this.near(center, r)) {this.looks.contact(E.center(e),this.looks.color,.005);sfx.gadgetAura(k);bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg * r / A.radius, color: '#8aff9f', source: 'aura' });}}
-    }
+      this.aura.scale.setScalar(r);
+      const u = this.aura.material.uniforms, quiet = this.looks.quiet;
+      u.uCharge.value = k; u.uOpacity.value = LOOK.num('treasure-aura-glow', 0.55) * (0.6 + 0.4 * k);
+      if (!quiet) u.uTime.value += dt * (0.25 + 1.1 * k);   // its bands quicken as it charges
+      this.auraPulse += dt;
+      if (this.every('aura', dt, A.tick)) {
+        const stung = this.near(center, r);
+        if (stung.length && !quiet) this.auraPulse = 0;   // the sting: the whole glow flashes at once (it hits everything inside together); never a strobe when quiet
+        for (const e of stung) {this.looks.contact(E.center(e),this.stickColor,.005);sfx.gadgetAura(k);bus.emit('damage_taken', { targetId: e.id, amount: power * A.dmg * r / A.radius, color: '#8aff9f', source: 'aura', feedback: { soft: true } });}
+      }
+      u.uPulse.value = this.auraPulse < 0.25 ? this.auraPulse / 0.25 : -1;
+      // fully charged: sparks fizz off its rim
+      if (k >= 0.95 && !quiet && !fx.low() && (this.auraSpark = (this.auraSpark ?? 0) - dt) <= 0) {
+        this.auraSpark = LOOK.num('treasure-aura-spark-gap', 0.12);
+        const a = Math.random() * Math.PI * 2;
+        fx.glow.emit(_to.set(feet.x + Math.cos(a) * r, feet.y + 0.004, feet.z + Math.sin(a) * r), this.stickColor, 0.005, 0.001, 0.4, 0.8, _up.set(Math.cos(a) * 0.01, 0.04, Math.sin(a) * 0.01), 0.08);
+      }
+      // the stick circles the bell, tilted, glowing brighter with charge
+      const s = this.stick, a = this.orbit * 0.7;
+      s.visible = true;
+      s.position.set(center.x + Math.cos(a) * 0.045, center.y + 0.006 + (quiet ? 0 : Math.sin(this.orbit * 1.3) * 0.004), center.z + Math.sin(a) * 0.045);
+      s.rotation.set(0.5, -a, quiet ? 0.6 : 0.6 + Math.sin(this.orbit) * 0.3);
+      s.scale.setScalar(s.userData.size);
+      s.userData.color.copy(this.stickColor).lerp(_white, 0.1 + 0.25 * k + (this.auraPulse < 0.15 ? 0.2 : 0));
+      s.userData.opacity = 0.55 + 0.45 * k;
+    } else this.stick.visible = false;
 
     // touch-sting (Lion's Mane): whatever touches you gets stung
     const Tc = M.touch;
