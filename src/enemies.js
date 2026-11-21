@@ -1570,10 +1570,12 @@ export class Enemies {
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
-        // a far or off-screen bug that's only walking sweeps on alternate frames, with both frames' time (the sweep takes any length, so walls still hold)
+        // a far bug that's only walking sweeps on alternate frames, with both frames' time (the sweep takes any length, so walls still hold).
+        // By distance only, never by what the camera sees: a replayed fight (tests/balance) must move the same whatever the view
         e.moveDt = (e.moveDt || 0) + dt;
-        const lazy = unseen && !e.elite && e.state === 'approach' && e.grounded && !e.airborne && (!e.atk || e.atk.phase === 'idle') && dist > e.T.reach + 0.25;
-        if (!lazy || (this.frame + e.id) % 2 === 0) { this.moveGround(e, e.moveDt, near); e.moveDt = 0; }
+        const lazy = dist > animFar && !e.elite && e.state === 'approach' && e.grounded && !e.airborne && (!e.atk || e.atk.phase === 'idle') && dist > e.T.reach + 0.25;
+        e.moveOdd = !e.moveOdd;   // (its own count, from its spawn: a replayed fight sweeps on the same frames)
+        if (!lazy || e.moveOdd) { this.moveGround(e, e.moveDt, near); e.moveDt = 0; }
       }
       for (const z of this.keepOut) {      // a safe glow (night-light safe=#true): ordinary bugs stop at its edge
         const dx = e.pos.x - z.x, dz = e.pos.z - z.z, d = Math.hypot(dx, dz), r = z.r + e.r;

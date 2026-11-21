@@ -1,7 +1,6 @@
 // The shared kit for the stories (src/stories/<area>.js): the helpers every area uses, STORIES and
 // the `story` / `act2` / `act3` / `phone` ways to add one. src/stories.js imports the areas in order.
 import * as THREE from 'three';
-import { updateShown } from '../batch.js';
 import { bus, PLAYER } from '../events.js';
 import { ENEMY_WORDS, elementParams } from '../words.js';
 import { CONTENT } from '../content.js';
@@ -135,16 +134,6 @@ export function stillMismatch() {
     if (o.matrixAutoUpdate && !sameMatrix(_still.compose(o.position, o.quaternion, o.scale), o.matrix)) bad = o;
     else if (!sameMatrix(o.parent ? _still.multiplyMatrices(o.parent.matrixWorld, o.matrix) : o.matrix, o.matrixWorld)) bad = o;
   });
-  if (!bad) {   // and every piece the frame's matrix pass draws stands where it is (batch.js updateShown: a hidden piece is brought current the frame it shows)
-    const scene = G().APT.scene;
-    updateShown(scene);
-    const walk = (o) => {
-      if (bad || !o.visible || o === root) return;
-      if (o.matrixWorldAutoUpdate && o.parent && !sameMatrix(_still.multiplyMatrices(o.parent.matrixWorld, o.matrix), o.matrixWorld)) { bad = o; return; }
-      for (const c of o.children) walk(c);
-    };
-    for (const c of scene.children) walk(c);
-  }
   const { world, player } = G();   // and the collision world never kept a piece's old place (collision.js focus re-checks frozen pieces only after markMoved)
   if (!bad && world) { world.focus(player.position, 0); world.colliders.forEach((m, i) => { if (!bad && !sameMatrix(world.sweepBounds[i].matrix, m.matrixWorld)) bad = m; }); }
   let named = bad;

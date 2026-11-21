@@ -377,7 +377,7 @@ story('engine/far-bug-sweeping-alternate-frames-stays-behind-a-wall', {
     }
     if (!wall) return ok(false, { error: 'no wall found' });
     const at = wall.point.clone().addScaledVector(dir, 0.12).setY(P.y + 0.02);
-    const e = spawn('roach', at);
+    const e = spawn('roach', at), from = e.pos.clone();
     let sweeps = 0, frames = 0, through = false;
     const was = enemies.moveGround;
     enemies.moveGround = function (b, ...a) { if (b === e) sweeps++; return was.call(this, b, ...a); };
@@ -387,7 +387,8 @@ story('engine/far-bug-sweeping-alternate-frames-stays-behind-a-wall', {
         if ((e.pos.x - wall.point.x) * dir.x + (e.pos.z - wall.point.z) * dir.z < -0.005) through = true;
       }
     } finally { enemies.moveGround = was; }
-    return ok(!through && !e.dead && sweeps < frames * 0.6, { wallAt: +wall.distance.toFixed(2), sweeps, frames, through });
+    const walked = Math.hypot(e.pos.x - from.x, e.pos.z - from.z);   // (it really walked up to the wall: not stuck where it started)
+    return ok(!through && !e.dead && walked > 0.05 && sweeps < frames * 0.6, { wallAt: +wall.distance.toFixed(2), walked: +walked.toFixed(3), sweeps, frames, through });
   },
 });
 
