@@ -294,6 +294,7 @@
   --vacuum-shudder: 0.0015;
   --vacuum-dust: #8a8278;        /* dust and grit it leaves on the floor (fx.splat, fx.burst): harmless, fading */
   --vacuum-scuff-size: 0.05;
+  --xp-size: 0.007;               /* an XP sphere's radius (m); a big one is 1.9x this */
   --xp-color: #ffd25a;
   --xp-glow: #e8a21b;
   --xp-big-color: #ffe27a;

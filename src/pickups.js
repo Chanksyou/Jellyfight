@@ -18,12 +18,13 @@ export class XpDrops {
     this.world = world;
     this.life = life;
     this.list = [];
-    this.geo = new THREE.SphereGeometry(0.0035, 12, 8);
+    this.r = look ? 0.0035 : LOOK.num('xp-size', 0.007);   // XP spheres are set in look.css; Health crumbs and leave-on-kill drops stay small
+    this.geo = new THREE.SphereGeometry(this.r, 12, 8);
     this.mat = look
       ? new THREE.MeshStandardMaterial({ color: LOOK.color(look, '#ffb47a'), emissive: LOOK.color(look, '#ffb47a'), emissiveIntensity: 0.35, roughness: 0.6 })
       : new THREE.MeshStandardMaterial({ color: LOOK.color('xp-color', '#ffd25a'), emissive: LOOK.color('xp-glow', '#e8a21b'), emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 });
     // a big drop (worth BIG): about twice as wide and brighter, so a 5-XP drop reads as one thing
-    this.bigGeo = new THREE.SphereGeometry(0.0035 * 1.9, 16, 12);
+    this.bigGeo = new THREE.SphereGeometry(this.r * 1.9, 16, 12);
     this.bigMat = new THREE.MeshStandardMaterial({ color: LOOK.color('xp-big-color', '#ffe27a'), emissive: LOOK.color('xp-big-glow', '#ffc43a'), emissiveIntensity: 0.9, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.95 });
     this.magnetAll = false;
     this._to = new THREE.Vector3();
@@ -46,7 +47,7 @@ export class XpDrops {
       this.scene.add(m);
       const a = Math.random() * Math.PI * 2, s = 0.04 + Math.random() * 0.05;
       const hit = this.world.cast(new THREE.Vector3(pos.x, pos.y + 0.01, pos.z), DOWN, 3);
-      this.list.push({ m, pos: pos.clone(), value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + 0.0035 * (big ? 1.9 : 1) : pos.y, pull: false, pullT: 0, t: 0 });
+      this.list.push({ m, pos: pos.clone(), value: worth, big, vel: new THREE.Vector3(Math.cos(a) * s, 0.12, Math.sin(a) * s), floor: hit ? hit.point.y + this.r * (big ? 1.9 : 1) : pos.y, pull: false, pullT: 0, t: 0 });
     }
   }
 

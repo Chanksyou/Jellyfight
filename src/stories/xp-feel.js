@@ -103,3 +103,15 @@ phone('xp-feedback', {
     return ok(accessible && animated && r.left >= 0 && r.right <= innerWidth && !xpDrops.list.length, { accessible, animated, width: r.width, left: xpDrops.list.length });
   },
 });
+
+story('pickups/xp-sphere-is-twice-as-big', {
+  about: 'An XP sphere is twice the old size (radius 0.007 m, big ones 1.9x that), rests on the floor, and is still collected at the same distance.',
+  setup,
+  play() {
+    const { xpDrops } = G();
+    xpDrops.drop(near(0.3, 0, 0), 1, 6);
+    const small = xpDrops.list.find(d => !d.big), big = xpDrops.list.find(d => d.big);
+    const rs = small.m.geometry.parameters.radius, rb = big.m.geometry.parameters.radius;
+    return ok(Math.abs(rs - 0.007) < 1e-6 && Math.abs(rb - 0.007 * 1.9) < 1e-6 && Math.abs(small.floor - small.pos.y) < 0.05, { rs, rb });
+  },
+});
