@@ -132,7 +132,7 @@ export class StaticBatches {
     cam.updateMatrixWorld();   // (the renderer does the same before it draws: the camera has no parent)
     cam.matrixWorld.decompose(_v, _q, _sc);
     if (!force && _v.distanceTo(at.pos) <= this.move && _q.angleTo(at.quat) <= this.turn && cam.projectionMatrix.equals(at.proj)) {
-      for (const { batch } of this.batches) batch.sortObjects = false;
+      for (const { batch } of this.batches) if (batch.sortObjects) batch.sortObjects = false;
       return;
     }
     at.pos.copy(_v); at.quat.copy(_q); at.proj.copy(cam.projectionMatrix);
@@ -142,7 +142,7 @@ export class StaticBatches {
     for (const { batch, pieces } of this.batches) {   // (the batches sit at the origin: their pieces' matrices are world matrices)
       for (const p of pieces) {
         batch.getBoundingSphereAt(batch.getGeometryIdAt(p.id), _s).applyMatrix4(p.matrix);
-        _s.radius += this.move + sway * _s.center.distanceTo(_v);   // the camera may move and turn that much before the next cull
+        _s.radius += this.move + sway * (_s.center.distanceTo(_v) + this.move);   // the camera may move and turn that much before the next cull
         const inView = _f.intersectsSphere(_s);
         if (inView !== p.inView) { p.inView = inView; if (p.inBatch) batch.setVisibleAt(p.id, inView); }
       }

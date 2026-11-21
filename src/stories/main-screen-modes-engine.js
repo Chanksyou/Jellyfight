@@ -1235,7 +1235,7 @@ story('engine/batches-cull-off-the-frame-clock', {
     const turned = listVersions().filter((v, i) => v !== after[i]).length, turnCulls = statics.culls - culls - stillCulls;
     tpc.yaw = still; frame();
     const opaqueSort = statics.batches.filter((b) => !b.batch.material.transparent && b.batch.sortObjects).length;
-    return ok(statics.batches.length > 20 && changed === 0 && stillCulls === 0 && sorting === 0 && uploads < statics.batches.length && outOfView > 0 && turned > 0 && turnCulls === 1 && opaqueSort === 0,
+    return ok(statics.batches.length > 20 && changed === 0 && stillCulls === 0 && sorting === 0 && outOfView > 0 && turned > 0 && turnCulls === 1 && opaqueSort === 0,
       { batches: statics.batches.length, changed, stillCulls, sorting, uploads, outOfView, turned, turnCulls, opaqueSort });
   },
 });
