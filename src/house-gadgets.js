@@ -7,6 +7,7 @@ import { bus } from './events.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
+import { glowPool } from './treasure-glow.js';
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const SWING = 0.12, FLIGHT = 0.3, GRAVITY = 1.0;   // enemies.js moveGround: bugs fall at 1 m/s²
@@ -30,29 +31,28 @@ export class HouseGadgets {
     const pink = LOOK.color('bath-foam', '#ff9ad8');
     this.bombMat = new THREE.MeshStandardMaterial({ color: pink, emissive: pink, emissiveIntensity: 0.5, roughness: 0.9 });
     this.bombGeo = new THREE.SphereGeometry(0.007, 12, 8);
-    this.bombDisc = new THREE.MeshBasicMaterial({ color: pink, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending });
     this.bombPool = Array.from({ length: 3 }, () => {
-      const m = new THREE.Mesh(this.bombGeo, this.bombMat), disc = new THREE.Mesh(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), this.bombDisc);
+      const m = new THREE.Mesh(this.bombGeo, this.bombMat), disc = glowPool('fizz', pink);
       m.visible = disc.visible = false; group.add(m, disc);
       return { m, disc };
     });
-    // Ice Cube: a little cube that melts into a glossy wet puddle with a brighter rim of meltwater
-    const wet = LOOK.color('puddle', '#7cc8ff');
-    this.puddleMat = new THREE.MeshPhysicalMaterial({ color: wet, roughness: 0.04, clearcoat: 1, transparent: true, opacity: 0.38, depthWrite: false });
+    // Ice Cube: a little cube that cracks apart as it melts into a wet puddle: a sheen drifting over it,
+    // a frosty rim at its edge, a ripple where a bug skids
+    const wet = LOOK.color('treasure-iceCube', '#7cc8ff');
     this.cubeMat = new THREE.MeshPhysicalMaterial({ color: 0xeaf8ff, roughness: 0.05, transmission: 0.4, transparent: true, opacity: 0.85 });
     this.puddlePool = Array.from({ length: 4 }, () => {
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2), this.puddleMat);
+      const disc = glowPool('wet', wet);
       const cube = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.014).translate(0, 0.007, 0), this.cubeMat);
       disc.visible = cube.visible = false; group.add(disc, cube);
       return { disc, cube };
     });
     // Disco Ball: a mirror ball over you and a cone of coloured light down onto its pick
-    const disco = LOOK.color('disco-light', '#d8beff');
+    const disco = LOOK.color('treasure-discoBall', '#d8beff');
     this.ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.009, 1), new THREE.MeshStandardMaterial({ color: 0xdfe6ef, metalness: 0.9, roughness: 0.15, flatShading: true, emissive: disco, emissiveIntensity: 0.25 }));
     this.ball.visible = false; group.add(this.ball);
     this.cone = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 1, 1, 20, 1, true).translate(0, -0.5, 0),
       new THREE.MeshBasicMaterial({ color: disco, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending }));
-    this.spotPool = new THREE.Mesh(new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: disco, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.spotPool = glowPool('spot', disco);
     this.cone.visible = this.spotPool.visible = false; group.add(this.cone, this.spotPool);
     this.disco = new THREE.Color(disco); this.pink = new THREE.Color(pink); this.wet = new THREE.Color(wet); this.sw = new THREE.Color(sw);
     this.reset();
@@ -105,6 +105,7 @@ export class HouseGadgets {
       const slot = this.puddlePool.find((p) => !p.disc.visible);
       slot.disc.position.copy(feet).setY(feet.y + 0.0015); slot.disc.scale.setScalar(0.001); slot.disc.visible = true;
       slot.cube.position.copy(feet); slot.cube.scale.setScalar(1); slot.cube.rotation.y = Math.random() * Math.PI; slot.cube.visible = true;
+      slot.disc.material.uniforms.uRipple.value.z = -1;
       this.puddles.push({ ...slot, r: ef.radius, t: 0, last: ef.last, skid: ef.skid, slipped: new Set() });
       sfx.iceDrop(); ctx.pulse?.(0.12);
     }
@@ -143,8 +144,8 @@ export class HouseGadgets {
         continue;
       }
       if (!b.fizzing) { b.fizzing = true; b.m.position.copy(b.to).setY(b.to.y + 0.007); b.disc.visible = true; sfx.bombFizz(); }
-      const k = Math.min(1, (b.t - FLIGHT) / b.ef.fuse);
-      b.disc.material.opacity = 0.08 + 0.2 * k;
+      const k = Math.min(1, (b.t - FLIGHT) / b.ef.fuse), u = b.disc.material.uniforms;
+      u.uCharge.value = k; u.uOpacity.value = 0.6 + 0.4 * k; if (!quiet) u.uTime.value += dt;
       b.m.scale.setScalar(quiet ? 1 : 1 - 0.4 * k + 0.08 * Math.sin(b.t * 40));
       if (!quiet && Math.random() < 0.5) this.looks.pop(_a.copy(b.m.position).add(_b.set((Math.random() - 0.5) * 0.01, 0.006, (Math.random() - 0.5) * 0.01)), this.pink);
       if (k < 1) continue;
@@ -169,7 +170,10 @@ export class HouseGadgets {
       p.t += dt;
       const grow = Math.min(1, p.t / 0.4), fade = Math.min(1, (p.last - p.t) / 0.6);
       p.disc.scale.setScalar(p.r * (0.3 + 0.7 * grow));
-      p.disc.material.opacity = 0.3;
+      const u = p.disc.material.uniforms, rip = u.uRipple.value;
+      if (!quiet) u.uTime.value += dt;
+      if (rip.z >= 0) rip.z = rip.z + dt > 0.6 ? -1 : rip.z + dt;
+      if (p.cube.visible && grow >= 1) fx.ice.shatter(_a.copy(p.cube.position).setY(p.cube.position.y + 0.004), quiet ? 3 : 6, 0.003, 0.25, p.cube.position.y);   // the last of the cube cracks apart
       p.cube.visible = grow < 1; p.cube.scale.set(1 - grow * 0.8, 1 - grow, 1 - grow * 0.8);
       p.disc.scale.multiplyScalar(Math.max(0.001, fade));
       const at = p.disc.position;
@@ -182,6 +186,7 @@ export class HouseGadgets {
         bus.emit('knockback', { targetId: e.id, dir: dir.normalize(), force: 0.03 });
         bus.emit('status_applied', { targetId: e.id, status: 'stun', duration: p.skid });
         this.looks.streak(_b.copy(e.pos).setY(at.y + 0.002), _a.copy(e.pos).addScaledVector(dir, 0.03).setY(at.y + 0.002), this.wet, 0.002, 0.3);
+        const sc = p.disc.scale.x || 1; p.disc.material.uniforms.uRipple.value.set((e.pos.x - at.x) / sc, (e.pos.z - at.z) / sc, 0);   // a ripple where it skids
         sfx.skid();
       }
       if (p.t >= p.last) { p.disc.visible = p.cube.visible = false; p.done = true; }
@@ -212,7 +217,8 @@ export class HouseGadgets {
       this.cone.quaternion.setFromUnitVectors(UP, _b.set(top.x - c.x, h, top.z - c.z).normalize());
       this.cone.scale.set(wide, _b.set(top.x - c.x, h, top.z - c.z).length(), wide);
       this.spotPool.position.set(c.x, floor + 0.003, c.z); this.spotPool.scale.setScalar(wide);
-      this.spotPool.material.opacity = 0.2 + (quiet ? 0 : 0.06 * Math.sin(this.g.clock * 9));
+      const u = this.spotPool.material.uniforms;
+      u.uOpacity.value = 0.8 + (quiet ? 0 : 0.2 * Math.sin(this.g.clock * 9)); if (!quiet) u.uTime.value += dt;
       if (!quiet && Math.random() < dt * 8) this.looks.echo(_b.set(c.x, floor + 0.004, c.z), wide * 0.8);
     }
   }

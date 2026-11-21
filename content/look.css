@@ -198,14 +198,30 @@
   --gadget-cotton-life: 0.32;
   --gadget-salt-life: 0.36;
   --gadget-friendly: #a6f6ed;
-  --night-light: #bfe2ff;        /* Night-Light: the lamp dome and its glow on the floor (a glowing mesh, not a real light) */
   --gadget-swatter: #4fb8ff;     /* Fly Swatter: its head (a friendly blue mesh) */
   --bath-foam: #ff9ad8;          /* Bath Bomb: the ball, its reach on the floor and the foam column */
-  --puddle: #7cc8ff;             /* Ice Cube: the slippery puddle (water, not frost) */
-  --disco-light: #d8beff;        /* Disco Ball: the spotlight cone and its pool on the picked bug */
   --bounty: #ffd23a;             /* Chore List: the gold target over the marked bug */
   --ghost: #b4ffd6;              /* Glow-in-the-Dark Star: the ghosts, glow-in-the-dark green (friendly, cool) */
   --slice: #f4fbff;              /* Pizza Cutter: the white slash that finishes a low bug */
+  /* A Treasure's own colour (friendly: cool or pastel, never a --hostile-* hue), one per Treasure id */
+  --treasure-glowStick: #6aff8a;     /* Glow Stick: its floor glow, the stick circling the bell and its sparks */
+  --treasure-nightLight: #bfe2ff;    /* Night-Light: the lamp dome, its pool on the floor and the motes (glowing meshes, not a real light) */
+  --treasure-iceCube: #7cc8ff;       /* Ice Cube: the slippery puddle (water, with a frosty rim) */
+  --treasure-discoBall: #d8beff;     /* Disco Ball: the spotlight cone and its pool on the picked bug */
+  --treasure-bloodyFangs: #ffb8c8;
+  --treasure-newtonsCradle: #9ff3ff;
+  --treasure-snooze: #d3eaff;
+  --treasure-rubberDuck: #a8e9ce;
+  --treasure-cactus: #b8f5c0;
+  --treasure-guitarPick: #e0c8ff;
+  --treasure-fairyLights: #ffe7a8;
+  --treasure-magnifier: #c6f6ff;
+  --treasure-bathSalt: #d3eaff;
+  --treasure-aura-glow: 0.55;        /* Glow Stick: how bright its floor glow is (more as it charges) */
+  --treasure-aura-spark-gap: 0.12;   /* s between sparks off its rim at full charge */
+  --treasure-stick-size: 0.024;      /* m: the glow stick circling the bell */
+  --treasure-lamp-glow: 2;           /* Night-Light: how bright its pool is */
+  --treasure-lamp-mote-gap: 0.4;     /* s between motes rising off each lamp's glow */
   --gadget-focus: #c6f6ff;
   --gadget-focus-height: 0.22;
   --gadget-focus-opacity: 0.12;

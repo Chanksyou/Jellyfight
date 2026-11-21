@@ -33,7 +33,7 @@ story('treasures/aura-grows-while-moving',{
 });
 story('treasure-feel-twelve/aura-keeps-tick-damage-radius',{
  setup(){ready('glowStick');roachAt(.05,0);roachAt(.4,0);},
- play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');g.t.aura=0;g.update(1/60,ctx());const hits=log.filter(d=>d.source==='aura');return ok(hits.length===1&&Math.abs(hits[0].amount-run.power*.2*.08/.22)<1e-9&&g.auraLip.visible&&Math.abs(g.aura.scale.x-.08)<.001&&!active(g.looks,'arc').length,{hits:hits.length,radius:g.aura.scale.x});},
+ play(){const {run}=G(),g=run.gadgets,log=record('damage_taken');g.t.aura=0;g.update(1/60,ctx());const hits=log.filter(d=>d.source==='aura');return ok(hits.length===1&&Math.abs(hits[0].amount-run.power*.2*.08/.22)<1e-9&&g.aura.visible&&g.aura.material.isTreasureGlow&&Math.abs(g.aura.scale.x-.08)<.001&&!active(g.looks,'arc').length,{hits:hits.length,radius:g.aura.scale.x});},
 });
 story('treasure-feel-twelve/static-only-actual-proc-target',{
  setup(){ready('staticBalloon');roachAt(.08,0);roachAt(.16,0);},
