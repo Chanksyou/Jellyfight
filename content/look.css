@@ -376,6 +376,7 @@
   /* the side cards' elements drawn in shaders (src/pick-auras/<kind>.js): each kind's colour ramp, white hot to its deep edge */
   --aura-flames-ramp: #fff6dc #ffc85a #ff6a1f #8a1a0a;
   --aura-frost-ramp: #ffffff #dcf6ff #86d3f4 #245f92;
+  --aura-bubbles-ramp: #ffffff #d9f4ff #7fd0e8 #2a6f9a;   /* Normal: white glints, pale blue rim, the water's blue */
   --aura-gust-ramp: #f4fffb #c4f0e0 #6fbfae #1f5a5a;   /* Wind: white air, pale mint, sage teal, deep */
   --aura-gust-leaves: #9fc46a #d1a455;                  /* Wind: the two leaf colours riding its spiral */
   --aura-sparks-ramp: #ffffff #fff3a6 #ffd23c #5a46c8;   /* Lightning: white core, yellow glow, the afterimage's violet */
@@ -408,6 +409,7 @@
   --preview-backdrop: 0.5;             /* how bright the water behind is */
   --preview-backdrop-tint: 1;          /* how much it takes the type's colour, low in the middle */
   --preview-grade-ice: #6f9cff;        /* a type's water behind shifted toward its own colour (a multiplier; white or unset: as it is) */
+  --preview-grade-wind: #c9f5e6;       /* Wind: the water behind it, minty */
   --preview-stun-twitch: 0.25;         /* radians a stunned roach twitches (Lightning), none with Reduce effects */
   --preview-backdrop-lightning: #4a38c8;   /* Lightning: a storm's violet in the water (a type may set --preview-backdrop-<id>, */
   --preview-backdrop-tint-lightning: 30;   /* --preview-backdrop-tint-<id>, */
@@ -1069,7 +1071,7 @@
   --sparkle-twinkle-every: 0.16;  /* seconds between them */
   --sparkle-twinkle-life: 0.45;   /* seconds one lasts */
   --sparkle-twinkle-size: 0.03;   /* its height, in shares of the jelly's height */
-  --gale-streak: #e6f8ff;         /* Wind jelly: the thin air streaks circling the bell */
+  --gale-streak: #e6f8ff;         /* Wind jelly: the soft air ribbons circling the bell */
   --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
   --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
   --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */

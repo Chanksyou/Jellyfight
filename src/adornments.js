@@ -213,13 +213,26 @@ export class Adornments {
   // Wind jelly: thin air streaks circling the bell at two speeds, and the tentacles streaming back (rig.breeze, set in update)
   make_gale() {
     const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('gale-' + k, f);
-    const airMat = glowMat('gale-streak', '#e6f8ff', { emissiveIntensity: 1.6, transparent: true, opacity: 0.7, depthWrite: false });
-    // air streaks: short thin arcs round the bell at different heights and radii, two rings turning opposite ways
+    const airMat = new THREE.MeshBasicMaterial({ color: LOOK.color('gale-streak', '#e6f8ff'), vertexColors: true, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
+    // air ribbons: soft bands of air that climb a little as they curl round the bell, bright in the middle and fading to
+    // nothing at both ends and along both edges (vertex colour), their face tilted up like a cone so they read from above and the side
+    const ribbon = (radius, y, rise, a0, arc, width) => {
+      const N = 14, pos = [], col = [], idx = [];
+      for (let i = 0; i <= N; i++) {
+        const u = i / N, a = a0 + arc * u, fade = Math.sin(u * Math.PI) ** 0.8, r = radius * (1 + 0.1 * u);
+        for (let k = -1; k <= 1; k++) {
+          pos.push(Math.cos(a) * (r + k * width * 0.7), y + rise * u + k * width * 0.7, Math.sin(a) * (r + k * width * 0.7));
+          const f = k ? 0 : fade; col.push(f, f, f);
+        }
+        if (i) for (let k = 0; k < 2; k++) { const q = (i - 1) * 3 + k; idx.push(q, q + 3, q + 1, q + 1, q + 3, q + 4); }
+      }
+      return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)).setAttribute('color', new THREE.Float32BufferAttribute(col, 3)).setIndex(idx);
+    };
     const ring = (n, radius, y0, dy, len, seed) => {
       const parts = [];
       for (let i = 0; i < n; i++) {
-        const g = new THREE.TorusGeometry(h * radius * (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4), h * 0.008, 3, 10, len * (0.7 + 0.5 * ((i * 3 + seed) % 4) / 3)).rotateX(Math.PI / 2).rotateY(i / n * Math.PI * 2 + seed);
-        parts.push(g.translate(0, h * (y0 + dy * ((i * 5 + seed) % 4) / 3), 0));
+        const spread = (0.9 + 0.2 * ((i * 7 + seed) % 5) / 4) * h * radius, up = h * (y0 + dy * ((i * 5 + seed) % 4) / 3);
+        parts.push(ribbon(spread, up, h * 0.05 * ((i + seed) % 3 - 1), i / n * Math.PI * 2 + seed, len * (1.6 + 0.9 * ((i * 3 + seed) % 4) / 3), h * 0.02));
       }
       const m = new THREE.Mesh(mergeGeometries(parts), airMat);
       group.add(m);
@@ -444,7 +457,7 @@ export class Adornments {
   // Man o' War: a translucent sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;
-    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, depthWrite: false });
+    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
     const s = new THREE.Shape();
     s.moveTo(-1, 0); s.bezierCurveTo(-0.9, 0.9, -0.2, 1.2, 0.3, 0.9); s.bezierCurveTo(0.7, 0.7, 0.9, 0.5, 1, 0); s.lineTo(-1, 0);
     const sail = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), mat);
@@ -520,7 +533,7 @@ export class Adornments {
 
   // Upside-down Jelly: fronds on the floor round you that grow out while you're rooted
   make_fronds() {
-    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 1 });
+    const group = new THREE.Group(), h = this.h, mat = glowMat('fronds', '#6affc0', { transparent: true, opacity: 0.8, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, emissiveIntensity: 1 });
     const leaf = new THREE.Shape();
     leaf.moveTo(0, 0); leaf.quadraticCurveTo(0.5, 0.4, 0, 1); leaf.quadraticCurveTo(-0.5, 0.4, 0, 0);
     const parts = [];

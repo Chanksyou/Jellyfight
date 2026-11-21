@@ -93,6 +93,9 @@ export function floatPositions(geometry) {
   geometry.computeBoundingSphere();
 }
 
+// Folded sheer curtains keep three.js's back-then-front draw: in one pass their folds sort wrong (checked in act 3 screenshots)
+const TWO_PASS = /^Sheer_curtain/;
+
 function prepareMeshes(root, meta, renderer) {
   const unpacked = new Set(), opaque = new Map();
   const coarse = matchMedia('(pointer: coarse)').matches;
@@ -121,6 +124,7 @@ function prepareMeshes(root, meta, renderer) {
     if (!unpacked.has(o.geometry)) { floatPositions(o.geometry); unpacked.add(o.geometry); }
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
       if ('envMapIntensity' in m) m.envMapIntensity = meta.envMapIntensity;
+      if (m.transparent && m.side === THREE.DoubleSide && !TWO_PASS.test(o.name)) m.forceSinglePass = true;   // glass and shades draw once, not back then front (camera.js faded() does the same)
       // Sharp textures at grazing angles: the jelly looks along the floor, and without
       // anisotropic filtering floor tiles and wood grain blur away. glTF doesn't store it.
       for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap']) if (m[k]) m[k].anisotropy = aniso;

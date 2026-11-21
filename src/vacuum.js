@@ -141,7 +141,7 @@ export class Vacuum {
     this.laneDir = new THREE.Vector3();
     // the shield: a glowing dome, and a tether from it to each lanternfly keeping it up
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({
-      color: hostile('vacuum'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+      color: hostile('vacuum'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false,
     }));
     this.dome.renderOrder = 4;
     this.dome.visible = false;
