@@ -1,1 +1,0 @@
-makes your plain bubble glassier (clearer, with a bright rim) and its pop clearer too: on the pick screen it bursts as a ring and a double splash of droplets; in play the soft puff is mostly clear water.
