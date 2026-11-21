@@ -53,7 +53,7 @@ story('treasure-feel-more/prepared-capped-quiet-and-reset',{
   setup(){ready(...six);roachAt(.06,0);},
   play(){const {run,GAME,APT,fx}=G(),g=run.gadgets,L=g.looks;GAME.render();const n=APT.renderer.info.programs.length;
     run.bubbles.ring(center(),8,1,run.S,run.mods);run.shockwave(G().player.position.clone(),.2,5,0xffffff);run.burst(center());run.hit(1,G().enemies.list[0].id);step(3);GAME.render();const shaders=APT.renderer.info.programs.length-n;
-    stub(fx,'reducedMotion',{matches:true});L.reset();L.squeak(center(),.1);L.salt(center(),.03);g.orbit=1;g.mirrorState(center(),false,true);const q=g.mirrorSheen.quaternion.clone();g.orbit=2;g.mirrorState(center(),false,true);const quiet=q.equals(g.mirrorSheen.quaternion)&&L.pools.arc.filter(p=>p.alive).length===2&&L.pools.crystal.filter(p=>p.alive).length===2;
+    stub(fx,'reducedMotion',{matches:true});L.reset();g.bursts.squeak(center(),.1);L.salt(center(),.03);g.orbit=1;g.mirrorState(center(),false,true);const q=g.mirrorSheen.quaternion.clone();g.orbit=2;g.mirrorState(center(),false,true);const quiet=q.equals(g.mirrorSheen.quaternion)&&L.pools.arc.filter(p=>p.alive).length===2&&L.pools.crystal.filter(p=>p.alive).length===2;
     for(let i=0;i<80;i++){L.salt(center(),.03);L.cushion(center(),.2);L.echo(center(),.01);}const capped=Object.entries(L.pools).every(([k,p])=>p.length<=L.caps[k]);
     g.animate(2,false);const expired=!alive(L).length;g.reset();return ok(shaders===0&&quiet&&capped&&expired&&!g.bathReady.visible&&!g.mirrorReady.visible,{shaders,quiet,capped,expired});},
 });

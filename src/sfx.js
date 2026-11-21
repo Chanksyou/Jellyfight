@@ -473,8 +473,8 @@ export const sfx = {
   whaleSpout(){if(!ready()||!gap('whaleSpout',200))return;const j=jitter(.06);noise(1400*j,.8,.3,.05,'bandpass',0,500);tone('sine',260*j,180*j,.2,.02);},   // Whale: a blowhole pfff
   wrapPops(n=8){if(!ready()||!gap('wrapPops',150))return;for(let i=0;i<n;i++){const j=jitter(.15);noise(3200*j,2,.025,.05,'bandpass',i*.035);tone('square',900*j,500*j,.02,.012,i*.035);}},   // Bubble Wrap: pop-pop-pop
   sockSlip(){if(!ready()||!gap('sockSlip',120))return;const j=jitter(.08);noise(3000*j,1.2,.14,.03,'bandpass',0,1200);tone('sine',900*j,500*j,.1,.012);},   // Odd Sock: a bug skids on a dodge
-  gadgetSalt(){
-    if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14);
+  gadgetSalt(depth=0){   // deeper in a chain of bursts: a higher chime
+    if(!ready()||!gap('gadgetSalt',65))return;const j=jitter(.14)*(1+depth*.12);
     noise(4200*j,3,.035,.055,'highpass');tone('triangle',2600*j,900*j,.07,.025);noise(6500*j,2,.1,.02,'highpass',.025);
   },
   // Ink Cloud: a wet squirt, a low gloop under it, a few drops pattering
