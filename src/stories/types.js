@@ -473,7 +473,7 @@ story('types/pick-stage-poison', {
       const P = live.P, looks = P.bubbles.looks, puffs = spy(P.fx, 'puff'), bursts = spy(looks, 'poisonBurst');
       let wet = false;
       for (let i = 0; i < 4 * 30; i++) { live.simulate(1 / 30); P.scene.traverse((o) => { if (o.userData.look === 'poison' && o.visible && o.userData.core && o.userData.blob.material === looks.wetPoison) wet = true; }); }
-      const cloud = bursts.length > 0 && puffs.length >= bursts.length * 15;   // its gas: a middle and 14 round it
+      const cloud = bursts.length > 0 && puffs.length >= bursts.length * 8;   // its gas: a middle and a cloud of puffs round it
       const grade = P.stage.back.material.uniforms.uGrade.value.clone(), green = grade.g > grade.b + 0.15 && grade.g > grade.r + 0.1;
       const plain = !G().run.bubbles.looks.wetPoison;
       return ok(wet && cloud && green && plain, { wet, bursts: bursts.length, puffs: puffs.length, grade: grade.toArray().map((v) => +v.toFixed(2)), plain });

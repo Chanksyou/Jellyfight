@@ -273,7 +273,7 @@ export class Adornments {
       const r = m.userData.r ??= m.scale.x;
       m.scale.set(r * 0.85, r * (1.2 + Math.min(1, -m.userData.vy * 6)), r * 0.85);   // stretched long as it speeds up
       G?.hold(m.position, dropCol, r * 4, 0.5);
-      if (G && Math.random() < 0.5) G.emit(m.position, dropCol, r * 0.9, 0, 0.18, 0.35);   // a thin trail behind it
+      if (G && Math.random() < 0.25) G.emit(m.position, dropCol, r * 0.9, 0, 0.3, 0.35);   // a thin trail behind it
       return true;
     };
     return { group, free: true, tick: (dt, run) => {
