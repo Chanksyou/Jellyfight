@@ -34,6 +34,47 @@ Use the smallest relevant evidence source already available:
   regression evidence, not a measurement on an iPhone or Pixel. The existing test
   harness uses software WebGL; identify that explicitly in any timing report.
 
+## Measuring a phone's page without a phone
+
+- **The bench** (`src/bench.js`, moments in `src/bench-moments.js`): `index.html?bench` for act 1,
+  `?bench&act=3`, `?bench&act=4`, and `?bench&act=4&scene=2` for the Encore arena. One tap on Start
+  (a few minutes per act; the screen shows the time left). Each busiest moment gets a 2 s settle and 8 s of measured frames, then
+  again under each switch: bloom off, pixel ratio 1.0, lamps off, AO off, Low. The bench draws its own
+  frames, so the pacer and governor don't see them. Results can be copied, or sent to `perf_reports`
+  (no player id, one per address every 30 s). Story pages never send.
+- **Experiment switches** (`src/experiments.js`, read once at boot, never saved): `?lights=3|4|6`
+  (lamp slots), `?rt=packed` (R11G11B10 buffers, `graphics.js`), `?msaa=0|2|4` (`main.js`),
+  `?lite=1` (Low's plain materials on any tier). They are load-time choices, so each needs its own
+  link. The bench carries them across its act links and prints them in its results.
+- **The headless tool**: `node tools/perf-phone.mjs`. Useful flags: `--tiers=medium,low`,
+  `--only=act1,act3,night4,arena`, `--profile` (top 30 functions and time by file),
+  `--overdraw` (layers per pixel and the heaviest see-through stacks), `--json=out.json`,
+  `--frames=N`, `--throttle=N` (CPU slowdown, 4 by default). A full run takes several minutes per page and tier.
+- **Real play**: each act summary carries `details.perf` and `details.settings` (`src/field-perf.js`).
+  Read them with the queries in `docs/agents/run-data.md`.
+
+Everything the headless tool reports is headless Chromium with SwiftShader at 4x CPU slowdown.
+Draw calls, triangles, programs, lights and uploads are real counts. Times only rank costs. Never
+report a phone's frame rate, heat or GPU time from them. The bench records whether GPU time was
+offered on each run (`gpuTime` in its environment: "offered" or "not offered"); check that field before reporting GPU numbers.
+
+Budgets and rules that the code now relies on:
+
+- Draw calls: `night4/within-the-phone-budget-at-its-busiest` allows act 1's busiest moment plus 15
+  (`ACT1_BUSIEST` in `src/stories/act4-perf.js`, a number measured once; re-measure it when act 1
+  changes a lot).
+- No light added or removed in play, and no shader built in play (rule 7).
+- Still furniture is frozen (`src/static-batch.js`). A piece that moves after load must call
+  `markMoved(o)`; the story runner fails any story that leaves a frozen piece's matrix stale.
+- Furniture batches cull only when the camera moves `--batch-cull-move` or turns `--batch-cull-turn`
+  (`content/look.css`). A still camera uploads nothing, so a change that needs the batches to check
+  the view every frame has to trigger a cull some other way.
+- Low (`src/lite-materials.js`) draws apartment pieces with plain Lambert copies and no spotlights.
+  Bugs and the jelly keep their materials, which are made at spawn.
+- A hidden node that is shown has its `matrixWorld` read before the render: call `updateMatrixWorld`
+  first (`batch.js` `updateShown`).
+- `LOOK.list` returns strings. Convert them before passing them to a number API.
+
 For a measured comparison, report frame intervals (including slow frames),
 sample count, rendering counts, or a profiler trace appropriate to the question.
 Keep before/after device, seed, scene, tier, warm-up, and duration comparable.
