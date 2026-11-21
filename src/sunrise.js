@@ -63,7 +63,7 @@ export class Sunrise {
   build() {
     const S = this.sun, [x0, x1] = S.across;
     U.sunColor.value.set(hostile('sun'));
-    U.sunDir.value.fromArray(LOOK.list('sun-dir', [0.3, 0.55, -1])).normalize();
+    U.sunDir.value.fromArray(LOOK.nums('sun-dir', [0.3, 0.55, -1])).normalize();
     U.sunFill.value = LOOK.num('sun-fill', 1.6); U.sunSoft.value = LOOK.num('sun-soft', 0.03); U.sunWarm.value = LOOK.num('sun-warm', 0.5);
     U.sunRim.value = LOOK.num('sun-rim', 0.035); U.sunRimGlow.value = LOOK.num('sun-rim-glow', 0.85);
     this.vol = this.run.fx.volume(hostile('sun'), 'lane', _o.set((x0 + x1) / 2, 0, S.from), new THREE.Vector3(x1 - x0, LOOK.num('sun-volume-height', 0.04), LOOK.num('sun-volume-ahead', 0.06)));

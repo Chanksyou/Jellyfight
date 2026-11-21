@@ -72,6 +72,13 @@ for (const file of ['src/critters.js', 'src/attack-motion.js']) {
     }
   });
 }
+// LOOK.list gives strings: one in a three.js vector or matrix puts every vector and matrix on the page in
+// V8's slow form, so each write allocates (act 4's sun did: game step 3 to 5 times slower). Numbers come from LOOK.nums.
+for (const f of files.filter((f) => f.startsWith(path.join(ROOT, 'src') + path.sep))) {
+  fs.readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
+    if (/\.(fromArray|set|setScalar|setRGB)\(\s*(\.\.\.)?LOOK\.list\(/.test(line)) { bad++; console.log(`✗ ${path.relative(ROOT, f)}:${i + 1} hands LOOK.list's strings to three.js: use LOOK.nums`); }
+  });
+}
 for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apartment-act\d+|props)\.glb$/.test(f))) {
   const glb = path.join(ROOT, 'assets', f);
   if (!fs.existsSync(glb + '.gz') || !zlib.gunzipSync(fs.readFileSync(glb + '.gz')).equals(fs.readFileSync(glb))) { bad++; console.log(`✗ assets/${f}.gz is missing or differs from assets/${f}: run node tools/split.mjs, or tools/props.mjs for props.glb`); }
