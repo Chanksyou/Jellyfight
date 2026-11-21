@@ -16,13 +16,15 @@ function layerMaterial(step, side, twoPass) {
 export const VIEW_STEP = 0.012;   // on screen: 1 layer is dark grey, 10 layers mid grey, about 40 layers near white
 
 // Runs `draw` with every mesh wearing a flat layer of its own side (and pass count), the background out of the way.
+const MATS = new Map();   // kept for good (a few): a disposed material would drop its shader program, rebuilt every frame of the view
 function withOverdraw(renderer, scene, step, seeThrough, draw) {
-  const undo = [], bg = scene.background, clear = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha(), mats = new Map();
+  const undo = [], bg = scene.background, clear = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha();
   const swap = (m) => {
-    const twoPass = m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass, k = `${m.side}|${twoPass}`;
-    if (!mats.has(k)) mats.set(k, layerMaterial(step, m.side, twoPass));
-    return mats.get(k);
+    const twoPass = m.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass, k = `${step}|${m.side}|${twoPass}`;
+    if (!MATS.has(k)) MATS.set(k, layerMaterial(step, m.side, twoPass));
+    return MATS.get(k);
   };
+  try {
   scene.traverse((o) => {
     if (!o.visible) return;
     const own = o.isMesh ? (Array.isArray(o.material) ? o.material : [o.material]) : null;
@@ -31,10 +33,10 @@ function withOverdraw(renderer, scene, step, seeThrough, draw) {
     o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
   });
   scene.background = null; renderer.setClearColor(0x000000, 0);
-  try { return draw(); } finally {
+  return draw();
+  } finally {
     scene.background = bg; renderer.setClearColor(clear, alpha);
     for (const [o, k, v] of undo) o[k] = v;
-    for (const m of mats.values()) m.dispose();
   }
 }
 
@@ -52,7 +54,7 @@ export function measureOverdraw(renderer, scene, camera, { seeThrough = false } 
   if (!target || target.width !== w || target.height !== h) { target?.dispose(); target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false }); }
   const px = new Uint8Array(w * h * 4), was = renderer.getRenderTarget();
   withOverdraw(renderer, scene, STEP, seeThrough, () => {
-    renderer.setRenderTarget(target); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(was);
+    try { renderer.setRenderTarget(target); renderer.clear(); renderer.render(scene, camera); } finally { renderer.setRenderTarget(was); }
   });
   renderer.readRenderTargetPixels(target, 0, 0, w, h, px);
   const hist = new Uint32Array(256);
