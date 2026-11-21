@@ -1,1 +1,0 @@
-redraws the Poison jelly's pick card: thick glossy bubbles of poison wobble up and flow together when they touch, goo lines the card's glass and swells into drips that fall, vapour curls up behind, and a sickly green light from below lights the jelly, replacing the outlined circles.

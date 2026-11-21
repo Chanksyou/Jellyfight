@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v592 redraws the Poison jelly's pick card: thick glossy bubbles of poison wobble up and flow together when they touch, goo lines the card's glass and swells into drips that fall, vapour curls up behind, and a sickly green light from below lights the jelly, replacing the outlined circles.
+
 v591 draws glass, window shades, bug wings, the jelly's oral arms and the additive glow pieces once instead of twice, a little less work on a phone's processor each frame (no change to how they look, except sheer curtains, which keep two passes).
 
 v590 softens Wind's air on the jelly type pick screen and in play: the gust's speed lines and the Wind jelly's circling streaks are now soft ribbons of air that fade at both ends instead of hard thin bars and arcs, and the pick screen shows more of them with a minty backdrop.
