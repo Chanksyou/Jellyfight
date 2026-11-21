@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT, compileMods, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
+import { LOOK } from '../look.js';
 import { elementParams } from '../words.js';
 import { xpToNext } from '../stats.js';
 import { PLAYED_KEY } from '../first-run.js';
@@ -355,5 +356,23 @@ story('types/glitter-pick-card-attacks', {
       keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
       picker.close(); mainMenu.home = false;
     }
+  },
+});
+
+story('types/pick-stage-glitter', {
+  about: 'Only on the pick screen\'s stage (fx.showcase) the Glitter jelly\'s burst throws 1.8 times the flakes and more sparkles to its edge, and a glittered bug sparkles more; in play the same effects are exactly as before. The Glitter card\'s water has its own pink-violet grade.',
+  setup() { quiet(); },
+  play() {
+    const { run, fx } = G(), L = run.bubbles.looks, F = fx.glitter, at = new THREE.Vector3(0, 0.3, -0.25);
+    const burst = (showcase) => {
+      F.clear(); fx.showcase = showcase;
+      const emits = spy(fx.glow, 'emit');
+      try { L.sparkleCloud(at, 0.1, 0.05); L.glitterPop(at, 0.1); L.glittered(at, 0.02); } finally { fx.showcase = false; }
+      return { flakes: F.live, emits: emits.length };
+    };
+    const play = burst(false), stage = burst(true);
+    F.clear();
+    const grade = LOOK.color('preview-grade-glitter', '#ffffff') !== '#ffffff';
+    return ok(stage.flakes === Math.round(play.flakes * 1.8) && stage.emits > play.emits && grade, { play, stage, grade });
   },
 });

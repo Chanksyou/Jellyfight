@@ -1,1 +1,1 @@
-paints Glitter's card on the jelly type pick screen in a shader: out-of-focus lights far behind, tumbling glitter flakes that flash white as they turn face on, winking stars, a pink and rainbow light on the jelly and glitter along its edge.
+gives the Glitter jelly's attack on the pick screen a fuller burst, a longer glint trail and a pink-violet backdrop; in play nothing changes.

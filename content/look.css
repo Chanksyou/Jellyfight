@@ -428,6 +428,7 @@
   --preview-backdrop-tint-lightning: 30;   /* --preview-backdrop-tint-<id>, */
   --preview-backdrop-bright-lightning: 0.2;  /* --preview-backdrop-bright-<id>: darker, so each strike stands out */
   --preview-grade-tentacle: #ff6aff;       /* Tentacle: its dusk violet */
+  --preview-grade-glitter: #ff5ce6;     /* Glitter: the water behind it, a pink-violet party */
   --preview-grade-poison: #a8e07c;     /* Poison: murky sickly green water */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
@@ -1054,6 +1055,7 @@
   --glitter-pop: #ff9ae8;
   --glitter-cloud-flakes: 110;   /* Glitter jelly: flakes in its burst, thrown out to fill its 10 cm hit sphere (more for a wider one) */
   --glitter-cloud-fall: 0.2;     /* how fast they sink while they hang there, m/s a second (a plain bomb's flakes: 0.6) */
+  --glitter-showcase-more: 1.8;  /* the pick screen's stage only: a burst throws this many times the flakes */
   --glitter-cloud-life: 0.5;     /* s a burst counts as showing (stories) */
   /* ice (Freezer Pack): its shards, the frost flower where one strikes, a chilled bug's crown (ice-looks.js, enemies.js) */
   --ice-shard: #cfefff;          /* the crystal shards that burst out of a hit and a chilled bug's shatter */

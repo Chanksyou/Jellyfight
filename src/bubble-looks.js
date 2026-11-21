@@ -311,14 +311,14 @@ export class BubbleLooks {
     const glow = this.fx.glow;
     glow.emit(pos, COL.snow, radius * 1.2, radius * 0.6, 0.07, 1.4);
     for (let k = 0; k < 5; k++) glow.emit(pos, COL.glitter[k], radius * 0.7, radius * 0.5, 0.2, 0.5);
-    for (let k = 0; k < 18; k++) {                                            // sparkles flung to the edge
-      const a = (k / 18) * Math.PI * 2;
+    for (let k = 0; k < (this.fx.showcase ? 30 : 18); k++) {                  // sparkles flung to the edge (the pick screen's stage: more)
+      const a = (k / (this.fx.showcase ? 30 : 18)) * Math.PI * 2;
       glow.emit(pos, COL.glitter[k % 5], radius * 0.09, 0, 0.3 + Math.random() * 0.15, 1.2, _v.set(Math.cos(a) * radius * 3, 0.03, Math.sin(a) * radius * 3), 0.15);
     }
   }
   // a bug the glitter splash hit: it sparkles all over for a moment
   glittered(pos, r) {
-    for (let k = 0; k < 5; k++) this.fx.glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.glitter[(Math.random() * 5) | 0], r * 0.45, 0, 0.35 + Math.random() * 0.4, 1.3, _a.set(0, 0.015, 0), 0.1);
+    for (let k = 0; k < (this.fx.showcase ? 12 : 5); k++) this.fx.glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 0.9)), COL.glitter[(Math.random() * 5) | 0], r * 0.45, 0, 0.35 + Math.random() * 0.4, 1.3, _a.set(0, 0.015, 0), 0.1);   // (the pick screen's stage: more of them)
   }
 
   // the Poison blob's burst: a sphere of green gas swelling out to its real edge (radius), a ring round
@@ -484,7 +484,7 @@ export class BubbleLooks {
   // no shell drawn round it. `color`: a Rainbow roll's tint, or null for the glitter's own colours.
   // Each burst is noted in `clouds` for --glitter-cloud-life (stories count them)
   sparkleCloud(pos, r, floor, color = null, crit = false) {
-    const n = Math.round(LOOK.num('glitter-cloud-flakes', 110) * Math.min(1.5, r / 0.1) * (crit ? 1.4 : 1));
+    const n = Math.round(LOOK.num('glitter-cloud-flakes', 110) * Math.min(1.5, r / 0.1) * (crit ? 1.4 : 1) * (this.fx.showcase ? LOOK.num('glitter-showcase-more', 1.8) : 1));   // (the pick screen's stage: a fuller cloud)
     this.fx.glitter.cloud(pos, n, r, floor, color);
     const C = (this.clouds ||= []);
     let c = C.find((x) => !x.visible);
@@ -659,7 +659,7 @@ export class BubbleLooks {
           f.position.set(Math.cos(a) * 0.8, h, Math.sin(a) * 0.8); f.rotation.set(t * (11 + k), t * (7 + k * 2), 0);
         }
         glow.hold(m.position, COL.glitter[0], r * 3, 0.3);
-        if (tick) for (let s = 0; s < 3; s++) {
+        if (tick) for (let s = 0; s < (this.fx.showcase ? 7 : 3); s++) {   // (the pick screen's stage: a longer trail of glints)
           glow.emit(_v.copy(m.position).addScaledVector(_a.randomDirection(), r * 1.5), COL.glitter[(Math.random() * 5) | 0], r * 1.2, 0, 0.35 + Math.random() * 0.3, 1, _b.randomDirection().multiplyScalar(0.06), 0.2);
         }
         break;
