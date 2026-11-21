@@ -2164,11 +2164,26 @@ export class Run {
     const body = (fade) => { if (this.endView !== 'board') return; const v = B.view(tab, { face: this.jellyFace, types }); this.ui.boardBody(v.note, v.rows, { cls: v.cls, fade }); };
     const buttons = [{ label: 'Back', go: true, onClick: () => { B.onChange = null; back(); } }];
     if (B.mine) buttons.unshift({ label: 'Change name', onClick: () => { B.onChange = null; this.changeBoardName(() => this.showBoard(back, tab)); } });
+    if ((B.season ?? SEASON) > 1) buttons.unshift({ label: 'Past seasons', onClick: () => { B.onChange = null; this.showPast(back, tab); } });
     B.open();                           // this visit reads each tab afresh
     this.ui.board({ title: 'Leaderboard', season: B.season ?? SEASON, tabs, active: tab, buttons, onTab: (id) => { tab = id; this.ui.setTab(id); body(true); B.load(id); } });
     body(false);
     B.onChange = () => body(false);     // redraw as a tab's scores come in
     B.ready.then(() => B.load(tab));
+  }
+
+  // Past seasons: a tab for each (newest first), its Champions and the top 3 of All. Read-only; back returns to the board on `tab`
+  showPast(back, tab) {
+    const B = this.board;
+    const types = Object.entries(CONTENT.jellies).map(([id, j]) => ({ id, name: j.name, icon: j.icon }));
+    const tabs = Array.from({ length: (B.season ?? SEASON) - 1 }, (_, i) => ({ id: String((B.season ?? SEASON) - 1 - i), label: `Season ${(B.season ?? SEASON) - 1 - i}` }));
+    let at = tabs[0].id;
+    const body = (fade, data = B.past.get(Number(at))) => { if (this.endView !== 'past') return; const n = Number(at), v = B.pastView(n, data, { face: this.jellyFace, types }); this.ui.boardBody(v.note, v.rows, { cls: v.cls, fade }); };
+    const show = async (id) => { at = id; this.ui.setTab(id); body(true); const data = await B.loadPast(Number(id)); if (at === id) body(false, data); };
+    this.endView = 'past';
+    this.ui.board({ title: 'Past seasons', tabs, active: at, buttons: [{ label: 'Back', go: true, onClick: () => this.showBoard(back, tab) }], onTab: show });
+    body(false);
+    show(at);
   }
 
   changeBoardName(back) {

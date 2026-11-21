@@ -351,7 +351,7 @@
   --board-jelly-size: 80px;
   --board-jelly-size-phone: 56px;
   --board-champion-jelly-size: 56px;        /* the Champions tab's portraits (eight rows at once) */
-  --board-champion-jelly-size-phone: 44px;
+  --board-champion-jelly-size-phone: 40px;
   /* Main menu: presentation only. Distances are multiples of the jelly's height. */
   --menu-camera-distance: 1.74;          /* was 2.35: shrinking distance by 1.35 draws the jelly 35% bigger */
   --menu-camera-distance-portrait: 2.96; /* was 4 */

@@ -26,12 +26,18 @@ export function fakeWorker(boards) {
     const u = String(url);
     if (!u.startsWith('api/scores')) return Response.json({});
     if (opts.method === 'POST') { log.posts.push(JSON.parse(opts.body)); return Response.json({ posted: true }); }
-    const tab = new URL(u, 'http://x/').searchParams.get('tab') || 'all';
-    log.gets.push(tab);
-    return Response.json(boards[tab] || { season: 1, tab, top: [], mine: null });
+    const q = new URL(u, 'http://x/').searchParams, tab = q.get('tab') || 'all', past = q.get('season');
+    log.gets.push(past ? `s${past}-${tab}` : tab);
+    return Response.json(boards[past ? `s${past}-${tab}` : tab] || { season: past ? +past : 1, tab, top: [], mine: null });
   };
   return { log, restore() { window.fetch = real; } };
 }
+
+// Season 1 as it ended, for a board that is now on season 2: what ?season=1 answers
+export const pastFixture = () => ({
+  's1-champions': { season: 1, tab: 'champions', mine: null, top: [row(0, 'ice', 51000, { name: 'Frost' }), row(1, 'fire', 44000, { won: false, acts: 3 }), row(2, 'normal', 30000, { won: false, acts: 2 })] },
+  's1-all': { season: 1, tab: 'all', mine: null, top: [row(0, 'ice', 51000, { name: 'Frost' }), row(1, 'fire', 44000, { won: false, acts: 3 }), row(2, 'normal', 30000, { won: false, acts: 2 })] },
+});
 
 // A web Leaderboard with its tabs already in (a screen opens in one step: nothing waits for a read)
 export function webBoard(boards) {
@@ -133,6 +139,32 @@ story('board/submit-is-offered-by-jelly-type', {
       const opensOn = tabBtn('lightning').getAttribute('aria-pressed') === 'true';
       return ok(fire.submit && rules.fireQualifies && rules.iceBlocks && rules.ranks && posted.posted && worker.log.posts.length === 1 && worker.log.posts[0].jelly === 'fire' && tooLow && opensOn,
         { fire: fire.submit, rules, posted, posts: worker.log.posts.length, tooLow, opensOn });
+    });
+  },
+});
+
+story('board/past-seasons-keep-the-old-champions', {
+  about: 'While the board is on Season 1 there is no Past seasons button. On Season 2 the button opens a page with a tab for Season 1 showing its Champions (a row for each type that had one) and the top 3 of All, read once from the Worker with the season in the request; Back returns to the board on the tab it came from.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const first = await withBoard(fixture(), async ({ run }) => {
+      run.showBoard(() => {}); await wait(100);
+      return [...modal().querySelectorAll('.btns button')].some((b) => /Past seasons/.test(b.textContent));
+    });
+    const now = Object.fromEntries(Object.entries(fixture()).map(([k, d]) => [k, { ...d, season: 2 }]));   // the Worker has moved on
+    const boards = { ...now, ...pastFixture() };
+    return withBoard(boards, async ({ run, B, worker }) => {
+      run.showBoard(() => {}, 'all'); await wait(150);
+      const button = [...modal().querySelectorAll('.btns button')].find((b) => /Past seasons/.test(b.textContent));
+      button?.click(); await wait(250);
+      const title = modal().querySelector('h2')?.innerText || '', tabs = [...modal().querySelectorAll('.jf-board-tabs button')].map((b) => b.innerText);
+      const rows = rowsText(), heads = [...modal().querySelectorAll('.jf-sec')].map((e) => e.innerText);
+      const asked = worker.log.gets.filter((g) => g.startsWith('s1-')).sort().join();
+      [...modal().querySelectorAll('.btns button')].find((b) => /Back/.test(b.textContent)).click(); await wait(150);
+      const back = tabBtn('all')?.getAttribute('aria-pressed') === 'true';
+      return ok(first === false && !!button && /Past seasons/.test(title) && !/Season 2/.test(title) && tabs.join() === 'Season 1' && heads.join().toLowerCase() === 'champions,top 3'
+        && rows.length === 8 && /Normal Jelly · Reached act 2/.test(rows[1]) && /Frost Ice Jelly · Won/.test(rows[3]) && /^1\. Frost/.test(rows[5]) && /^3\. Jelly 2/.test(rows[7])
+        && asked === 's1-all,s1-champions' && back, { first, title, tabs, heads, rows, asked, back });
     });
   },
 });
