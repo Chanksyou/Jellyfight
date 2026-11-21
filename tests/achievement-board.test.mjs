@@ -426,18 +426,18 @@ test('a score names the jelly type its run was logged as, and a missing type is 
   assert.equal((await post('run-swap', 15000, 'ice')).data.why, 'unverified');
 });
 
-test('a jelly type run with up to 3 Attack upgrades and several former evolutions posts, and the board shows its type', async () => {
+test('a jelly type run with up to 4 Attack upgrades (one at the start, one per boss) and several former evolutions posts, and the board shows its type', async () => {
   const post = (run, score, jelly) => { clearRates(); return request('/api/scores', { id: 'player-one', name: 'Jelly', run, score, jelly, season: SEASON }); };
   const typed = (upgrades) => JSON.stringify({ jelly: 'fire', upgrades });
   sqlite.prepare('UPDATE run_summaries SET evolutions = ?').run('[]');
   logAct('player-one', 'run-many', 1, 'next-act', { score: 10000, details: typed(['slowBurn']) });
   logAct('player-one', 'run-many', 2, 'next-act', { score: 20000, details: typed(['slowBurn', 'fireBreath']) });
-  logAct('player-one', 'run-many', 3, 'next-act', { score: 30000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });   // a fourth upgrade
-  logAct('player-one', 'run-many', 4, 'died', { score: 35000, details: typed(['slowBurn', 'fireBreath', 'a', 'b']) });
+  logAct('player-one', 'run-many', 3, 'next-act', { score: 30000, details: typed(['slowBurn', 'fireBreath', 'a', 'b', 'c']) });   // a fifth upgrade
+  logAct('player-one', 'run-many', 4, 'died', { score: 35000, details: typed(['slowBurn', 'fireBreath', 'a', 'b', 'c']) });
   assert.equal((await post('run-many', 35000, 'fire')).data.why, 'unverified');
   logAct('player-one', 'run-fire', 1, 'next-act', { score: 10000, treasures: [['candle', 1]], details: typed(['slowBurn']) });
   logAct('player-one', 'run-fire', 2, 'next-act', { score: 20000, details: typed(['slowBurn', 'fireBreath']) });
-  logAct('player-one', 'run-fire', 3, 'died', { score: 25000, details: typed(['slowBurn', 'fireBreath', 'a']) });
+  logAct('player-one', 'run-fire', 3, 'died', { score: 25000, details: typed(['start', 'slowBurn', 'fireBreath', 'a']) });   // the run's opening upgrade, then one per boss
   sqlite.prepare("UPDATE run_summaries SET evolutions = ? WHERE run_id = 'run-fire'").run('["moon","lion","box"]');   // three former evolutions as Legendaries
   assert.equal((await post('run-fire', 25000, 'fire')).data.posted, true);
   const { data } = await request('/api/scores?me=player-one');
