@@ -255,15 +255,16 @@ story('types/poison-pick-card-attacks', {
       stub(live.renderer, 'compileAsync', () => Promise.resolve());
       stub(picker, 'portrait', () => '');
       picker.tick(picker.last + 16);
-      let blobs = 0, poisoned = 0, kills = 0, dead = 0, list = live.P.enemies.list;
-      for (let i = 0; i < 10 * 30; i++) {
+      let blobs = 0, kills = 0, dead = 0, list = live.P.enemies.list;
+      const hit = new Set();   // every roach Poisoned at some point (a burst can catch just one at a time)
+      for (let i = 0; i < 15 * 30; i++) {   // (15 s: some rolls kill only two in the first 10)
         live.simulate(1 / 30);
         const now = live.P.enemies.list, n = now.filter((b) => b.dead).length;
         if (now !== list) { kills += 3 - dead; list = now; dead = 0; } else { kills += n - dead; dead = n; }
         blobs = Math.max(blobs, live.P.bubbles.list.filter((b) => b.tint === 'poison').length);
-        poisoned = Math.max(poisoned, live.P.bubbles.poisoned.size);
+        for (const e of live.P.bubbles.poisoned.keys()) hit.add(e);
       }
-      const worn = !!live.P.worn.pieces.toxin?.group.visible;
+      const worn = !!live.P.worn.pieces.toxin?.group.visible, poisoned = hit.size;
       return ok(picker.liveFor === 'poison' && blobs >= 1 && poisoned >= 2 && kills >= 3 && worn, { live: picker.liveFor, blobs, poisoned, kills, worn });
     } finally {
       keys.forEach((k, i) => (was[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, was[i])));
