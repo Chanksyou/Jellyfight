@@ -107,13 +107,13 @@ export class Bubbles {
     this.main = null;                  // the Element a jelly type's main attack fires (update), else null
     this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
     this.geo = new THREE.SphereGeometry(1, 20, 14);
-    const film = (tint, glow) => new THREE.MeshPhysicalMaterial({
-      color: tint, transparent: true, opacity: LOOK.num('bubble-opacity', 0.24), roughness: 0.02, metalness: 0, clearcoat: 1,
+    const film = (tint, glow, opacity = 0.6, boost = 0.6) => new THREE.MeshPhysicalMaterial({
+      color: tint, transparent: true, opacity, roughness: 0.02, metalness: 0, clearcoat: 1,
       iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [150, 600],
       sheen: 1, sheenRoughness: LOOK.num('bubble-sheen-roughness', 0.35), sheenColor: new THREE.Color(LOOK.color('bubble-sheen', '#e8f8ff')),   // the bright rim of a glassy bubble
-      emissive: glow, emissiveIntensity: LOOK.num('bubble-glow', 0.1), depthWrite: false,
+      emissive: glow, emissiveIntensity: boost, depthWrite: false,
     });
-    this.mat = film(0xcfeeff, 0x4aa8ff);
+    this.mat = film(0xcfeeff, 0x4aa8ff, LOOK.num('bubble-opacity', 0.28), LOOK.num('bubble-glow', 0.15));   // (gold and trap bubbles keep their old film, with the new rim)
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
