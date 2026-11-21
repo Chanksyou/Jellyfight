@@ -115,7 +115,7 @@ export class EncoreDisco {
     const spotGeo = new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2);
     this.spots = new THREE.InstancedMesh(spotGeo, new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), n);
     const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true).translate(0, 0.5, 0);
-    this.beams = new THREE.InstancedMesh(beamGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: LOOK.num('encore-disco-beam', 0.35), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }), n);
+    this.beams = new THREE.InstancedMesh(beamGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: LOOK.num('encore-disco-beam', 0.35), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true }), n);
     for (const m of [this.spots, this.beams]) { m.frustumCulled = false; m.userData.noCollide = true; m.visible = false; m.renderOrder = 4; this.root.add(m); }
     for (let i = 0; i < n; i++) { this.spots.setColorAt(i, _c.set(0)); this.beams.setColorAt(i, _c.set(0)); }
     this.owned = [ballGeo, this.ballMat, this.env, groutGeo, this.ball.children[0].material, this.glints.geometry, this.glints.material, this.glints.material.map, rodGeo, this.rod.material, spotGeo, this.spots.material, beamGeo, this.beams.material];

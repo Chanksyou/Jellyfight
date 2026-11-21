@@ -51,7 +51,7 @@ export class HouseGadgets {
     this.ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.009, 1), new THREE.MeshStandardMaterial({ color: 0xdfe6ef, metalness: 0.9, roughness: 0.15, flatShading: true, emissive: disco, emissiveIntensity: 0.25 }));
     this.ball.visible = false; group.add(this.ball);
     this.cone = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 1, 1, 20, 1, true).translate(0, -0.5, 0),
-      new THREE.MeshBasicMaterial({ color: disco, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      new THREE.MeshBasicMaterial({ color: disco, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending }));
     this.spotPool = new THREE.Mesh(new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: disco, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.cone.visible = this.spotPool.visible = false; group.add(this.cone, this.spotPool);
     this.disco = new THREE.Color(disco); this.pink = new THREE.Color(pink); this.wet = new THREE.Color(wet); this.sw = new THREE.Color(sw);

@@ -16,7 +16,7 @@ function withEmpty(keys, fn) {
 }
 const modal = () => document.querySelector('.jf-modal');
 // a board that takes any score and remembers a best of 9,999 (leaderboard.js's shape)
-const fakeBoard = (posts) => ({ status: 'online', localBest: { score: 9999 }, mine: null, keepBest: () => false, qualifies: () => true, cutoff: () => 0, post: (e) => { posts.push(e); return new Promise(() => {}); } });
+const fakeBoard = (posts) => ({ status: 'online', localBest: { score: 9999 }, mine: null, mineOf: () => null, keepBest: () => false, qualifies: () => true, cutoff: () => 0, post: (e) => { posts.push(e); return new Promise(() => {}); } });
 
 story('end/death-pulls-you-back', {
   about: 'Dying shows how close it came (the boss\'s time still to come, or its Health left), your best score, and the unlock you\'re nearest (a picture of your jelly wearing it) with how far along you are; Try again is the big button, and Enter still submits the score.',
