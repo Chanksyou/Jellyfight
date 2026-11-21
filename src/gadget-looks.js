@@ -26,7 +26,7 @@ export class GadgetLooks {
     const pool=this.pools[kind];let p=pool.find(p=>!p.alive);
     if(!p){if(pool.length>=this.caps[kind])return null;
       p={m:this.fx.piece(this.geo[kind],this.mat),v:new THREE.Vector3(),size:new THREE.Vector3()};pool.push(p);}
-    Object.assign(p,{alive:true,t:0,life,kind,floor:at.y,alpha:.85,follow:null});p.v.set(0,0,0);
+    Object.assign(p,{alive:true,t:0,life,kind,floor:at.y,alpha:.85,follow:null,stick:false,off:null});p.v.set(0,0,0);
     const m=p.m;m.position.copy(at);m.quaternion.identity();m.scale.setScalar(1);m.visible=true;
     m.userData.color.set(color);m.userData.opacity=this.quiet?.45:.85;
     return p;
@@ -39,7 +39,8 @@ export class GadgetLooks {
   update(dt){
     for(const pool of Object.values(this.pools))for(const p of pool)if(p.alive){
       p.t+=dt;const u=Math.min(1,p.t/p.life),m=p.m;
-      if(p.follow){const e=p.follow;if(e.dead||!e.root?.parent||e.stunT<=0){p.alive=false;p.follow=null;m.visible=false;continue;}m.position.copy(e.pos).y+=e.r*2.4;}
+      if(p.follow){const e=p.follow;if(e.dead||!e.root?.parent||(e.stunT<=0&&!p.stick)){p.alive=false;p.follow=null;m.visible=false;continue;}
+        if(p.off)m.position.copy(e.pos).add(p.off);else m.position.copy(e.pos).y+=e.r*2.4;}   // stick: a needle stays in its bug without a stun
       if(u>=1){p.alive=false;p.follow=null;m.visible=false;continue;}
       m.userData.opacity=Math.min(p.alpha,this.quiet?.4:1)*(1-u)*(1-u);
       if(p.kind==='arc'){
@@ -51,6 +52,8 @@ export class GadgetLooks {
         m.position.addScaledVector(p.v,dt);p.v.y-=dt*LOOK.num('gadget-debris-gravity',1.2);
         if(m.position.y<p.floor){m.position.y=p.floor;p.v.y=Math.abs(p.v.y)*.25;p.v.x*=.7;p.v.z*=.7;}
         if(!this.quiet){m.rotation.x+=dt*7;m.rotation.z+=dt*5;}
+      }else if(p.kind==='drift'){m.position.addScaledVector(p.v,dt);   // a note floating up
+      }else if(p.kind==='star'){if(!this.quiet)m.rotation.y+=dt*6;   // over a Stunned bug
       }else if(p.kind==='tag'){
         if(!this.quiet){m.rotation.z=Math.sin(u*Math.PI)*.3;m.position.y+=dt*.01;}
       }else if(p.kind==='foam'){
@@ -99,12 +102,6 @@ export class GadgetLooks {
       const a=i*2.39996,p=this.take('foam',at,this.cotton,LOOK.num('gadget-cotton-life',.32)+i*.025);if(!p)break;
       p.m.position.add(new THREE.Vector3(Math.cos(a)*radius*.35,.005,Math.sin(a)*radius*.35));
       p.size.set(radius*.22,.004,radius*.22);p.m.scale.copy(p.size);p.alpha=LOOK.num('gadget-cotton-opacity',.16);p.m.userData.opacity=p.alpha;
-    }
-  }
-  squeak(at,radius){
-    for(let i=0;i<(this.quiet?1:3);i++){
-      const m=this.arc(at.clone().add(new THREE.Vector3(0,.003+i*.004,0)),radius*(1-i*.08),this.duck,.22+i*.045);
-      if(m)m.rotation.y=i*2;
     }
   }
   salt(at,radius,prepare=false){
