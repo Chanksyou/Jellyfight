@@ -213,7 +213,7 @@ export class Lash {
   glowLash(s, a, b, k, bright, snapping) {
     if (k <= 0) { s.tip.copy(a); return; }
     const tip = this._tip.copy(a).lerp(b, k), P = this._c, glow = this.fx.glow, lift = a.distanceTo(tip) * LOOK.num('lash-arc', 0.3);
-    const show = this.fx.showcase, n = LOOK.num('lash-glow-dots', 6) * (show ? 1.5 : 1), size = LOOK.num('lash-glow-size', 0.03);
+    const show = this.fx.showcase, n = Math.round(LOOK.num('lash-glow-dots', 6) * (show ? 1.5 : 1)), size = LOOK.num('lash-glow-size', 0.03);
     for (let i = 1; i <= n; i++) {
       const u = i / n;
       P.copy(a).lerp(tip, u); P.y += Math.sin(u * Math.PI) * lift;
@@ -222,7 +222,7 @@ export class Lash {
     }
     glow.hold(tip, this.strikeColor, size * 2 * bright, bright);   // the tip: the bright point the eye follows
     if (snapping) {
-      const m = LOOK.num('lash-streak-dots', 4) * (show ? 1.5 : 1), ss = LOOK.num('lash-streak-size', 0.018);
+      const m = Math.round(LOOK.num('lash-streak-dots', 4) * (show ? 1.5 : 1)), ss = LOOK.num('lash-streak-size', 0.018);
       for (let i = 1; i <= m; i++) glow.emit(P.copy(s.tip).lerp(tip, i / m), this.traceColor, ss, ss * 0.3, LOOK.num('lash-streak-life', 0.2) * (show ? 1.5 : 1), 0.8);
     }
     s.tip.copy(tip);
