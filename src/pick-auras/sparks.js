@@ -112,7 +112,7 @@ vec3 paint(vec2 uv) {
   c += hot * rim(uv, toward, 0.02) * (flash * 2.5 + after * 0.3);
   // the corona: a thin glow hugging the bell's edge, bright patches crawling along it
   float e1 = 0.0, e2 = 0.0;
-  float byBell = uv.y > 0.42 && j.x < 0.99 ? max(max(jelly(uv + vec2(0.024, 0.0)).x, jelly(uv - vec2(0.024, 0.0)).x), max(jelly(uv + vec2(0.0, 0.024)).x, jelly(uv - vec2(0.0, 0.024)).x)) : 0.0;
+  float byBell = uv.y > 0.42 && j.x < 0.99 ? max(max(jelly(uv + vec2(0.034, 0.0)).x, jelly(uv - vec2(0.034, 0.0)).x), max(jelly(uv + vec2(0.0, 0.034)).x, jelly(uv - vec2(0.0, 0.034)).x)) : 0.0;
   if (byBell > 0.0) for (int i = 0; i < 6; i++) {   // (only near the bell's edge: 4 taps, not 12, everywhere else)
     vec2 o = vec2(cos(float(i) * PI / 3.0), sin(float(i) * PI / 3.0));
     e1 = max(e1, jelly(uv + o * 0.008).x); e2 = max(e2, jelly(uv + o * 0.02).x);

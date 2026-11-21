@@ -28,7 +28,7 @@ function withInstanceOpacity(src) {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFacing;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFacing = abs(dot(normalize(mat3(modelViewMatrix * instanceMatrix) * normal), normalize(-(modelViewMatrix * instanceMatrix * vec4(position, 1.0)).xyz)));');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFacing;')
-        .replace('gl_FragColor.a *= vInstanceOpacity;', `gl_FragColor.a *= vInstanceOpacity * smoothstep(0.0, ${soft.toFixed(2)}, vFacing);`);
+        .replace('gl_FragColor.a *= vInstanceOpacity;', `gl_FragColor.a *= vInstanceOpacity * smoothstep(0.0, ${Math.max(0.01, soft).toFixed(2)}, vFacing);`);
     }
     if (hold) {   // a material can keep a hole round one point (userData.holdout = { value: Vector4(x, y, z, radius) }): the jelly shows through the smoke
       sh.uniforms.uHold = hold;
