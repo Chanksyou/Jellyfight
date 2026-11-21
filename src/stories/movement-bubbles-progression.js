@@ -121,6 +121,24 @@ story('attack/sting-feel', {
       { at: Object.fromEntries(Object.entries(at).map(([k, v]) => [k, v[0]])), streak, swell, inSight, flashed, dmg: hit?.amount, force: shove?.force });
   },
 });
+story('attack/sting-ribbon-and-snap', {
+  about: 'A landed sting leaves its arc hanging as a ribbon of glow that fades from the root (the tip end lasts longest, graded dim to white-hot), flashes the tip and throws venom drops that fall; on the pick screen\'s stage (fx.showcase) there are twice the ribbon points and three times the drops. Hit timing and damage are as before.',
+  setup() { fresh({ types: 'tentacle', elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
+  play() {
+    const { run, fx } = G(), L = run.lash;
+    const counts = [];
+    for (const show of [false, true]) {
+      fx.showcase = show;
+      fx.glow.clear();
+      L.snap(V(0, 0.05, 0), V(0, 0.05, -0.1));
+      const parts = fx.glow.parts, life = parts.map((q) => q.life);
+      counts.push({ n: parts.length, falling: parts.filter((q) => q.g > 0).length, rootShorter: Math.min(...life.slice(0, 3)) < Math.max(...life) });
+    }
+    fx.showcase = false;
+    const [p, q] = counts;
+    return ok(p.n >= 10 && p.falling === 3 && p.rootShorter && q.n >= 1.8 * p.n && q.falling === 9, { play: p, stage: q });
+  },
+});
 story('attack/sting-miss-no-crack', {
   about: 'A tentacle that reaches a bug already dead when it lands gives no false hit: no flash, no crescent, no damage.',
   setup() { fresh({ types: 'tentacle', elites: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); spawn('roach', G().player.position.clone().add(V(0, 0, -0.07)), { still: true, hp: 9999 }); },
