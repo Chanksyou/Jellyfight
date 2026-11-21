@@ -677,6 +677,10 @@ export const sfx = {
   crowdCheer() { if (!ready() || !gap('crowdCheer', 800)) return; noise(1400, 0.6, 1.2, 0.07, 'bandpass', 0, 2200); patter(20, 0.1, 1, 0.025); tone('sine', 500, 800, 0.5, 0.015, 0.1); },
   // an enemy hit: a short thud
   hit() { if (!ready() || !gap('hit', 30)) return; if (sample('bubble-hit', { ...EVERYDAY, rate: 0.92 + rng() * 0.16 })) return; tone('triangle', 200 * jitter(), 90, 0.06, 0.12); },
+  // buff-looks.js: extra damage landing (Rolling Pin, Can Opener): a flat, heavy thud
+  bonusThud() { if (!ready() || !gap('bonusThud', 120)) return; tone('sine', 120, 55, 0.14, 0.12); noise(500, 1, 0.06, 0.1, 'lowpass'); },
+  // Thimble soaking part of a hit: a small silver tink
+  thimbleTink() { if (!ready() || !gap('thimbleTink', 80)) return; tone('sine', 3200, 2900, 0.12, 0.04); tone('sine', 4800, 4600, 0.08, 0.02, 0.012); },
   // a critical hit: a bright metallic shing over the thud, a falling glint after it
   crit() {
     if (!ready() || !gap('crit', 60)) return;

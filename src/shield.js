@@ -60,7 +60,8 @@ export class Shield {
     this.group.visible = this.hp > 0 && !['dead', 'won'].includes(run.phase);
     const m = this.shell.material;
     m.progress = max > 0 ? this.hp / max : 0;
-    m.opacity = LOOK.num('shield-opacity', 0.22) + this.flash * 1.6;
+    this.rim = max > 0 && this.full && run.mods.shield.fullDamage > 0;   // shield-full-damage holds: the shell burns brighter (buff-looks.js's sign)
+    m.opacity = LOOK.num('shield-opacity', 0.22) + this.flash * 1.6 + (this.rim ? LOOK.num('shield-full-glow', 0.18) : 0);
   }
 
   // Damage through the Shield first; what's left goes to Health. Any damage restarts the wait.
@@ -69,10 +70,11 @@ export class Shield {
     this.calm = 0;
     if (this.charging) this.charging = false;
     if (this.hp <= 0) return amount;
-    const blocked = Math.min(amount, this.hp), run = this.run;
+    const blocked = Math.min(amount, this.hp), run = this.run, mitt = this.full && run.mods.shield.fullDamage > 0;
     this.hp -= blocked;
     const at = run.player.position.clone().setY(run.player.position.y + run.cfg.height * 0.6);
     if (!silent) { run.fx.impact(at, this.color, 0.01, 4); sfx.shieldHit(true); }
+    if (mitt && this.hp > 1e-8 && !run.gadgets.looks.quiet) run.fx.puff(at, this.color, 0.02, 0.3);   // shield-full-damage: its bonus just ended, a puff snuffs it
     if (this.hp <= 1e-8) {
       this.hp = 0;
       this.state = 'broken';

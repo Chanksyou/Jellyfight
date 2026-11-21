@@ -29,6 +29,7 @@ import './stories/type-words.js';
 import './stories/treasure-feel.js';
 import './stories/treasure-feel-more.js';
 import './stories/treasure-feel-twelve.js';
+import './stories/buff-looks.js';
 import './stories/treasure-glow.js';
 import './stories/treasure-bursts.js';
 import './stories/treasure-companions.js';

@@ -496,7 +496,7 @@ export class Bubbles {
       if (b.m.userData.look) { this.looks.update(b, dt, this.clock); if (b.golden) this.fx.glow.hold(b.m.position, GOLD, b.r * 5, 0.55); }   // an element projectile: its own look and particles
       else {
         // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
-        this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.friendly, b.r * (b.big ? 6 : 5), b.golden ? 0.55 : 0.4);
+        this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.buffTint || this.friendly, b.r * (b.big ? 6 : 5) * (this.buffTint ? 1.25 : 1), b.golden ? 0.55 : 0.4);   // buffTint: a live buff's colour (buff-looks.js)
         const grow = Math.min(1, b.t * 8);
         b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
       }
