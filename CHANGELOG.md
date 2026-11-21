@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v597 makes Low graphics really low on phones: the apartment draws with plain diffuse materials (no shine), the three spotlights go dark with the room's fill light lifted for them, and clearcoat, iridescence and sheen are off. Low looks plainer and should run lighter; Medium and High are unchanged. `?lite=1` tries the same look on any tier.
+
 v596 draws the Tentacle jelly's pick card in a shader: whip lashes with ribbon trails crack round the jelly in a violet dusk, snapping with a star flash, a ring and venom drops, lighting the jelly's edge as they land.
 
 v595 lets the apartment's furniture hold still: three.js no longer recomputes its 1,100-odd pieces' positions every frame (doors, the layout editor and boss sets update the pieces they move), so phones spend less of each frame on bookkeeping.

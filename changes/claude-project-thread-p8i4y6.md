@@ -1,1 +1,0 @@
-makes Low graphics really low on phones: the apartment draws with plain diffuse materials (no shine), the three spotlights go dark with the room's fill light lifted for them, and clearcoat, iridescence and sheen are off. Low looks plainer and should run lighter; Medium and High are unchanged. `?lite=1` tries the same look on any tier.
