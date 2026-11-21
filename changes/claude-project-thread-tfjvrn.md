@@ -1,1 +1,0 @@
-makes the game churn less memory on phones: floor checks under bugs and the jelly's feet, the lamp ranking and the batch walk reuse what they have instead of making new objects each frame, and the minimap repaints 15 times a second (at once when a mark appears or moves) at no more than 2 pixels per CSS pixel.

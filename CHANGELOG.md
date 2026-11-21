@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v594 makes the game churn less memory on phones: floor checks under bugs and the jelly's feet, the lamp ranking and the batch walk reuse what they have instead of making new objects each frame, and the minimap repaints 15 times a second (at once when a mark appears or moves) at no more than 2 pixels per CSS pixel.
+
 v593 makes the Fire Jelly's attack on the type pick screen's live card look like fire: the fireball boils and trails a flame tail, a burning roach wears real flames, and a hit smokes and leaves a scorch that cools. Play looks the same.
 
 v592 redraws the Poison jelly's pick card: thick glossy bubbles of poison wobble up and flow together when they touch, goo lines the card's glass and swells into drips that fall, vapour curls up behind, and a sickly green light from below lights the jelly, replacing the outlined circles.
