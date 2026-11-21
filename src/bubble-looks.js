@@ -16,6 +16,7 @@
 // Every mesh is drawn instanced (batch.js) and every glow is a GlowPoints particle (vfx.js);
 // the lightning arcs share one line buffer. So a screen full of them is a handful of draw calls.
 import * as THREE from 'three';
+import * as fireLooks from './fire-looks.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 
@@ -117,16 +118,18 @@ export class BubbleLooks {
       every: LOOK.num('poison-drip-every', 0.2), burstLife: LOOK.num('poison-burst-life', 0.35),
     };
     const ball = new THREE.IcosahedronGeometry(1, 2);
+    const boil = (m, o) => (fx?.showcase ? fireLooks.churn(m, o) : m);
     const flake = new THREE.CircleGeometry(1, 6), crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
     // Base at the hot core, tapered point trailing along local -z. No dynamic lights.
     const tongue = new THREE.ConeGeometry(1, 1, 7).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
     // each element's parts: [geometry, material, { name, s: [x, y, z] scale, at: [x, y, z] }]
     // (local +z is the way it flies)
     this.parts = {
+      // (on the pick screen's stage, fx.showcase, its surface boils and its flames tear: fire-looks.js)
       fire: [
-        [ball, lit(F.core), { name: 'core', s: [0.8, 0.8, 1.05] }],
-        [ball, lit(F.flame, 0.72, true), { name: 'flame', s: [1.05, 1.05, F.length * 0.45], at: [0, 0, -0.7] }],
-        [tongue, lit(F.edge, 0.4, true), { name: 'flame2', s: [1.45, 1.45, F.length * 1.4] }],
+        [ball, boil(lit(F.core), { scale: 2.2, flow: 2.5, dark: 0.35, hot: 1.7 }), { name: 'core', s: [0.8, 0.8, 1.05] }],
+        [ball, boil(lit(F.flame, 0.72, true), { scale: 1.6, flow: 4, dark: 0.6, tear: 0.7, hot: 1.4 }), { name: 'flame', s: [1.05, 1.05, F.length * 0.45], at: [0, 0, -0.7] }],
+        [tongue, boil(lit(F.edge, 0.4, true), { scale: 1.3, flow: 5, dark: 0.5, tear: 0.85, hot: 1.3 }), { name: 'flame2', s: [1.45, 1.45, F.length * 1.4] }],
         [tongue, lit(F.core, 0.7, true), { name: 'tongue', s: [0.35, 0.35, F.length * 0.85], at: [0.45, 0.1, -0.2] }],
       ],
       lightning: [
@@ -211,7 +214,7 @@ export class BubbleLooks {
     return m;
   }
 
-  release(m) { m.visible = false; this.pools[m.userData.look].push(m); }
+  release(m) { m.visible = false; if (m.userData.tail) m.userData.tail.visible = false; this.pools[m.userData.look].push(m); }
 
   // one of each, for the shader warm-up (main.js)
   warm(at) { return Object.keys(this.parts).map((el) => { const m = this.get(el); m.position.copy(at); m.scale.setScalar(0.01); return m; }); }
@@ -474,7 +477,7 @@ export class BubbleLooks {
       if (this.arcN + 2 <= this.arcMax) { this.arcPos.set([P[i - 1].x, P[i - 1].y, P[i - 1].z, P[i].x, P[i].y, P[i].z], this.arcN * 3); this.arcN += 2; }
     }
   }
-  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const c of this.clouds || []) c.visible = false; }
+  clearBolts() { this.boltPool.push(...this.live); this.live.length = 0; for (const c of this.clouds || []) c.visible = false; this.burnFlames?.clear(); }
 
   // The Glitter jelly's burst (types on, bubbles.js glitterBurst): its flakes fill the sphere of the
   // hit, `r` round `pos`, roughly (glitter-looks.js cloud), so a flying bug inside reads as hit, with
@@ -499,8 +502,9 @@ export class BubbleLooks {
   }
 
   // A compact contact, not another damage area. Only confirmed enemy strikes call this.
-  fireHit(pos, r, direction = Z) {
+  fireHit(pos, r, direction = Z, floorY) {
     const F = this.fire, glow = this.fx.glow;
+    if (this.fx.showcase) fireLooks.hit(this.fx, F, pos, r, floorY);
     _d.copy(direction).normalize();
     glow.emit(pos, F.core, r * F.contactScale, r * 0.5, F.contactLife, 1.1);
     glow.emit(pos, F.edge, r * F.contactScale * 1.5, r, F.contactLife * 2, 0.5);
@@ -517,9 +521,13 @@ export class BubbleLooks {
 
   fireBurn(pos, r) {
     const F = this.fire;
+    if (this.fx.showcase) fireLooks.burn(this.fx, F, pos, r);
     this.fx.glow.emit(pos, F.flame, r * 0.9, r * 0.15, F.life, 0.45, _v.set(0, 0.055, 0));
     this.fx.glow.emit(pos, F.ember, r * 0.18, 0, F.emberLife, 0.8, _v.set(0.01, 0.07, -0.01));
   }
+
+  // The pick screen's stage only (fx.showcase): real flames on a burning bug, exactly while it burns
+  burnShow(burning, E, t) { (this.burnFlames ||= new fireLooks.BurnFlames(this.scene, this.fire)).show(burning, E, t); }
 
   // Cosmetic breakup: damage, rewards and spread stay in their existing paths.
   fireDeath(pos, r) {
@@ -552,6 +560,7 @@ export class BubbleLooks {
     switch (U.look) {
       case 'fire': {
         const F = this.fire, f = 1 + 0.22 * Math.sin(t * 31 + w);
+        if (this.fx.showcase) { fireLooks.tick(t); fireLooks.fly(this.fx, F, m.position, tail, dir, r, tick); fireLooks.tail(this.scene, this.fx.camera, F, m, dir, r, t); }
         U.core.scale.set(0.8 / f, 0.8 * f, 1.15);
         U.flame.scale.set(1.05 * f, 1.05 / f, F.length * 0.45 / f);
         U.flame.rotation.z = Math.sin(t * 17 + w) * 0.25;
