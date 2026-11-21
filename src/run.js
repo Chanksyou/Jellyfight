@@ -16,6 +16,7 @@ import { NEST } from './critters.js';
 import { Gadgets } from './gadgets.js';
 import { Adornments } from './adornments.js';
 import { Shield } from './shield.js';
+import { BuffLooks } from './buff-looks.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { EvolutionReveal } from './evolution-reveal.js';
@@ -111,6 +112,7 @@ export class Run {
     this.crowdRing = new THREE.Mesh(new THREE.RingGeometry(0.72, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: this.friendly, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     this.crowdRing.renderOrder = 3; this.crowdRing.visible = false;
     ctx.scene.add(this.crowdRing);
+    this.buffLooks = new BuffLooks(this);   // signs for the Treasures that change numbers only (buff-looks.js)
     this.shield = new Shield(this);   // the Shield stat's pool and shell (shield.js)
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
@@ -573,6 +575,7 @@ export class Run {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
     this.fireTrail.update(dt);
+    this.buffLooks.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = (this.shield.full ? 1 + this.mods.shield.fullDamage : 1) * (this.easy ? EASY.dealt : 1);   // shield-full-damage, Easy mode (easy.js)
     this.enemies.power = this.power;    // swat (Badminton Racket): a Shot knocked back hits for x Attack damage
@@ -902,7 +905,7 @@ export class Run {
     this.iFrames = 1.0;
     const M = this.mods;
     amount *= M.damageTaken;
-    if (M.hitLess && amount > M.hitLeast) amount = Math.max(M.hitLeast, amount - M.hitLess);   // hit-less (Thimble)
+    if (M.hitLess && amount > M.hitLeast) { amount = Math.max(M.hitLeast, amount - M.hitLess); this.buffLooks.tink(); }   // hit-less (Thimble)
     // dodge: the hit misses (and a moment of grace, so touching a bug doesn't re-roll every frame)
     // ink (Ink Cloud): while the cloud lasts, a hit from a bug close to you misses more often
     const I = this.ink, inked = I && this.t < I.until && from != null && this.enemies.list.some((e) => e.id === from && !e.dead && e.pos.distanceTo(this.player.position) <= I.radius);
@@ -1207,7 +1210,7 @@ export class Run {
       this.xpDrops.drop(c, 1, xp);
       this.fx.number(c.clone().setY(c.y + r * 1.5), `+${xp} XP`, '#ffe27a', elite ? 20 : 14);
     }
-    if (this.mods.healOnKill) this.heal(this.mods.healOnKill);
+    if (this.mods.healOnKill) { if (this.health < this.S.health) this.buffLooks.sip(c); this.heal(this.mods.healOnKill); }
     // grow-on-kills: every N kills a stat grows for good
     // (with a cap: that copy stops growing once it has added `cap` in all)
     for (const g of this.mods.growth) {

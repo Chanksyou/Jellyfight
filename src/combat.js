@@ -218,7 +218,7 @@ export class Lash {
       const u = i / n;
       P.copy(a).lerp(tip, u); P.y += Math.sin(u * Math.PI) * lift;
       // a ribbon: thin and dim at its root, wider and nearly white at the leading edge
-      glow.hold(P, this._col.copy(this.traceColor).lerp(this.strikeColor, u * u * u), size * (0.3 + 0.7 * u), (0.3 + 0.7 * u) * 0.8 * bright);
+      glow.hold(P, this._col.copy(this.buffTint || this.traceColor).lerp(this.strikeColor, u * u * u), size * (0.3 + 0.7 * u), (0.3 + 0.7 * u) * 0.8 * bright);
     }
     glow.hold(tip, this.strikeColor, size * 2 * bright, bright);   // the tip: the bright point the eye follows
     if (snapping) {

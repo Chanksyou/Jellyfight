@@ -466,12 +466,13 @@ export class Enemies {
       if (k !== 1 && this._thaw) { this.shatter(e); color = '#ffffff'; }
       if (blast) this.statusBlast(e, blast, amount * share);
       const M = this.mods, H = e.proxy || e;   // fresh-damage (Rolling Pin): a hit on something still near full Health
-      if (M?.freshMore && H.maxHp && H.hp >= H.maxHp * M.freshAbove) amount *= 1 + M.freshMore;
+      if (M?.freshMore && H.maxHp && H.hp >= H.maxHp * M.freshAbove) { amount *= 1 + M.freshMore; if (!feedback.soft) this.bonusSign(e); }
     }
     e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (!feedback.tick) e.lastGolden = !!feedback.golden;   // golden-bubble coin: the last real hit was golden
     if (e.spotUntil > (this.now ?? 0)) amount *= 1 + e.spotMore;   // in the spotlight (Disco Ball)
     if (e.proxy) {
+      if (this.eliteDamage > 1 && !feedback.tick && !feedback.soft) this.bonusSign(e);   // (a steady soft sting gets no thud)
       e.proxy.damage(amount * (this.eliteDamage ?? 1), color, feedback);   // elite-damage (treasures)
       const X = this.mods?.execute, P = e.proxy;   // execute (Pizza Cutter): an Elite low enough is finished off, never the boss
       if (X?.elites && !e.boss && !P.dead && P.maxHp && P.hp > 0 && P.hp < P.maxHp * X.elites) { this.sliced(e); P.damage(P.hp, '#ffffff', { tick: true }); }
@@ -534,11 +535,19 @@ export class Enemies {
     }
   }
 
+  // fresh-damage / elite-damage added to a hit: a sign (buff-looks.js), at most 5 a second
+  bonusSign(e) {
+    if ((this._bonusAt ?? 0) > (this.now ?? 0)) return;
+    this._bonusAt = (this.now ?? 0) + LOOK.num('bonus-flash-gap', 0.2);
+    bus.emit('bonus_damage', { pos: this.center(e), r: e.r });
+  }
+
   // execute: the moment a low bug is finished off, a white slash across it
   sliced(e) {
     const c = this.center(e);
     this.fx.impact(c, SLICE, e.r * 0.7, 6);
     this.fx.number(c.clone().setY(c.y + e.r * 2), 'SLICED', '#ffffff', 15);
+    bus.emit('enemy_sliced', { pos: c, r: e.r });   // buff-looks.js: the slash and the halves
     sfx.crit();
   }
 

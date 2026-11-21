@@ -217,6 +217,14 @@
   --treasure-fairyLights: #ffe7a8;
   --treasure-magnifier: #c6f6ff;
   --treasure-bathSalt: #d3eaff;
+  --buff-air: #dff6ff;               /* Dry Sock (any while airborne): the wisps and wind off the bell */
+  --buff-fireRate: #ffe2a8;          /* Coffee Bean, Dustpan: the wisps, the shots' glow, a bonus hit's flash */
+  --buff-moveSpeed: #b9ffd6;         /* Meatball: the same, for a Move speed buff */
+  --buff-other: #d8f3ff;             /* any other stack-buff stat */
+  --buff-heal: #b8ffc8;              /* Baby Bottle: the sip flying from the bug to the bell */
+  --buff-silver: #e4f0ff;            /* Thimble: its fleck */
+  --buff-slice-half: #e8d9c0;        /* Pizza Cutter: the two halves of the bug */
+  --shield-full-glow: 0.18;          /* Oven Mitt (shield-full-damage): how much brighter the full Shield burns */
   --treasure-aura-glow: 0.55;        /* Glow Stick: how bright its floor glow is (more as it charges) */
   --treasure-aura-spark-gap: 0.12;   /* s between sparks off its rim at full charge */
   --treasure-stick-size: 0.024;      /* m: the glow stick circling the bell */
