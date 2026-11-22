@@ -12,6 +12,7 @@
 // drops the wisps and wind; Reduce effects keeps the shot tint and drops the pulses, drift and wind.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { drawScale } from './character.js';
 import { bus } from './events.js';
 import { sfx } from './sfx.js';
 
@@ -99,7 +100,7 @@ export class BuffLooks {
   // Thimble: it soaked part of a hit
   tink() {
     const P = this.run.player.position;
-    this.run.gadgets.looks.studs(_p.set(P.x, P.y + this.run.cfg.height * 0.7, P.z), this.silver, 3);
+    this.run.gadgets.looks.studs(_p.set(P.x, P.y + this.run.cfg.height * drawScale() * 0.7, P.z), this.silver, 3);
     sfx.thimbleTink();
   }
 }

@@ -17,6 +17,12 @@ import { squeeze, thrust, thrustPeak, holdOf, strokeAt, sinkOf, spring } from '.
 import { bellFlex, flexWeights, FLEXK, patchBell, RIM_LAG } from './bell-flex.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
+import { IS_TOUCH } from './touch.js';
+
+// A phone draws the jelly a little bigger (--phone-jelly-draw): the picture only; hit size, camera and
+// effect sizes stay as they are. Everything placed on the body reads the drawn height through this.
+export const drawScale = () => (IS_TOUCH ? LOOK.num('phone-jelly-draw', 1) : 1);
+export const drawnBigger = (avatar) => { avatar.root.scale.setScalar(drawScale()); return avatar; };
 
 // The species. Bell: `R` its radius and `profile` its outline from rim to crown ([radius, height],
 // in multiples of R); `square` makes it a rounded box; `lobes` scallops the rim (`lobeAmp` deep).

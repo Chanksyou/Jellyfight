@@ -164,3 +164,18 @@ story('engine/jelly-motion-budget', {
     return ok(worst > 0 && worst <= MOTION_WORK_BUDGET, { worst, budget: MOTION_WORK_BUDGET, seen });
   },
 });
+
+for (const phone of [true, false]) story(`${phone ? 'phone/' : 'look/'}jelly-drawn-${phone ? '15-percent-bigger' : 'at-its-own-size'}`, {
+  phone,
+  about: phone
+    ? 'On a phone the jelly is drawn 15% bigger (the picture only): its Evolution pieces and the shield follow the drawn height, and its hit size does not change.'
+    : 'On a desktop the jelly is drawn at its own size.',
+  setup() {},
+  play() {
+    const G = window, run = G.run, want = phone ? 1.15 : 1, root = G.player.avatar.root;
+    const drawn = run.adorn.h / run.cfg.height;
+    const box = new THREE.Box3().setFromObject(root), tall = box.max.y - box.min.y;
+    const hit = G.player.radius ?? null;
+    return ok(Math.abs(root.scale.x - want) < 1e-6 && Math.abs(drawn - want) < 1e-6 && tall > 0, { scale: root.scale.x, drawn, tall, hit });
+  },
+});
