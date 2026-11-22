@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v625 Singing Bowl ring wall is taller: 9 cm → 12 cm (the rim rings you jump or dodge).
+
 v624 calms act 4's Headphones and the Mushroom Pillow's spores by about a third, still on the beat: the Headphones' shove waves and Stereo bursts come every 2 beats instead of every beat, with a little longer rest, and the Pillow breathes in for 3 beats before its spores and rests longer after; the Singing Bowl's ring walls stand 9 cm tall instead of 5.
 
 v623 draws the jelly 15% bigger on phones, so it reads better on a small screen. Hit size, camera and effect sizes are unchanged.
