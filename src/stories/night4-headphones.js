@@ -264,6 +264,7 @@ night4('headphones-stereo-angry-wave-crosses-the-line', {
   setup() { startHeadphones(1, { angry: true }); },
   play() {
     const S = SK().stereo, W = SK().shove, out = {};
+    const by = S.every > S.lead ? 1 : 2;   // bursts per wave: a wave still on its way keeps the next one off, so with every= no longer than lead= only every second burst sends one
     for (const jump of [true, false]) {
       const { e, player, top } = startHeadphones(1, { angry: true }), { run } = G(), log = record('damage_taken'), seen = watch();
       let was = -1, wash = false;
@@ -279,13 +280,13 @@ night4('headphones-stereo-angry-wave-crosses-the-line', {
       seen.done();
       const w = seen.waves, line = e.base.x;
       out[jump ? 'jumped' : 'stayed'] = { bursts: bursts.length, waves: w.length,
-        fromBurst: w.every((q, j) => (bursts[2 * j].half ? q.from.x > line : q.from.x < line)),   // from the cup that burst (every second burst: a wave still on its way keeps the next one off)
-        crossing: w.every((q, j) => (bursts[2 * j].half ? q.dir.x < 0 : q.dir.x > 0)),           // toward the half about to burst
-        leads: w.every((q, j) => Math.abs(q.beat - bursts[2 * j].beat - S.lead) < 0.06),
+        fromBurst: w.every((q, j) => (bursts[by * j].half ? q.from.x > line : q.from.x < line)),   // from the cup that burst
+        crossing: w.every((q, j) => (bursts[by * j].half ? q.dir.x < 0 : q.dir.x > 0)),           // toward the half about to burst
+        leads: w.every((q, j) => Math.abs(q.beat - bursts[by * j].beat - S.lead) < 0.06),
         shoves: shoves.map((m) => +m.length().toFixed(3)), hurt: log.map((d) => d.source) };
     }
     const { jumped, stayed } = out;
-    const shape = (r) => r.bursts === S.angryBursts && r.waves === Math.floor(S.angryBursts / 2) && r.fromBurst && r.crossing && r.leads;
+    const shape = (r) => r.bursts === S.angryBursts && r.waves === Math.floor((S.angryBursts - 1) / by + (by - 1) / 2) && r.fromBurst && r.crossing && r.leads;
     return ok(shape(jumped) && !jumped.shoves.length && !jumped.hurt.length
       && stayed.bursts >= 2 && stayed.waves >= 1 && stayed.fromBurst && stayed.crossing && stayed.leads && Math.abs(stayed.shoves[0] - W.push) < 0.03 && (stayed.hurt.includes('headphones-stereo') || stayed.bursts < S.angryBursts) && !stayed.hurt.some((h) => h !== 'headphones-stereo'), out);
   },
