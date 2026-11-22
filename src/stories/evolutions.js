@@ -147,6 +147,29 @@ story('dev/test-kit', {
     return ok(calm && got.lemon === 1 && got.pin === 2 && got.evolved.join() === 'lionsMane' && held && bugs === 10 && alive, { calm, ...got, held, bugs, alive });
   },
 });
+story('dev/test-kit-stats', {
+  about: 'The test kit\'s Stats tab gives level-up cards at the chosen tier and flat Attack damage and Fire rate, and takes them away again.',
+  setup() { fresh(); },
+  play() {
+    const { run } = G(), kit = window.kit, tap = (sel) => kit.el.querySelector(sel).click();
+    kit.show(run, {});
+    tap('[data-k="new"]');
+    tap('[data-f="stats"]');
+    const row = (key, stat, k) => tap(`[data-stat="${stat}"][data-key="${key}"] [data-k="${k}"]`);
+    const d0 = run.S.bubbleDamage, f0 = run.S.fireRate, h0 = run.S.health;
+    row('flat', 'bubbleDamage', 'statPlus'); row('flat', 'fireRate', 'statPlus');
+    const flat = run.S.bubbleDamage - d0 === 5 && Math.abs(run.S.fireRate - f0 - 1) < 1e-6;
+    tap('[data-tier="2"]');
+    row('card', 'health', 'statPlus');
+    const epic = run.S.health - h0 === 7;
+    row('card', 'health', 'statMinus'); row('flat', 'bubbleDamage', 'statMinus'); row('flat', 'fireRate', 'statMinus');
+    const back = run.S.health === h0 && run.S.bubbleDamage === d0 && Math.abs(run.S.fireRate - f0) < 1e-6;
+    row('flat', 'bubbleDamage', 'statPlus'); tap('[data-k="resetStats"]');
+    const reset = run.S.bubbleDamage === d0;
+    kit.hide();
+    return ok(flat && epic && back && reset, { flat, epic, back, reset });
+  },
+});
 story('dev/tools-mid-run-stop-it-counting', {
   about: 'Opening the test kit or the tuner on a run in progress makes it a dev run: it no longer goes to the run log, earns Pearls or can be submitted to the leaderboard.',
   setup() { fresh(); },
