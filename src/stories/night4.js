@@ -299,14 +299,15 @@ night4('cicadas-from-1-30', {
   },
 });
 
-// act 4's Elites attack about 40% more often since snap=2 and the shorter windups and rests: this plays each one
-// for a minute on the run's own beat (the jelly held on its spot, no damage) and counts the attacks it starts
-// (`e.next` counts them). The bowl gains least: its rings stay a bar apart, and now it throws five a time (act 4 retune), so it starts fewer, longer attacks: only the other two are held to +10%. BEFORE (snap 4, old windups, rest 1.0): bowl 11, pillow 17, headphones 9 in 60 s.
-night4('elites-attack-faster', {
-  about: 'Left to attack for a minute, the Singing Bowl, the Mushroom Pillow and the Headphones together start at least 30% more attacks than they did on whole-bar timing, and the Pillow and Headphones each at least 10% more (their old counts are in this story).',
+// act 4's Elites' pace: this plays each one for a minute on the run's own beat (the jelly held on its spot,
+// no damage) and counts the attacks it starts (`e.next` counts them). The Nov 22 tune slowed the Headphones
+// (shove and Stereo a hit every 2 beats, not every beat) and the Mushroom Pillow's spores (a longer breath
+// in and rest) by about a third, still on the beat. BEFORE (that tune's start): bowl 10, pillow 26, headphones 15 in 60 s.
+night4('elites-keep-their-pace', {
+  about: 'Left to attack for a minute, the Mushroom Pillow and the Headphones each start 55% to 75% of the attacks they did before the Nov 22 tune (a third calmer, on the beat), and the Singing Bowl about as many (its counts before are in this story).',
   setup() {},
   play() {
-    const BEFORE = { bowl: 11, pillow: 17, headphones: 9 }, out = {};
+    const BEFORE = { bowl: 10, pillow: 26, headphones: 15 }, out = {};
     for (const [kind, at] of [['bowl', kit.onChair], ['pillow', kit.onSofa], ['headphones', kit.onCounter]]) {
       fresh({ bubbles: false, lash: false }); at();
       stub(G().run, 'song', null);
@@ -315,7 +316,7 @@ night4('elites-attack-faster', {
       step(60 * 60);
       out[kind] = e.next;
     }
-    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
-    return ok(sum(out) >= sum(BEFORE) * 1.3 && ['pillow', 'headphones'].every((k) => out[k] >= BEFORE[k] * 1.1), { attacksPerMinute: out, before: BEFORE });
+    const calmer = ['pillow', 'headphones'].every((k) => out[k] >= BEFORE[k] * 0.55 && out[k] <= BEFORE[k] * 0.75);
+    return ok(calmer && Math.abs(out.bowl - BEFORE.bowl) <= 1, { attacksPerMinute: out, before: BEFORE });
   },
 });
