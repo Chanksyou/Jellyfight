@@ -1,8 +1,9 @@
 // Dev: the test kit (pause menu → 🧪 Test kit, behind the dev password). Try any treasure or
 // evolution on the run in front of you: add or take away copies and levels, see what you have,
-// spawn a pack of bugs to try it on, turn the waves off and stop yourself dying. Nothing here is
+// give level-up cards (any stat, at Common, Rare or Epic) or flat Attack damage and Fire rate, spawn a pack of bugs to try it on, turn the waves off and stop yourself dying. Nothing here is
 // for players; it only changes the run it's opened on.
-import { TREASURES, EVOLUTIONS, TREASURE_RARITY } from './stats.js';
+import { TREASURES, EVOLUTIONS, TREASURE_RARITY, RARITY, STAT_INFO, applyCard, cardAmount, cardText } from './stats.js';
+import { jellyStats } from './jelly-types.js';
 import { CONTENT } from './content.js';
 
 const CSS = `
@@ -17,6 +18,11 @@ const CSS = `
 .jf-kit button.go { background: #2ff0c455; border-color: #2ff0c4; font-weight: 700; }
 .jf-kit .tools, .jf-kit .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
 .jf-kit .chips button { padding: 5px 10px; min-height: 32px; font-size: 13px; }
+.jf-kit .stats { display: none; flex: 1; padding: 0 8px 8px; overflow-y: auto; }
+.jf-kit .list[hidden] { display: none; }
+.jf-kit .stats.show { display: block; }
+.jf-kit .stats .tiers { display: flex; gap: 6px; padding: 0 6px 6px; }
+.jf-kit .stats .n { width: auto; min-width: 70px; }
 .jf-kit .have { padding: 4px 14px 8px; font-size: 18px; line-height: 1.5; min-height: 28px; word-break: break-word; }
 .jf-kit .have small { font-size: 12px; opacity: .6; }
 .jf-kit input[type=search] { margin: 0 14px 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid #ffffff30; background: #0006; color: #fff; font: inherit; }
@@ -34,7 +40,7 @@ const CSS = `
 `;
 
 const TAG = Object.fromEntries(TREASURE_RARITY.map((r) => [r.id, r.color]));
-const FILTERS = [['all', 'All'], ['evolution', 'Evolutions'], ['common', 'Common'], ['rare', 'Rare'], ['epic', 'Epic'], ['legendary', 'Legendary'], ['upgrade', 'Element upgrades']];
+const FILTERS = [['all', 'All'], ['evolution', 'Evolutions'], ['common', 'Common'], ['rare', 'Rare'], ['epic', 'Epic'], ['legendary', 'Legendary'], ['upgrade', 'Element upgrades'], ['stats', 'Stats']];
 
 export class TestKit {
   constructor(parent) {
@@ -48,6 +54,7 @@ export class TestKit {
     this.el.hidden = true;
     parent.appendChild(this.el);
     this.filter = 'all';
+    this.tier = 0;   // the level-up card tier a stat's + and − give (RARITY index)
     this.query = '';
     this.el.addEventListener('click', (e) => this.click(e));
     this.el.addEventListener('input', (e) => { if (e.target.type === 'search') { this.query = e.target.value.trim().toLowerCase(); this.drawList(); } });
@@ -72,11 +79,13 @@ export class TestKit {
         <button data-k="mix">Spawn a mixed pack</button>
         <button data-k="heal">Full Health</button>
         <button data-k="clear">Take everything off</button>
+        <button data-k="resetStats">Reset stats</button>
       </div>
       <div class="have"></div>
-      <input type="search" placeholder="Search treasures and evolutions" value="${this.query}">
+      <input type="search" class="search" placeholder="Search treasures and evolutions" value="${this.query}">
       <div class="chips">${FILTERS.map(([id, label]) => `<button data-f="${id}">${label}</button>`).join('')}</div>
       <div class="list"></div>
+      <div class="stats"></div>
       <footer><button data-k="back">Back to menu</button><button data-k="play" class="go">▶ Play with this</button></footer>
     </div>`;
     this.el.hidden = false;
@@ -117,9 +126,30 @@ export class TestKit {
     this.drawList();
   }
 
+  // Stats: one row per level-up card (+ or − gives one card at the chosen tier), then flat Attack damage and Fire rate
+  drawStats() {
+    const R = this.run, S = R.S, box = this.el.querySelector('.stats');
+    const row = (key, stat, label, amount, text) => `<div class="row" data-stat="${stat}" data-key="${key}">
+      <div class="ic">${STAT_INFO[stat].icon}</div><div class="tx"><b>${label}</b><span>${text}</span></div>
+      <button data-k="statMinus">−</button><div class="n">${STAT_INFO[stat].fmt(S[stat])}</div><button data-k="statPlus">+</button></div>`;
+    const cards = Object.keys(CONTENT.levelups.cards).map((stat) => {
+      const a = cardAmount(stat, CONTENT.levelups.cards[stat].amounts[this.tier] || CONTENT.levelups.cards[stat].amounts.find((x) => x) || 0, S[stat]);
+      return row('card', stat, STAT_INFO[stat].name, a, cardText({ stat, amount: a }));
+    });
+    box.innerHTML = `<div class="tiers">${RARITY.map((r, i) => `<button data-tier="${i}" class="${i === this.tier ? 'on' : ''}">${r.name || r.id}</button>`).join('')}</div>`
+      + row('flat', 'bubbleDamage', 'Flat Attack damage', 5, '±5 straight onto Attack damage')
+      + row('flat', 'fireRate', 'Flat Fire rate', 1, '±1 blow a second straight onto Fire rate')
+      + cards.join('');
+  }
+
   drawList() {
     const list = this.el.querySelector('.list');
     if (!list) return;
+    const stats = this.filter === 'stats';
+    list.hidden = stats;
+    this.el.querySelector('.stats').classList.toggle('show', stats);
+    this.el.querySelector('.search')?.toggleAttribute('hidden', stats);
+    if (stats) { this.drawStats(); return; }
     list.innerHTML = this.items().map((t) => {
       const n = this.count(t), max = t.kind === 'evolution' ? 1 : t.stack;
       const tag = t.kind === 'evolution' ? `<span class="tag" style="background:#2ff0c4">Evolution</span>` : `<span class="tag" style="background:${TAG[t.rarity]}">${t.rarity}${t.kind === 'upgrade' ? ' · upgrade' : ''}</span>`;
@@ -136,6 +166,9 @@ export class TestKit {
     const b = e.target.closest('button');
     if (!b) return;
     const R = this.run, k = b.dataset.k;
+    if (b.dataset.tier) { this.tier = +b.dataset.tier; this.draw(); return; }
+    const st = b.closest('[data-stat]');
+    if (st && (k === 'statPlus' || k === 'statMinus')) { this.giveStat(st.dataset.key, st.dataset.stat, k === 'statPlus' ? 1 : -1); return; }
     if (b.dataset.f) { this.filter = b.dataset.f; this.draw(); return; }
     const row = b.closest('.row');
     if (row && (k === 'plus' || k === 'minus')) { this.change(row.dataset.kind, row.dataset.id, k === 'plus' ? 1 : -1); return; }
@@ -145,6 +178,7 @@ export class TestKit {
     else if (k === 'waves') R.devCalm = !R.devCalm;
     else if (k === 'god') R.devGod = !R.devGod;
     else if (k === 'heal') R.health = R.S.health;
+    else if (k === 'resetStats') R.stats = jellyStats(R.jelly);
     else if (k === 'clear') { R.owned.clear(); R.evolved.length = 0; R.health = Math.min(R.health, R.S.health); }
     else if (k === 'pack') this.spawn(['roach']);
     else if (k === 'mix') this.spawn(CONTENT.waves.bugs.filter((w) => w.act === R.stage.id).map((w) => w.id));
@@ -161,6 +195,22 @@ export class TestKit {
       if (d < 0 && i >= 0) R.evolved.splice(i, 1);
     } else if (d > 0) R.owned.add(id);
     else R.owned.remove(id);
+    R.health = Math.min(Math.max(R.health, 1), R.S.health);
+    R.refreshHud();
+    this.draw();
+  }
+
+  // add (+1) or take away (-1) one level-up card at the chosen tier, or a flat bit of Attack damage / Fire rate
+  giveStat(key, stat, d) {
+    const R = this.run, info = CONTENT.levelups.cards[stat];
+    const amount = key === 'flat' ? (stat === 'fireRate' ? 1 : 5) : cardAmount(stat, info.amounts[this.tier] || info.amounts.find((x) => x) || 0, R.S[stat]);
+    if (key === 'flat') R.stats[stat] += d * amount;
+    else applyCard(R.stats, { stat, amount: d * amount });
+    R.stats.fireRate = Math.max(0.1, R.stats.fireRate);
+    R.stats.bubbleDamage = Math.max(1, R.stats.bubbleDamage);
+    R.stats.bubbles = Math.max(1, R.stats.bubbles);
+    R.stats.health = Math.max(1, R.stats.health);
+    if (stat === 'health' && d > 0) R.heal?.(amount);
     R.health = Math.min(Math.max(R.health, 1), R.S.health);
     R.refreshHud();
     this.draw();
