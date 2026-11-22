@@ -119,7 +119,7 @@ elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=
 //          outside that circle (the jelly's body counting), up to height= m over it (a jump doesn't clear it), and shoves you a little (knock=):
 //          swim in close, where the rings' echo catches you
 elite "bowl" name="The Singing Bowl" icon="🥣" hp=800 aggro=1.2 angry=0.65 {
-    ring dmg=5 rings=5 angryRings=7 snap=1 windup=1 warn=0.09 height=0.09 band=0.04 speed=0.5 angrySpeed=0.7 reach=0.7 echo=3 rest=0.6 angryRest=0.4
+    ring dmg=5 rings=5 angryRings=7 snap=1 windup=1 warn=0.09 height=0.12 band=0.04 speed=0.5 angrySpeed=0.7 reach=0.7 echo=3 rest=0.6 angryRest=0.4
     hum dmg=3 snap=2 windup=3 safe=0.12 height=0.35 knock=0.5 rest=0.6 angryRest=0.4
 }
 
