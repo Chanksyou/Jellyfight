@@ -655,6 +655,7 @@
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */
+  --phone-jelly-draw: 1.15;    /* a phone draws the jelly this much bigger (picture only: hit size, camera and effects stay) */
   --jelly-scale: 1;            /* 1 = 8.9 cm tall; collision grows with it */
   --jelly-color: #2ff0c4;      /* default look: bell and tentacles (the Look screen can change it) */
   --jelly-accent: #3d8cff;     /* default look: the frilly oral arms */

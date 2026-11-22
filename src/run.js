@@ -28,7 +28,7 @@ import { ConcertDressing } from './concert-dressing.js';
 import { SONGS } from './music.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
 import { discover, isFound, found } from './collection.js';
-import { OPTIONS } from './character.js';
+import { OPTIONS, drawScale } from './character.js';
 import { LOOK } from './look.js';
 import { tierOdds } from './spin.js';
 import { meshesNamed } from './traversal.js';
@@ -125,7 +125,7 @@ export class Run {
     this.bass = new BassWave(this);     // a stage's bass wave (act 4's room): the Soundbar's wave on the bar (bass-wave.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
-    this.adorn = new Adornments(ctx.scene, ctx.player, ctx.cfg);          // what evolutions add to the jelly's look
+    this.adorn = new Adornments(ctx.scene, ctx.player, { ...ctx.cfg, height: ctx.cfg.height * drawScale() });          // what evolutions add to the jelly's look
     this.bubbles.onBlow = () => { this.player.avatar?.pulse?.(0.6); sfx.blow(); sfx.whiz(); };   // the bell squeezes as it blows
     this.lash.onLash = () => this.player.avatar?.pulse?.(0.3);   // and twitches as its tentacles whip out
     this.bubbles.onAttack = this.lash.onAttack = () => this.attacked();   // on-attack rolls (Pocket Vacuum)
@@ -367,7 +367,7 @@ export class Run {
     this.reborn = false;              // rebirth has saved you at least once this run (no-regen revived=#true)
     this.rerolls = 1;                 // level-up card rerolls: one an act, a later act starts fresh
     this.devCalm = false; this.devGod = false;   // dev test kit (test-kit.js): no waves, can't die
-    this.player.avatar?.root.scale.setScalar(1);
+    this.player.avatar?.root.scale.setScalar(drawScale());
     this.squeakCd = []; this.hurtCd = {}; this.ink = null;
     this.mirrorUntil = 0;
     this.reflectAt = 0;               // when a reflect treasure is ready again (seconds into the night)
@@ -1080,7 +1080,7 @@ export class Run {
       this.health = 1;
       this.polypT = R.time;
       this.iFrames = R.time + 0.5;
-      this.player.avatar?.root.scale.setScalar(0.45);
+      this.player.avatar?.root.scale.setScalar(0.45 * drawScale());
       const P = this.player.position;
       this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.1, 0.8);
       this.hud.toast(`Back to a polyp… you bloom again in ${R.time} s.`, 2400);
@@ -1101,7 +1101,7 @@ export class Run {
     this.health = this.S.health;
     this.healthPulse = true;
     this.iFrames = 1;
-    this.player.avatar?.root.scale.setScalar(1);
+    this.player.avatar?.root.scale.setScalar(drawScale());
     const P = this.player.position, c = P.clone().setY(P.y + this.cfg.height * 0.5);
     this.fx.ring(P.clone().setY(P.y + 0.004), this.friendly, 0.18, 0.7);
     this.fx.impact(c, this.friendly, 0.05, 18);

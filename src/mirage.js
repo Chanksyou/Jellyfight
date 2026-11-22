@@ -1,6 +1,6 @@
 // One reusable, harmless copy of the player's own jelly. Only bug aim uses it; collisions stay real.
 import * as THREE from 'three';
-import { buildCharacter } from './character.js';
+import { buildCharacter, drawnBigger } from './character.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
 
@@ -23,7 +23,7 @@ export class Mirage {
     if (this.avatar && this.lookKey === lookKey) return;
     this.lookKey = lookKey;
     if (this.avatar) { this.group.remove(this.avatar.root); this.avatar.dispose(); }
-    this.avatar = buildCharacter(avatar.look, this.run.cfg.height);
+    this.avatar = drawnBigger(buildCharacter(avatar.look, this.run.cfg.height));
     this.group.add(this.avatar.root);
     this.materials = [];
     const seen = new Set();

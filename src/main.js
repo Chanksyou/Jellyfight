@@ -11,7 +11,7 @@ import { LightSlots } from './light-slots.js';
 import { EXPERIMENTS } from './experiments.js';
 import { setLite, liteOn } from './lite-materials.js';
 import { recoverGpu } from './gpu-recovery.js';
-import { buildCharacter, normalizeLook } from './character.js';
+import { buildCharacter, normalizeLook, drawnBigger } from './character.js';
 import { TestKit } from './test-kit.js';
 import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
@@ -320,7 +320,7 @@ lash.getRig = () => player.avatar?.tentacles || null;
 const xpDrops = new XpDrops(scene, world);
 
 function showLook(l, hop) {
-  player.setAvatar(buildCharacter(normalizeLook(l), CONFIG.player.height));
+  player.setAvatar(drawnBigger(buildCharacter(normalizeLook(l), CONFIG.player.height)));
   if (hop) player.avatar.land(1.2);
 }
 function applyLook(l, hop) {
