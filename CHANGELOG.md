@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v622 The dev test kit has a Stats tab: give any level-up card at Common, Rare or Epic (or take it away), add flat Attack damage and Fire rate, or reset your stats.
+
 v621 tidies the Treasure juice looks after a review: the Magnifying Glass's steady burn no longer strobes its bug white, the Ice Cube's puddle reads as dark blue water, the Rubber Duck pops up yellow in front of the bell, the Guitar Pick and its notes are bigger and float clear of the damage numbers, and a Pizza Cutter's sliced halves take the bug's own colour. Fairy Lights' wire no longer allocates every frame.
 
 v620 The Headphones' shove wave is narrower (0.2 m, was 0.4 m) and pushes less (0.3 m, was 0.4 m); the Singing Bowl's rings are lower (0.05 m tall, was 0.1 m) and thinner (0.04 m, was 0.06 m).
