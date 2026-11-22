@@ -1,1 +1,0 @@
-calms act 4's Headphones and the Mushroom Pillow's spores by about a third, still on the beat: the Headphones' shove waves and Stereo bursts come every 2 beats instead of every beat, with a little longer rest, and the Pillow breathes in for 3 beats before its spores and rests longer after; the Singing Bowl's ring walls stand 9 cm tall instead of 5.

@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v624 calms act 4's Headphones and the Mushroom Pillow's spores by about a third, still on the beat: the Headphones' shove waves and Stereo bursts come every 2 beats instead of every beat, with a little longer rest, and the Pillow breathes in for 3 beats before its spores and rests longer after; the Singing Bowl's ring walls stand 9 cm tall instead of 5.
+
 v623 draws the jelly 15% bigger on phones, so it reads better on a small screen. Hit size, camera and effect sizes are unchanged.
 
 v622 The dev test kit has a Stats tab: give any level-up card at Common, Rare or Epic (or take it away), add flat Attack damage and Fire rate, or reset your stats.
