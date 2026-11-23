@@ -439,25 +439,22 @@ story('enemies/dragonfly-dodge-breaks-charge', {
   },
 });
 story('words/whirlwind', {
-  about: 'The dragonfly holds still while a whirlwind of spinning blades grows in front of its head, then flings it at the jelly: a slow Shot that sucks the jelly toward it as it comes (the jelly drifts in with no input), and hits for 2.',
+  about: 'The dragonfly holds still while a two-blade rotor, two jelly radii across, grows in front of its head, then flings it at the jelly and two more in a row along the same line, 0.3 s apart: slow Shots, the first hit for 2.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06)); e.beamCd = 99; e.whirlCd = 0; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), P = player.position;
     step(60 * 3, () => e.state === 'whirl');
-    const at = e.pos.clone(), grew = [];
-    let moved = 0;
+    const at = e.pos.clone(), grew = [], flung = [], fling = enemies.whirlFling.bind(enemies);   // flung: the frame each is let go
+    let moved = 0, frame = 0, across = 0;
+    enemies.whirlFling = (...a) => { across = across || a[0].whirl.size; flung.push(frame); fling(...a); };
     step(60 * 2, () => { if (e.state === 'whirl') { grew.push(e.whirlK); moved = Math.max(moved, e.pos.distanceTo(at)); } return e.state !== 'whirl'; });
-    const flung = enemies.whirls?.filter((w) => w.live && !w.held).length || 0;
-    const start = P.clone(), to = e.pos.clone().sub(P).setY(0).normalize();
-    let pulled = 0, sucking = false;
-    step(60 * 3, () => {
-      if (enemies.pull) sucking = true;
-      if (!log.some((d) => d.source === 'dragonfly')) pulled = P.clone().sub(start).setY(0).dot(to);
-      return log.some((d) => d.source === 'dragonfly');
-    });
-    const hit = log.find((d) => d.source === 'dragonfly');
+    step(60 * 2, () => { frame++; return flung.length >= 3; });
+    const gaps = flung.slice(1).map((f, i) => (f - flung[i]) / 60);
+    const seen = flung.length;
     const growing = grew.length > 20 && grew[0] < 0.1 && grew[grew.length - 1] > 0.9 && grew.every((k, i) => !i || k >= grew[i - 1]);
-    return ok(growing && moved < 0.005 && flung === 1 && sucking && pulled > 0.005 && hit?.amount === 2, { growing, moved: +moved.toFixed(4), flung, sucking, pulled: +pulled.toFixed(3), hit: hit?.amount });
+    step(60 * 4, () => log.some((d) => d.source === 'dragonfly'));
+    const hit = log.find((d) => d.source === 'dragonfly');
+    return ok(growing && moved < 0.005 && Math.abs(across - 2 * CONFIG.player.radius) < 0.003 && seen === 3 && gaps.every((g) => Math.abs(g - 0.3) < 0.05) && hit?.amount === 2, { growing, moved: +moved.toFixed(4), across: +across.toFixed(3), seen, gaps, hit: hit?.amount });
   },
 });
 story('enemies/dragonfly-whirlwind-dodge', {

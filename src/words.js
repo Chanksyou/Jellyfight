@@ -427,11 +427,11 @@ export const ENEMY_WORDS = {
   },
 
   whirlwind: {
-    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a little whirlwind in front of it for `windup` s (spinning blades that grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. In flight it sucks you toward it, at up to `suck` m/s from within `pull` m. Touching it: `dmg`. It rests `rest` s. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
+    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a spinning rotor of two blades in front of it for `windup` s (the blades grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m in radius at `speed` m/s for up to `life` s. `count` rotors fly in a row along that line, `gap` s apart. Touching one: `dmg`. It rests `rest` s after the last. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
     phases: { whirl: 'build', 'whirl-rest': 'fire' }, thrown: true, lock: { whirl: (p) => p.lock }, timer: { whirl: 'whirlT', 'whirl-rest': 'whirlT' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.03, life: 2.2, pull: 0.25, suck: 0.12, dmg: 2, rest: 0.5 },
+    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.061, life: 2.2, count: 3, gap: 0.3, dmg: 2, rest: 0.5 },
     make: (_, p) => ({
-      init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; },
+      init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; e.whirlVol = 0; e.whirlGap = 0; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
         e.whirlCd -= c.dt;
@@ -447,8 +447,12 @@ export const ENEMY_WORDS = {
           e.whirlT -= c.dt;
           e.whirlK = Math.min(1, 1 - e.whirlT / p.windup);
           if (e.whirlK < p.lock) { e.whirlAt.copy(c.pc); e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z); }
-          if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; }
+          if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; e.whirlVol = p.count - 1; e.whirlGap = p.gap; }
         } else if (e.state === 'whirl-rest') {
+          if (e.whirlVol > 0) {                               // the rest of the volley, along the same line
+            if ((e.whirlGap -= c.dt * live) <= 0) { en.whirlCharge(e, p, true); en.whirlFling(e, e.whirlAt, p); e.whirlKick = 0.2; e.whirlVol--; e.whirlGap = p.gap; }
+            return;
+          }
           e.whirlT -= c.dt * live;
           if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; e.beamCd = Math.max(e.beamCd || 0, 1.5); }
         } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && !c.wait) {

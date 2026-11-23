@@ -629,8 +629,7 @@ export class Run {
       push = this.boss.update(dt, P).push;
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
     } else if (this.phase === 'explore') {
-      const a = this.elites.pull, b = this.enemies.pull;   // and a dragonfly's whirlwind sucking you in
-      push = a && b ? a.clone().add(b) : a || b;
+      push = this.elites.pull;
     }
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);

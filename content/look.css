@@ -841,8 +841,8 @@
   --butterfly-beat: 0.17;        /* one wingbeat (s): a monarch beats about 6 times a second */
   --butterfly-glide: 0.45;       /* the glide after each burst of beats (s) */
   --butterfly-glide-v: 0.3;      /* how far its wings are raised while it glides (radians): the shallow V */
-  --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
-  --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
+  --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and rotor blades: hot rose */
+  --whirl-blade-opacity: 1;     /* the dragonfly's rotor: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */
   --hostile-bite: #ff5c48;       /* a bug's bite when it touches the jelly, for bugs with no attack colour of their own (cockroach, ant, hair tangle): a small flash where they meet */
   --hurt-arc: #ff2626;           /* the jelly is hit: a short red arc on its edge facing where the hit came from (not an attack colour: it marks the jelly, never a hazard) */
