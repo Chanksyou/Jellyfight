@@ -362,7 +362,7 @@ function noise(freq, q, dur, vol, type = 'bandpass', delay = 0, sweepTo = null) 
 }
 
 // the reward spin's one ticking voice (sfx.spinTick); a new schedule or a tap stops the last
-let ticker = null;
+let ticker = null, hum = null;   // hum: the vent hiss's one looped voice (ventHum)
 const TICK_GAP = 0.03;
 function stopTicker() {
   if (!ticker) return;
@@ -540,6 +540,39 @@ export const sfx = {
       holdAt(gain.gain, end); gain.gain.linearRampToValueAtTime(0, end + 0.015);
       source.stop(end + 0.02);
     };
+  },
+  // a vent catching the jelly: a soft whump as the air takes it, a rush rising with it
+  ventGust() {
+    if (!ready() || !gap('ventGust', 300)) return;
+    const j = jitter(0.08);
+    tone('sine', 120 * j, 60, 0.14, 0.09);                                       // the whump
+    noise(500 * j, 0.7, 0.55, 0.13, 'bandpass', 0.02, 2600 * j);                 // the rush, rising
+    noise(5200 * j, 0.8, 0.08, 0.035, 'highpass', 0.05);                         // its airy edge
+  },
+  // the air of a vent the jelly is near: k 0..1 (1 on the grille), called every frame. One quiet looped hiss;
+  // each call holds it for a moment, so it fades out on its own when the calls stop (a pause, the menu)
+  ventHum(k) {
+    if (!ctx) return;
+    if (hum && hum.ctx !== ctx) hum = null;                                      // (a new audio context after a reset)
+    const t = now(), v = ready() ? Math.min(1, Math.max(0, k || 0)) * 0.022 * loud : 0;
+    if (!hum) {
+      if (!v) return;
+      const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noiseBuf; s.loop = true;
+      f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 0.7;
+      g.gain.value = 0;
+      s.connect(f).connect(g).connect(sfxBus);
+      s.start(t);
+      hum = { ctx, s, f, g, quiet: t };
+    }
+    holdAt(hum.g.gain, t);
+    hum.g.gain.linearRampToValueAtTime(v, t + 0.12);
+    hum.g.gain.linearRampToValueAtTime(0, t + 0.6);
+    if (v) hum.quiet = t;
+    else if (t - hum.quiet > 2) {                                                // far from every vent a while: let the voice go
+      const h = hum; hum = null;
+      h.s.stop(t + 0.7); h.s.onended = () => { h.s.disconnect(); h.f.disconnect(); h.g.disconnect(); };
+    }
   },
   // the gust leaving the bell: a whump of air, a whoosh sweeping down past you, a thin whistle on its edge
   windLaunch() {

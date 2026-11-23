@@ -397,3 +397,23 @@ story('sound/ambience-one-shots-sit-in-the-room', {
     return ok(near && right > 0.1 && !far && made === 0 && birds.when({ dawn: 0.1 }) === 0 && birds.when({ dawn: 1 }) === 1 && ONCE[1].some((e) => e.name === 'wind-chime') && !ONCE[1].some((e) => e.name === 'dawn-birds'), { near, right, far, made });
   },
 });
+
+story('sound/vent-gust-and-hum', {
+  about: 'A vent ride\'s gust is heard; the vent hiss is one looped voice, heard while it is called every frame near a vent and silent half a second after the calls stop (a pause); far from every vent it makes no voice at all.',
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx(), R = 16000;
+    const render = async (play) => {
+      const oc = new OfflineAudioContext(1, R * 2, R), { when } = S.preview(oc, oc.destination), make = oc.createBufferSource.bind(oc);
+      let sources = 0;
+      stub(oc, 'createBufferSource', () => { sources++; return make(); });
+      play(S.sfx, when);
+      const d = (await oc.startRendering()).getChannelData(0), loud = (a, b) => { let m = 0; for (let i = a * R; i < b * R; i++) m = Math.max(m, Math.abs(d[i])); return +m.toFixed(4); };
+      return { sources, early: loud(0.15, 0.5), late: loud(1.4, 2) };
+    };
+    const gust = await render((s, when) => { when(0.05); s.ventGust(); });
+    const hum = await render((s, when) => { for (let t = 0.05; t < 0.6; t += 1 / 60) { when(t); s.ventHum(1); } });
+    const far = await render((s, when) => { for (let t = 0.05; t < 0.6; t += 1 / 60) { when(t); s.ventHum(0); } });
+    return ok(gust.early > 0.01 && hum.sources === 1 && hum.early > 0.002 && hum.late < 0.0005 && far.sources === 0, { gust, hum, far });
+  },
+});

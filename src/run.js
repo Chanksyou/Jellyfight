@@ -213,6 +213,7 @@ export class Run {
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
+    bus.on('vent_ride', () => { sfx.ventGust(); juice.feel('vent'); });   // (the vent's own gust is vent-air.js's)
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     // a jump's takeoff: a pop of droplets under the bell and a bloop (no floor ring: those are for Warnings and area reach)
     this.player.onJump = () => {
@@ -609,6 +610,7 @@ export class Run {
     }
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
+      const riding = !!P.flight;
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
@@ -617,9 +619,12 @@ export class Run {
         slip: this.slipT > 0 ? 1 : 0,
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
+      if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
       if (this.phase === 'boss' && this.boss) this.keepInArena(P);
       if (P.grounded) this.stompChain = 0;   // stomp: a chain runs until you touch the floor or furniture
     }
+
+    sfx.ventHum(this.traversal.near(P.position));   // the air's soft hiss beside a vent
 
     // --- timers
     this.fireTrail.draw();
