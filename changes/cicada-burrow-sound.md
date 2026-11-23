@@ -1,1 +1,0 @@
-adds the cicada burrow's sound: a song that swells along the trail with a thump on each beat, a hush where it cuts out, an inhale that climbs into the burst, a heavy layered burst (sub thud, crack, shriek, chunks), a smack when it hits you, the whoosh and wet thump of the throw, and the chunks clattering as it lands.

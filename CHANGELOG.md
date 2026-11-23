@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v649 adds the cicada burrow's sound: a song that swells along the trail with a thump on each beat, a hush where it cuts out, an inhale that climbs into the burst, a heavy layered burst (sub thud, crack, shriek, chunks), a smack when it hits you, the whoosh and wet thump of the throw, and the chunks clattering as it lands.
+
 v648 puts Dendi to sleep in his cardboard box by the cat scratcher in acts 1 and 4: slow breaths, an ear twitch and a tail flick now and then. He still gets up to finish the Vacuum, then goes back to sleep.
 
 v647 animates the Cicada's burrow beat by beat: it rears up before it digs, the mound humps on every beat leaving cracks, then sinks flat while a mud chimney rises and the floor swells under the Warning; it rockets out stretched, throwing floor chunks, and a hit squashes the jelly in the freeze and sends it somersaulting away with the camera a touch behind; it lands heavy (or on its back after a miss) beside a crater and its shed shell.
