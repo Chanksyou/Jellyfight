@@ -211,6 +211,8 @@ export class VentAir {
   }
   build(vents) {
     for (const o of this.parts || []) { this.group.remove(o); o.geometry.dispose(); }
+    this.parts = []; this.motes = null;   // (the arena has no vents)
+    if (!vents.length) return;
     const boxes = [];
     for (const v of vents) grilleParts(boxes, v);
     this.parts = [new THREE.Mesh(merge(boxes), this.grilleMat), tailMesh(vents, this.look), wispMesh(vents, this.look), moteMesh(vents, this.look)];
@@ -225,6 +227,6 @@ export class VentAir {
     U.uCalm.value = calm;
     U.uPr.value = env.pixelRatio || 1;
     U.uPx.value = LOOK.num('vent-mote-size', 2.2) * U.uPr.value;
-    this.motes.geometry.setDrawRange(0, env.low ? 0 : Infinity);
+    this.motes?.geometry.setDrawRange(0, env.low ? 0 : Infinity);
   }
 }
