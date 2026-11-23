@@ -1,7 +1,8 @@
 // Sound packs (src/sfx.js, docs/agents/sound.md): recorded takes by role, their synthesized fallbacks,
 // when they download, and the cue log later stories use to say which cue played on which frame.
 import { sfx, unlock as unlockAudio, loadPack, sample, cueLog, audio } from '../sfx.js';
-import { G, V, ok, roachAt, setupFight, story, stub, withElement } from './kit.js';
+import { G, V, ok, roachAt, setupFight, startVacuum, story, stub, withElement } from './kit.js';
+import { STAGES } from '../stages.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let copies = 0;
@@ -310,5 +311,89 @@ story('sound/reward-spin-sounds', {
     const o = out;
     return ok(o.lever.peak > 0.01 && o.ticks.peak > 0.01 && o.ticks.sources === 1 && o.ticks.late > 0.002 && o.ticks.fast > 0.005
       && o.cancelled.peak < 0.002 && [0, 1, 2, 3].every((t) => o[`stop${t}`].peak > 0.01), out);
+  },
+});
+
+// ---- Room tone (src/ambience.js) ------------------------------------------------------------
+const ROOM = { off: false, boss: false, intensity: 0, paused: false, dawn: 0 };
+async function renderBed(act, state = {}, secs = 5) {
+  const { Ambience } = await import('../ambience.js'), R = 16000, oc = new OfflineAudioContext(1, R * secs, R);
+  const A = new Ambience(oc, oc.destination);
+  A.update(0, { ...ROOM, act, ...state }, { x: 3, z: 3, rx: 1, rz: 0 });
+  const d = (await oc.startRendering()).getChannelData(0), from = R * 2;
+  let sum = 0, peak = 0, cross = 0, bad = 0;
+  for (let i = from; i < d.length; i++) { const a = d[i]; if (!Number.isFinite(a)) bad++; sum += a * a; peak = Math.max(peak, Math.abs(a)); if (i > from && (a >= 0) !== (d[i - 1] >= 0)) cross++; }
+  return { rms: Math.sqrt(sum / (d.length - from)), peak, zcr: cross / (d.length - from), bad, layers: A.layers.length };
+}
+
+story('sound/ambience-has-a-bed-per-act', {
+  about: 'Each act\'s room has its own quiet, steady bed: audible, never loud, never NaN, and acts 2 and 3 sound unlike act 1 (a deep fridge hum, tile-room air, a humidifier\'s high hiss). Act 4 is act 1\'s room, so it plays act 1\'s bed.',
+  setup() { setupFight(); },
+  async play() {
+    const { BEDS } = await import('../ambience.js'), beds = [];
+    for (const act of [1, 2, 3, 4]) beds.push(await renderBed(act));
+    const [a1, a2, a3, a4] = beds, same = BEDS[4] === BEDS[1];
+    const heard = beds.every((b) => b.rms > 0.002 && b.peak < 0.35 && !b.bad && b.layers > 0);
+    const apart = Math.abs(a2.zcr - a1.zcr) > 0.004 && Math.abs(a3.zcr - a1.zcr) > 0.002 && Math.abs(a3.zcr - a2.zcr) > 0.002;
+    return ok(heard && apart && same && Math.abs(a4.rms - a1.rms) < a1.rms * 0.35, { beds: beds.map((b) => ({ rms: +b.rms.toFixed(4), peak: +b.peak.toFixed(3), zcr: +b.zcr.toFixed(3), layers: b.layers })), same });
+  },
+});
+
+story('sound/ambience-ducks-in-a-fight', {
+  about: 'The bed steps back as bugs close in, further under a Boss fight and while paused, and is silent in the Encore\'s arena; in a real Vacuum fight the run asks for the Boss level.',
+  setup() { setupFight(); },
+  async play() {
+    const { ambienceLevel } = await import('../ambience.js');
+    const calm = ambienceLevel({ ...ROOM, intensity: 0.1 }), busy = ambienceLevel({ ...ROOM, intensity: 0.9 }), boss = ambienceLevel({ ...ROOM, boss: true });
+    const paused = ambienceLevel({ ...ROOM, paused: true }), arena = ambienceLevel({ ...ROOM, off: true });
+    const explore = G().run.ambienceState().boss;
+    startVacuum('charge');
+    const inFight = { ...G().run.ambienceState() };
+    return ok(calm === 1 && busy < 0.6 && boss < busy && paused < calm && arena === 0 && explore === false && inFight.boss && ambienceLevel(inFight) === boss, { calm, busy, boss, paused, arena, inFight });
+  },
+});
+
+story('sound/ambience-is-silent-in-the-encore', {
+  about: 'In act 4\'s concert arena (the Encore plays only its recording) the run asks for no room tone, and a bed that was playing fades out and is put away, so it costs no audio work.',
+  setup() { setupFight(); },
+  async play() {
+    const { Ambience } = await import('../ambience.js'), { run } = G(), real = run.stage, arena = STAGES[3].stageDoor.to;
+    run.stage = arena; const off = run.ambienceState().off, id = run.ambienceState().act; run.stage = real;
+    const oc = new OfflineAudioContext(1, 16000, 16000), A = new Ambience(oc, oc.destination), L = { x: 0, z: 0, rx: 1, rz: 0 };
+    A.update(0.1, { ...ROOM, act: 4 }, L);
+    const playing = A.layers.length;
+    for (let i = 0; i < 40; i++) A.update(0.1, { ...ROOM, act: 4, off: true }, L);
+    return ok(off && id === 4 && playing > 0 && A.layers.length === 0 && A.act === 0 && A.level === 0, { off, playing, left: A.layers.length });
+  },
+});
+
+story('sound/ambience-respects-the-sound-setting', {
+  about: 'Muting sound (or the Sound setting off) silences the room tone and puts its layers away; unmuting brings the bed back. It plays into the master, so the Sound setting is its volume.',
+  setup() { setupFight(); },
+  async play() {
+    const { Ambience } = await import('../ambience.js'), oc = new OfflineAudioContext(1, 16000, 16000), master = oc.createGain();
+    const A = new Ambience(oc, master);
+    const L = { x: 0, z: 0, rx: 1, rz: 0 }, S = { ...ROOM, act: 1 };
+    A.update(0.1, S, L, false); const on = A.level > 0 && A.layers.length > 0;
+    for (let i = 0; i < 40; i++) A.update(0.1, S, L, true);
+    const muted = A.level === 0 && A.layers.length === 0;
+    A.update(0.1, S, L, false);
+    return ok(on && muted && A.level > 0 && A.layers.length > 0, { on, muted, back: A.layers.length });
+  },
+});
+
+story('sound/ambience-one-shots-sit-in-the-room', {
+  about: 'A one-shot is placed where its piece is: the tub\'s drip is heard (and on the right side) when the jelly is in the bathroom, and makes no sound at all from the far end of the apartment; a wind chime in act 1 does the same. Act 4\'s birds are silent at night and certain by the end of the dawn.',
+  setup() { setupFight(); },
+  async play() {
+    const { Ambience, ONCE } = await import('../ambience.js'), oc = new OfflineAudioContext(1, 16000, 16000);
+    const A = new Ambience(oc, oc.destination);
+    A.setAct(2);
+    const near = A.once('tub-drip', { x: 0.2, z: 7.3, rx: 1, rz: 0 }), right = A.fired.at(-1)?.pan;
+    const far = A.once('tub-drip', { x: 3, z: 1.5, rx: 1, rz: 0 });
+    const osc = oc.createOscillator.bind(oc); let made = 0; stub(oc, 'createOscillator', () => { made++; return osc(); });
+    A.once('tub-drip', { x: 3, z: 1.5, rx: 1, rz: 0 });
+    const birds = ONCE[4].find((e) => e.name === 'dawn-birds');
+    return ok(near && right > 0.1 && !far && made === 0 && birds.when({ dawn: 0.1 }) === 0 && birds.when({ dawn: 1 }) === 1 && ONCE[1].some((e) => e.name === 'wind-chime') && !ONCE[1].some((e) => e.name === 'dawn-birds'), { near, right, far, made });
   },
 });

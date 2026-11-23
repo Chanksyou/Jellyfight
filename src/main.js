@@ -31,6 +31,7 @@ import { addSkyline } from './skyline.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
+import { Ambience } from './ambience.js';
 import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
 import { AuraPainter } from './pick-auras/painter.js';
@@ -618,6 +619,17 @@ function updateMusic(dt) {
   music.update(dt, st.intensity);
 }
 
+// The room tone (ambience.js): the act's bed and a few one-shots near their pieces, under the music. It plays through
+// the master like every effect, so the Sound setting is its volume, and it stops in the Encore's arena.
+let ambience = null;
+const ambListener = { x: 0, z: 0, rx: 1, rz: 0 };
+function updateAmbience(dt) {
+  if (!ambience) { const A = audio(); if (!A) return; ambience = new Ambience(A.ctx, A.master); window.ambience = ambience; }
+  ambListener.x = player.position.x; ambListener.z = player.position.z;
+  ambListener.rx = Math.cos(tpc.yaw); ambListener.rz = -Math.sin(tpc.yaw);   // the camera's right, along the floor
+  ambience.update(dt, run.ambienceState(), ambListener, isMuted());
+}
+
 // --- The boss finish --------------------------------------------------------
 // Gameplay holds while Dendi approaches, winds up and finishes the doomed boss.
 // Both camera cuts happen under black; rewards wait until the return fade ends.
@@ -774,6 +786,7 @@ const GAME = {
   loadRooms,
   step(dt) {
     updateMusic(dt);
+    updateAmbience(dt);
     systems.traversal.update(dt);
     systems.fx.update(dt);
     run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));

@@ -1012,6 +1012,13 @@
   --sun-fill: 1.8;               /* how strong the sunlight is on what it covers (x the surface's colour: red stays red, just lit) */
   --sun-soft: 0.03;              /* m: its soft edge at the line */
   --sun-warm: 0.5;               /* how much more of the room's soft light a sunlit surface gets (bounce) */
+  /* Room tone (src/ambience.js): the sound a room makes by itself, under the music */
+  --ambience-level: 1;           /* the whole bed's loudness, 1 = as written in ambience.js (the Sound setting still scales it) */
+  --ambience-once: 1;            /* the one-shots (a clock's tick, a chime, a drip) */
+  --ambience-fade: 1.5;          /* s: to fade in or out */
+  --ambience-duck: 0.45;         /* how much of the bed is left with bugs all round you */
+  --ambience-boss: 0.25;         /* ... and during a Boss fight */
+  --ambience-hold: 0.6;          /* ... and while the game is paused */
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */
