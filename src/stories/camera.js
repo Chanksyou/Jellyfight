@@ -195,6 +195,26 @@ story('camera/kitchen-counter-stays-opaque', {
   },
 });
 
+story('camera/kitchen-in-the-way-tilts-and-clears', {
+  about: 'With the camera on the far side of the kitchen counters, the view tilts steeper and the lens stays in front of them (they never fade); in the open it is the player\'s own tilt again.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, player, world } = G(), base = tpc.pitch;
+    const lensInFront = () => {
+      const jelly = V(player.position.x, player.position.y + tpc.cfg.height, player.position.z), to = tpc.camera.position.clone().sub(jelly), far = to.length();
+      const h = world.cast(jelly, to.multiplyScalar(1 / far), far, null, 2);
+      return !h || !h.mesh.userData.noCameraFade;
+    };
+    tp(4.2, 0, 3.2, Math.PI / 2);   // the counters sit between this jelly and a camera that has swung east
+    step(60);
+    const tilted = tpc.lift > 0.9 && tpc.viewPitch > base + 0.15, clear = lensInFront(), pulled = tpc.pull > 0;
+    tp(3.0, 0, 3.2, Math.PI / 2);   // out in the open, same view
+    step(60);
+    const back = tpc.lift === 0 && Math.abs(tpc.viewPitch - base) < 1e-6;
+    return ok(tilted && clear && back, { tilted, clear, pulled, lift: +tpc.lift.toFixed(3), back });
+  },
+});
+
 for(const [ending,onPhone] of [['victory',false],['death',false],['restart',false],['victory',true]])story((onPhone?'phone/':'camera/')+'vacuum-kitchen-transparent-only-during-fight-'+ending,{
   phone:onPhone,
   about:'Cabinets, stove and every kitchen fixture stay faint throughout the Vacuum fight, even off the camera rays; their original opaque materials and collision return after '+ending+'.',
