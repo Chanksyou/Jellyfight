@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v640 makes the apartment's plants sway a few millimetres on their own and lean away when the jelly rushes past or a big hit lands near them, and glassware shiver under those hits; all of it is in the room's existing shader, so it adds no draw, light or shader, Reduce effects holds it still, and ?ambient=0 turns it off for phone measuring.
+
 v639 stops a Cream Whipper balloon filling the screen when the camera is pushed in against a wall: it fades out as the lens comes near.
 
 v638 lets each vent's air show in its room's own light: the wisps, dust and ribbons take the baked light where they rise, so they glow softly by a lamp and fade in a dark corner; act 3's moonlit bedroom gets fainter, cooler air and act 4's dawn a slightly warmer one.

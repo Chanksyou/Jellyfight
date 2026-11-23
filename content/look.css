@@ -1062,6 +1062,18 @@
   --ambience-duck: 0.45;         /* how much of the bed is left with bugs all round you */
   --ambience-boss: 0.25;         /* ... and during a Boss fight */
   --ambience-hold: 0.6;          /* ... and while the game is paused */
+  /* Ambient life (src/ambient.js): what moves in the room by itself. Shader-only, millimetres; Reduce effects holds it still */
+  --ambient-lean: 0.004;         /* m: a plant's slow idle lean, at its tip (nothing moves below the pot's rim) */
+  --ambient-flutter: 0.0008;     /* m: its leaf edges' idle flutter */
+  --ambient-push: 0.025;         /* m: how far a full gust pushes a tip away from it */
+  --ambient-gust-flutter: 0.004; /* m: extra flutter in a full gust */
+  --ambient-reach: 0.3;          /* m: how far a gust reaches (it fades to nothing there) */
+  --ambient-wake-speed: 0.8;     /* m/s: the jelly moving this fast is a full gust round itself */
+  --ambient-gust-min: 0.04;      /* m: a hit landing (fx.impact) at least this big is a gust */
+  --ambient-gust-size: 0.08;     /* m: ... and one this big a full one */
+  --ambient-gust-fade: 0.8;      /* s: a hit's gust dies away over this */
+  --ambient-rattle: 0.0015;      /* m: how far a glass shivers in a full gust (never at rest) */
+  --ambient-rattle-rate: 60;     /* rad/s: how fast */
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */
