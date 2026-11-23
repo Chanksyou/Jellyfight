@@ -76,7 +76,7 @@ function wispMesh(vents, look) {
   g.setAttribute('shape', new THREE.Float32BufferAttribute(A, 4));
   g.setIndex(idx);
   const m = new THREE.ShaderMaterial({
-    uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,   // (always facing the camera: one layer, not two)
     vertexShader: /* glsl */`
       attribute vec4 base; attribute vec4 shape;
       varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear;
