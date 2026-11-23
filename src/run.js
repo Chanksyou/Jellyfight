@@ -523,9 +523,10 @@ export class Run {
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
     // Dodge from treasures: each closes its share of the gap to the cap from 0, as a card does, so Odd Socks never stack past it;
     // it adds to the rest (the cards, which already shrink by the total), and the cap is the end of it
+    const cap = S.dodgeCap = Math.max(MAX_DODGE, this.mods.dodgeCap);   // (dodge-cap: Odd Sock raises it to 80)
     let left = 1;
-    for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / MAX_DODGE);
-    S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge) + MAX_DODGE * (1 - left));
+    for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / cap);
+    S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield

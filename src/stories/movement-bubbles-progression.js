@@ -414,11 +414,11 @@ story('progression/dodge-diminishes', {
     const gains = picks.map((p) => p.gain), top = run.S.dodge;
     const shrinking = gains.every((g, i) => g > 0 && (i === 0 || g < gains[i - 1]));
     const reads = picks.every((p) => p.text === `+${p.gain}% Dodge`);
-    run.stats.dodge = 0; give('sock');   // 15% from the Odd Sock: the first card gives 10 x 45/60
+    run.stats.dodge = 0; give('sock');   // 15% from the Odd Sock, which lifts the cap to 80: the first card gives 10 x 65/80 = 8.1
     const sock = pick();
     menus.close();
-    const atCap = rollCards(run.stats, 3, 0, 0, { ...run.S, dodge: 60 }).length;   // treasures alone at the cap: no Dodge card at all
-    return ok(gains[0] === 10 && picks[0].text === '+10% Dodge' && shrinking && reads && top < 60 && sock.gain === 7.5 && atCap === 0, { gains, top: +top.toFixed(1), sock, atCap });
+    const atCap = rollCards(run.stats, 3, 0, 0, { ...run.S, dodge: run.S.dodgeCap }).length;   // treasures alone at the (Sock's 80) cap: no Dodge card at all
+    return ok(gains[0] === 10 && picks[0].text === '+10% Dodge' && shrinking && reads && top < 60 && sock.gain === 8.1 && atCap === 0, { gains, top: +top.toFixed(1), sock, atCap });
   },
 });
 story('progression/level-curve', {

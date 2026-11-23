@@ -81,7 +81,7 @@ export const AUDIT = {
     'status-damage', 'status-taken', 'on-kill-of', 'nth-attack', 'stack-buff',   // jelly types' shared words: their effects and attacks are audited where they're used
     'burn-ramp', 'refresh-all', 'streak',   // Fire Attack upgrades: Burn numbers, and a block of timed effects audited where they're used
     'pierce', 'element-up', 'mark-on-hit', 'crit', 'pin-on-crit', 'extra-jumps', 'when-hit', 'rebirth',
-    'no-regen', 'shield-recharge', 'shield-full-damage', 'health-to-shield', 'adorn', 'death-save', 'damage-taken', 'land-heal', 'spotlight', 'heal-on-kill', 'crumb-on-kill', 'leave-on-kill', 'dodge-slip', 'shot-speed', 'xp-reach', 'stat',
+    'no-regen', 'shield-recharge', 'shield-full-damage', 'health-to-shield', 'adorn', 'death-save', 'damage-taken', 'land-heal', 'spotlight', 'heal-on-kill', 'crumb-on-kill', 'leave-on-kill', 'dodge-slip', 'dodge-cap', 'shot-speed', 'xp-reach', 'stat',
     'per', 'while', 'xp-mult', 'card-rarity', 'card-choices', 'heal-on-hit', 'grow-on-kills', 'more-treasures', 'elite-bonus',
     'elite-damage', 'bug-speed', 'more-bugs', 'every', 'dash', 'xp',
     'execute', 'fresh-damage', 'hit-less', 'boss-levels', 'night-light', 'bounty',   // hit and stat rules, not attacks of their own

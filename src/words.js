@@ -871,6 +871,7 @@ export function newMods() {
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
     stats: { add: {}, pct: {}, dodge: [] },     // stat bonuses: added, and % of the starting value; dodge: each treasure's Dodge, closing that share of the gap to the cap (Run.S)
     landingShockwave: null, extraJumps: 0,
+    dodgeCap: 0,                     // dodge-cap: a higher most Dodge than the usual 60% (Run.S)
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], onHurt: [], onAttack: [], landHeal: null, spotlight: null, burstOnKill: null, cardRarity: 0,
@@ -1404,6 +1405,7 @@ export const TREASURE_WORDS = {
       return (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { chance: p.chance, health: p.health }; };
     },
   },
+  'dodge-cap': { doc: 'Raises the most Dodge you can have to `percent`% (60% without it). Dodge cards and treasures then close their share of the gap to that higher cap.', args: ['percent'], make: ([c]) => (m) => { m.dodgeCap = Math.max(m.dodgeCap, c); } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
     doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses; each treasure closes that share of the gap to the 60% cap, so copies give less and less), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
