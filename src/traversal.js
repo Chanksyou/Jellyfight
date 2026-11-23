@@ -2,6 +2,7 @@
 // Also sets the apartment up for a stage (doors, see-through pieces, invisible walls).
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
+import { VentAir } from './vent-air.js';
 
 // Apartment objects are named after what they are ("Shower curtain"); three.js's loader
 // swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
@@ -63,21 +64,6 @@ export function addStageWalls(world, stage, scene) {
   }
 }
 
-// A floor grille texture: dark metal with slots
-function grilleTexture() {
-  const c = document.createElement('canvas');
-  c.width = 128; c.height = 96;
-  const g = c.getContext('2d');
-  g.fillStyle = '#d9d6cf'; g.fillRect(0, 0, 128, 96);
-  g.fillStyle = '#2b2a28';
-  for (let i = 0; i < 9; i++) g.fillRect(10, 10 + i * 8.6, 108, 4.5);
-  g.strokeStyle = '#a9a59c'; g.lineWidth = 4; g.strokeRect(2, 2, 124, 92);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
-}
-
 export class Traversal {
   constructor(scene, stage) {
     this.scene = scene;
@@ -86,33 +72,11 @@ export class Traversal {
     this.group.name = 'Traversal';
     scene.add(this.group);
 
-    const grille = grilleTexture();
     this.vents = stage.vents.map((v) => {
       const [x, y, z] = v.at;
-      const plate = new THREE.Mesh(
-        new THREE.BoxGeometry(v.radius * 2.2, 0.002, v.radius * 1.6),
-        new THREE.MeshStandardMaterial({ map: grille, roughness: 0.5, metalness: 0.4 }),
-      );
-      plate.position.set(x, y + 0.001, z);
-      this.group.add(plate);
-
-      // shimmer column + rising specks so the vent reads from across the room
-      const h = v.land[1] + 0.06 - y;
-      const col = new THREE.Mesh(
-        new THREE.CylinderGeometry(v.radius * 0.9, v.radius, h, 24, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xcfefff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, blending: THREE.AdditiveBlending }),
-      );
-      col.position.set(x, y + h / 2, z);
-      this.group.add(col);
-      const n = 40, pos = new Float32Array(n * 3), seeds = [];
-      for (let i = 0; i < n; i++) seeds.push([Math.random() * Math.PI * 2, Math.sqrt(Math.random()) * v.radius, Math.random()]);
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.003, transparent: true, opacity: 0.7, depthWrite: false }));
-      pts.frustumCulled = false;
-      this.group.add(pts);
-      return { ...v, x, y, z, h, pts, seeds, plate, col };
+      return { ...v, x, y, z, h: v.land[1] + 0.06 - y };
     });
+    this.air = new VentAir(this.group, this.vents);
 
     this.climbs = stage.climbs.map((c) => ({
       ...c,
@@ -126,11 +90,7 @@ export class Traversal {
     v.at = [...at]; v.land = [...land];
     [v.x, v.y, v.z] = at;
     v.h = Math.max(0.05, land[1] + 0.06 - v.y);
-    v.plate.position.set(v.x, v.y + 0.001, v.z);
-    v.col.geometry.dispose();
-    v.col.geometry = new THREE.CylinderGeometry(v.radius * 0.9, v.radius, v.h, 24, 1, true);
-    v.col.position.set(v.x, v.y + v.h / 2, v.z);
-    v.plate.updateMatrixWorld(); v.col.updateMatrixWorld();
+    this.air.build(this.vents);
   }
 
   // What's acting on a player standing at `p` (feet position)
@@ -147,16 +107,5 @@ export class Traversal {
     return { vent, climb };
   }
 
-  update(dt) {
-    for (const v of this.vents) {
-      const a = v.pts.geometry.attributes.position;
-      for (let i = 0; i < v.seeds.length; i++) {
-        const s = v.seeds[i];
-        s[2] = (s[2] + dt * 0.35) % 1;           // rise
-        s[0] += dt * 0.8;                         // swirl
-        a.setXYZ(i, v.x + Math.cos(s[0]) * s[1], v.y + s[2] * v.h, v.z + Math.sin(s[0]) * s[1]);
-      }
-      a.needsUpdate = true;
-    }
-  }
+  update(dt, env) { this.air.update(dt, env); }
 }

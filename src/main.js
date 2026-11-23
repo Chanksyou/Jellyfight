@@ -774,7 +774,7 @@ const GAME = {
   loadRooms,
   step(dt) {
     updateMusic(dt);
-    systems.traversal.update(dt);
+    systems.traversal.update(dt, { pixelRatio: renderer.getPixelRatio(), low: gfx.quality === 'low', calm: juice.calm });
     systems.fx.update(dt);
     run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));
     systems.layout.update(dt);

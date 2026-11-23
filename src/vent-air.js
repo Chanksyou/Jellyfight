@@ -1,0 +1,230 @@
+// How a floor vent looks: a real grille (frame, louvres, a dark duct), and air you can see only by
+// what it carries: thin wisps that rise and spread, dust motes, and tell-tale ribbons tied to the
+// louvres. Four draws for every vent in the act together (grille, ribbons, wisps, motes), all motion
+// in the vertex shaders: nothing is moved or uploaded per frame but the clock. Colours and sizes are
+// `--vent-*` in content/look.css. Traversal hands its vents here and calls build() when one is moved.
+import * as THREE from 'three';
+import { LOOK } from './look.js';
+
+const SEG = 20, TAIL_SEG = 10;
+// the stream's top: the surface the ride lands on, where the air fades out
+const topOf = (v) => Math.max(0.05, v.land[1] + 0.01 - v.y);
+
+function box(out, cx, cy, cz, sx, sy, sz, tilt, col) {
+  const g = new THREE.BoxGeometry(sx, sy, sz);
+  if (tilt) g.rotateX(tilt);
+  g.translate(cx, cy, cz);
+  const n = g.attributes.position.count, c = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) c.set(col, i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  out.push(g.toNonIndexed());
+}
+function merge(list) {
+  const g = new THREE.BufferGeometry();
+  for (const name of Object.keys(list[0].attributes)) {
+    const size = list[0].attributes[name].itemSize, arr = new Float32Array(list.reduce((s, x) => s + x.attributes[name].count, 0) * size);
+    let o = 0;
+    for (const x of list) { arr.set(x.attributes[name].array, o); o += x.attributes[name].array.length; }
+    g.setAttribute(name, new THREE.BufferAttribute(arr, size));
+  }
+  return g;
+}
+
+const rgb = (name, fallback) => new THREE.Color(LOOK.color(name, fallback)).toArray();
+
+// one grille: w along x, d along z, 3 mm tall, its foot at y = 0
+function grilleParts(out, v) {
+  const w = v.radius * 2.2, d = v.radius * 1.6, t = 0.0032, b = 0.007;
+  const paint = rgb('vent-grille', '#5c5f64'), slat = rgb('vent-grille-slat', '#45484d'), duct = [0.012, 0.012, 0.014];
+  const at = (g0) => { for (let i = g0; i < out.length; i++) out[i].translate(v.x, v.y, v.z); };
+  const g0 = out.length;
+  box(out, 0, 0.0004, 0, w - b, 0.0006, d - b, 0, duct);                       // the dark of the duct
+  box(out, 0, t / 2, -d / 2 + b / 2, w, t, b, 0, paint); box(out, 0, t / 2, d / 2 - b / 2, w, t, b, 0, paint);
+  box(out, -w / 2 + b / 2, t / 2, 0, b, t, d - 2 * b, 0, paint); box(out, w / 2 - b / 2, t / 2, 0, b, t, d - 2 * b, 0, paint);
+  const n = 7, span = d - 2 * b;
+  for (let i = 0; i < n; i++) box(out, 0, t * 0.55, -span / 2 + (i + 0.5) * span / n, w - 2 * b, 0.0011, span / n * 0.78, -0.62, slat);   // angled louvres
+  box(out, 0, t * 0.6, 0, 0.0016, t, span, 0, slat);                           // the centre rib
+  at(g0);
+}
+
+const COMMON = /* glsl */`
+  uniform float uTime; uniform float uCalm; uniform float uSpread; uniform vec4 uGust;   // xyz: the vent being ridden, w: 0..1
+  float gustAt(vec3 base) { return uGust.w * step(distance(base, uGust.xyz), 0.01); }
+`;
+
+// Wisps: flat ribbons that always face the camera, static; only the streak pattern and a sway move
+function wispMesh(vents, look) {
+  const WISPS = LOOK.num('vent-wisps', 6), PUFFS = LOOK.num('vent-puffs', 4), spread = LOOK.num('vent-spread', 1.6);
+  const P = [], B = [], A = [];   // P: side, t, seed | B: base xyz + height | A: angle, radius, reach, speed
+  const idx = [];
+  let n = 0;
+  for (const v of vents) for (let k = 0; k < WISPS + PUFFS; k++) {
+    const puff = k >= WISPS, seed = Math.random(), ang = (k / (puff ? PUFFS : WISPS)) * Math.PI * 2 + Math.random();
+    const top = topOf(v), h = puff ? Math.min(top, 0.07 + Math.random() * 0.05) : top * (0.85 + Math.random() * 0.15);
+    const rad = v.radius * (0.2 + Math.random() * 0.5), speed = 0.7 + Math.random() * 0.6;
+    for (let s = 0; s <= SEG; s++) for (const side of [-1, 1]) {
+      P.push(side, s / SEG, seed);
+      B.push(v.x, v.y, v.z, h);
+      A.push(ang, rad, puff ? 1 : 0, speed);
+    }
+    for (let s = 0; s < SEG; s++) { const a = n + s * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    n += (SEG + 1) * 2;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('base', new THREE.Float32BufferAttribute(B, 4));
+  g.setAttribute('shape', new THREE.Float32BufferAttribute(A, 4));
+  g.setIndex(idx);
+  const m = new THREE.ShaderMaterial({
+    uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    vertexShader: /* glsl */`
+      attribute vec4 base; attribute vec4 shape;
+      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear;
+      ${COMMON}
+      vec3 path(float t, float g) {
+        float spread = 1.0 + uSpread * t * t;                                    // the air fans out as it slows
+        float a = shape.x + t * 2.2 + sin(uTime * 0.6 + shape.x * 3.0) * 0.35 * t;
+        float r = shape.y * spread + sin(uTime * 1.7 * shape.w + t * 9.0 + shape.x) * 0.006 * t * (1.0 - 0.7 * g);
+        return base.xyz + vec3(cos(a) * r, t * base.w, sin(a) * r);
+      }
+      void main() {
+        float t = position.y, g = gustAt(base.xyz);
+        vec3 c = path(t, g), tan = normalize(path(t + 0.02, g) - c);
+        vec3 right = normalize(cross(tan, cameraPosition - c));
+        float width = mix(0.005, 0.016, t) * (shape.z > 0.5 ? 0.9 : 1.0) * (1.0 + g);
+        vUv = vec3(position.x, t, position.z); vPuff = shape.z; vGust = g;
+        vNear = distance(c, cameraPosition);
+        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * position.x * width, 1.0);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uColor; uniform float uWisp;
+      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear;
+      ${COMMON}
+      void main() {
+        float t = vUv.y, across = 1.0 - vUv.x * vUv.x;
+        float run = fract(t * mix(1.6, 1.0, vPuff) - uTime * mix(0.55, 0.9, vPuff) * (1.0 + 2.5 * vGust) + vUv.z * 7.0);
+        float streak = smoothstep(0.0, 0.5, run) * (1.0 - smoothstep(0.62, 1.0, run));   // a soft dash with a long tail
+        float ends = smoothstep(0.0, 0.1, t) * (1.0 - smoothstep(0.55, 1.0, t));
+        float a = across * across * streak * ends * uWisp * mix(1.0, 1.5, vPuff) * (1.0 + 1.5 * vGust);
+        a *= smoothstep(0.03, 0.09, vNear);                                   // a ride through the stream never fills the screen
+        gl_FragColor = vec4(uColor, a);
+      }`,
+  });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.frustumCulled = false; mesh.renderOrder = 2;
+  return mesh;
+}
+
+// Dust motes: points whose whole path is worked out from a seed and the clock
+function moteMesh(vents, look) {
+  const MOTES = LOOK.num('vent-motes', 28);
+  const B = [], S = [];
+  for (const v of vents) for (let i = 0; i < MOTES; i++) { B.push(v.x, v.y, v.z); S.push(Math.random() * 6.283, Math.sqrt(Math.random()) * v.radius, Math.random(), topOf(v)); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(B, 3));
+  g.setAttribute('seed', new THREE.Float32BufferAttribute(S, 4));
+  const m = new THREE.ShaderMaterial({
+    uniforms: look.uniforms, transparent: true, depthWrite: false,
+    vertexShader: /* glsl */`
+      attribute vec4 seed; varying float vA;
+      uniform float uPx; uniform float uPr;
+      ${COMMON}
+      void main() {
+        float g = gustAt(position);
+        float life = fract(seed.z + uTime * (0.16 + 0.1 * fract(seed.x * 3.7)) * (1.0 + 2.0 * g) * 0.8 / max(seed.w, 0.3));
+        float rise = 1.0 - (1.0 - life) * (1.0 - life);                       // fast off the grille, slowing as it tops out
+        float a = seed.x + uTime * 0.9 + life * 4.0, r = seed.y * (0.5 + 1.9 * life);
+        vec3 p = position + vec3(cos(a) * r, rise * seed.w, sin(a) * r);
+        p.xz += vec2(sin(uTime * 2.3 + seed.x * 9.0), cos(uTime * 1.9 + seed.x * 5.0)) * 0.004 * life;
+        vec4 mv = viewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(uPx * (0.6 + fract(seed.x * 7.3)) / -mv.z, uPr, 9.0 * uPr);
+        vA = smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.7, 1.0, life)) * smoothstep(0.03, 0.09, -mv.z);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uColor; uniform float uMote; varying float vA;
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        gl_FragColor = vec4(uColor, (1.0 - smoothstep(0.3, 1.0, d)) * vA * uMote);
+      }`,
+  });
+  const pts = new THREE.Points(g, m);
+  pts.frustumCulled = false; pts.renderOrder = 2;
+  return pts;
+}
+
+// Tell-tale ribbons tied to the louvres: the way people check a real vent is blowing
+function tailMesh(vents, look) {
+  const TAILS = LOOK.num('vent-ribbons', 3);
+  const P = [], B = [], idx = [];
+  let n = 0;
+  for (const v of vents) for (let k = 0; k < TAILS; k++) {
+    const ox = (k - (TAILS - 1) / 2) * v.radius * 0.55, oz = (Math.random() - 0.5) * v.radius * 0.5, seed = Math.random() * 6.283, len = 0.035 + Math.random() * 0.02;
+    for (let s = 0; s <= TAIL_SEG; s++) for (const side of [-1, 1]) { P.push(side, s / TAIL_SEG, seed); B.push(v.x + ox, v.y + 0.003, v.z + oz, len); }
+    for (let s = 0; s < TAIL_SEG; s++) { const a = n + s * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    n += (TAIL_SEG + 1) * 2;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('base', new THREE.Float32BufferAttribute(B, 4));
+  g.setIndex(idx);
+  const m = new THREE.ShaderMaterial({
+    uniforms: look.uniforms, side: THREE.DoubleSide,
+    vertexShader: /* glsl */`
+      attribute vec4 base; varying float vShade; varying float vU;
+      ${COMMON}
+      vec3 path(float u, float s, float g) {
+        float k = 9.0 + 6.0 * g, amp = 0.007 * u * (1.0 - 0.5 * g) * (1.0 - uCalm);
+        return base.xyz + vec3(sin(u * 5.0 - uTime * k + s) * amp + sin(uTime * 1.3 + s) * 0.006 * u * (1.0 - uCalm), u * base.w, cos(u * 4.0 - uTime * k * 0.8 + s * 1.7) * amp);
+      }
+      void main() {
+        float u = position.y, s = position.z, g = gustAt(vec3(base.x, uGust.y, base.z)) ;
+        vec3 c = path(u, s, 0.0), tan = normalize(path(u + 0.05, s, 0.0) - c);
+        vec3 right = normalize(cross(tan, vec3(sin(s), 0.0, cos(s)) + vec3(0.0, 0.0, 0.3 * sin(u * 6.0 - uTime * 7.0 + s))));
+        vec3 nrm = normalize(cross(right, tan));
+        vShade = 0.55 + 0.45 * abs(dot(nrm, normalize(cameraPosition - c)));
+        vU = u;
+        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * position.x * 0.0017, 1.0);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uTail; uniform float uRoom; varying float vShade; varying float vU;
+      void main() { gl_FragColor = vec4(uTail * vShade * uRoom * mix(0.7, 1.0, vU), 1.0); }`,
+  });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+export class VentAir {
+  constructor(group, vents) {
+    this.group = group;
+    const U = (value) => ({ value });
+    this.look = { uniforms: {
+      uTime: U(0), uCalm: U(0), uGust: U(new THREE.Vector4(0, 0, 0, 0)), uPx: U(2.2),
+      uPr: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
+      uColor: U(new THREE.Color(LOOK.color('vent-air', '#eaf6ff'))), uWisp: U(LOOK.num('vent-wisp', 0.26)), uMote: U(LOOK.num('vent-mote', 0.75)),
+      uTail: U(new THREE.Color(LOOK.color('vent-ribbon', '#8fd6d0'))), uRoom: U(LOOK.num('vent-ribbon-glow', 0.8)),
+    } };
+    // Lambert, not Standard: no per-lamp shine maths, and one material on every graphics tier
+    this.grilleMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.build(vents);
+  }
+  build(vents) {
+    for (const o of this.parts || []) { this.group.remove(o); o.geometry.dispose(); }
+    const boxes = [];
+    for (const v of vents) grilleParts(boxes, v);
+    this.parts = [new THREE.Mesh(merge(boxes), this.grilleMat), tailMesh(vents, this.look), wispMesh(vents, this.look), moteMesh(vents, this.look)];
+    this.motes = this.parts[3];
+    for (const o of this.parts) this.group.add(o);
+  }
+  gust(v, k) { this.look.uniforms.uGust.value.set(v.x, v.y, v.z, k); }
+  // env: { pixelRatio, low, calm }. Low draws no motes; Reduce effects stills the ribbons and slows the streaks.
+  update(dt, env = {}) {
+    const U = this.look.uniforms, calm = env.calm ? 1 : 0;
+    U.uTime.value += dt * (calm ? LOOK.num('vent-calm-speed', 0.3) : 1);
+    U.uCalm.value = calm;
+    U.uPr.value = env.pixelRatio || 1;
+    U.uPx.value = LOOK.num('vent-mote-size', 2.2) * U.uPr.value;
+    this.motes.geometry.setDrawRange(0, env.low ? 0 : Infinity);
+  }
+}

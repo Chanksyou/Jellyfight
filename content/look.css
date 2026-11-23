@@ -713,6 +713,21 @@
   --jelly-motion-roll-halflife: 0.2;
   --jelly-motion-roll-freq: 1.4;
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
+  /* floor vents (src/vent-air.js): a grille, wisps of air, dust motes and tell-tale ribbons; no column of light */
+  --vent-air: #eaf6ff;         /* the colour of the wisps and the motes */
+  --vent-wisp: 0.26;           /* how strong a wisp is where a streak passes it */
+  --vent-wisps: 6;             /* long wisps a vent, and shorter puffs near the grille (--vent-puffs) */
+  --vent-puffs: 4;
+  --vent-spread: 1.6;          /* how far the air fans out as it slows near the top */
+  --vent-mote: 0.75;           /* how bright the dust is (not drawn on Low graphics) */
+  --vent-motes: 28;            /* dust motes a vent */
+  --vent-mote-size: 2.2;       /* a mote's size in pixels at 1 m away (the game multiplies it by the screen's pixel ratio) */
+  --vent-ribbon: #8fd6d0;      /* the tell-tale ribbons: cool, never hot (hot is for hostile things) */
+  --vent-ribbon-glow: 0.8;
+  --vent-ribbons: 3;           /* ribbons a vent */
+  --vent-grille: #5c5f64;      /* the frame, and the louvres' slats */
+  --vent-grille-slat: #45484d;
+  --vent-calm-speed: 0.3;      /* Reduce effects: the streaks' speed, the ribbons hang still */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
   --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
   --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
