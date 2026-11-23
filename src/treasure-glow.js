@@ -7,7 +7,7 @@
 // Premultiplied over-blending: kinds that add light leave alpha near 0, the wet puddle covers the floor.
 import * as THREE from 'three';
 
-export const GLOW_KIND = { glow: 0, lamp: 1, wet: 2, spot: 3, fizz: 4 };
+export const GLOW_KIND = { glow: 0, lamp: 1, wet: 2, spot: 3, fizz: 4, soft: 5 };
 const DISC = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
 
 const base = new THREE.ShaderMaterial({
@@ -57,9 +57,11 @@ const base = new THREE.ShaderMaterial({
       } else if (uKind < 3.5) {     // spot: a stage light's pool, glittering
         float glint = step(0.93, noise(vP * 14.0 + uTime * 1.5));
         a = fall * 0.35 + 0.1 + rim * 0.45 + glint * fall * 0.5; col += vec3(glint * 0.3); cover = 0.3;
-      } else {                      // fizz: a bath bomb's reach filling as it fizzes, bubbles popping across it
+      } else if (uKind < 4.5) {     // fizz: a bath bomb's reach filling as it fizzes, bubbles popping across it
         float bub = smoothstep(0.78, 0.95, noise(vP * 11.0 + vec2(0.0, uTime * 2.0)));
         a = 0.08 + fall * 0.2 * uCharge + bub * 0.35 * (0.4 + uCharge) + rim * (0.4 + 0.5 * uCharge); cover = 0.3;
+      } else {                      // soft: light spilled on the floor (floor-light.js): nothing at the edge, no ring, never a shape
+        a = pow(fall, 2.0) * (0.7 + n * 0.3); cover = 0.3;
       }
       a = clamp(a, 0.0, 1.0) * uOpacity;
       gl_FragColor = vec4(col * a, a * cover);

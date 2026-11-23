@@ -1,6 +1,6 @@
 // Light on the floor from what glows in the room: the TV's colours spilling onto the rug, the monitor's glow
 // in front of the desk, act 3's night light drifting between pink and amber. Each is one soft pool made with
-// the Treasure glow's own shader (treasure-glow.js, kind `lamp`: no ring, no hard edge), so no new shader
+// the Treasure glow's own shader (treasure-glow.js, kind `soft`: no ring, nothing at the edge), so no new shader
 // program, and a stage lists them as plain data (`floorLight`). Never a light: a pool only paints the floor.
 //
 //  - A spot is { at: [x, z], r, kind }. Kind `screen` follows the screensaver's colours (screenColor: the same
@@ -27,7 +27,7 @@ export class FloorLight {
     this.clock = clock;
     this.rate = LOOK.num('floor-light-rate', 0.2094);
     this.pools = spots.map((s) => {
-      const mesh = glowPool('lamp', '#ffffff');
+      const mesh = glowPool('soft', '#ffffff');
       mesh.position.set(s.at[0], LOOK.num('floor-light-lift', 0.015), s.at[1]);
       mesh.scale.setScalar(s.r);
       mesh.material.uniforms.uOpacity.value = LOOK.num('floor-light-opacity', 0.28);

@@ -1,6 +1,7 @@
 // Ambient life (src/ambient.js): plants sway and glasses shiver in the room's shared shader patch.
 import * as THREE from 'three';
 import { G, V, fresh, tp, step, ok, stub, story } from './kit.js';
+import { GLOW_KIND } from '../treasure-glow.js';
 import { juice } from '../juice.js';
 
 // the plants every act-1 room has (act 4 is the same room: the same list)
@@ -265,12 +266,12 @@ const tvScreen = () => { let m; G().APT.scene.traverse((o) => { if (o.name === '
 const drawCalls = () => { const R = G().APT.renderer; R.info.reset(); R.info.autoReset = false; R.render(G().APT.scene, G().camera || G().tpc.camera); const c = R.info.render.calls; R.info.autoReset = true; return c; };
 
 story('ambient/floor-pools-are-one-soft-draw-each', {
-  about: "Act 1's TV and monitor pools are one draw each, soft (the Treasure glow's lamp kind: no ring, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
+  about: "Act 1's TV and monitor pools are one draw each, soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 3.4, Math.PI); step(2); },
   play() {
     const { ambient, floorLight } = G(), found = pools(), was = found.map((p) => p.visible);
     if (found.length !== 2 || !floorLight) return ok(false, { pools: found.length });
-    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === 1 && p.material.uniforms.uOpacity.value <= 0.4);
+    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= 0.4);
     const calm = ambient.calm, colour = (t) => { ambient.uniforms.ambientTime.value = t; floorLight.update(); return found[0].material.uniforms.uColor.value.getHex(); };
     let moves, still;
     try {
