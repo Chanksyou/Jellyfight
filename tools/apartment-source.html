@@ -452,6 +452,8 @@ function polyShape(pts,flip){const s=new THREE.Shape();pts.forEach((p,i)=>{const
 {const f=mesh(new THREE.ShapeGeometry(polyShape(PM,true)),M('#ffffff',{map:floorTex,roughness:.5}),scene,false,true);f.rotation.x=-PI/2;f.userData.shape=true;
  const hf=mesh(new THREE.ShapeGeometry(polyShape(PH,true)),f.material,scene,false,true);hf.rotation.x=-PI/2;hf.userData.shape=true;
  const bd=mesh(new THREE.ShapeGeometry(polyShape([[1.37,7.04],[1.55,7.04],[1.55,7.8],[1.37,7.8]],true)),f.material,scene,false,true);bd.rotation.x=-PI/2;bd.position.y=.001;bd.userData.shape=true;
+ // the front doorway's floor, across the wall's thickness to the corridor carpet (without it, a low camera in the hall's corner looked down past the door into the night)
+ const fd=mesh(new THREE.ShapeGeometry(polyShape([[3.11,7.0],[3.246,7.0],[3.246,7.79],[3.11,7.79]],true)),f.material,scene,false,true);fd.rotation.x=-PI/2;fd.position.y=.001;fd.userData.shape=true;
  const c=mesh(new THREE.ShapeGeometry(polyShape(PM,false)),mat.ceil,ceilRoot,false,false);c.rotation.x=PI/2;c.position.y=H;c.userData.shape=true;
  const hc=mesh(new THREE.ShapeGeometry(polyShape(PH,false)),mat.ceil,hallCeil,false,false);hc.rotation.x=PI/2;hc.position.y=2.45;hc.userData.shape=true;
  const slab=new THREE.Mesh(new THREE.BoxGeometry(7,.1,11),blockMat);slab.position.set(2.5,H+.05,4.4);slab.castShadow=true;slab.userData.noPick=true;slab.userData.noScale=true;scene.add(slab);
