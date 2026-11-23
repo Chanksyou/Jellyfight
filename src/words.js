@@ -508,12 +508,12 @@ export const ENEMY_WORDS = {
           if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowSwell = false; e.burrowBeats = 0; e.burrowBeatN = 0; e.beatSeen = c.beat; en.burrowGo(e); }
         } else if (e.state === 'under') {
           c.speed = 0;
-          en.burrowRumble();
+          if (!e.burrowLocked) en.burrowRumble(e.burrowBeats / p.follow);   // the hush: it cuts out
           e.burrowBeats += THREE.MathUtils.clamp(c.beat - e.beatSeen, 0, 0.5);   // a song handing over (the beat jumping) can't strand it down there
           e.beatSeen = c.beat;
           if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); en.burrowLock?.(e, p.radius); }
-          else if (e.burrowLocked && e.burrowBeats >= p.follow + p.warn / 2 && !e.burrowSwell) { e.burrowSwell = true; en.burrowSwell?.(e, p.radius); }   // the Warning's last half: the floor swells
-          else if (!e.burrowLocked && Math.floor(e.burrowBeats) > e.burrowBeatN) { e.burrowBeatN = Math.floor(e.burrowBeats); en.burrowHeave?.(e); }   // the mound heaves on each beat
+          else if (e.burrowLocked && e.burrowBeats >= p.follow + p.warn / 2 && !e.burrowSwell) { e.burrowSwell = true; en.burrowSwell?.(e, p.radius, p.warn / 2 * c.spb); }   // the Warning's last half: the floor swells
+          else if (!e.burrowLocked && Math.floor(e.burrowBeats) > e.burrowBeatN) { e.burrowBeatN = Math.floor(e.burrowBeats); en.burrowHeave?.(e, e.burrowBeats / p.follow); }   // the mound heaves on each beat
           if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
           else {
             e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
