@@ -86,7 +86,7 @@ export function elite({ seed, style, jelly, kind, seconds = 240, sun = false }) 
     const pick = run.duelChoices().find((p) => p.elite?.kind === kind && p.act === run.stage.id);
     if (!pick) throw Error(`no ${kind} Elite in act ${run.stage.id}`);
     run.startDuel(pick);
-    if (!sun) { run.sunrise.update = () => {}; run.bass.update = () => {}; }   // the Elite alone: the sun's and the bass wave's costs are read from their numbers (stage4.js)
+    if (!sun) { run.sunrise.update = () => {}; }   // the Elite alone: the sun's cost is read from their numbers (stage4.js)
     const build = endOfAct3(seed, style);
     step(30);
     run.health = run.S.health;
