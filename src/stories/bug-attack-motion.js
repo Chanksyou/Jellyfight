@@ -1,5 +1,5 @@
 // Stories: the basic bugs' attack animation (plan: enemy-attack-anim). Animation is drawn on a bug's body
-// group and never moves a hit: `attacks/animation-never-moves-a-hit` replays all 17 basic attacks on a
+// group and never moves a hit: `attacks/animation-never-moves-a-hit` replays all 16 basic attacks on a
 // fixed seed and compares, with bug-attack-hits.json (recorded from main before any animation work,
 // `node tools/record-bug-hits.mjs`), the frames from the attack's start to its hit test and where the
 // bug stood and aimed at that moment.
@@ -89,7 +89,7 @@ export function measure(a) {
 export const measureAll = () => Object.fromEntries(ATTACKS.map((a) => [a.id, measure(a)]));
 
 story('attacks/animation-never-moves-a-hit', {
-  about: 'All 17 basic bug attacks, played on a fixed seed with the jelly held still, test their hit on the same frame after the attack begins, and from the same spot, facing and aim as when bug-attack-hits.json was recorded: attack animation never moves a hit.',
+  about: 'All 16 basic bug attacks, played on a fixed seed with the jelly held still, test their hit on the same frame after the attack begins, and from the same spot, facing and aim as when bug-attack-hits.json was recorded: attack animation never moves a hit.',
   setup() {},
   async play() {
     const fixture = await (await fetch('src/stories/bug-attack-hits.json')).json();
