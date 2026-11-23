@@ -1337,7 +1337,7 @@ export class Run {
     let best = null, bestD = Infinity, top = 0;
     for (const e of this.enemies.list) {
       if (e.dead || e.proxy?.immune || e.under) continue;   // a shielded or rising boss is no step to spring off
-      const r = e.hitR || e.r, c = this.enemies.center(e, _bug), t = c.y + r;
+      const r = e.hitR || e.r, c = this.enemies.center(e, _bug), t = e.proxy?.stompTop ?? c.y + r;   // a boss names the top of its back (stompTop) so a plain jump can reach it
       if (t > from || t < to || P.peakY - t < T.drop) continue;
       const d = Math.hypot(c.x - P.position.x, c.z - P.position.z);
       if (d <= this.cfg.radius + r + T.reach && d < bestD) { best = e; bestD = d; top = t; }
