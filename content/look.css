@@ -1086,6 +1086,9 @@
   --ambient-gust-fade: 0.8;      /* s: a hit's gust dies away over this */
   --ambient-rattle: 0.0015;      /* m: how far a glass shivers in a full gust (never at rest) */
   --ambient-rattle-rate: 60;     /* rad/s: how fast */
+  --ambient-cloth: 0.006;        /* m: a curtain's slow idle ripple at its hem (nothing moves at the rail) */
+  --ambient-cloth-billow: 0.05;  /* m: how far a full gust billows the hem away from it (the jelly passing through counts) */
+  --ambient-cloth-rate: 0.9;     /* rad/s: how fast the ripple runs */
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */

@@ -12,7 +12,10 @@
 //    their materials, so the furniture batches group exactly as before.
 //  - Rest pose is today's: with the switch off (Reduce effects, ?ambient=0) every vertex is where
 //    the model has it. Numbers are --ambient-* in content/look.css.
-// Later ambient tasks (cloth, floor light, status lights, smoke) hang off this same clock and gusts.
+//  - Cloth (the shower curtain, the sheer curtains, the roller shades) is pinned where it hangs from and ripples more toward its
+//    hem: a slow wave runs across it, and a gust billows it away from where it came from. Its attribute is y < 0: minus how far
+//    down the cloth the vertex hangs (0 at the rail, 1 at the hem).
+// Later ambient tasks (floor light, status lights, smoke) hang off this same clock and gusts.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { bus } from './events.js';
@@ -24,8 +27,10 @@ export const SWAY = ['Aloe', 'Monstera', 'Pilea', 'Pothos', 'Pothos_planter', 'R
 // glassware only: the Mug and the Kettle are Elites, so nothing shaped like them moves on its own
 export const RATTLE = ['Glass_cup', 'Juice_glass', 'Cut-crystal_glass', 'Short_tumbler', 'Shot_glasses', 'Tumblers', 'Mason_jar',
   'Glass_mug', 'Crystal_pitcher', 'Carafe', 'Water_filter_pitcher', 'Glass_teapot'];
+// cloth: hung from the top, moving more toward the hem (the roller shade's meshes are a tube, a rail and the sheet: only the sheet and rail swing)
+export const CLOTH = ['Shower_curtain', 'Sheer_curtain', 'Roller_shade'];
 const base = (name) => name.replace(/(\.\d+|_\d+)+$/, '');
-export const kindOf = (name) => (SWAY.includes(base(name)) ? 'sway' : RATTLE.includes(base(name)) ? 'rattle' : null);
+export const kindOf = (name) => (SWAY.includes(base(name)) ? 'sway' : RATTLE.includes(base(name)) ? 'rattle' : CLOTH.includes(base(name)) ? 'cloth' : null);
 
 const uniforms = {
   ambientOn: { value: 0 },        // 0 holds everything still
@@ -34,6 +39,7 @@ const uniforms = {
   ambientReach: { value: 0.3 },
   ambientSway: { value: new THREE.Vector4() },     // idle lean, idle flutter, gust push, gust flutter (m at a plant's tip)
   ambientRattle: { value: new THREE.Vector2() },   // m, rad/s
+  ambientCloth: { value: new THREE.Vector3() },    // idle ripple (m at the hem), gust billow (m at the hem), ripple rate (rad/s)
 };
 export const AMBIENT = { uniforms };
 
@@ -43,8 +49,9 @@ export const AMBIENT_VERTEX = /* glsl */`
   uniform float ambientOn, ambientTime, ambientReach;
   uniform vec4 ambientGust[4], ambientSway;
   uniform vec2 ambientRattle;
-  vec3 ambientOffset(vec3 p) {
-    if (ambientOn <= 0.0 || ambient.x + ambient.y <= 0.0) return vec3(0.0);
+  uniform vec3 ambientCloth;
+  vec3 ambientOffset(vec3 p, vec3 n) {
+    if (ambientOn <= 0.0 || (ambient.x == 0.0 && ambient.y == 0.0)) return vec3(0.0);
     float t = ambientTime, g = 0.0;
     vec3 push = vec3(0.0);
     for (int i = 0; i < 4; i++) {
@@ -56,6 +63,22 @@ export const AMBIENT_VERTEX = /* glsl */`
     }
     g = min(g, 1.0);
     vec3 off = vec3(0.0);
+    if (ambient.y < 0.0) {   // cloth: out of its own plane (its normal, level), the hem most
+      float w = ambient.y * ambient.y, side = dot(p.xz, vec2(0.7, 0.9));
+      vec3 face = vec3(n.x, 0.0, n.z);
+      face = length(face) > 0.2 ? normalize(face) : vec3(0.0, 0.0, 1.0);
+      float ripple = sin(t * ambientCloth.z - p.y * 2.6 + side * 3.1) + 0.5 * sin(t * ambientCloth.z * 1.7 + p.y * 1.3 - side * 5.3);
+      off += face * (w * ambientCloth.x * ripple);
+      float away = 0.0;   // which side of the cloth the gust is on: it billows to the other
+      for (int i = 0; i < 4; i++) {
+        vec3 d = p - ambientGust[i].xyz;
+        d.y = 0.0;
+        float k = ambientGust[i].w * smoothstep(ambientReach, 0.0, length(d));
+        away += k * (dot(d, face) >= 0.0 ? 1.0 : -1.0);
+      }
+      off += face * (w * ambientCloth.y * away * (0.8 + 0.2 * sin(t * ambientCloth.z * 3.0 + side * 4.0)));
+      return off;
+    }
     if (ambient.x > 0.0) {
       float w = ambient.x * ambient.x, ph = dot(p.xz, vec2(1.7, 2.3));   // the tips bend most; neighbours out of step
       off.xz += vec2(sin(t * 0.9 + ph) + 0.4 * sin(t * 2.3 + ph * 1.7), cos(t * 0.7 + ph * 1.3)) * (w * ambientSway.x);
@@ -83,6 +106,7 @@ export class Ambient {
     uniforms.ambientReach.value = LOOK.num('ambient-reach', 0.3);
     uniforms.ambientSway.value.set(LOOK.num('ambient-lean', 0.004), LOOK.num('ambient-flutter', 0.0008), LOOK.num('ambient-push', 0.015), LOOK.num('ambient-gust-flutter', 0.003));
     uniforms.ambientRattle.value.set(LOOK.num('ambient-rattle', 0.0015), LOOK.num('ambient-rattle-rate', 60));
+    uniforms.ambientCloth.value.set(LOOK.num('ambient-cloth', 0.006), LOOK.num('ambient-cloth-billow', 0.05), LOOK.num('ambient-cloth-rate', 0.9));
     this.fade = LOOK.num('ambient-gust-fade', 0.8);
     this.wake = LOOK.num('ambient-wake-speed', 0.8);
   }
@@ -115,7 +139,7 @@ export class Ambient {
     let n = 0;
     const walk = (o) => {
       const kind = !o.isMesh && kindOf(o.name);
-      if (kind && !o.userData.ambient) { o.userData.ambient = kind; (kind === 'sway' ? this.sway : this.rattle).call(this, o); this.pieces.push(o); n++; return; }
+      if (kind && !o.userData.ambient) { o.userData.ambient = kind; this[kind](o); this.pieces.push(o); n++; return; }
       if (!kind) o.children.forEach(walk);
     };
     walk(root);
@@ -148,16 +172,22 @@ export class Ambient {
     return out;
   }
 
+  // The meshes of a piece grouped by where they stand (touching in plan view, 2 cm apart counts): root(i) names i's group
+  clusters(list) {
+    const boxes = list.map((m) => new THREE.Box3().setFromObject(m)), group = list.map((_, i) => i);
+    const root = (i) => (group[i] === i ? i : (group[i] = root(group[i])));
+    const touch = (a, b) => a.min.x <= b.max.x + 0.02 && b.min.x <= a.max.x + 0.02 && a.min.z <= b.max.z + 0.02 && b.min.z <= a.max.z + 0.02;
+    for (let i = 0; i < list.length; i++) for (let j = 0; j < i; j++) if (touch(boxes[i], boxes[j])) group[root(i)] = root(j);
+    return { boxes, root };
+  }
+
   // A plant: a piece can hold several plants (pots side by side), so its meshes are grouped by where they
   // stand (touching in plan view). In each group the pot (a mesh standing on the group's bottom, under
   // 60% of its height) holds still, and above the pot's rim (or a quarter of the way up) each vertex
   // moves by how far up the plant it is.
   sway(piece) {
     const list = this.meshes(piece).filter((m) => { for (let o = m; o && o !== piece; o = o.parent) if (!o.visible) return false; return true; });
-    const boxes = list.map((m) => new THREE.Box3().setFromObject(m)), group = list.map((_, i) => i);
-    const root = (i) => (group[i] === i ? i : (group[i] = root(group[i])));
-    const touch = (a, b) => a.min.x <= b.max.x + 0.02 && b.min.x <= a.max.x + 0.02 && a.min.z <= b.max.z + 0.02 && b.min.z <= a.max.z + 0.02;
-    for (let i = 0; i < list.length; i++) for (let j = 0; j < i; j++) if (touch(boxes[i], boxes[j])) group[root(i)] = root(j);
+    const { boxes, root } = this.clusters(list);
     const v = new THREE.Vector3(), mat = new THREE.Matrix4();
     for (const r of new Set(list.map((_, i) => root(i)))) {
       const ids = list.map((_, i) => i).filter((i) => root(i) === r);
@@ -189,4 +219,45 @@ export class Ambient {
       g.setAttribute('ambient', new THREE.BufferAttribute(a, 2));
     }
   }
+
+  // Cloth: a piece can hold several hangings (the roller shades, one a window), so its meshes are grouped by where
+  // they hang; in each group a vertex is marked by how far down it is between the highest point (the rail, which holds
+  // still) and the lowest (the hem). A hanging nothing patched yet (the shower curtain, built apart from the apartment)
+  // gets the ripple in its own shader.
+  cloth(piece) {
+    const list = this.meshes(piece).filter((m) => { for (let o = m; o && o !== piece; o = o.parent) if (!o.visible) return false; return true; });
+    const { boxes, root } = this.clusters(list), v = new THREE.Vector3(), mat = new THREE.Matrix4();
+    for (const r of new Set(list.map((_, i) => root(i)))) {
+      const ids = list.map((_, i) => i).filter((i) => root(i) === r), box = new THREE.Box3();
+      ids.forEach((i) => box.union(boxes[i]));
+      // the cloth is the tall part (a rail, a roller tube or a cassette is under 10 cm): it hangs from its own top, and what
+      // sits above that (the rod, the cassette) holds still
+      const tall = ids.filter((i) => boxes[i].max.y - boxes[i].min.y >= 0.1);
+      if (!tall.length) continue;
+      const top = Math.max(...tall.map((i) => boxes[i].max.y));
+      for (const i of ids) {
+        const m = list[i], g = this.own(m), pos = g.attributes.position;
+        if (g.attributes.ambient) continue;
+        const a = new Float32Array(pos.count * 2);
+        if (m.isInstancedMesh) m.getMatrixAt(0, mat).premultiply(m.matrixWorld); else mat.copy(m.matrixWorld);
+        for (let k = 0; k < pos.count; k++) a[2 * k + 1] = -THREE.MathUtils.clamp((top - v.fromBufferAttribute(pos, k).applyMatrix4(mat).y) / Math.max(0.01, top - box.min.y), 0, 1);
+        g.setAttribute('ambient', new THREE.BufferAttribute(a, 2));
+        if (m.material.onBeforeCompile === THREE.Material.prototype.onBeforeCompile) clothShader(m.material);
+      }
+    }
+  }
+}
+
+// A hanging built outside the apartment's shared patch: only the ripple, in its own shader (same uniforms)
+function clothShader(m) {
+  m.defaultAttributeValues = { ...m.defaultAttributeValues, ambient: [0, 0] };
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, uniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>' + AMBIENT_VERTEX)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vec3 ambOff = ambientOffset((modelMatrix * vec4(transformed, 1.0)).xyz, mat3(modelMatrix) * objectNormal);
+        if (ambOff != vec3(0.0)) { mvPosition.xyz += mat3(viewMatrix) * ambOff; gl_Position = projectionMatrix * mvPosition; }`);
+  };
+  m.needsUpdate = true;
 }

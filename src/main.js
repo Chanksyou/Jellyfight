@@ -23,7 +23,7 @@ import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingActi
 import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
-import { dressSet } from './set-dressing.js';
+import { dressSet, DRESSED } from './set-dressing.js';
 import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
@@ -305,7 +305,7 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
 const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
-if (!ARENA) { ambient.mark(APT.root); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
+if (!ARENA) { ambient.mark(APT.root); scene.children.filter((o) => DRESSED.includes(o.name)).forEach((o) => ambient.mark(o)); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
 function setNight(minutes) {
   cityTime?.(minutes);

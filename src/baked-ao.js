@@ -109,7 +109,7 @@ function patch(shader) {
         aoNormal = mat3(batchingMatrix) * aoNormal;
       #endif
       vAoPos = (modelMatrix * aoWorld).xyz;
-      vec3 ambOff = ambientOffset(vAoPos);   // a plant's sway, a glass's shiver (ambient.js); zero at rest
+      vec3 ambOff = ambientOffset(vAoPos, mat3(modelMatrix) * aoNormal);   // a plant's sway, a glass's shiver (ambient.js); zero at rest
       if (ambOff != vec3(0.0)) { mvPosition.xyz += mat3(viewMatrix) * ambOff; gl_Position = projectionMatrix * mvPosition; vAoPos += ambOff; }
       vLightUv = lightUv;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
