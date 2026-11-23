@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v637 lets the Range level-up card stretch a Tentacle jelly's reach too, and Tentacle jellies are now offered it.
+
 v636 makes a vent answer a ride: its air gusts and its ribbons snap straight as it catches the jelly, with a whoosh of sound and a light lift of the camera, and a soft hiss plays when you stand near one. In a Boss fight, when vents are off, the air now stops and the ribbons lie limp, and it starts again after.
 
 v635 removes act 4's Soundbar bass wave, the low red wave that rolled across the living room every 16 bars: the room is easier, and the stage door's sub drop stays.
