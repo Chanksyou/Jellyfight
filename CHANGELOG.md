@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v641 Act 2's camera now looks over the open bathroom door, tilting steeper instead of squeezing down to floor height behind it.
+
 v640 makes the apartment's plants sway a few millimetres on their own and lean away when the jelly rushes past or a big hit lands near them, and glassware shiver under those hits; all of it is in the room's existing shader, so it adds no draw, light or shader, Reduce effects holds it still, and ?ambient=0 turns it off for phone measuring.
 
 v639 stops a Cream Whipper balloon filling the screen when the camera is pushed in against a wall: it fades out as the lens comes near.
