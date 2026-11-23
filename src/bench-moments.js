@@ -50,10 +50,13 @@ export const MOMENTS = {
   night4: {
     'three bugs + 12 Firefly pools': (c) => {
       const { K, G } = c;
-      K.fresh({ elites: false, bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); immortal(c); crowd(c, ['firefly', 'moth', 'cicada']);
+      K.fresh({ elites: false, bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); immortal(c); crowd(c, ['firefly', 'butterfly', 'cicada']);
       const P = G.player.position, L = { flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12 };
       for (let i = 0; i < 12; i++) { const to = P.clone().add(new G.THREE.Vector3(-0.3 + (i % 4) * 0.2, 0, -0.3 + Math.floor(i / 4) * 0.2)); G.enemies.glowPools.throw(to.clone().setY(to.y + 0.15), to, L, -1, 'firefly'); }
       K.step(90);
+      const PR = { beats: 4, peak: 0.18, radius: 0.12, count: 12, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3 };   // three Monarch butterflies' prism balls with their rings out
+      for (let i = 0; i < 3; i++) G.enemies.prismBalls.throw(K.near(0.3 * i - 0.3, 0.3, 0.3), K.near(0.3 * i - 0.3, -0.3), PR, -1, 'butterfly', G.run.beat);
+      K.step(80);
     },
     'Singing Bowl angry': (c) => { c.K.startBowl(0, { angry: true }); immortal(c); },
     'Mushroom Pillow angry': (c) => { c.K.startPillow(0, { angry: true }); immortal(c); },

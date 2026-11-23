@@ -43,28 +43,30 @@ const fresher = (before) => [...built()].filter((p) => !before.has(p)).map((p) =
 const immortal = () => { const { run } = G(); stub(run, 'hurt', () => {}); run.health = 1e6; };
 
 // the room at its busiest: every kind of act 4 bug out (14, act 3's most at once), 12 Firefly pools
-// glowing, a moth's smoke, the sun far across the floor and the bass wave going off; then the Headphones angry
+// glowing, three butterflies' prism balls and their rings of bolts, the sun far across the floor and the bass wave going off; then the Headphones angry
 night4('within-the-phone-budget-at-its-busiest', {
-  about: 'Act 4\'s living room at its busiest (14 fireflies, moths and cicadas round the jelly, 12 Firefly pools, a moth\'s smoke, the sun late in the night and the bass wave going off; then the Headphones angry on the counter) draws no more than act 1 at its busiest plus 15 draw calls in a phone\'s view, builds no shader and adds or removes no light.',
+  about: 'Act 4\'s living room at its busiest (14 fireflies, monarch butterflies and cicadas round the jelly, 12 Firefly pools, three prism balls firing their rings of bolts, the sun late in the night and the bass wave going off; then the Headphones angry on the counter) draws no more than act 1 at its busiest plus 15 draw calls in a phone\'s view, builds no shader and adds or removes no light.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     const { run, enemies, player } = G(), before = built(), lit = lights();
     fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); immortal();
     stub(run, 'song', null); run.t = 150; step(2); run.beat = run.bass.next - 3.5;
-    const kinds = ['firefly', 'moth', 'cicada'];
+    const kinds = ['firefly', 'butterfly', 'cicada'];
     for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2, r = 0.25 + (i % 3) * 0.1; spawn(kinds[i % 3], near(Math.cos(a) * r, Math.sin(a) * r), { hp: 1e6 }); }
     const P = player.position, L = { flight: 1.2, peak: 0.2, radius: 0.14, dmg: 2, drain: 1, last: 10, most: 12 };
     for (let i = 0; i < 12; i++) { const to = P.clone().add({ x: -0.3 + (i % 4) * 0.2, y: 0, z: -0.3 + Math.floor(i / 4) * 0.2 }); enemies.glowPools.throw(to.clone().setY(to.y + 0.15), to, L, -1, 'firefly'); }
     step(90);
     const room = sceneDraws(), bugs = enemies.list.filter((e) => !e.dead).length, pools = enemies.glowPools.pools.length, bass = run.bass.state;
     step(60 * 4);   // the bugs' attacks
-    G().fx.smoke(near(0.1, 0.1));   // and a moth's black smoke (as its plunge leaves it)
-    const later = sceneDraws();
+    const PR = { beats: 4, peak: 0.18, radius: 0.12, count: 12, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3 };   // and three prism balls at once, mid-flight with their rings out
+    for (let i = 0; i < 3; i++) enemies.prismBalls.throw(near(0.3 * i - 0.3, 0.3, 0.3), near(0.3 * i - 0.3, -0.3), PR, -1, 'butterfly', run.beat);
+    step(60 * 1.4);
+    const later = sceneDraws(), bolts = enemies.prismBalls.bolts.length;
     startHeadphones(0, { angry: true, hold: true }); immortal(); headphones().cool = 0;
     step(60 * 3);
     const elite = sceneDraws(), most = Math.max(room, later, elite), fresh_ = fresher(before);
-    return ok(most <= BUDGET && !fresh_.length && lights() === lit && bugs >= 14 && pools === 12 && bass !== 'idle',
-      { room, later, elite, budget: BUDGET, newShaders: fresh_, lights: [lit, lights()], bugs, pools, bass });
+    return ok(most <= BUDGET && !fresh_.length && lights() === lit && bugs >= 14 && pools === 12 && bolts >= 60 && bass !== 'idle',
+      { room, later, elite, budget: BUDGET, newShaders: fresh_, lights: [lit, lights()], bugs, pools, bolts, bass });
   },
 });
 

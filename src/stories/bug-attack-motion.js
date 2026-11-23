@@ -33,7 +33,7 @@ export const ATTACKS = [
   { id: 'worm', type: 'worm', at: [0.25, 0], begin: (e) => e.state === 'windup', hit: 'whip' },
   { id: 'beetle', type: 'beetle', at: [0.4, 0], begin: (e) => e.state === 'charge', hit: 'sparkShot', aim: aimed },
   { id: 'wasp', type: 'wasp', at: [0.3, 0], begin: (e) => e.state === 'windup', hit: 'sting' },
-  { id: 'moth', type: 'moth', at: [0.3, 0], begin: (e) => e.state === 'climb', hit: 'plungeLand' },
+  { id: 'butterfly', type: 'butterfly', at: [0.4, 0], begin: (e) => e.state === 'windup', hit: 'prism', aim: (e, c) => c.foot },
   { id: 'firefly', type: 'firefly', at: [0.4, 0], begin: (e) => e.state === 'windup', hit: 'lob', aim: (e, c) => c.foot },
   { id: 'cicada', type: 'cicada', at: [0.3, 0], begin: (e) => e.state === 'dig', hit: 'burrowBurst' },
 ];
@@ -202,11 +202,11 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 
 // the bugs converted to an attack-motion, each filmed through one attack
 const THROWS = ['ants', 'spider', 'firefly', 'ladybug', 'beetle'];   // (the throw style: aimed Shots)
-const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
+const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'butterfly', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
 // a Wasp that stings dies doing it, so only its miss has a recoil to film
 const filmed = (id, o = {}) => film(id, { miss: id === 'wasp', probe: PROBES[id], ...o });
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Monarch butterfly\'s prism, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
     const out = {};
@@ -289,11 +289,11 @@ story('motion/contact-pose-is-on-the-hit', {
 });
 
 story('motion/landing-pose-is-on-the-hit', {
-  about: 'On the frame a Spotted lanternfly, Moth or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
+  about: 'On the frame a Spotted lanternfly or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
   setup() {},
   play() {
     const out = {}, v = new THREE.Vector3();
-    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['moth', (e) => e.plungeAt], ['cicada', (e) => e.burrowAt]]) {
+    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['cicada', (e) => e.burrowAt]]) {
       const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true, touch: false });
       try {
         while (S.frame < MAX_FRAMES && !S.found) S.advance();

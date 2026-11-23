@@ -810,16 +810,17 @@
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
   --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
   --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
-  --hostile-moth: #ffb300;       /* the moth's plunge as it lands: hot amber (its wings are pale, so the hit isn't) */
-  --plunge-warning-opacity: 0.3;  /* the moth's circle on the floor as it climbs (it follows you, then locks and brightens) */
-  --plunge-column-opacity: 0.25;  /* and the column over it, as tall as the plunge reaches */
-  --smoke-size: 0.07;            /* the moth's smoke: each of its four blobs (m); the puff is about 25 cm across */
-  --smoke-spread: 0.05;          /* how far the blobs sit from the middle (m) */
-  --smoke-hold: 1;               /* seconds it hangs full */
-  --smoke-fade: 0.4;             /* seconds it then thins out */
-  --smoke-opacity: 0.85;         /* how dark each blob is: bugs, XP and pools behind it all but vanish */
-  --smoke-ember: #4a2208;        /* the middle blob as it lands, cooling to black in 0.3 s */
-  --smoke-max: 3;                /* puffs alive at once (phones: the oldest goes) */
+  --hostile-butterfly: #ffb300;  /* the butterfly's prism: its Warning and burst (the ball and bolts run round --prism-colors) */
+  --prism-colors: #ff2a2a #ff7a1a #ffcc1a #ff4fa0 #ff2ad4;   /* the hot rainbow (never blue or green: those are the jelly's) */
+  --prism-glow: 1;               /* how far over white the bolts and the held ball are pushed, for bloom */
+  --prism-ball-size: 0.015;      /* the ball in flight (m) */
+  --prism-bolt-size: 0.007;      /* each bolt's radius (m); drawn 2.6x as long along its flight */
+  --prism-bolts-max: 120;        /* bolts alive at once (the oldest goes) */
+  --prism-warning-opacity: 0.32; /* the circle where the ball will land */
+  --prism-dome-opacity: 0.26;    /* and the dome over it */
+  --butterfly-beat: 0.17;        /* one wingbeat (s): a monarch beats about 6 times a second */
+  --butterfly-glide: 0.45;       /* the glide after each burst of beats (s) */
+  --butterfly-glide-v: 0.3;      /* how far its wings are raised while it glides (radians): the shallow V */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */
