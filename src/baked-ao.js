@@ -113,6 +113,7 @@ function patch(shader) {
     .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT)
     .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
       vec4 lb = bakedLight(vAoPos, lbN);
+      if (lb.w <= 0.0) lb = gridLight(vAoPos, lbN);
       ${lampLoops()}`)
     .replace('#include <aomap_fragment>', `{
         // the shell's baked light (baked-light.js) in place of its lamps' diffuse; the jelly's glow stays live on top
@@ -134,10 +135,11 @@ function patch(shader) {
           totalEmissiveRadiance += sunColor * rim * (sunRimGlow + sunPulse);
         }
         float baked = bakedAO();
+        if (lb.w > 1.5) reflectedLight.directDiffuse += lbKeep;   // the furniture's grid is coarse: the corner shadows darken it
         reflectedLight.directDiffuse *= baked;
         reflectedLight.indirectDiffuse *= baked;
         reflectedLight.indirectSpecular *= baked;
-        reflectedLight.directDiffuse += lbKeep;   // (the bake has its own shadows)
+        if (lb.w < 1.5) reflectedLight.directDiffuse += lbKeep;   // (the shell's bake has its own shadows)
       }
       #include <aomap_fragment>`);
 }

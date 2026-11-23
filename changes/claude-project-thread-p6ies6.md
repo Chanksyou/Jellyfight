@@ -1,0 +1,1 @@
+lights the furniture in every act with Blender's baked light too: each piece now sits in the same soft lamp light, shadow and bounce as the walls and floor around it, with the jelly's glow still live on top. Low graphics skips the lamp maths on furniture as well.

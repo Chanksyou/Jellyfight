@@ -9,12 +9,14 @@
 // Blender's axes: three (x, y, z) -> Blender (x, -z, y), in metres.
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { MeshBVH } from 'three-mesh-bvh';
 import { bakeFingerprint } from '../src/baked-light.js';
 import { BAKE_LIGHTS } from '../src/bake-lights.js';
 import { BAKED_LAYOUT } from '../src/layout-baked.js';
 
 const RES = { floor: 0.01, wall: 0.02, ceiling: 0.04 };   // metres a texel
-const PAD = 3, MAX_W = 4096;                               // texels round each plane (Blender's bake margin fills them); the picture's width
+const PAD = 3, MAX_W = 4096;
+const GRID = { step: 0.1, top: 2.4 };                     // the furniture's light grid: metres between points, and how high it goes                               // texels round each plane (Blender's bake margin fills them); the picture's width
 // the plane axes for a face looking along axis a: [along, up] (the picture's u and v)
 export const PLANE_AXES = [[2, 1], [0, 2], [0, 1]];
 
@@ -169,6 +171,7 @@ export async function exportAct(stageId) {
     scene.add(mesh);
   }
   const glb = await new GLTFExporter().parseAsync(scene, { binary: true, maxTextureSize: 256 });
+  const grid = lightGrid(scene, region);
 
   // the light list: the act's lamps as played, then the lights only the bake has (src/bake-lights.js)
   const lights = lamps.map((L, i) => {
@@ -181,9 +184,38 @@ export async function exportAct(stageId) {
     glb: new Uint8Array(glb),
     meta: {
       stage: stageId, parts: [...APT.loaded], atlas: [W, H], made: await bakeFingerprint(stageId, [...APT.loaded], BAKED_LAYOUT[stageId]),
+      grid: { min: grid.min, dims: grid.dims, step: GRID.step },
       planes: list.map((p) => ({ o: p.o, k: p.k, res: p.res, lo: p.lo.map((c) => +c.toFixed(4)), u0: p.u0, v0: p.v0, w: p.w - PAD * 2, h: p.h - PAD * 2 })),
     },
     scene: { lamps: lights, extra: (own.lights || []).map((L) => ({ ...L, ...(L.at && { at: arrB(L.at) }), ...(L.to && { to: arrB(L.to) }), ...(L.dir && { dir: arrB(L.dir) }) })), sets: own.sets || ['lamps'], exposure: own.exposure ?? 1, samples: own.samples },
-    stats: { triangles, shell: shellTris.length, planes: list.length, fixtures, materials: groups.size },
+    inside: grid.inside,
+    stats: { inside: grid.inside.reduce((a, b) => a + b, 0), points: grid.inside.length, triangles, shell: shellTris.length, planes: list.length, fixtures, materials: groups.size },
   };
+}
+
+// The furniture's light grid (src/baked-light.js): points every GRID.step over the act's rooms, where Blender bakes
+// the light arriving from each of 6 directions (tools/bake-light.py). Points inside something solid are flagged:
+// Blender skips them and they take their neighbours' light, so a surface reading the grid beside them stays lit.
+function lightGrid(scene, region) {
+  const pos = [];
+  scene.traverse((o) => { if (o.isMesh) pos.push(o.geometry.attributes.position.array); });
+  const all = new Float32Array(pos.reduce((n, a) => n + a.length, 0));
+  pos.reduce((at, a) => (all.set(a, at), at + a.length), 0);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(all, 3));
+  const bvh = new MeshBVH(geo);
+  const step = GRID.step, min = [region.min.x + 0.2, step / 2, region.min.z + 0.2];
+  const dims = [Math.ceil((region.max.x - 0.2 - min[0]) / step) + 1, Math.ceil((GRID.top - min[1]) / step) + 1, Math.ceil((region.max.z - 0.2 - min[2]) / step) + 1];
+  const [W, H, D] = dims, inside = new Array(W * H * D).fill(0);
+  const dirs = [];
+  for (let i = 0; i < 14; i++) { const y = 1 - (2 * (i + 0.5)) / 14, r = Math.sqrt(1 - y * y), a = i * 2.399963; dirs.push(new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r)); }
+  const p = new THREE.Vector3(), ray = new THREE.Ray(), near = {};
+  for (let z = 0; z < D; z++) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    p.set(min[0] + x * step, min[1] + y * step, min[2] + z * step);
+    if (!bvh.closestPointToPoint(p, near, 0, 2)) continue;   // nothing within 2 m: open air
+    let back = 0;
+    for (const d of dirs) { const hit = bvh.raycastFirst(ray.set(p, d), THREE.DoubleSide); if (!hit || hit.face.normal.dot(d) > 0) back++; }
+    if (back > dirs.length * 0.5) inside[x + W * (y + H * z)] = 1;   // most rays leave through a back face or escape the room: inside a solid, or outside the walls
+  }
+  return { min: min.map((v) => +v.toFixed(4)), dims, inside };
 }
