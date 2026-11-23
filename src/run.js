@@ -522,12 +522,27 @@ export class Run {
       for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? base[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
-    S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
+    // Dodge from treasures: each closes its share of the gap to the cap from 0, as a card does, so Odd Socks never stack past it;
+    // it adds to the rest (the cards, which already shrink by the total), and the cap is the end of it
+    const cap = S.dodgeCap = Math.max(MAX_DODGE, this.mods.dodgeCap);   // (dodge-cap: Odd Sock raises it to 80)
+    let left = 1;
+    for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / cap);
+    S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
+  }
+
+  // What taking one more of treasure `t` would change in your stats: [{ stat, from, to }], for the pick card's "now → after" line
+  statChanges(t) {
+    const live = this.mods, now = { ...this.S };
+    const ids = { count: (id) => this.owned.count(id) + (id === t.id ? 1 : 0), has: (id) => id === t.id || this.owned.has(id) };
+    this._mods = compileMods(ids, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
+    const next = { ...this.S };
+    this._mods = live;
+    return Object.keys(STAT_INFO).filter((k) => Math.abs(next[k] - now[k]) > 1e-6).slice(0, 3).map((stat) => ({ stat, from: now[stat], to: next[stat] }));
   }
 
   // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's)
@@ -1496,7 +1511,7 @@ export class Run {
   offer(title, sub, choices, then = () => this.resume(), spin = null) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
-    this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
+    this.ui.choose(title, sub, this.markNew('treasures', choices).map((c) => (c.evolution ? c : { ...c, changes: this.statChanges(c) })), (t) => {
       if (t.evolution) { this.evolve(t, then); return; }   // (jelly types: an evolution in the Legendary pick)
       const before = this.S.health;
       this.owned.add(t.id);

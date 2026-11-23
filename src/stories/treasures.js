@@ -629,6 +629,33 @@ story('treasures/dodge-slip', {
     return ok(slipped && !(e.stunT > 0), { slipped, after: e.stunT });
   },
 });
+story('treasures/dodge-cap', {
+  about: 'Odd Socks raise the most Dodge you can have from 60% to 80% (dodge-cap), and their Dodge follows the Dodge rules, as the level-up cards do: each copy closes 15/80 of the gap to that cap (15, 27.2, 37.4%...), so five Socks stay under it; with Dodge cards on top it stops at 80, and without a Sock it still stops at 60.',
+  setup() { setupFight({ lash: false }); },
+  play() {
+    const { run } = G(), got = [];
+    run.stats.dodge = 500; const plain = run.S.dodge; run.stats.dodge = 0;   // no Sock yet: the usual 60 cap
+    if (plain !== 60) return ok(false, { plain });
+    for (let i = 0; i < 5; i++) { give('sock'); got.push(+run.S.dodge.toFixed(2)); }
+    const shrinking = got.every((v, i) => i === 0 || v - got[i - 1] < (i === 1 ? 15 : got[i - 1] - (got[i - 2] ?? 0)));
+    const cap = run.S.dodgeCap;
+    run.stats.dodge = 30; const both = run.S.dodge;
+    return ok(got[0] === 15 && got[1] === 27.19 && got[4] < 80 && shrinking && cap === 80 && both === 80, { got, cap, both });
+  },
+});
+story('treasures/pick-shows-stats-now-and-after', {
+  about: 'A Treasure pick card for a treasure that changes a stat says it: "Dodge 15% → 27%" (Odd Sock with one already owned), now and after one more copy; a treasure that changes no stat adds no such line.',
+  setup() { setupFight({ lash: false }); give('sock'); },
+  play() {
+    const { run } = G(), ui = run.ui;
+    const sock = CONTENT.treasures.find((t) => t.id === 'sock'), plain = CONTENT.treasures.find((t) => t.id !== 'sock' && !run.statChanges(t).length);
+    const c = run.statChanges(sock), none = run.statChanges(plain);
+    run.offer('Test', '', [{ ...sock, tier: { name: 'Common' }, changes: c }, { ...plain, tier: { name: 'Common' }, changes: none }]);
+    const lines = [...ui.modal.querySelectorAll('.jf-card')].map((el) => el.querySelector('.jf-now')?.textContent || '');
+    ui.close(); restore();
+    return ok(c.length === 1 && c[0].stat === 'dodge' && c[0].from === 15 && Math.abs(c[0].to - 27.1875) < 1e-6 && lines[0] === '🍃 Dodge 15% → 27%' && !lines[1], { c, lines, plain: plain.id });
+  },
+});
 story('treasures/rear-shot', {
   about: 'rear-shot (Bubble Wand): every volley also fires one shot straight behind you, at full Attack damage, while the ones at the bug keep theirs.',
   setup() { setupFight({ lash: false, bubbles: false }); give('bubbleWand'); roachAt(0, -0.2); },
