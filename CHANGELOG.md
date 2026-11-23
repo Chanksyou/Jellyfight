@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v633 gives every floor vent a real grille (frame, angled louvres, a dark duct) and drops the column of light: the air now shows as soft wisps that rise from the louvres and fan out, dust motes carried up in the stream, and tell-tale ribbons that flutter on the grille, in all four acts.
+
 v632 adds light you can see in the air: each lamp has a soft glow round its bulb, dust drifts in act 3's moonlight and in act 4's sun (not on Low graphics), and the jelly and the bugs pick up a little of the baked light where they stand, cool in the moonlight and warm in the sun.
 
 v631 adds a quiet room tone under each act: a fridge hum and the city far below in the living room, tile-room air and a slow tub drip in the bathroom, a humidifier's hiss and an air purifier's fan in the bedroom, and birds arriving as the sun rises in act 4. A wall clock ticks, a wind chime rings and a far siren passes now and then, each heard from where it is in the room. It steps back when bugs close in, more under a Boss, and is silent in the Encore.
