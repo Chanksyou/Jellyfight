@@ -651,3 +651,19 @@ act2('vent-ride-starts-no-see-through', {
     return ok(flew > 20 && started === 0 && Math.hypot(p.x - lx, p.z - lz) < 0.08 && Math.abs(p.y - ly) < 0.06, { flew, started, end: [p.x, p.y, p.z], land: v.land });
   },
 });
+
+// The open bathroom door stands in the room like a counter: the camera looks over it, not through a pinched dolly at floor height.
+act2('camera-looks-over-the-open-bathroom-door', {
+  about: 'With the camera behind the open bathroom door, the view tilts steeper and the lens stays higher; in the open it is the player\'s own tilt again.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { tpc } = G(), base = tpc.pitch;
+    tp(1.3, 0.05, 7.2, Math.PI);   // the door leaf lies between this jelly and a camera swung north
+    step(60);
+    const tilted = tpc.lift > 0.9 && tpc.viewPitch > base + 0.15, high = tpc.camera.position.y > 0.45;
+    tp(1.0, 0.05, 6.3, 0);
+    step(60);
+    const back = tpc.lift === 0 && Math.abs(tpc.viewPitch - base) < 1e-6;
+    return ok(tilted && high && back, { tilted, high, back, lift: +tpc.lift.toFixed(2), y: +tpc.camera.position.y.toFixed(2) });
+  },
+});
