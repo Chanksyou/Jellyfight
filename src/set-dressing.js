@@ -62,7 +62,7 @@ function buildSoundbar(box) {
 }
 
 // A woven-fabric normal map for the curtain cloth: fine crosshatch weave plus the
-// horizontal slub streaks the real curtain has. Procedural, like detail.js's maps.
+// horizontal slub streaks the real curtain has. Procedural, like the grain in surfaces.js.
 function weaveNormalMap() {
   const S = 256, h = new Float32Array(S * S);
   let s = 11;

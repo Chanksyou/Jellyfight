@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { BAKED_LIGHT, LIGHT_FRAGMENT } from './baked-light.js';
 import { AMBIENT, AMBIENT_VERTEX } from './ambient.js';
+import { detailUniforms, DETAIL_FRAGMENT } from './surfaces.js';
 
 const uniforms = {
   aoVolume: { value: null },
@@ -94,7 +95,7 @@ function lampLoops() {
 }
 
 function patch(shader) {
-  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms, AMBIENT.uniforms);
+  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms, AMBIENT.uniforms, detailUniforms(this.userData.detail));   // (and this material's grain: surfaces.js)
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;\nattribute vec2 lightUv;\nvarying vec2 vLightUv;' + AMBIENT_VERTEX)
     .replace('#include <project_vertex>', `#include <project_vertex>
@@ -114,7 +115,11 @@ function patch(shader) {
       vLightUv = lightUv;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT)
+    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT + DETAIL_FRAGMENT)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      #ifndef LAMBERT
+        if (detailMix != vec4(0.0)) diffuseColor.rgb *= surfaceDetail();   // the fine grain (surfaces.js); Low's plain materials leave it out
+      #endif`)
     .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
       vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : bakedLight(vAoPos, lbN);
       if (lb.w <= 0.0) lb = gridLight(vAoPos, lbN);
@@ -148,7 +153,7 @@ function patch(shader) {
       #include <aomap_fragment>`);
 }
 
-// the apartment's lit materials read the baked shadows and a stage's sun (one shared patch, so one program each)
+// the apartment's lit materials read the baked shadows, a stage's sun and their fine grain (one shared patch, so one program each)
 export function shadeWithBakedAO(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;

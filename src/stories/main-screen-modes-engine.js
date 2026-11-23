@@ -1158,20 +1158,44 @@ story('engine/bloom-glows-without-black-squares', {
     }
   },
 });
-story('engine/floor-grain-has-valid-normals', {
-  about: 'The shared floor-grain texture contains varied upward-facing normals, including rows of the stretched noise grid.',
-  setup() {},
+story('engine/floor-is-a-photo-texture', {
+  about: 'Every room\'s floor wears the scanned laminate (assets/textures/floor-laminate.webp, src/surfaces.js) in place of the drawn planks, with the wood grain, and the floors it found are flat: a photo texture loads as its own file, so the apartment model and its bakes are untouched.',
+  setup() { fresh({ elites: false }); },
   play() {
-    const mesh = G().world.colliders.find((m) => m.material.normalMap?.isDataTexture
-      && m.material.normalScale?.x === LOOK.num('surface-grain', 0.22));
-    const data = mesh?.material.normalMap.image.data;
-    if (!data) return ok(false, { found: false });
-    let invalid = 0, tilted = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 2] < 128 || data[i + 3] !== 255) invalid++;
-      if (Math.abs(data[i] - 127) > 2 || Math.abs(data[i + 1] - 127) > 2) tilted++;
-    }
-    return ok(invalid === 0 && tilted > data.length / 16, { invalid, tilted, texels: data.length / 4 });
+    const floors = [], other = [];
+    G().APT.root.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = [].concat(o.material)[0];
+      if (m.userData.surface !== 'floor') return;
+      const box = new THREE.Box3().setFromObject(o);
+      (box.max.y - box.min.y < 0.01 && box.max.y < 0.05 ? floors : other).push(o.name);
+    });
+    const m = floors.length && [].concat(G().APT.scene.getObjectByName(floors[0]).material)[0];
+    const photo = !!m && /floor-laminate\.webp$/.test(m.map?.image?.src || '') && m.map.image.width === 1024;
+    return ok(floors.length >= 4 && other.length === 0 && photo && m.userData.detail === 'wood', { floors: floors.length, other, photo, detail: m?.userData.detail });
+  },
+});
+story('engine/fine-grain-on-medium-not-low', {
+  about: 'The rooms\' fine grain (src/surfaces.js): one tile, each pattern averaging no change; Medium\'s floor, walls and bedding read it (a texture read in their shader), and Low\'s plain materials have it out of theirs, building no shader in play either way.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { gfx, APT, GAME, statics, batcher } = G(), was = gfx.choice;
+    const of = (kind) => { let m; APT.root.traverse((o) => { if (!m && o.isMesh && [].concat(o.material)[0].userData.detail === kind) m = o; }); return m; };
+    const floor = of('wood'), wall = of('paint'), cloth = of('cloth');
+    const reads = (o) => { const p = APT.renderer.properties.get([].concat(o.material)[0]).currentProgram; return !!p && 'detailTile' in p.getUniforms().map; };
+    const drawn = async () => { await gfx.ready; batcher.sync(); statics.sync(); const n = APT.renderer.info.programs.length; GAME.render(); GAME.render(); return APT.renderer.info.programs.length - n; };
+    const tile = APT.renderer.properties.get([].concat(floor.material)[0]).uniforms?.detailTile?.value;
+    const means = [0, 1, 2, 3].map((c) => { const d = tile?.image.data; let s = 0, n = 0; for (let i = c; i < (d?.length || 0); i += 4) { s += d[i]; n++; } return n ? Math.round(s / n) : 0; });
+    try {
+      gfx.setQuality('low');
+      const builtLow = await drawn();
+      const low = [floor, wall].map((o) => reads(o));
+      gfx.setQuality('medium');
+      const builtMedium = await drawn();
+      const medium = [floor, wall, cloth].map((o) => o && reads(o));
+      const pass = medium.every(Boolean) && !low.some(Boolean) && builtMedium === 0 && builtLow === 0 && means.every((v) => Math.abs(v - 127.5) < 3);
+      return ok(pass, { medium, low, builtMedium, builtLow, means });
+    } finally { gfx.setQuality(was); await gfx.ready; }
   },
 });
 story('engine/baked-ao-is-current', {
