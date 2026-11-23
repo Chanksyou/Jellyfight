@@ -1,0 +1,1 @@
+makes a vent answer a ride: its air gusts and its ribbons snap straight as it catches the jelly, with a whoosh of sound and a light lift of the camera, and a soft hiss plays when you stand near one. In a Boss fight, when vents are off, the air now stops and the ribbons lie limp, and it starts again after.
