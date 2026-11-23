@@ -1,0 +1,1 @@
+makes the apartment's plants sway a few millimetres on their own and lean away when the jelly rushes past or a big hit lands near them, and glassware shiver under those hits; all of it is in the room's existing shader, so it adds no draw, light or shader, Reduce effects holds it still, and ?ambient=0 turns it off for phone measuring.

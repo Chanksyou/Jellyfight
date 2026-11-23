@@ -27,6 +27,7 @@
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded?, exposed?, tag? }
 //   toast           { text, ms? }                    a line in the middle of the screen (hud.js)
+//   impact          { pos, size }                    a big hit landed (fx.impact at --ambient-gust-min or more); presentation only: plants near it sway (ambient.js)
 //   xp_collected    { amount, chain }                grouped pickup feedback, at most once per XP feedback gap
 //   vent_ride       { vent }                         a vent caught the jelly and a ride began (run.js): its gust, sound and lift
 export const PLAYER = 'player';

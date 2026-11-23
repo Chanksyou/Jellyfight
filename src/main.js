@@ -65,6 +65,7 @@ import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
 import { FieldPerf } from './field-perf.js';
+import { Ambient } from './ambient.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -303,7 +304,8 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
 });
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
-if (!ARENA) { statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
+const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
+if (!ARENA) { ambient.mark(APT.root); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
 function setNight(minutes) {
   cityTime?.(minutes);
@@ -581,7 +583,7 @@ async function loadRooms(parts, onProgress) {
   const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
   APT.lightMapped += mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);
   world.addObjects([...added, ...made]);
-  [...added, ...made].forEach((o) => statics.add(o));
+  [...added, ...made].forEach((o) => { ambient.mark(o); statics.add(o); });
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
   added.forEach((o) => box.expandByObject(o));
@@ -813,6 +815,7 @@ const GAME = {
     run.victory.update(dt);           // the ending: the jelly swimming home to the sea
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
+    ambient.update(dt, player.position, player.velocity.length());
     systems.shadow.update(dt);
     air?.update(dt, renderer, camera);
     systems.hud.update(dt);
@@ -1297,4 +1300,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, ambient, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
