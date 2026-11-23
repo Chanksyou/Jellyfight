@@ -761,17 +761,8 @@ export const sfx = {
   // sizzle (a warm hiss and a few spits), every one a little different
   sunIn() { if (!ready() || !gap('sunIn', 400)) return; const j = jitter(0.12); noise(5200*j, 1.2, 0.22, 0.05, 'highpass'); noise(1400*j, 2, 0.3, 0.035, 'bandpass', 0.02, 900*j); patter(3, 0.03, 0.15, 0.025); },
   sunSizzle() { if (!ready() || !gap('sunSizzle', 250)) return; const j = jitter(0.18); noise(1100*j, 0.9, 0.45, 0.022, 'bandpass', 0, 800*j); noise(4200*j, 2.5, 0.2, 0.01, 'bandpass', 0.05); patter(2, 0.04, 0.3, 0.015); },
-  // the Soundbar's bass wave (bass-wave.js): a beat ahead, a sub drop falling away under a swelling hiss
-  // (with an octave up so a phone speaker carries it); on the bar, a kick-like thump and a click, and the
-  // rumble of it rolling down the room for its 4 s; on you, a thud, a buzz of the cone and a rattle
+  // a sub drop falling away under a swelling hiss: the stage door's moment (concert-dressing.js)
   bassDrop() { if (!ready() || !gap('bassDrop', 1000)) return; const j = jitter(0.05); tone('sine', 120*j, 38, 0.5, 0.22); tone('triangle', 240*j, 76, 0.5, 0.05); noise(600*j, 0.8, 0.45, 0.025, 'bandpass', 0, 2400*j); },
-  bassWave() {
-    if (!ready() || !gap('bassWave', 1000)) return; const j = jitter(0.06);
-    noise(3800*j, 1.5, 0.02, 0.08, 'bandpass'); tone('sine', 90*j, 40, 0.4, 0.3); tone('square', 180*j, 70, 0.12, 0.03);
-    tone('sine', 58*j, 42, 3.6, 0.07, 0.05); tone('triangle', 116*j, 84, 3.2, 0.02, 0.05);   // the rumble rolling off
-    for (let i = 0; i < 9; i++) noise((260 - i * 18)*j, 1.2, 0.2, 0.05 * (1 - i * 0.09), 'lowpass', 0.05 + i * 0.4 + Math.random() * 0.05);
-  },
-  bassHit() { if (!ready() || !gap('bassHit', 300)) return; const j = jitter(0.12); tone('sine', 150*j, 45, 0.22, 0.24); tone('sawtooth', 75*j, 60, 0.18, 0.03); noise(1800*j, 2, 0.05, 0.1, 'bandpass'); patter(3, 0.04, 0.2, 0.03); },
   // the Kettle charging its steam ball: a whistle climbing over the second, a hiss swelling under it, a boiling rattle
   kettleCharge() {
     if (!ready() || !gap('kettleCharge', 400)) return; const j = jitter(0.08);

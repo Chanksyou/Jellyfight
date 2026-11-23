@@ -359,7 +359,7 @@ function trackFor(name) {
   return tracks[name];
 }
 // The run's beat source: loading or unavailable audio lets the boss (and the run) keep its own time.
-// With no recording playing, it is the synthesized song's (act 4's "Sunrise Set": the bass wave).
+// With no recording playing, it is the synthesized song's (act 4's "Sunrise Set").
 // Only a recording knows its breakdown and drop.
 const song = {
   playing: null,
