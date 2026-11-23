@@ -317,7 +317,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO);   // phones start on Medium so Low is a choice, not a default
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO, EXPERIMENTS.shimmer ? traversal.air.heatScene : null);   // phones start on Medium so Low is a choice, not a default
 fx.low = () => gfx.quality === 'low';
 picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick screen's side cards drawn in shaders
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made

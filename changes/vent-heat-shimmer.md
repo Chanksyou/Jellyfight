@@ -1,0 +1,1 @@
+adds an experiment switch for heat shimmer over the vents (index.html?shimmer=1, Medium and High only): the picture just above each vent bends a little, and stays still behind furniture that stands in front. Off unless the switch is in the link.
