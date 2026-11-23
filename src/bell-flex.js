@@ -8,6 +8,7 @@
 // bellFlex is the same sum on the CPU, for what isn't drawn by the patch (the face, the hat, the
 // arm roots): keep the two identical (but for the fringe's flutter, drawn only). At rest (contract 0) nothing moves at all.
 import { LOOK } from './look.js';
+import { TINT_BASE } from './baked-light.js';
 
 const SQUEEZE = LOOK.num('jelly-motion-squeeze', 0.3);    // how far in the rim pulls at a full stroke, of its radius
 const STRETCH = LOOK.num('jelly-motion-stretch', 0.24);   // how far down the rim drops at a full stroke, of the bell's height
@@ -75,8 +76,8 @@ export function patchBell(mesh, uniform) {
 // a copy of a patched material for a frozen copy of the jelly (clone() drops the patch): it keeps the
 // bend the jelly has right now, as its riders do, instead of following the live one. Others come back as given.
 export function freezeBell(m, copy = m.clone()) {
-  if (m.onBeforeCompile !== onBeforeCompile) return m;
-  copy.onBeforeCompile = onBeforeCompile; copy.customProgramCacheKey = cacheKey;
+  if ((TINT_BASE.get(m) || m.onBeforeCompile) !== onBeforeCompile) return m;   // (under the baked light's tint, baked-light.js)
+  copy.onBeforeCompile = m.onBeforeCompile; copy.customProgramCacheKey = m.customProgramCacheKey;
   owner.set(copy, { value: owner.get(m).value.clone() });
   return copy;
 }

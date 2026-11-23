@@ -662,6 +662,14 @@
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
   --baked-light: 1;            /* how bright Blender's baked light on walls, floors and ceilings shows (baked-light.js; 0 = every lamp live, as before) */
   --baked-light-furniture: 1;  /* the furniture's baked light grid on top of that (0 = furniture lit by live lamps) */
+  --baked-tint: 0.8;           /* how much of the baked light where they stand the jelly and the bugs take, on top of the live lamps (baked-light.js tintShader) */
+  --lamp-halo: 0.3;            /* the soft glow round each lit lamp's bulb (air-light.js): brightness per unit of the lamp's intensity */
+  --lamp-halo-size: 0.4;       /* its size (m) */
+  --motes: 1.1;                /* dust drifting in act 3's moonlight and act 4's sun (air-light.js; a stage's `motes`): brightness */
+  --motes-count: 480;          /* how many, in the stage's box (one draw; Low draws none) */
+  --motes-size: 0.007;         /* each one's size (m) */
+  --motes-from: 0.12;          /* the baked light (the grid's, from the beam's side) where a mote starts to show */
+  --motes-full: 0.45;          /* and where it shows fully */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */

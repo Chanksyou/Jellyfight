@@ -11,6 +11,7 @@ import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
+import { tintShader } from './baked-light.js';
 import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
@@ -56,18 +57,20 @@ const BALL_AT = { y: 0.72, z: 1.86 };                                 // where t
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
-// model (every lit material in it is patched once).
-export function standOut(target, { base = 0.28, rim = 0.75 } = {}) {
+// model (every lit material in it is patched once). It also takes a little of the baked light where the bug
+// stands (baked-light.js tintShader), unless `tint: false` (a bug drawn outside the apartment: the pick screen).
+export function standOut(target, { base = 0.28, rim = 0.75, tint = true } = {}) {
   const rc = new THREE.Color(LOOK.color('rim-color', '#ffcc9e'));
   const patch = (m) => {
     if (!m || m.userData.standOut || !(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
     m.userData.standOut = true;
     m.onBeforeCompile = (sh) => {
+      if (tint) tintShader(sh);
       sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float soRim = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.5);
         totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(${rc.r.toFixed(3)}, ${rc.g.toFixed(3)}, ${rc.b.toFixed(3)}) * soRim * ${rim.toFixed(3)};`);
     };
-    m.customProgramCacheKey = () => `standOut${base}:${rim}`;
+    m.customProgramCacheKey = () => `standOut${base}:${rim}:${tint}`;
     m.needsUpdate = true;
   };
   if (target.isMaterial) patch(target);
