@@ -592,7 +592,7 @@ export class Run {
       const hint = this.firstRun.startHint;   // a first run opens with how it's played (first-run.js)
       if (hint) { this.hint = hint; this.hintT = 7; }
     }
-    this.t += dt;
+    if (!this.duel?.roam) this.t += dt;   // free roam holds the night where it began
     const P = this.player, s = this.S;
     this.crowdCue(dt);
 
@@ -784,6 +784,22 @@ export class Run {
     this.startBossIntro();
   }
 
+  // dev: free roam. Any act's room with no bugs, no Elites, no damage and the clock stopped, to walk
+  // round and look at it (lighting, vents, ambient life). Another act reloads into it first.
+  roamChoices() {
+    return STAGES.filter((st) => !st.scene || st.scene === 1).map((st) => ({ name: `Act ${st.id}`, roam: st.id }));
+  }
+
+  startRoam(pick) {
+    if (pick.roam !== this.stage.id || this.stage.scene > 1) { goToAct(pick.roam, null, { roam: pick.name }); return; }
+    this.start();
+    this.devRun();
+    this.startPicked = true;
+    this.duel = { name: 'Free roam', roam: true, wait: 0 };
+    this.elites.start([]);
+    this.hud.toast(`Free roam: ${pick.name}`, 2000);
+  }
+
   startDuel(pick) {
     if (pick.act && pick.act !== this.stage.id) { goToAct(pick.act, null, { duel: pick.name }); return; }   // its room is in another act
     this.start();
@@ -812,6 +828,7 @@ export class Run {
 
   updateDuel(dt) {
     const D = this.duel;
+    if (D.roam) return;
     const left = D.bug ? this.enemies.list.some((e) => !e.dead && !e.proxy) : this.elites.alive.length > 0;
     if (left) { D.wait = 0; return; }
     if ((D.wait += dt) < (D.bug ? 1.5 : 4)) return;
@@ -1032,7 +1049,7 @@ export class Run {
 
   // at: where the hit landed or came from (a Shot, a Blast's middle), when the attack knows; else its attacker
   hurt(amount, silent = false, from = null, contact = false, knock = false, at = null) {
-    if (this.polypT > 0) return;      // rebirth: nothing hurts a polyp (not even puddles and suction)
+    if (this.polypT > 0 || this.duel?.roam) return;      // rebirth: nothing hurts a polyp (not even puddles and suction); nor anything in free roam
     if (this.phase === 'dead') return;
     if (amount > 0 && !this.bossWon) this.taken += amount;   // before the Shield takes its share, until the boss falls (score: Clean play)
     amount = this.shield.absorb(amount, silent);
@@ -2297,7 +2314,7 @@ export class Run {
     const exploring = this.phase === 'explore';
     const until = `${this.stage.stageDoor ? 'Stage door' : 'Boss'} in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     h.setClock(exploring ? (this.doorOpen ? 'Stage door open' : until) : clock, exploring && left <= 20 && !this.doorOpen);
-    h.setStage(this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
+    h.setStage(this.duel?.roam ? 'Dev: free roam · pause to pick another act' : this.duel ? `Dev: 1 on 1 with ${this.duel.name} · pause to pick another` : exploring ? `${clock} · ${this.stage.boss.name}` : '');
   }
 
   // What the minimap marks (hud.js update): no bugs, only what's worth going to. Called every frame, so
