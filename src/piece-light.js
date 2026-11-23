@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { movables, addedThings } from './layout.js';
 
-export const PIECE = { res: 0.02, pad: 3, minArea: 0.25, maxTris: 4000 };   // metres a texel; texels round a chart; which pieces get a map (m², triangles)
+export const PIECE = { res: 0.02, pad: 3, minArea: 0.25, maxTris: 6000 };   // metres a texel; texels round a chart; which pieces get a map (m², triangles)
 const AXES = [[2, 1], [0, 2], [0, 1]];   // a chart looking along axis a lays out on these two (as the shell's planes)
 
 const solid = (m) => m && m.visible !== false && !m.transparent && !(m.transmission > 0);

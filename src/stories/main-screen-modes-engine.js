@@ -1187,6 +1187,39 @@ story('engine/baked-ao-is-current', {
     return ok(!stale.length, { stale });
   },
 });
+story('engine/furniture-edges-are-chamfered', {
+  about: 'The boxes furniture is built from have a small chamfer (tools/apartment-source.html chamferBoxes): thin 45° strips between faces whose corners keep their faces\' normals, so light rolls round the edge. The kitchen and the media console each show many; the walls, floors and ceilings show none.',
+  setup() {},
+  async play() {
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+    const axis = (v) => Math.max(Math.abs(v.x), Math.abs(v.y), Math.abs(v.z)) > 0.999;
+    const strips = (root, keep, named = new Set()) => {
+      let count = 0;
+      root.traverse((o) => {
+        if (!o.isMesh || !keep(o)) return;
+        const before = count;
+        const g = o.geometry, p = g.attributes.position, nm = g.attributes.normal, ix = g.index;
+        if (!nm) return;
+        for (let t = 0; t < (ix ? ix.count : p.count); t += 3) {
+          const k = [0, 1, 2].map((j) => (ix ? ix.getX(t + j) : t + j));
+          a.fromBufferAttribute(p, k[0]); b.fromBufferAttribute(p, k[1]); c.fromBufferAttribute(p, k[2]);
+          n.subVectors(b, a).cross(c.sub(a)).normalize();
+          const m = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)].sort((x, y) => y - x);
+          if (Math.abs(m[0] - Math.SQRT1_2) < 0.02 && Math.abs(m[1] - Math.SQRT1_2) < 0.02 && k.every((i) => axis(a.fromBufferAttribute(nm, i)))) count++;
+        }
+        if (count > before) { let q = o; while (q && !q.name) q = q.parent; named.add(q?.name || ''); }
+      });
+      return count;
+    };
+    const piece = (name) => { let f = null; window.APT.root.traverse((o) => { if (!f && o.name === name) f = o; }); return f; };
+    const kitchen = strips(piece('Kitchen'), () => true), console_ = strips(piece('Media_console'), () => true);
+    // the built-in kitchen and the door leaves are furniture the game treats as walls; the walls themselves stay sharp
+    const shell = new Set();
+    strips(window.APT.root, (o) => o.userData.structural, shell);
+    const walls = [...shell].filter((nm) => !/^(Kitchen|.*door)(_\d+)?$/.test(nm));
+    return ok(kitchen > 40 && console_ > 20 && !walls.length, { kitchen, console: console_, walls });
+  },
+});
 story('engine/baked-light-is-current', {
   about: 'Every act\'s baked light (Blender, baked-light.js) was baked from the apartment files, furniture layout, lamps and light list (bake-lights.js) it plays with now. Moved furniture, a changed lamp or a changed light list fails this until node tools/bake-light.mjs bakes again.',
   setup() {},

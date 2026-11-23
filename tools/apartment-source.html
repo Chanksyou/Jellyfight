@@ -239,7 +239,34 @@ function acc(id,name,parent,desc,fn,extra){item(id,name,fn,extra,true,{parent,sm
 // register a material the Color button can change
 function tint(m){if(curItem)curItem.tints.push(m);return m;}
 function mesh(geo,m,p=scene,cast=true,recv=true){const o=new THREE.Mesh(geo,m);o.castShadow=cast;o.receiveShadow=recv;p.add(o);if(p===scene&&curItem)curItem.objs.push(o);return o;}
-function box(w,h,d,m,x,y,z,p=scene,cast=true){const o=mesh(new THREE.BoxGeometry(w,h,d),m,p,cast);o.position.set(x,y+h/2,z);return o;}
+function box(w,h,d,m,x,y,z,p=scene,cast=true){const o=mesh(new THREE.BoxGeometry(w,h,d),m,p,cast);o.position.set(x,y+h/2,z);CHAM.push({o,item:curItem});return o;}
+// Furniture edges: a box of a piece of furniture (made inside an item, or under a named piece; never the walls or the view outside) gets a small chamfer (CHAMFER below) when the apartment is finished,
+// before mergeStatic. Same 24 vertices as a plain box, each keeping its face's normal and uv, so the strips between
+// faces shade like a rounded edge; 44 triangles in place of 12. An edge stays sharp where another box of the same
+// item sits flush against it (a groove would show), and on a face another box covers whole.
+const CHAMFER={size:.006,share:.2,min:.015,tol:.0015},CHAM=[];
+function chamferGeo(g,c,sharp){const p=g.attributes.position,n=g.attributes.normal,h=g.parameters,H=[h.width/2,h.height/2,h.depth/2],at=new Map(),key=(k,s,sg)=>k*2+(s>0?0:1)+'|'+sg.join();
+ for(let v=0;v<p.count;v++){const nv=[n.getX(v),n.getY(v),n.getZ(v)],k=nv.findIndex(x=>Math.abs(x)>.5),s=Math.sign(nv[k]),sg=[0,1,2].map(i=>i===k?0:Math.sign(p.getComponent(v,i)));
+  for(let i=0;i<3;i++)if(i!==k)p.setComponent(v,i,sg[i]*(H[i]-(sharp(k,s,i,sg[i])?0:c[i])));at.set(key(k,s,sg),v);}
+ const idx=Array.from(g.index.array),a=new THREE.Vector3(),b=new THREE.Vector3(),q=new THREE.Vector3(),tri=(i,j,l)=>{a.fromBufferAttribute(p,j).sub(q.fromBufferAttribute(p,i));b.fromBufferAttribute(p,l).sub(q);a.cross(b);
+  if(a.lengthSq()<1e-14)return;q.fromBufferAttribute(p,i).add(b.fromBufferAttribute(p,j)).add(b.fromBufferAttribute(p,l));idx.push(...(a.dot(q)>0?[i,j,l]:[i,l,j]));};
+ for(let k=0;k<3;k++)for(let i=k+1;i<3;i++){const j=3-k-i;for(const s of[1,-1])for(const t of[1,-1]){const A=[],B=[];for(const u of[-1,1]){const sa=[0,0,0],sb=[0,0,0];sa[i]=t;sa[j]=u;sb[k]=s;sb[j]=u;A.push(at.get(key(k,s,sa)));B.push(at.get(key(i,t,sb)));}
+  tri(A[0],A[1],B[1]);tri(A[0],B[1],B[0]);}}
+ for(const x of[1,-1])for(const y of[1,-1])for(const z of[1,-1]){const S=[x,y,z],v=[0,1,2].map(k=>{const sg=S.slice();sg[k]=0;return at.get(key(k,S[k],sg));});tri(v[0],v[1],v[2]);}
+ g.setIndex(idx);g.clearGroups();return g;}
+function chamferBoxes(){scene.updateMatrixWorld(true);const ax=[V(),V(),V()],L=[],out=new Set();OUT.traverse(o=>out.add(o));
+ CHAM.forEach(r=>{const o=r.o,m=o.material;if(!o.parent||out.has(o)||o.userData.structural||!o.geometry.parameters||Array.isArray(m)||m.transparent)return;
+  if(!r.item){let a=o.parent;while(a&&!a.userData.info)a=a.parent;if(!a)return;r.item=a;}o.matrixWorld.extractBasis(ax[0],ax[1],ax[2]);
+  const s=ax.map(v=>v.length()),P=o.geometry.parameters,E=[P.width*s[0],P.height*s[1],P.depth*s[2]],lo=Math.min(...E);if(lo<CHAMFER.min)return;
+  L.push({r,U:ax.map((v,k)=>v.clone().divideScalar(s[k])),s,E:E.map(e=>e/2),C:V().setFromMatrixPosition(o.matrixWorld),cw:Math.min(CHAMFER.size,CHAMFER.share*lo),sharp:new Set()});});
+ const t=CHAMFER.tol,d=V();
+ for(const A of L)for(const B of L){if(A===B||A.r.item!==B.r.item)continue;d.subVectors(B.C,A.C);if(d.length()>Math.hypot(...A.E)+Math.hypot(...B.E)+t)continue;
+  const lo=[],hi=[];let ok=true;for(let k=0;k<3&&ok;k++){let e=-1;for(let m=0;m<3;m++){const c=Math.abs(A.U[k].dot(B.U[m]));if(c>.9995)e=B.E[m];else if(c>.0005)ok=false;}if(e<0){ok=false;break;}const c0=d.dot(A.U[k]);lo[k]=c0-e;hi[k]=c0+e;}
+  if(!ok)continue;if([0,1,2].some(k=>lo[k]>A.E[k]+t||hi[k]<-A.E[k]-t))continue;
+  for(let k=0;k<3;k++)for(const s of[1,-1]){const f=s*A.E[k];if(!(s>0?hi[k]>f+t&&lo[k]<f+t:lo[k]<f-t&&hi[k]>f-t))continue;const o=[0,1,2].filter(i=>i!==k);
+   if(o.some(i=>Math.min(hi[i],A.E[i])-Math.max(lo[i],-A.E[i])<t))continue;const whole=o.every(i=>lo[i]<=-A.E[i]+t&&hi[i]>=A.E[i]-t);
+   for(const i of o)for(const u of[1,-1])if(whole||Math.abs((u>0?hi[i]:lo[i])-u*A.E[i])<t){A.sharp.add(k+''+s+i+u);A.sharp.add(i+''+u+k+s);}}}
+ let n=0;L.forEach(A=>{chamferGeo(A.r.o.geometry,A.s.map(x=>A.cw/x),(k,s,i,u)=>A.sharp.has(k+''+s+i+u));n++;});return n;}
 function cyl(rt,rb,h,m,x,y,z,p=scene,seg=20,cast=true){const o=mesh(new THREE.CylinderGeometry(rt,rb,h,seg),m,p,cast);o.position.set(x,y+h/2,z);return o;}
 function sph(r,m,x,y,z,p=scene,s=[1,1,1],seg=16){const o=mesh(new THREE.SphereGeometry(r,seg,Math.max(6,seg*.66|0)),m,p);o.position.set(x,y,z);o.scale.set(s[0],s[1],s[2]);return o;}
 function bundle(p,name,desc,x0,x1,y0,y1,z0,z1){const g=new THREE.Group();p.add(g);info(g,name,desc);
@@ -2366,7 +2393,7 @@ function mergeStatic(){scene.updateMatrixWorld(true);
  // pass 2: everything else that shares a material object
  collect(m=>m.material.uuid).forEach(({a,list})=>{if(list.length>1)mergeList(a,list,list[0].material,false);});
  return [before,after];}
-window._merged=mergeStatic();
+window._chamfered=chamferBoxes();window._merged=mergeStatic();
 addEventListener('keydown',e=>{if(arrange&&(e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();doUndo();}});
 classifyMounts();initLayout();curSnap=JSON.stringify(snapshot());
 
