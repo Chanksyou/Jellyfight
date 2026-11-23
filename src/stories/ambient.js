@@ -263,10 +263,9 @@ story('ambient/rain-adds-no-draws', {
 // ---- light on the floor, the idle screen and a living city (A3)
 const pools = () => G().APT.root.children.filter((o) => o.name.startsWith('Floor light'));
 const tvScreen = () => { let m; G().APT.scene.traverse((o) => { if (o.name === 'TV screen') m = o; }); return m; };
-const drawCalls = () => { const R = G().APT.renderer; R.info.reset(); R.info.autoReset = false; R.render(G().APT.scene, G().camera || G().tpc.camera); const c = R.info.render.calls; R.info.autoReset = true; return c; };
 
 story('ambient/floor-pools-are-one-soft-draw-each', {
-  about: "Act 1's TV and monitor pools are one draw each, soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
+  about: "Act 1's TV and monitor pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 3.4, Math.PI); step(2); },
   play() {
     const { ambient, floorLight } = G(), found = pools(), was = found.map((p) => p.visible);
@@ -280,10 +279,11 @@ story('ambient/floor-pools-are-one-soft-draw-each', {
       still = colour(0) === colour(9);
     } finally { ambient.calm = calm; }
     found.forEach((p) => (p.visible = false));
-    const without = drawCalls();
+    drawn(2);
+    const without = calls();
     found.forEach((p, i) => (p.visible = was[i]));
-    const delta = drawCalls() - without;
-    return ok(soft && moves && still && delta <= 2, { soft, moves, still, delta });
+    const delta = calls() - without;
+    return ok(soft && moves && still && delta <= found.length * 2, { soft, moves, still, delta });
   },
 });
 
