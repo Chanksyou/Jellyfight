@@ -294,10 +294,12 @@ if (stage.details === 'bathroom') {   // after the collision world: decoration o
   const wide = stage.boss.set?.stretch?.[0]?.z[1];
   if (wide) addBathroomDetails(scene, wide).visible = false;   // the widened tub's, shown for the fight (boss-set.js)
 }
-// Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
-// purely to show up for the boss finish (see the scene below), then he's
-// gone again. Both boss stages get one; a stage with no boss needs none.
-const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hidden until he finishes a boss
+// Dendi the cat (src/cat.js): he shows up for the boss finish (see the scene below), then goes
+// back. A stage with a `cat` (acts 1 and 4: his box by the scratcher) has him asleep there all
+// night; elsewhere, and with ?ambient=0, he waits hidden.
+const catHome = !ARENA && EXPERIMENTS.ambient !== 0 ? stage.cat : null;
+const dendi = addDendi(scene, catHome ? new THREE.Vector3(...catHome.at) : new THREE.Vector3(), catHome?.yaw || 0,
+  { hidden: !catHome, asleep: !!catHome, calm: () => juice.calm || fx.reducedMotion.matches });
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),

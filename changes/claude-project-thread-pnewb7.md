@@ -1,0 +1,1 @@
+puts Dendi to sleep in his cardboard box by the cat scratcher in acts 1 and 4: slow breaths, an ear twitch and a tail flick now and then. He still gets up to finish the Vacuum, then goes back to sleep.
