@@ -728,6 +728,11 @@
   --vent-grille: #5c5f64;      /* the frame, and the louvres' slats */
   --vent-grille-slat: #45484d;
   --vent-calm-speed: 0.3;      /* Reduce effects: the streaks' speed, the ribbons hang still */
+  --vent-gust-hold: 0.4;       /* a ride: the vent gusts (streaks faster and brighter, ribbons pulled straight) for this long (s) */
+  --vent-gust-ease: 0.8;       /* then eases back over this long (s) */
+  --vent-gust-speed: 2;        /* how much faster than usual its streaks run at the gust's height (2: three times as fast) */
+  --vent-off-time: 0.5;        /* vents off in a Boss fight: the air stops (and later starts again) over this long (s) */
+  --vent-hum-reach: 0.3;       /* the air's soft hiss fades in within this far of a vent's edge (m) */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
   --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
   --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
@@ -1261,6 +1266,7 @@
      One ladder, quietest first, so an ordinary hit stays small and a boss kill can be loud
      (docs/agents/attack-feel.md, L2). An attack picks a step; it never invents its own numbers. */
   --feel-hit: 0.03 0;          /* a bubble popping on a bug */
+  --feel-vent: 0.04 0;         /* a vent catching the jelly: a light lift, no hit-stop */
   --feel-sun: 0.05 0;          /* each second the sun bites the jelly (act 4): a small tremor, no hit-stop */
   --feel-hit-big: 0.12 0;      /* a giant bubble popping */
   --feel-bass: 0.15 0;         /* the Soundbar's bass wave going off (act 4): the room thumps, no hit-stop */

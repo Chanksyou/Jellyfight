@@ -2,7 +2,7 @@
 // Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
-import { G, fresh, ok, step, story, tp } from './kit.js';
+import { G, V, fresh, ok, record, step, story, tp } from './kit.js';
 
 const air = () => G().traversal.air;
 // the scene drawn once into a tiny target, as the frame story does; returns the draws the vents' group added
@@ -90,5 +90,37 @@ story('vents/low-draws-no-dust-and-calm-stills-ribbons', {
     const calm = U.uCalm.value, calmDt = U.uTime.value - mark - lowDt, dust = a.motes.geometry.drawRange.count;
     a.update(0, {});
     return ok(low === 0 && dust > 1000 && calm === 1 && U.uCalm.value === 0 && calmDt < lowDt * 0.5, { low, dust, calm, lowDt, calmDt });
+  },
+});
+
+story('vents/ride-gusts-then-settles', {
+  about: 'Stepping on a vent sends one vent_ride; that vent\'s air gusts (streaks faster, ribbons pulled straight) for --vent-gust-hold s, eases back to calm after, and the jelly still lands where the vent sends it.',
+  setup() { fresh({ elites: false }); const v = G().traversal.vents[0]; tp(v.x, v.y + 0.05, v.z, 0); },
+  play() {
+    const { player, traversal } = G(), v = traversal.vents[0], U = air().look.uniforms, rides = record('vent_ride');
+    step(60, () => !!player.flight);
+    const at = [+U.uGust.value.x.toFixed(3), +U.uGust.value.y.toFixed(3)], start = U.uGust.value.w;
+    step(12);                                                   // 0.2 s: still at full
+    const held = U.uGust.value.w, clock = U.uGustClock.value;
+    step(120);                                                  // 2 s: settled, and landed
+    const after = U.uGust.value.w, p = player.position, [lx, ly, lz] = v.land;
+    const landed = Math.hypot(p.x - lx, p.z - lz) < 0.08 && Math.abs(p.y - ly) < 0.06;
+    return ok(rides.length === 1 && rides[0].vent === v && Math.abs(at[0] - v.x) < 1e-3 && Math.abs(at[1] - v.z) < 1e-3
+      && start === 1 && held === 1 && clock > 0 && after === 0 && landed, { rides: rides.length, at, start, held, clock, after, landed });
+  },
+});
+
+story('vents/air-stops-in-a-boss-fight', {
+  about: 'With vents off in a Boss fight the air stops over --vent-off-time s (streaks and dust fade, ribbons lie limp) and its hiss goes quiet; with vents back on it starts again the same way.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { traversal } = G(), U = air().look.uniforms, v = traversal.vents[0], on = V(v.x, v.y, v.z);
+    const nearOn = traversal.near(on);
+    traversal.bossMode = true;
+    step(6); const fading = U.uFlow.value;
+    step(30); const off = U.uFlow.value, nearOff = traversal.near(on);
+    traversal.bossMode = false;
+    step(36); const back = U.uFlow.value;
+    return ok(nearOn === 1 && fading > 0 && fading < 1 && off === 0 && nearOff === 0 && back === 1, { nearOn, fading, off, nearOff, back });
   },
 });
