@@ -144,13 +144,13 @@ export class ShadowSystem {
   constructor({ state, scene, world, player, cfg, enemies }) {
     Object.assign(this, { state, world, player, cfg, enemies });
     this.blob = new THREE.Mesh(
-      new THREE.PlaneGeometry(cfg.radius * 2.6, cfg.radius * 2.6).rotateX(-Math.PI / 2),
+      new THREE.CircleGeometry(cfg.radius * 1.3, 16).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('jelly-shadow', 0.5), depthWrite: false }),
     );
     this.blobOpacity = this.blob.material.opacity;
     const MAX = 160;
     this.bugs = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
+      new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2),   // round, not square: no see-through pixels past the shadow's edge
       new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('bug-shadow', 0.45), depthWrite: false }),
       MAX,
     );
@@ -158,6 +158,7 @@ export class ShadowSystem {
     this.bugs.frustumCulled = false;   // its instances are everywhere; it is one draw either way
     this.bugs.renderOrder = 1;
     this.bugSize = LOOK.num('bug-shadow-size', 1.3);
+    this.bugReach = LOOK.num('bug-shadow-reach', 0.8) ** 2;   // only round the jelly, where the eye is: a far crowd's shadows would be layers for little
     this._m = new THREE.Matrix4();
     scene.add(this.bugs);
     this.blob.renderOrder = 1;
@@ -185,11 +186,13 @@ export class ShadowSystem {
     this.bugShadows();
   }
   bugShadows() {
-    const list = this.enemies?.list || [], m = this._m, inst = this.bugs, max = inst.instanceMatrix.count;
+    const list = this.enemies?.list || [], m = this._m, inst = this.bugs, max = inst.instanceMatrix.count, P = this.player.position;
     let n = 0;
     for (const e of list) {
       if (n >= max) break;
       if (e.dead || e.proxy || e.under || !e.grounded || !e.root.visible) continue;
+      const dx = e.pos.x - P.x, dz = e.pos.z - P.z;
+      if (dx * dx + dz * dz > this.bugReach) continue;
       const s = e.r * this.bugSize * Math.min(1, e.mesh.scale.x / (e.baseScale || 1));   // grows in with the bug
       m.makeScale(s, 1, s).setPosition(e.pos.x, e.pos.y + 0.0015, e.pos.z);
       inst.setMatrixAt(n++, m);

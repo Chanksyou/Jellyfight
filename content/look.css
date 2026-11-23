@@ -714,8 +714,9 @@
   --jelly-motion-roll-freq: 1.4;
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
-  --bug-shadow: 0.6;           /* and under each bug standing on something (one instanced draw, systems.js) */
-  --bug-shadow-size: 1.9;      /* a bug's shadow's radius, in the bug's own radius */
+  --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
+  --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
+  --bug-shadow-reach: 0.4;     /* only bugs this close to the jelly (m) get one: a far crowd's would cost phone layers for little */
   --jelly-light-reach: 0.4;    /* meters */
   /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
   --jelly-motion-squeeze: 0.3;    /* how far in the rim pulls at a full stroke, of its radius (it flares out a third of that as it relaxes) */

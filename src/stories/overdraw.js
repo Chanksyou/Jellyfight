@@ -23,7 +23,8 @@ function stack(page, name) {
 }
 // [page, moment, ceiling for see-through layers on average, ceiling for all pieces on average]
 const CEILING = {   // [moment, see-through ceiling, all-pieces figure (printed only: it moves with the view and the faded furniture)]
-  act1: [['bugs + Controller', 1.85, 7.9], ['bubble storm + Bubble Bath', 0.45, 3.6], ['Vacuum fight', 0.7, 4.1]],
+  // (act 1's first two rose by about 0.05 for the soft shadows under each bug, systems.js: small round see-through discs)
+  act1: [['bugs + Controller', 2.0, 7.9], ['bubble storm + Bubble Bath', 0.5, 3.6], ['Vacuum fight', 0.7, 4.1]],
   night4: [['three bugs + 12 Firefly pools', 1.9, 3.7], ['bass wave + sun', 0.45, 2.4]],
   arena: [['Encore disco', 0.71, 5.2], ['Encore Pyro, six lanes', 2.41, 6.1]],
 };
