@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v634 adds a Free roam to the dev tools (Play group): pick an act and walk its room with no bugs, no Elites, no damage and the clock stopped, to look at the lighting, vents and ambient life.
+
 v633 gives every floor vent a real grille (frame, angled louvres, a dark duct) and drops the column of light: the air now shows as soft wisps that rise from the louvres and fan out, dust motes carried up in the stream, and tell-tale ribbons that flutter on the grille, in all four acts.
 
 v632 adds light you can see in the air: each lamp has a soft glow round its bulb, dust drifts in act 3's moonlight and in act 4's sun (not on Low graphics), and the jelly and the bugs pick up a little of the baked light where they stand, cool in the moonlight and warm in the sun.
