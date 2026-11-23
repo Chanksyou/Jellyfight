@@ -28,6 +28,7 @@ import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
+import { addRain } from './rain.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -47,7 +48,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v649';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v651';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -305,10 +306,12 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
+const raining = !!stage.rain && !ARENA && EXPERIMENTS.ambient !== 0;   // rain on the windows (rain.js): act 1 only
+if (raining) addRain(APT.root);   // (after the bake's patch, which it wraps)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
 const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
 if (!ARENA) { ambient.mark(APT.root); scene.children.filter((o) => DRESSED.includes(o.name)).forEach((o) => ambient.mark(o)); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
-const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
+const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas, { haze: raining ? LOOK.num('rain-haze', 0.35) : 0 });
 function setNight(minutes) {
   cityTime?.(minutes);
   if (SKY) skyNow(THREE.MathUtils.clamp((minutes - stage.clock[0]) / (stage.clock[1] - stage.clock[0]), 0, 1));
@@ -993,7 +996,6 @@ async function warmUp() {
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
   fx.splat(P.clone(), 0xffffff, 0.01, 'ink');   // the floor marks' painted sheet (every shape shares its shader)
-  fx.smoke(P.clone().setY(P.y + 0.02));          // a moth's black smoke (its own shader: the jelly shows through it)
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
@@ -1003,6 +1005,7 @@ async function warmUp() {
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
   enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
+  enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));   // a butterfly's bolt and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -1044,6 +1047,7 @@ async function warmUp() {
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
   enemies.glowPools.warm(false);
+  enemies.prismBalls.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);

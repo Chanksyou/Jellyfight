@@ -19,7 +19,7 @@ import { start, openGame } from '../tests/lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] ?? d;
 const FRAMES = +arg('frames', 600), THROTTLE = +arg('throttle', 4), JSON_OUT = arg('json', '');
-const ALL = ['roach', 'ants', 'mosquito', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'moth', 'firefly', 'cicada'];
+const ALL = ['roach', 'ants', 'mosquito', 'lanternfly', 'housefly', 'spider', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'wasp', 'butterfly', 'firefly', 'cicada'];
 const KINDS = arg('kinds', '') ? arg('kinds', '').split(',') : ALL;   // --kinds=millipede,mantis: just those (20 bugs, cycling through them)
 const COUNT = 20, WARM = 120;
 

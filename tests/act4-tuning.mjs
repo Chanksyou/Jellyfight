@@ -8,7 +8,7 @@ const opt = (k, d) => (args.find((a) => a.startsWith(`--${k}=`)) || '').slice(k.
 const list = (k, d) => { const v = opt(k, d); return v.length ? v : d; };
 const seeds = list('seeds', ['11', '12', '13']).map(Number), types = list('types', ['normal']), styles = list('styles', ['ranged']);
 const CARRY = { score: 24000, level: 17, xp: 0, purse: 8, stats: {}, owned: [], grown: 0, growCount: 0 };
-const PACKS = { pack4x: { act: 4, types: ['firefly', 'moth', 'cicada'], counts: [8, 6, 3] }, pack4: { act: 4, types: ['firefly', 'moth', 'cicada'], counts: [6, 4, 2] }, pack3: { act: 3, types: ['dragonfly', 'mantis', 'beetle'], counts: [6, 4, 2] } };
+const PACKS = { pack4x: { act: 4, types: ['firefly', 'butterfly', 'cicada'], counts: [8, 6, 3] }, pack4: { act: 4, types: ['firefly', 'butterfly', 'cicada'], counts: [6, 4, 2] }, pack3: { act: 3, types: ['dragonfly', 'mantis', 'beetle'], counts: [6, 4, 2] } };
 const ACT = { 'elite:bowl': 4, 'elite:pillow': 4, 'elite:headphones': 4, 'elite:croc': 3, 'elite:bull': 3, 'elite:coffer': 3, boss: 4 };
 const env = await start();
 try {

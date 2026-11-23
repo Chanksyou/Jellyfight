@@ -699,47 +699,32 @@ export const ENEMY_WORDS = {
     }),
   },
 
-  plunge: {
-    doc: 'Within `range` m every `every` s or so, climbs to `height` m over you while a circle and a column of radius `radius` m fill on the floor under it (they follow you, and lock where they are with `lock` of the `windup` s left), then drops straight down: you are hit for `dmg` if you are in the column when it lands (a jump does not dodge it; step off the circle). It leaves a puff of black smoke there (`smoke`), pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
-    phases: { climb: 'build', drop: 'swing', rest: 'recoil' }, lock: { climb: (p) => 1 - p.lock }, span: { drop: (p) => p.height / p.speed },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.45, every: 3, windup: 1, lock: 0.35, height: 0.3, climb: 0.5, speed: 1.6, radius: 0.08, dmg: 3, rest: 0.9 },
-    make: (_, p) => ({
-      plungeRadius: p.radius, plungeHeight: p.height,
-      init(e) { e.diveCd = 1 + Math.random() * 1.5; e.plungeAt = new THREE.Vector3(); e.plungeK = 0; },
+  prism: {
+    doc: 'Within `range` m every `every` s or so, stops, faces you and winds up for `windup` s (a ball of hot rainbow light grows between its forelegs), then lobs it in a slow arc (rising `peak` m over the straight line) at the floor under where you are, landing `beats` beats later; while it flies, a Warning circle and dome `radius` m round fill there. The ball spins as it goes: on every beat it fires a burst of bolts out every way, up, down and all round (`rows` rows between the two poles, `count` round its middle and fewer toward the poles; `speed` m/s, gone after `life` s or at the floor, a wall or furniture, `dmg` each; each burst turned half a gap from the last, so the gaps spiral). It lands as a Blast (`burst`) with a last burst. At most `most` balls fly at once. List it after on-beat so it throws on a beat.',
+    phases: { windup: 'build', rest: 'fire' }, thrown: true,   // how its attack moves (src/attack-motion.js)
+    props: { range: 0.6, every: 6, windup: 0.6, beats: 4, peak: 0.18, radius: 0.12, count: 12, rows: 5, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3, rest: 0.6 },
+    make: (_, p, where) => {
+      if (!(Number.isInteger(p.beats) && p.beats >= 1)) throw new Error(`${where}: prism beats= must be a whole number of beats, 1 or more`);
+      return {
+      init(e) { e.prismCd = 1 + Math.random() * 3; },
       tick(e, c, en) {
-        const live = c.slow > 0 ? 1 : 0, at = e.plungeAt;
-        e.stateT -= c.dt * live;
-        e.diveCd -= c.dt;
+        const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it stays put
+        e.prismCd -= c.dt;
+        if (e.firedT > 0) e.firedT -= c.dt;
+        if (e.state === 'windup' && !live) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.prismCd = 1.5; }   // broken off
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && !c.wait) {
-            e.state = 'climb'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.plungeLocked = false;
-            at.set(c.foot.x, en.floorBelow(c.foot, c.foot.y), c.foot.z); en.diveWind(e, p.windup);
-          }
-        } else if (e.state === 'climb') {
-          if (!e.plungeLocked) {                                          // the circle follows you until it locks
-            if (e.stateT <= p.windup * p.lock) e.plungeLocked = true;
-            else at.set(c.foot.x, en.floorBelow(c.foot, at.y), c.foot.z);
-          }
-          e.plungeK = 1 - Math.max(0, e.stateT) / p.windup;
-          _want.set(at.x, at.y + p.height, at.z).sub(e.pos);
-          e.vel.lerp(_want.clampLength(0, 1).multiplyScalar(p.climb * 6).clampLength(0, p.climb * c.slow), 1 - Math.exp(-6 * c.dt));
-          en.move(e, e.vel, c.dt);
-          e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
-          if (e.stateT <= 0) { e.state = 'drop'; e.stateT = 1; en.diveGo(e); }
-        } else if (e.state === 'drop') {
-          if (!live) return;
-          e.plungeK = 1;
-          e.vel.set((at.x - e.pos.x) * 12, -p.speed, (at.z - e.pos.z) * 12);   // straight down the column
-          const blocked = en.move(e, e.vel, c.dt, false);
-          if (e.pos.y <= at.y + e.r || blocked || e.stateT <= 0) { en.plungeLand(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }
+          if (c.dist < p.range && e.prismCd <= 0 && live && !e.flyHeld && !c.wait && en.prismBalls.flying() < p.most) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.prismWind(e, p.windup); }
+        } else if (e.state === 'windup') {
+          let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;   // turns to face you
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          e.root.rotation.y += d * (1 - Math.exp(-12 * c.dt));
+          if ((e.stateT -= c.dt) <= 0) { en.prism(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.3; }
         } else if (e.state === 'rest') {
-          e.plungeK = 0;
-          e.vel.multiplyScalar(Math.exp(-4 * c.dt));
-          en.move(e, e.vel, c.dt * live);
-          if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
+          if ((e.stateT -= c.dt * live) <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.prismCd = p.every; }
         }
       },
-    }),
+      };
+    },
   },
 
   bite: {
@@ -819,7 +804,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);

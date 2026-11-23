@@ -829,16 +829,18 @@
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
   --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
   --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
-  --hostile-moth: #ffb300;       /* the moth's plunge as it lands: hot amber (its wings are pale, so the hit isn't) */
-  --plunge-warning-opacity: 0.3;  /* the moth's circle on the floor as it climbs (it follows you, then locks and brightens) */
-  --plunge-column-opacity: 0.25;  /* and the column over it, as tall as the plunge reaches */
-  --smoke-size: 0.07;            /* the moth's smoke: each of its four blobs (m); the puff is about 25 cm across */
-  --smoke-spread: 0.05;          /* how far the blobs sit from the middle (m) */
-  --smoke-hold: 1;               /* seconds it hangs full */
-  --smoke-fade: 0.4;             /* seconds it then thins out */
-  --smoke-opacity: 0.85;         /* how dark each blob is: bugs, XP and pools behind it all but vanish */
-  --smoke-ember: #4a2208;        /* the middle blob as it lands, cooling to black in 0.3 s */
-  --smoke-max: 3;                /* puffs alive at once (phones: the oldest goes) */
+  --hostile-butterfly: #ffb300;  /* the butterfly's prism: its Warning and burst (the ball and bolts run round --prism-colors) */
+  --prism-colors: #ff2a2a #ff7a1a #ffcc1a #ff4fa0 #ff2ad4;   /* the hot rainbow (never blue or green: those are the jelly's) */
+  --prism-glow: 1;               /* how far over white the bolts and the ball's shell are pushed, for bloom */
+  --prism-ball-size: 0.015;      /* the ball in flight (m) */
+  --prism-bolt-size: 0.007;      /* each bolt's radius (m); drawn 2.6x as long along its flight */
+  --prism-bolts-max: 240;        /* bolts alive at once (the oldest goes) */
+  --prism-spin: 4.7;             /* how fast the ball in flight turns (radians a beat) */
+  --prism-warning-opacity: 0.32; /* the circle where the ball will land */
+  --prism-dome-opacity: 0.26;    /* and the dome over it */
+  --butterfly-beat: 0.17;        /* one wingbeat (s): a monarch beats about 6 times a second */
+  --butterfly-glide: 0.45;       /* the glide after each burst of beats (s) */
+  --butterfly-glide-v: 0.3;      /* how far its wings are raised while it glides (radians): the shallow V */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */
@@ -1115,6 +1117,20 @@
   --ambient-cloth: 0.006;        /* m: a curtain's slow idle ripple at its hem (nothing moves at the rail) */
   --ambient-cloth-billow: 0.05;  /* m: how far a full gust billows the hem away from it (the jelly passing through counts) */
   --ambient-cloth-rate: 0.9;     /* rad/s: how fast the ripple runs */
+  /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
+  --rain-cell: 0.02;             /* m: one still drop per cell at most */
+  --rain-drops: 0.4;             /* share of cells with a drop */
+  --rain-drop-size: 0.3;         /* a drop's radius, as a share of its cell */
+  --rain-glint: 0.5;             /* how bright the glint on a drop is */
+  --rain-glint-color: #d8e6ff;
+  --rain-tint: #25303d;          /* the colour a drop darkens the glass to */
+  --rain-opacity: 0.4;           /* ... and how much */
+  --rain-column: 0.035;          /* m: the glass is split into columns this wide... */
+  --rain-streaks: 0.3;           /* ... and this share of them has a drop running down (none under Reduce effects) */
+  --rain-speed: 0.09;            /* m/s: how fast a running drop goes (each column a little faster or slower) */
+  --rain-trail: 0.2;             /* m: the wet trail above it */
+  --rain-haze: 0.35;             /* how much the city behind the wet glass goes flat and hazy, 0..1 */
+  --rain-haze-color: #2a3442;
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */

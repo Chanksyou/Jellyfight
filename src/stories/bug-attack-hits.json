@@ -159,15 +159,19 @@
   "yaw": -1394,
   "aim": null
  },
- "moth": {
-  "frames": 43,
+ "butterfly": {
+  "frames": 36,
   "pos": [
-   3206,
-   45,
-   2999
+   3546,
+   317,
+   2947
   ],
-  "yaw": -1457,
-  "aim": null
+  "yaw": -1419,
+  "aim": [
+   -346,
+   -317,
+   53
+  ]
  },
  "firefly": {
   "frames": 25,

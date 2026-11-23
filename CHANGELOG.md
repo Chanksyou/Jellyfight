@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v651 brings rain to act 1: drops sit on the living room windows, a few run down the glass, the city behind goes soft and hazy, and the room tone adds rain on the glass with far thunder now and then. Act 4 is the same room at dawn and stays dry.
+
+v650 replaces act 4's Moth with a Monarch butterfly: a painted monarch that flies in quick beats and glides, and lobs a spinning ball of hot rainbow light that fires bolts every way, up, down and all round, on every beat (2 each) and bursts where it lands (3).
+
 v649 adds the cicada burrow's sound: a song that swells along the trail with a thump on each beat, a hush where it cuts out, an inhale that climbs into the burst, a heavy layered burst (sub thud, crack, shriek, chunks), a smack when it hits you, the whoosh and wet thump of the throw, and the chunks clattering as it lands.
 
 v648 puts Dendi to sleep in his cardboard box by the cat scratcher in acts 1 and 4: slow breaths, an ear twitch and a tail flick now and then. He still gets up to finish the Vacuum, then goes back to sleep.

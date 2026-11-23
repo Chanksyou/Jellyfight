@@ -108,7 +108,7 @@ What beating a Boss gives: one Legendary pick of three from the Legendary treasu
 A Legendary treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis.
 
 **Bug**:
-An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; in act 4 the firefly, moth and cicada; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
+An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; in act 4 the firefly, monarch butterfly and cicada; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
 _Avoid_: Mob, critter
 
 **Boss**:

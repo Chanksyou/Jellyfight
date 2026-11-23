@@ -78,7 +78,7 @@ import './stories/act4.js';
 import './stories/night4.js';
 import './stories/vents.js';
 import './stories/living-room.js';
-import './stories/moth.js';
+import './stories/butterfly.js';
 import './stories/firefly.js';
 import './stories/night4-singing-bowl.js';
 import './stories/night4-mushroom.js';

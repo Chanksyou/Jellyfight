@@ -13,6 +13,7 @@ import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
 import { coil, eyes, heavy, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
+import { prismFacets } from './prism-balls.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -2681,106 +2682,176 @@ export function buildWasp() {
   return { body: outer, face: new THREE.Group(), anim };
 }
 
-// ------------------------------------------------------------------ moth
-// A dusty house moth: a furry cream thorax and tapering abdomen, a small head with long feathered
-// antennae, tucked legs, and two pairs of broad pale wings, powdery grey-brown toward their edges
-// with a dark band and a dark eye-spot on each. Wings beat slowly (a moth, not a wasp); climbing over you it flares them wide and holds them quivering, plunging it sweeps them back. Facing +z,
-// centred on its thorax; about 2.6 radii long, wings out about 3.4 across.
-function mothParts() {
-  const cream = '#e4d9bf', fur = '#cfc2a4', dust = '#8b7d63';
-  const body = merge([
-    ellipsoid(0.34, 0.3, 0.42, V(0, 0, 0.1), cream),                 // thorax
-    ellipsoid(0.25, 0.23, 0.78, V(0, -0.04, -0.7), fur),             // abdomen
-    ellipsoid(0.2, 0.18, 0.2, V(0, 0.02, 0.62), cream),              // head
-    ...[-1, 1].map((s) => tube([V(s * 0.07, 0.14, 0.72), V(s * 0.22, 0.45, 1.0), V(s * 0.4, 0.62, 1.2)], 0.018, dust, 6)),   // antennae
-    ...[-1, 1].flatMap((s) => [0.35, 0.05, -0.2].map((z) => rod(V(s * 0.12, -0.2, z), V(s * 0.2, -0.55, z - 0.18), 0.03, 0.012, dust))),   // legs
-  ]);
-  // a wing out along +x from its hinge, flat; front edge toward -y here, which rotateX turns to +z
-  const wing = (w, d) => {
-    const sh = new THREE.Shape();
-    sh.moveTo(0, -0.1); sh.bezierCurveTo(0.5, -0.75 * d, 1.3, -0.7 * d, w, -0.3 * d); sh.bezierCurveTo(w * 1.02, 0.2 * d, w * 0.8, 0.75 * d, 0.5, 0.7 * d); sh.bezierCurveTo(0.2, 0.55 * d, 0.05, 0.35 * d, 0, 0.2);
-    const g = new THREE.ShapeGeometry(sh, 10).rotateX(-Math.PI / 2), pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color();
-    for (let i = 0; i < pos.count; i++) {
-      const u = pos.getX(i) / w, band = Math.abs(u - 0.62) < 0.07 ? 0.5 : 0;     // a dark band across
-      c.set(cream).lerp(new THREE.Color(dust), Math.min(1, u * u * 0.85 + band));
-      col.set([c.r, c.g, c.b], i * 3);
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    g.computeVertexNormals();
-    return g;
-  };
-  const spot = merge([ellipsoid(0.16, 0.012, 0.16, V(0.95, 0.01, 0.0), '#3b3226'), ellipsoid(0.16, 0.012, 0.16, V(0.95, -0.01, 0.0), '#3b3226')]);
-  return { body, fore: wing(1.7, 1), hind: wing(1.2, 0.9), spot };
+// ------------------------------------------------------------------ butterfly
+// A monarch: a slim black body (thorax, head and a long abdomen) with the monarch's white dots on its
+// head and thorax, clubbed antennae and six thin tucked legs; two pairs of big wings painted at load
+// (a canvas, no download): deep orange cells between thick black veins, a black border with two rows
+// of white dots, pale orange spots by the forewing's tip. It flies like a real one: a few quick
+// beats, then a glide on wings held in a shallow V, its body bobbing up on every downstroke and the
+// hindwings a little behind the forewings. Facing +z, centred on its thorax; about 2 radii long and
+// 3.8 across the wings. Its prism (attack-motion "throw"): it rears, wings clapped high, while a ball
+// of hot rainbow light grows between its forelegs, then flings it with one big downstroke.
+
+// A wing's outline: a start point, then cubic béziers [c1, c2, end], in the wing's own plane (x out
+// from the hinge, y forward), radius units. `margin` lists the segments along the outer edge.
+const FOREWING = { at: [0, 0.12], segs: [[[0.6, 0.36], [1.55, 0.44], [2.0, 0.2]], [[2.16, 0.04], [1.62, -0.6], [1.24, -0.8]], [[0.9, -0.72], [0.3, -0.36], [0.02, -0.12]]], margin: [1], costa: 0,
+  cell: [[0.05, 0.02], [0.95, 0.13], [0.86, -0.26], [0.1, -0.08]] };
+const HINDWING = { at: [0, 0], segs: [[[0.4, 0.12], [0.95, 0.1], [1.25, -0.06]], [[1.56, -0.3], [1.28, -0.96], [0.76, -1.06]], [[0.36, -1.14], [0.14, -1.0], [0.04, -0.62]], [[0.0, -0.32], [0.0, -0.2], [0, -0.12]]], margin: [1, 2],
+  cell: [[0.04, -0.04], [0.8, -0.14], [0.6, -0.62], [0.06, -0.25]] };
+const bez = (a, b, c, d, t) => { const u = 1 - t; return [u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]]; };
+const segStart = (W, i) => (i ? W.segs[i - 1][2] : W.at);
+// n points along segment i, from t0 to t1
+const along = (W, i, n, t0 = 0, t1 = 1) => Array.from({ length: n }, (_, k) => bez(segStart(W, i), ...W.segs[i], t0 + (t1 - t0) * (n > 1 ? k / (n - 1) : 0.5)));
+
+// the wing as a flat mesh in the XZ plane (x out, z forward), UVs over its bounding box
+function monarchWing(W) {
+  const s = new THREE.Shape().moveTo(...W.at);
+  for (const [a, b, c] of W.segs) s.bezierCurveTo(...a, ...b, ...c);
+  const g = new THREE.ShapeGeometry(s, 16);
+  g.computeBoundingBox();
+  const { min, max } = g.boundingBox, p = g.attributes.position, uv = g.attributes.uv, S = Math.max(max.x - min.x, max.y - min.y);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    uv.setXY(i, (x - min.x) / S, (y - min.y) / S);   // one scale both ways, as the painting has
+    p.setXYZ(i, x, Math.sin(Math.min(1, x / 2) * Math.PI) * 0.04 - (y * y) * 0.03, y);   // a soft camber, like a real wing's
+  }
+  g.computeVertexNormals();
+  W.box = { x0: min.x, y0: min.y, w: max.x - min.x, h: max.y - min.y };
+  return g;
 }
 
-export function buildMoth() {
-  const G = (GEO.moth ||= mothParts()), M = mats();
-  if (!M.moWing) {
-    M.moWing = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.95 });
-    standOut(M.moWing, { base: 0.3, rim: 0.55 });
+// its painting: the same outline drawn on a canvas (canvas y runs down, so the wing's y is flipped)
+function paintMonarch(W, fore) {
+  const B = W.box, size = 512, R = seeded(fore ? 23 : 41);
+  return wingTexture(size, size, (g) => {
+    const k = size / Math.max(B.w, B.h), X = (x) => (x - B.x0) * k, Y = (y) => size - (y - B.y0) * k;
+    const path = new Path2D(); path.moveTo(X(W.at[0]), Y(W.at[1]));
+    for (const [a, b, c] of W.segs) path.bezierCurveTo(X(a[0]), Y(a[1]), X(b[0]), Y(b[1]), X(c[0]), Y(c[1]));
+    path.closePath();
+    g.fillStyle = '#120c08'; g.fillRect(0, 0, size, size);                          // (outside the outline: never drawn)
+    g.save(); g.clip(path);
+    const glow = g.createRadialGradient(X(0), Y(0), 0, X(0), Y(0), 2 * k);           // deep at the base, brighter out
+    glow.addColorStop(0, '#b8430c'); glow.addColorStop(0.35, '#e0600f'); glow.addColorStop(1, '#f5891e');
+    g.fillStyle = glow; g.fill(path);
+    g.strokeStyle = '#120c08'; g.lineCap = 'round'; g.lineJoin = 'round';
+    // the veins: the cell by the body, then veins running out from its far edge to the outer edge, side
+    // by side as on a real wing (spread along the cell's edge), thickening as they reach the border
+    const cell = W.cell, ends = W.margin.flatMap((i) => along(W, i, fore ? 7 : 5, 0.1, 0.9));
+    if (fore) ends.unshift(...along(W, W.costa, 2, 0.7, 0.85).reverse());
+    g.lineWidth = 0.04 * k;
+    g.beginPath(); cell.forEach(([x, y], i) => (i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.closePath(); g.stroke();
+    ends.forEach(([x, y], j) => {
+      const f = ends.length > 1 ? j / (ends.length - 1) : 0.5, sx = cell[1][0] + (cell[2][0] - cell[1][0]) * f, sy = cell[1][1] + (cell[2][1] - cell[1][1]) * f;
+      const mx = sx + (x - sx) * 0.55, my = sy + (y - sy) * 0.55 + (fore ? 0.04 : 0);
+      for (const [w, a] of [[0.026, 0], [0.038, 0.5], [0.055, 0.8]]) {             // (each a little thicker further out)
+        g.lineWidth = w * k; g.beginPath();
+        const ax = sx + (x - sx) * a, ay = sy + (y - sy) * a;
+        g.moveTo(X(ax), Y(ay)); g.quadraticCurveTo(X(mx), Y(my), X(x), Y(y)); g.stroke();
+      }
+    });
+    g.lineWidth = 0.04 * k;
+    for (const [x, y] of [cell[0], cell[3]]) { g.beginPath(); g.moveTo(X(0.02), Y(y * 0.5)); g.lineTo(X(x), Y(y)); g.stroke(); }
+    if (!fore) for (const f of [0.35, 0.65]) { const [x, y] = bez(segStart(W, 2), ...W.segs[2], f); g.lineWidth = 0.035 * k; g.beginPath(); g.moveTo(X(0.05), Y(-0.15)); g.quadraticCurveTo(X(x * 0.6), Y(y * 0.5), X(x), Y(y)); g.stroke(); }   // the veins along the inner edge
+    // the black border (and the dark front edge), then the dots in it
+    g.lineWidth = (fore ? 0.3 : 0.28) * k; g.stroke(path);
+    if (fore) {                                                                       // the black tip, with its pale orange spots
+      g.fillStyle = '#120c08'; g.beginPath(); g.moveTo(X(1.3), Y(0.42)); g.quadraticCurveTo(X(1.55), Y(0.12), X(1.98), Y(-0.08)); g.lineTo(X(2.3), Y(0.3)); g.closePath(); g.fill();
+      for (const [x, y, r, c] of [[1.62, 0.18, 0.05, '#f7a43c'], [1.74, 0.08, 0.045, '#f7a43c'], [1.5, 0.26, 0.04, '#f5b85a'], [1.84, 0.0, 0.035, '#f4efe6'], [1.68, 0.3, 0.03, '#f4efe6'], [1.38, 0.34, 0.03, '#f4efe6']]) {
+        g.fillStyle = c; g.beginPath(); g.ellipse(X(x), Y(y), r * k * 1.3, r * k, 0.5, 0, 7); g.fill();
+      }
+    }
+    // two rows of white dots in the border, set in from the edge toward the wing's middle
+    const mid = [B.x0 + B.w * 0.45, B.y0 + B.h * 0.5];
+    for (const [row, n, r] of [[0.05, fore ? 18 : 16, 0.022], [0.12, fore ? 12 : 10, 0.026]]) {
+      for (const [x, y] of W.margin.flatMap((i) => along(W, i, Math.round(n / W.margin.length), 0.04, 0.96))) {
+        const dx = mid[0] - x, dy = mid[1] - y, d = Math.hypot(dx, dy), j = 1 + (R() - 0.5) * 0.4;
+        g.fillStyle = '#f4efe6'; g.beginPath(); g.ellipse(X(x + dx / d * row), Y(y + dy / d * row), r * k * j, r * k * 0.8 * j, Math.atan2(dy, dx), 0, 7); g.fill();
+      }
+    }
+    if (fore) for (const [x, y] of along(W, W.costa, 5, 0.5, 0.92)) { g.fillStyle = '#f4efe6'; g.beginPath(); g.arc(X(x), Y(y - 0.06), 0.02 * k, 0, 7); g.fill(); }
+    g.restore();
+  });
+}
+
+function butterflyParts() {
+  const black = '#141012', soot = '#221a1c', white = '#f2ede4';
+  const body = merge([
+    ellipsoid(0.17, 0.16, 0.3, V(0, 0, 0.12), black),                             // thorax
+    ellipsoid(0.11, 0.1, 0.62, V(0, -0.03, -0.62), soot),                         // the long abdomen
+    ellipsoid(0.13, 0.12, 0.12, V(0, 0.02, 0.5), black),                          // head
+    ...[[0.05, 0.08, 0.54], [-0.05, 0.08, 0.54], [0.08, 0.02, 0.58], [-0.08, 0.02, 0.58], [0.1, 0.1, 0.3], [-0.1, 0.1, 0.3], [0.13, 0.04, 0.05], [-0.13, 0.04, 0.05], [0.06, 0.15, 0.12], [-0.06, 0.15, 0.12]]
+      .map(([x, y, z]) => ellipsoid(0.022, 0.022, 0.022, V(x, y, z), white, 6)),   // the white dots on its head and thorax
+    ...[-1, 1].flatMap((s) => [tube([V(s * 0.04, 0.1, 0.56), V(s * 0.16, 0.36, 0.9), V(s * 0.3, 0.5, 1.2)], 0.012, black, 8), ellipsoid(0.035, 0.035, 0.07, V(s * 0.31, 0.51, 1.23), black, 8)]),   // clubbed antennae
+    ...[-1, 1].flatMap((s) => [0.3, 0.12, -0.08].map((z) => rod(V(s * 0.08, -0.1, z), V(s * 0.18, -0.34, z + 0.12), 0.018, 0.008, black))),   // legs, tucked
+  ]);
+  const fore = monarchWing(FOREWING), hind = monarchWing(HINDWING);
+  return { body, fore, hind, foreMap: paintMonarch(FOREWING, true), hindMap: paintMonarch(HINDWING, false), ball: prismFacets(LOOK.list('prism-colors', ['#ff2a2a', '#ff7a1a', '#ffcc1a', '#ff4fa0', '#ff2ad4']).map((c) => new THREE.Color(c))) };
+}
+
+export function buildButterfly() {
+  const G = (GEO.butterfly ||= butterflyParts()), M = mats();
+  if (!M.bfFore) {
+    const wing = (map) => { const m = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.7 }); standOut(m, { base: 0.3, rim: 0.15 }); return m; };   // (little rim: seen edge-on a wing would wash out white)
+    M.bfFore = wing(G.foreMap); M.bfHind = wing(G.hindMap);
+    M.bfBall = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, toneMapped: false });   // the ball it holds: the thrown ball's faceted rainbow shell (batch.js perInstance); unlit, bloom lifts it
+    M.bfBall.userData.perInstance = true;
   }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.matte));
-  const face = angryEyes({ y: 0.1, z: 0.8, size: 0.08, gap: 0.12 });
+  const face = angryEyes({ y: 0.06, z: 0.6, size: 0.06, gap: 0.08 });
   body.add(face);
+  const ball = new THREE.Mesh(G.ball, M.bfBall);
+  ball.userData.color = new THREE.Color();
+  ball.position.set(0, -0.22, 0.72); ball.scale.setScalar(0.001);
+  body.add(ball);
   const wings = [];
-  for (const [geo, z, hind] of [[G.fore, 0.3, false], [G.hind, -0.05, true]]) for (const s of [-1, 1]) {
-    const hinge = new THREE.Group(), flap = new THREE.Group();
-    hinge.position.set(s * 0.18, 0.22, z);
-    hinge.add(flap);
-    const m = new THREE.Mesh(geo, M.moWing);
+  for (const [geo, mat, z, y, hind] of [[G.fore, M.bfFore, 0.2, 0.1, false], [G.hind, M.bfHind, 0.02, 0.085, true]]) for (const s of [-1, 1]) {
+    const hinge = new THREE.Group(), m = new THREE.Mesh(geo, mat);
+    hinge.position.set(s * 0.1, y, z);
+    hinge.scale.setScalar(0.85);   // about 3.8 radii across: a real monarch's wings, against its body
     m.scale.x = s;
-    flap.add(m);
-    if (!hind) { const sp = new THREE.Mesh(G.spot, M.matte); sp.scale.x = s; flap.add(sp); }
+    hinge.add(m);
     body.add(hinge);
-    wings.push({ s, hind, hinge, flap });
+    wings.push({ s, hind, hinge });
   }
-  let t = 0;
-  // its plunge (attack-motion "pounce", src/attack-motion.js): climbing over you it rears back, wings flared wide
-  // and quivering, until its spot locks: then they clap together above its back and stay. It tips nose-down
-  // over 0.08 s and drops stretched, wings swept back; it hits the floor squashed with its wings slapped flat,
-  // lifts them late and fans them twice, and crouches just before it takes off again. Missed, it lands rocking.
+  const beatT = LOOK.num('butterfly-beat', 0.17), glideT = LOOK.num('butterfly-glide', 0.45), V0 = LOOK.num('butterfly-glide-v', 0.3);
+  let t = 0, held = 0;
   const anim = (dt, e) => {
     t += dt;
     const ph0 = e?.phase || 0, A = e?.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
-    const DOWN = Math.PI / 2 + 0.2, REAR = 0.1 - 0.55;
-    let wind = 0, clap = 0, sweep = 0, nose = 0.1, len = 1, squash = 0, slap = 0, fan = 0, crouch = 0, bob = 1, roll = 0;
+    // the flight: 2 to 4 beats, then a glide (each butterfly on its own count)
+    const n = 2 + Math.floor((ph0 * 7) % 3), cyc = n * beatT + glideT, c = (t + ph0 * 3) % cyc;
+    const flap = c < n * beatT ? Math.sin((c / beatT) * Math.PI * 2) : 0;   // up, then down through the glide angle
+    let lift = 0, clap = 0, down = 0, len = 1, shake = 0, glow = 0;
     if (ph === 'build') {
-      wind = coil(A.k, A.style.hold, A.style.over) * A.vary;
-      if (A.lockT >= 0) clap = Math.min(1, A.lockT / knobs().beat);
-      nose = 0.1 - wind * 0.55 + quiver(A.k, A.t, ph0) * 0.05 * A.quiet * (1 - clap);
-      bob = 1 - S(A.t, 0, 0.15);
+      lift = coil(A.k, A.style.hold, A.style.over) * A.vary; clap = S(A.k, 0, 0.3);
+      shake = A.still ? 0 : quiver(A.k, A.t, ph0) * A.quiet; glow = A.k;
     } else if (ph === 'swing') {
-      const tip = S(A.pt, 0, 0.08);              // tips over, not jumps, to nose-down
-      nose = REAR + (DOWN - REAR) * tip; sweep = tip; clap = 1 - tip; bob = 0;
-      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * tip;
-    } else if (ph === 'recoil') {
-      const p = A.pt;
-      nose = DOWN + (0.1 - DOWN) * S(p, 0, 0.08);                            // down flat on the floor
-      squash = (A.hit ? 0.25 : 0.15) * settle(Math.min(1, p / 0.4), A.style.bounces, A.style.damp);
-      slap = 1 - S(p, 0.6, 0.8);                                             // wings flat, then back to the flutter
-      fan = p > 0.2 && p < 0.6 ? Math.abs(Math.sin((p - 0.2) * Math.PI * 5)) : 0;   // lifted 0.2 s late, fanned twice
-      if (!A.hit) roll = A.side * 0.3 * settle(Math.min(1, p / 0.5), 2, 1);
-      bob = S(p, 0.4, 0.8);
-      if (e.state === 'rest' && e.stateT < 0.15) crouch = 1 - Math.max(0, e.stateT) / 0.15;   // gathers itself to lift off
-    }
+      const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
+      lift = A.vary * Math.max(0, 1 - s); clap = 1 - s; down = s;
+      len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
+    } else if (ph === 'recoil') down = settle(A.k, A.style.bounces, A.style.damp);
+    if (ph === 'idle') lift = held *= Math.exp(-12 * dt); else held = lift;   // (broken off: it settles, not pops)
+    const still = Math.max(clap, Math.min(1, down * 1.5));
     for (const W of wings) {
-      const beat = Math.sin(t * (22 + wind * 14) + ph0 + (W.hind ? 0.6 : 0));
-      // fluttering: wings up and down; rearing: held wide and high, quivering; clapped: still over its back;
-      // swooping: swept back; landed: flat on the floor
-      let z = 0.2 + beat * (0.55 - 0.45 * Math.min(1, wind)) + wind * 0.75 + sweep * 0.9;
-      z += (1.5 - z) * clap;
-      z += (-0.1 + fan * 0.7 - z) * slap;
-      W.flap.rotation.z = W.s * z;
-      W.hinge.rotation.y = W.s * (-0.15 - sweep * 0.7 + wind * 0.3 * (1 - clap));
+      const f = W.hind ? Math.sin(((c - 0.025) / beatT) * Math.PI * 2) * (c < n * beatT ? 1 : 0) : flap;   // the hindwing trails
+      let a = V0 + 0.85 * f;
+      a += (1.45 + shake * 0.08 - a) * clap;           // clapped high over its back, quivering
+      a += (-0.55 - a) * Math.min(1, down * 1.2);      // the fling: one hard downstroke
+      W.hinge.rotation.set(0, W.s * (0.08 * f + (W.hind ? -0.18 : 0.05) - down * 0.25), W.s * a);
     }
-    body.position.y = Math.sin(t * 4 + ph0) * 0.1 * bob - squash * 0.1 - crouch * 0.08;
-    body.rotation.set(nose + crouch * 0.15, 0, roll);
-    if (squash) { const y = 1 - squash, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); } else stretch(body, len);
+    body.position.set(shake * 0.02, -0.08 * flap * (1 - still) - 0.05 * (c >= n * beatT ? (c - n * beatT) / glideT : 0) + 0.12 * lift, 0);
+    body.rotation.set(0.12 * (c < n * beatT ? 1 : 0.3) - lift * 0.5 + down * 0.45, 0, shake * 0.05);
+    stretch(body, len);
+    // the ball between its forelegs: grows and spins as it winds up; gone as it's thrown
+    const b = ph === 'build' ? 0.06 + 0.16 * glow : 0.001;
+    ball.scale.setScalar(b);
+    ball.rotation.set(t * 3, t * 10, 0);
+    ball.userData.color.setScalar(LOOK.num('prism-glow', 1));
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
+  anim.reset = () => { t = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); ball.scale.setScalar(0.001); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return { body: outer, face: new THREE.Group(), anim };
 }
 

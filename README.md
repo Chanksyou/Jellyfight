@@ -290,9 +290,10 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   See [the model and fight notes](docs/shark-boss.md).
 - **Act 4: the Encore.**
   Beat the shark and the run comes back to the living room at dawn, 6 am to 8 am, entering from the hallway door (3:00 this time).
-  **Fireflies** (from the start), **moths** (from 0:45) and **cicadas** (from 1:30) are its bugs, and three chests turn up in the night.
+  **Fireflies** (from the start), **monarch butterflies** (from 0:45) and **cicadas** (from 1:30) are its bugs, and three chests turn up in the night.
   A firefly flies a little off the floor, blinks its lamp on every beat, and on a bar lobs a slow blob of glow at where you are: it lands as a glowing pool that drains your Health for 10 s, and pools from several fireflies add up.
-  A moth flutters round you, climbs over you while a circle fills and drops straight down it, leaving a puff of black smoke that hides what's behind it for about a second.
+  A monarch butterfly loops round you, a few quick wingbeats then a glide, and on a beat lobs a spinning ball of hot rainbow light at where you are.
+  While the ball flies it fires a flat ring of 12 bolts on every beat, each ring turned half a gap from the last, so slip through a gap or jump the ring; it lands as a burst inside the circle that fills there.
   A cicada trudges after you, then on a bar digs under the floor: a mound trails you, locks, and bursts up under the circle that fills there, tossing you; it stands dazed afterwards, which is when to hit it.
   Three Elites guard the furniture: **The Singing Bowl** on the lounge chair (rolling ring walls to jump, and a hum that fills the whole cushion but a safe circle by the bowl), **The Mushroom Pillow** on the sofa (drifting spores that burst as columns, and a ring of caps to stand still inside) and **The Headphones** on the kitchen counter (sound waves that shove you, and bursts that light one half of the counter at a time).
   All three keep the song's time, so each hit lands on the beat.

@@ -17,7 +17,6 @@ const WHITE = new THREE.Color(1, 1, 1);
 const _ahead = new THREE.Vector3();   // scratch: which way a Shot is flying
 const NUMBER_ACCENTS = { fire: '· ˙', ice: '◇ ·', lightning: 'ϟ', acid: '•', wind: '〰', glitter: '✧ ·' };
 
-const SMOKE_BLACK = new THREE.Color('#0a0807');   // shortcut: not in look.css; the smoke is plain black, its warm ember is smoke-ember
 export class Fx {
   constructor(scene, camera, { showcase = false } = {}) {
     this.scene = scene;
@@ -46,7 +45,6 @@ export class Fx {
     };
     this.numberColors = Object.fromEntries(Object.entries({ fire: '#ffae62', ice: '#bdeeff', lightning: '#fff27a', acid: '#adff79', wind: '#eef8ff', glitter: '#ffb1ec', mixed: '#d6f1ff' }).map(([k, c]) => [k, LOOK.color('number-' + k, c)]));
     this.puffs = [];
-    this.smokes = [];         // the moth's black smoke: at most `smoke-max` puffs of a few blobs each (smoke())
     this.puffGeo = new THREE.SphereGeometry(1, 12, 8);
     this.rings = [];
     this.chunks = [];
@@ -66,9 +64,6 @@ export class Fx {
     const per = (m) => { m.userData.perInstance = true; return m; };
     this.puffMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
     if (showcase) this.puffMat.userData.soft = LOOK.num('puff-showcase-soft', 0.8);   // (the pick screen's stage: puffs fade to their edges, gas not balls)
-    this.smokeMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-    this.smokeMat.userData.holdout = { value: new THREE.Vector4(0, -99, 0, 0.08) };   // the jelly's middle: no smoke over it (enemies.js sets it each frame)
-    this.smokeMat.userData.renderOrder = 1;   // over bugs, XP and pools, under the jelly (2) and every Warning (3, 4)
     this.chunkMat = per(new THREE.MeshStandardMaterial({ roughness: 0.5, transparent: true }));
     // wet marks on the floor: flat, drawn over it (polygon offset), never hiding what stands on them
     this.splatMat = per(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
@@ -200,24 +195,6 @@ export class Fx {
     p.op = opacity;
     p.m.userData.opacity = opacity;
     p.m.userData.color.set(color);
-  }
-
-  // A puff of black smoke (the moth's plunge): a few big see-through blobs that hang still for
-  // `smoke-hold` s, then thin out. Hides bugs, XP and pools behind it, never the jelly or a Warning.
-  // The oldest goes when `smoke-max` are alive. Holds still under Reduce effects / the OS setting.
-  smoke(pos) {
-    const max = LOOK.num('smoke-max', 3), size = LOOK.num('smoke-size', 0.07), spread = LOOK.num('smoke-spread', 0.05);
-    let s = this.smokes.find((x) => !x.alive);
-    if (!s) {
-      if (this.smokes.length < max) { s = { blobs: Array.from({ length: 4 }, () => this.piece(this.puffGeo, this.smokeMat)) }; this.smokes.push(s); }
-      else s = this.smokes.reduce((a, b) => (b.t > a.t ? b : a));
-    }
-    s.alive = true; s.t = 0; s.at = pos.clone();
-    s.blobs.forEach((m, i) => {
-      const a = i * 1.7 + Math.random(), d = i ? spread : 0;
-      m.userData.o = [Math.cos(a) * d, i === 3 ? spread * 0.8 : 0, Math.sin(a) * d];
-      m.visible = true;
-    });
   }
 
   // Bits that fly out, fall, bounce once and fade: an enemy bursting apart, a splash of drops.
@@ -502,20 +479,6 @@ export class Fx {
       s.m.scale.set(g * s.sx, 1, g * s.sz);
       s.m.userData.opacity = so * Math.min(1, (1 - k) / 0.4);   // holds, then fades over its last 40%
     }
-    const hold = LOOK.num('smoke-hold', 1), fade = LOOK.num('smoke-fade', 0.4), dark = LOOK.num('smoke-opacity', 0.85), still = juice.calm || this.reducedMotion.matches;
-    for (const s of this.smokes) {
-      if (!s.alive) continue;
-      s.t += dt;
-      if (s.t >= hold + fade) { s.alive = false; s.blobs.forEach((m) => { m.visible = false; }); continue; }
-      const k = still ? 0 : s.t / (hold + fade), r = LOOK.num('smoke-size', 0.07) * (1 + 0.25 * k);
-      s.blobs.forEach((m, i) => {
-        const o = m.userData.o;
-        m.position.set(s.at.x + o[0], s.at.y + o[1] + k * 0.03, s.at.z + o[2]);
-        m.scale.setScalar(r);
-        m.userData.opacity = dark * Math.min(1, (hold + fade - s.t) / fade);
-        m.userData.color.set(LOOK.color('smoke-ember', '#4a2208')).lerp(SMOKE_BLACK, i ? 1 : Math.min(1, s.t / 0.3));   // the middle blob cools from an ember
-      });
-    }
     for (const p of this.puffs) {
       if (!p.alive) continue;
       p.t += dt;
@@ -536,7 +499,6 @@ export class Fx {
     this.fireCorpses.length = 0;
     this.nums.forEach((n) => { n.alive = false; n.el.style.display = 'none'; });
     this.puffs.forEach((p) => { p.alive = false; p.m.visible = false; });
-    this.smokes.forEach((s) => { s.alive = false; s.blobs.forEach((m) => { m.visible = false; }); });
     this.rings.forEach((r) => { r.alive = false; r.m.visible = false; });
     this.chunks.forEach((c) => { c.alive = false; c.m.visible = false; });
     this.splats.forEach((s) => { s.alive = false; s.m.visible = false; });
