@@ -2,7 +2,7 @@
 // button once the password has unlocked it (main.js). The last group you used stays open next time.
 const GROUP_KEY = 'jellyrun.dev-group';
 const GROUPS = [
-  ['play', 'Play', [['boss', '👹 Fight boss'], ['duel', '🐞 1 on 1'], ['arena4', 'Act 4 preview']]],
+  ['play', 'Play', [['boss', '👹 Fight boss'], ['duel', '🐞 1 on 1'], ['roam', '🚶 Free roam'], ['arena4', 'Act 4 preview']]],
   ['tune', 'Tune', [['kit', '🧪 Test kit'], ['tuner', '⚖️ Tuner']]],
   ['build', 'Build', [['layout', '🛠 Layout']]],
   ['check', 'Check', [['diag', '🩺 Diagnostics']]],
@@ -47,6 +47,7 @@ export function initDevPanel(sheet, h) {
     else if (b.dataset.act === 'layout') h.openLayout();
     else if (b.dataset.act === 'arena4') location.href = '?arena=act4';
     else if (b.dataset.act === 'duel') picker('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', run.duelChoices(), (p) => run.startDuel(p));
+    else if (b.dataset.act === 'roam') picker('🚶 Free roam (dev)', 'Pick an act: walk its room with no bugs, no damage and the clock stopped. Another act reloads the game into it first.', run.roamChoices(), (p) => run.startRoam(p));
     else if (b.dataset.act === 'boss') picker('👹 Fight boss (dev)', 'Pick a boss: a fresh run straight to its intro. A boss from another act reloads the game into that act first.', run.bossChoices(), (p) => run.startBossFight(p));
     else if (b.dataset.act === 'kit') toTool((r, o) => h.kit.show(r, o));    // try any treasure or evolution on this run (test-kit.js)
     else if (b.dataset.act === 'tuner') toTool((r, o) => h.tuner.show(r, o));  // edit bug and treasure numbers, live (balance-editor.js)

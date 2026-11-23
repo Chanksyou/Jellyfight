@@ -336,8 +336,23 @@ story('menu/reduce-effects', {
       { button: !!btn, follows, full, calm, ladder: [kShake, kStop] });
   },
 });
+story('dev/free-roam-is-quiet', {
+  about: 'Dev free roam: the picker offers every act, and a roam in this act has no bugs, no Elites, no damage and a stopped clock, so you can walk the room and look.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run, player } = G();
+    const picks = run.roamChoices(), pick = picks.find((p) => p.roam === run.stage.id);
+    run.startRoam(pick);
+    step(600);
+    const before = run.health;
+    run.hurt(5);
+    step(10);
+    return ok(picks.length === 4 && run.dev && run.enemies.alive === 0 && run.elites.alive.length === 0 && run.t === 0 && run.health === before && run.phase === 'explore',
+      { acts: picks.length, dev: run.dev, bugs: run.enemies.alive, elites: run.elites.alive.length, t: run.t, health: [before, run.health], phase: run.phase, moved: !!player });
+  },
+});
 story('dev/panel-has-every-tool', {
-  about: 'The Dev panel is one sheet in four groups: Play (Fight boss, 1 on 1, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, and AO, Bloom and Lamps as On/Off switches). Every tool is a tap away and does what it did in the old row: the pickers and tools open, the switches change the drawing, and the last group used is remembered.',
+  about: 'The Dev panel is one sheet in four groups: Play (Fight boss, 1 on 1, Free roam, Act 4 preview), Tune (Test kit, Tuner), Build (Layout) and Check (Diagnostics, and AO, Bloom and Lamps as On/Off switches). Every tool is a tap away and does what it did in the old row: the pickers and tools open, the switches change the drawing, and the last group used is remembered.',
   setup() { fresh({ elites: false }); try { localStorage.removeItem('jellyrun.dev-group'); } catch {} },
   play() {
     const { run } = G(), over = document.querySelector('#g-over'), sheet = over.querySelector('.menu-dev'), $ = (s) => sheet.querySelector(s);
@@ -347,7 +362,7 @@ story('dev/panel-has-every-tool', {
     const opened = !sheet.hidden;
     const groups = {};
     for (const id of ['play', 'tune', 'build', 'check']) { tab(id).click(); groups[id] = [...pane(id).querySelectorAll('[data-act]')].map((b) => b.dataset.act).join() + (visible(id) ? '' : '!hidden'); }
-    const grouped = JSON.stringify(groups) === JSON.stringify({ play: 'boss,duel,arena4', tune: 'kit,tuner', build: 'layout', check: 'diag' });
+    const grouped = JSON.stringify(groups) === JSON.stringify({ play: 'boss,duel,roam,arena4', tune: 'kit,tuner', build: 'layout', check: 'diag' });
     const remembered = localStorage.getItem('jellyrun.dev-group') === 'check';
     // the boss and 1 on 1 pickers open and offer their fights
     const pick = (act) => { over.hidden = false; $(`[data-act="${act}"]`).click(); const names = [...document.querySelectorAll('.btns button')].map((b) => b.textContent); const hid = over.hidden; [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'Back')?.click(); return { names: names.length, hid, back: !over.hidden }; };

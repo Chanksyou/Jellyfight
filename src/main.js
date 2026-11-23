@@ -481,7 +481,7 @@ const mainMenu = new MainMenu({ overlay, player, camera, gfx, scene, height: CON
   onPoke: () => { unlockAudio(); sfx.pop(); },
 });
 board.onChange = () => mainMenu.refreshGreeting();
-if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction()?.boss || peekAction()?.layout) {
+if (stage.id !== 1 || peekAction()?.continue || peekAction()?.duel || peekAction()?.roam || peekAction()?.boss || peekAction()?.layout) {
   mainMenu.home = false; overlay.classList.remove('menu-home');
 }
 let bossScene = null;
@@ -1204,6 +1204,7 @@ export const ready = warmUp().then(() => {
     } else playBtn.textContent = 'Click to dive in';
   }
   if (then?.duel) { const pick = run.duelChoices().find((p) => p.name === then.duel); if (pick) run.startDuel(pick); }
+  if (then?.roam) { const pick = run.roamChoices().find((p) => p.name === then.roam); if (pick) run.startRoam(pick); }
   if (then?.boss) { const pick = run.bossChoices().find((p) => p.name === then.boss); if (pick) run.startBossFight(pick); }
   if (then?.layout) openLayout();   // the layout editor's act buttons reload into the act with it open
   if (storyParams.has('bench')) { import('./bench.js').then((B) => B.offer()); return; }   // index.html?bench: the phone bench
