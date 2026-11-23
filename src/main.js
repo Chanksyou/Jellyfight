@@ -29,6 +29,7 @@ import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
 import { addRain } from './rain.js';
+import { FloorLight } from './floor-light.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -66,7 +67,7 @@ import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
 import { FieldPerf } from './field-perf.js';
-import { Ambient } from './ambient.js';
+import { Ambient, AMBIENT } from './ambient.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -283,7 +284,7 @@ function skyNow(t) {
   scene.background.copy(SKY_STEP.sky);
   scene.fog.density = SKY_STEP.haze; scene.fog.color.copy(SKY_STEP.hazeColor);
 }
-if (!ARENA) dressSet(scene, APT.root);   // detailed TV / soundbar / shower curtain replace the flat baked ones
+if (!ARENA) dressSet(scene, APT.root, { tvScreensaver: !!stage.tvScreensaver && EXPERIMENTS.ambient !== 0 });   // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
 if (!ARENA) APT.lightMapped = mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);   // the big pieces' own light maps (piece-light.js), before the collision world and the batches take their vertices
 const world = new World(scene, { staticScene: true });
@@ -311,6 +312,7 @@ if (raining) addRain(APT.root);   // (after the bake's patch, which it wraps)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
 const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
 if (!ARENA) { ambient.mark(APT.root); scene.children.filter((o) => DRESSED.includes(o.name)).forEach((o) => ambient.mark(o)); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
+const floorLight = !ARENA && EXPERIMENTS.ambient !== 0 ? new FloorLight(APT.root, stage.floorLight, () => ambient.calm(), () => AMBIENT.uniforms.ambientTime.value) : null;   // the screens' and the night light's pools on the floor (floor-light.js)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas, { haze: raining ? LOOK.num('rain-haze', 0.35) : 0 });
 function setNight(minutes) {
   cityTime?.(minutes);
@@ -821,6 +823,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
+    floorLight?.update();
     systems.shadow.update(dt);
     air?.update(dt, renderer, camera);
     systems.hud.update(dt);
@@ -1306,4 +1309,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, ambient, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, ambient, floorLight, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
