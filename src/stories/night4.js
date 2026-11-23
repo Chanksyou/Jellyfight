@@ -10,6 +10,7 @@ import { FEATS_KEY, PEARLS_KEY } from '../cosmetics.js';
 import * as kit from './kit.js';
 import { G, V, fresh, night4, ok, sim, step, stub, tp } from './kit.js';
 import { LOOK } from '../look.js';
+import { BAKED_LIGHT } from '../baked-light.js';
 
 const STATE = 'jellyrun.act';
 // run fn, then put back the act's state, the kept run and the lifetime totals a run adds to
@@ -266,7 +267,7 @@ night4('the-act-plays-sunrise-set', {
 });
 
 night4('the-dawn-look-warms-across-the-night', {
-  about: 'The interior dawn fill, sky and haze warm across Act 4. The city remains visible and brightens on the same mesh and atlas, with no light added or removed.',
+  about: 'The interior dawn fill, sky and haze warm across Act 4, and the baked daylight on the walls and floor (baked-light.js) fades in from --dawn-daylight to --dawn-daylight-late. The city remains visible and brightens on the same mesh and atlas, with no light added or removed.',
   setup() { fresh(); },
   play() {
     const { run, APT } = G(), S = APT.scene, city = S.getObjectByName('Skyline');
@@ -276,13 +277,15 @@ night4('the-dawn-look-warms-across-the-night', {
     const hex = (c) => '#' + c.getHexString();
     const lights = () => { let n = 0; S.traverse((o) => { if (o.isLight) n++; }); return n; };
     step(2);
-    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, daylight: daylight.value };
+    const day = () => BAKED_LIGHT.uniforms.lbDayK.value;
+    const lit = lights(), start = { fill: S.environmentIntensity, sky: hex(S.background), haze: S.fog.density, daylight: daylight.value, baked: day(), picture: !!BAKED_LIGHT.meta?.sets.includes('day') };
     run.t = run.duration; run.nightT = 0;
     step(2);
-    const end = { fill: S.environmentIntensity, sky: hex(S.background), daylight: daylight.value };
+    const end = { fill: S.environmentIntensity, sky: hex(S.background), daylight: daylight.value, baked: day() };
     return ok(near(start.fill, LOOK.num('dawn-fill')) && start.sky === LOOK.color('dawn-sky') && near(start.haze, LOOK.num('dawn-haze'))
       && near(end.fill, LOOK.num('dawn-fill-late')) && end.sky === LOOK.color('dawn-sky-late')
       && start.daylight > 0 && start.daylight < 0.5 && end.daylight === 1
+      && start.picture && near(start.baked, LOOK.num('dawn-daylight')) && near(end.baked, LOOK.num('dawn-daylight-late'))
       && !S.getObjectByName('Dawn window') && city.material.map === map && lights() === lit, { start, end, lit });
   },
 });

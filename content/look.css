@@ -651,7 +651,9 @@
   --dawn-sky: #26407a;            --dawn-sky-late: #4a8fe0;
   --dawn-haze: 0.14;              --dawn-haze-late: 0.16;
   --dawn-haze-color: #0b1226;     --dawn-haze-color-late: #301c10;
+  --dawn-daylight: 0.15;          --dawn-daylight-late: 1;   /* how much of act 4's baked daylight picture lights the shell (baked-light.js) */
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
+  --baked-light: 1;            /* how bright Blender's baked light on walls, floors and ceilings shows (baked-light.js; 0 = every lamp live, as before) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */

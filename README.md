@@ -338,6 +338,7 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 **Stories** (`src/stories/<area>.js`, shared helpers in `src/stories/kit.js`, loaded in order by `src/stories.js`) are named situations in the real game, like Storybook: `index.html?story=words/spit-pin` opens one live (on a phone too), `index.html?stories` lists them all.
 Each story's `play()` also runs headlessly and checks what should happen. `node tests/run.mjs` plays every story plus a phone touch check and fails on any broken behaviour or console error.
 Setup: `cd tests && npm install && npx playwright install chromium`.
+Baking the light also needs `pip install bpy pillow` (Blender 5.3 as a Python module).
 
 **Balance tools** use repeatable seeds and real combat measurements: Health lost after shields, effective enemy damage after defenses, healing, revivals, and separate deaths/timeouts.
 The campaign bot supports ranged, close-range and rooting styles, chooses offered rewards with seeded priorities, and carries earned builds through all four acts.
@@ -469,6 +470,9 @@ The exporter (`tools/exporter.js`) keeps the meshes inside the rooms.
 It drops everything else: the neighborhood, the corridor, the sky, Dendi (the game's cat is built at runtime instead — see Characters above), particles and helpers.
 Doors are exported closed as `door-<id>` nodes. `tools/compress.mjs` then meshopt-compresses the geometry (about 17 MB down to 5 MB).
 After a re-export, or after moving furniture in `src/layout-baked.js`, bake the corner shadows again: `node tools/bake-ao.mjs` (about 4 minutes an act; it uses the tests' setup).
+Then bake the light again: `node tools/bake-light.mjs` (Blender's Cycles on the processor, about 5 to 20 minutes an act).
+It needs Blender as a Python module and Pillow: `pip install bpy pillow` (Blender 5.3).
+`node tools/light-shots.mjs` shoots each act with the bake and with every lamp live, side by side.
 
 | File | What it does |
 | --- | --- |
@@ -491,6 +495,7 @@ After a re-export, or after moving furniture in `src/layout-baked.js`, bake the 
 | `src/hud.js` | Health, XP, boss countdown and night clock, treasures, minimap with markers, boss bar, hints, toasts. |
 | `src/graphics.js` | Post-processing: ambient occlusion (N8AO, High only), depth of field, a half-resolution bloom added in by the output pass, vignette. Low / Medium / High in the pause menu (phones default to Medium, desktops to High). The dev tools' AO, Bloom and Lamps switches turn each off to feel what it costs. |
 | `src/baked-ao.js`, `tools/bake-ao.mjs` | Corner shadows baked once per act into a small 3D texture of how open the space is (`assets/ao-<act>.*`); Low and Medium read it in the apartment's shaders instead of running N8AO. |
+| `src/baked-light.js`, `src/bake-lights.js`, `tools/bake-light.mjs` | Light on the walls, floors and ceilings baked once per act in Blender (`assets/light-<act>.*`), lamps and bake-only lights with soft shadows and bounce; read by world position in the apartment's shaders, with the jelly's glow still live on top. |
 | `src/static-batch.js` | Furniture that shares a material is drawn as one BatchedMesh; each piece stays its own mesh for collisions, doors, the layout editor and camera fades. |
 | `src/pacing.js` | How often and how sharp: a frame-rate cap (phones 30 by default, so they don't run hot and then throttle, with 60 in the menu's Frame rate pick; 20 behind menus) and a governor that lowers the pixel ratio when frames run long and raises it back with headroom. A steady 30 fps that fewer pixels don't speed up (iPhone Low Power Mode) is treated as a cap, not slowness. |
 | `src/light-slots.js` | Phones light the room with 6 shared lights (`--phone-lights`) instead of all 15+ lamps: the lamps lighting the jelly most fade into them as it swims. The light count never changes, so no shader rebuilds mid-game. |
