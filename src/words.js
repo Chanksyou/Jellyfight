@@ -825,7 +825,7 @@ export const ENEMY_WORDS = {
         init(e) { e.beatN = null; e.beatPulse = 0; },
         tick(e, c) {
           const n = Math.floor(c.beat), on = e.beatN !== null && n !== e.beatN;   // a new beat this frame
-          e.beatN = n;
+          e.beatN = n; e.beatAt = c.beat;                                         // (a firefly's lamp keeps time with it)
           e.beatPulse = on ? 1 : Math.max(0, e.beatPulse - c.dt * 4);           // its model (or the size pulse) shows it
           c.wait = !(on && n % p.every === 0);
         },
