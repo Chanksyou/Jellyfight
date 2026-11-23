@@ -327,12 +327,12 @@ async function renderBed(act, state = {}, secs = 5) {
 }
 
 story('sound/ambience-has-a-bed-per-act', {
-  about: 'Each act\'s room has its own quiet, steady bed: audible, never loud, never NaN, and acts 2 and 3 sound unlike act 1 (a deep fridge hum, tile-room air, a humidifier\'s high hiss). Act 4 is act 1\'s room, so it plays act 1\'s bed.',
+  about: 'Each act\'s room has its own quiet, steady bed: audible, never loud, never NaN, and acts 2 and 3 sound unlike act 1 (a deep fridge hum, tile-room air, a humidifier\'s high hiss). Act 4 is act 1\'s room, so it plays act 1\'s bed, without act 1\'s rain.',
   setup() { setupFight(); },
   async play() {
     const { BEDS } = await import('../ambience.js'), beds = [];
     for (const act of [1, 2, 3, 4]) beds.push(await renderBed(act));
-    const [a1, a2, a3, a4] = beds, same = BEDS[4] === BEDS[1];
+    const [a1, a2, a3, a4] = beds, same = BEDS[4].every((l) => BEDS[1].includes(l)) && BEDS[1].length === BEDS[4].length + 2;   // act 1 adds its rain
     const heard = beds.every((b) => b.rms > 0.002 && b.peak < 0.35 && !b.bad && b.layers > 0);
     const apart = Math.abs(a2.zcr - a1.zcr) > 0.004 && Math.abs(a3.zcr - a1.zcr) > 0.002 && Math.abs(a3.zcr - a2.zcr) > 0.002;
     return ok(heard && apart && same && Math.abs(a4.rms - a1.rms) < a1.rms * 0.35, { beds: beds.map((b) => ({ rms: +b.rms.toFixed(4), peak: +b.peak.toFixed(3), zcr: +b.zcr.toFixed(3), layers: b.layers })), same });

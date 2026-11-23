@@ -161,3 +161,36 @@ story('ambient/dendi-breathes-in-view-and-costs-nothing-out-of-it', {
       { breathes, still, drawsInView: withCat - without, drawsAway: awayWith - awayWithout, calm });
   },
 });
+
+// --- Rain on the windows: act 1 only (rain.js, a stage's `rain`)
+const rainyPanes = () => { const out = []; G().APT.root.traverse((o) => { if (o.isMesh && o.material?.userData?.rain) out.push(o); }); return out; };
+const cityHaze = () => { let h = null; G().APT.scene?.traverse?.((o) => { if (o.name === 'Skyline') h = o.material; }); return h; };
+story('ambient/rain-only-in-act-1', {
+  about: 'Act 1\'s window glass carries the rain (on the panes\' own material: no new mesh, so no draw is added) and its room tone has the rain layers; act 4 is the same room at dawn and stays dry.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const panes = rainyPanes(), { BEDS, ONCE } = await import('../ambience.js');
+    const own = panes.every((p) => p.parent?.name === 'Shell' && p.material.transparent);
+    const sound = BEDS[1].length > BEDS[4].length && ONCE[1].some((e) => e.name === 'far-thunder') && !ONCE[4].some((e) => e.name === 'far-thunder');
+    return ok(panes.length >= 2 && own && sound, { panes: panes.map((p) => p.name), own, sound });
+  },
+});
+story('ambient/act4-glass-is-dry', {
+  about: 'Act 4 is act 1\'s room at dawn: no rain on its glass.',
+  act: 4,
+  setup() { fresh({ elites: false }); },
+  play() { const panes = rainyPanes(); return ok(!panes.length, { panes: panes.length }); },
+});
+story('ambient/rain-adds-no-draws', {
+  about: 'The rain costs no draw call: the same view draws exactly as many calls with the drops painted as with the glass clear.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const panes = rainyPanes(), { tpc } = G();
+    tp(3.4, 0, 0.9, 0); tpc.yaw = 0; tpc.snapTo(G().player.position); drawn(10);
+    const wet = calls(), u = panes[0]?.material.userData.rain, was = u?.rainTint.value.w;
+    if (u) u.rainTint.value.w = 0;
+    const dry = calls();
+    if (u) u.rainTint.value.w = was;
+    return ok(panes.length > 0 && wet === dry, { wet, dry });
+  },
+});

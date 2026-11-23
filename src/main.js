@@ -28,6 +28,7 @@ import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
+import { addRain } from './rain.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -305,10 +306,12 @@ if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
+const raining = !!stage.rain && !ARENA && EXPERIMENTS.ambient !== 0;   // rain on the windows (rain.js): act 1 only
+if (raining) addRain(APT.root);   // (after the bake's patch, which it wraps)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
 const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
 if (!ARENA) { ambient.mark(APT.root); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
-const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
+const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas, { haze: raining ? LOOK.num('rain-haze', 0.35) : 0 });
 function setNight(minutes) {
   cityTime?.(minutes);
   if (SKY) skyNow(THREE.MathUtils.clamp((minutes - stage.clock[0]) / (stage.clock[1] - stage.clock[0]), 0, 1));

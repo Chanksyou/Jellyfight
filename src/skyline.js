@@ -53,7 +53,7 @@ function tower(centre, x, z, width, depth, low, high, type, topRow, bottomRow) {
   return g;
 }
 
-export function addSkyline(scene, centre, map) {
+export function addSkyline(scene, centre, map, { haze = 0 } = {}) {   // haze: rain on the glass (rain.js) softens the city, 0..1
   const above = LOOK.num('skyline-up', 84), below = LOOK.num('skyline-down', 100);
   const parts = [
     // Photo-matched masses. Window bays, crown lights and roof equipment are painted.
@@ -93,9 +93,12 @@ export function addSkyline(scene, centre, map) {
     shader.uniforms.cityHorizon = sky.horizon;
     shader.uniforms.citySun = sky.sun;
     shader.uniforms.citySunAt = sky.sunAt;
+    shader.uniforms.cityHaze = { value: haze };
+    shader.uniforms.cityHazeColor = { value: new THREE.Color(LOOK.color('rain-haze-color', '#2a3442')) };
     shader.fragmentShader = `
       uniform float cityDaylight, cityNightGain, cityDayGain, citySkyMix, citySunUp;
-      uniform vec3 citySky, cityHorizon, citySun;
+      uniform vec3 citySky, cityHorizon, citySun, cityHazeColor;
+      uniform float cityHaze;
       uniform vec2 citySunAt;
     ` + shader.fragmentShader.replace('#include <map_fragment>', `
       #include <map_fragment>
@@ -115,6 +118,7 @@ export function addSkyline(scene, centre, map) {
       float halo = exp(-dot(toSun, toSun) * 1.4), disc = smoothstep(0.16, 0.1, length(toSun));
       vec3 dayHigh = mix(cityHorizon, citySky, pow(high, 0.55)) + citySun * (halo * 0.55 + disc);
       diffuseColor.rgb = mix(diffuseColor.rgb, dayHigh, skyness * citySkyMix);
+      diffuseColor.rgb = mix(diffuseColor.rgb, cityHazeColor + diffuseColor.rgb * 0.35, cityHaze);   // rain: lower contrast, a little haze
     `).replace('#include <colorspace_fragment>', `
       #include <colorspace_fragment>
       float skyEdge = (1.0 - step(0.75, vMapUv.x)) * smoothstep(0.86, 1.0, vMapUv.y);
