@@ -1,6 +1,7 @@
 // Ambient life (src/ambient.js): plants sway and glasses shiver in the room's shared shader patch.
 import * as THREE from 'three';
 import { G, V, fresh, tp, step, ok, stub, story } from './kit.js';
+import { juice } from '../juice.js';
 
 // the plants every act-1 room has (act 4 is the same room: the same list)
 const ACT1_PLANTS = ['Aloe', 'Monstera', 'Pilea', 'Pothos', 'Rubber_plant', 'Snake_plant', 'Tall_snake_plant'];
@@ -112,5 +113,51 @@ story('ambient/hits-and-the-jelly-make-gusts', {
     step(60);
     const later = Math.max(g[1].w, g[2].w, g[3].w);
     return ok(still === 0 && moving > 0.9 && near && small === 0 && big > 0.9 && later === 0, { still, moving, near, small, big, later });
+  },
+});
+
+// --- Dendi asleep in his box by the cat scratcher (acts 1 and 4; cat.js addDendi, a stage's `cat`)
+const BOX = [4.155, 0.006, 4.53];
+const drawn = (n) => { for (let i = 0; i < n; i++) { G().GAME.step(1 / 60); G().GAME.render(); } };
+const calls = () => { const R = G().APT.renderer; R.info.reset(); R.info.autoReset = false; G().GAME.render(); const c = R.info.render.calls; R.info.autoReset = true; return c; };
+function asleepInBox() {
+  const d = G().dendi;
+  let solid = 0; d.group.traverse((o) => { if (o.isMesh && !o.userData.noCollide) solid++; });
+  const at = d.group.position.toArray().every((v, i) => Math.abs(v - BOX[i]) < 1e-3);
+  return ok(d.asleep && d.group.visible && d.state() === 'sleep' && at && d.atHome() && solid === 0,
+    { asleep: d.asleep, visible: d.group.visible, state: d.state(), at: d.group.position.toArray(), solid });
+}
+story('ambient/dendi-sleeps-in-his-box', {
+  about: 'In act 1 Dendi sleeps in his cardboard box by the cat scratcher all night: shown, in the sleep pose, and nothing he is made of is solid.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() { step(30); return asleepInBox(); },
+});
+story('ambient/dendi-sleeps-in-act-4-too', {
+  about: 'Act 4 is act 1\'s room at dawn: Dendi is still asleep in the same box.',
+  act: 4,
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() { step(30); return asleepInBox(); },
+});
+story('ambient/dendi-breathes-in-view-and-costs-nothing-out-of-it', {
+  about: 'Seen, Dendi\'s sides rise and fall (his bones are posed a few times a second); turned away from, his bones are not touched and he adds no draw. Reduce effects holds him in one pose.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); stub(juice, 'calm', false); },
+  play() {
+    const { dendi: d, tpc } = G(), spine = () => d.bones.spine.quaternion.clone();
+    const look = (yaw, x = 3.95, z = 4.05) => { tp(x, 0, z, yaw); tpc.yaw = yaw; tpc.snapTo(G().player.position); drawn(10); };
+    // in view: he moves, and costs his draws
+    look(Math.PI);
+    const a = spine(); drawn(40); const breathes = a.angleTo(spine()) > 1e-4;
+    const withCat = calls(); d.group.visible = false; const without = calls(); d.group.visible = true;
+    // out of view: no posing, no draw
+    look(0, 3.5, 3.0);
+    const b = spine(); drawn(60); const still = b.angleTo(spine()) < 1e-9;
+    const awayWith = calls(); d.group.visible = false; const awayWithout = calls(); d.group.visible = true;
+    // Reduce effects: one pose, held
+    look(Math.PI);
+    juice.calm = true; drawn(5);
+    const c = spine(); drawn(40); const calm = c.angleTo(spine()) < 1e-9;
+    juice.calm = false;
+    return ok(breathes && still && awayWith === awayWithout && withCat > without && calm,
+      { breathes, still, drawsInView: withCat - without, drawsAway: awayWith - awayWithout, calm });
   },
 });

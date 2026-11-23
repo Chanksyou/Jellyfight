@@ -4,12 +4,14 @@
 // (procedurally built and weighted), rigid attachments (eyes, nose, whiskers,
 // collar) parented to bones, procedural poses for idle / curious / walk /
 // trot / sit / loaf / stretch. Real scale, in metres: shoulder ~0.26 m.
-// Faces +Z. In the game he is never seen during a run — he exists hidden
-// and shows up only to finish a boss (see addDendi below); the apartment
+// Faces +Z. In acts 1 and 4 he sleeps in his box by the cat scratcher (a
+// stage's `cat`); elsewhere he exists hidden. Either way he gets up only to
+// finish a boss (see addDendi below); the apartment
 // exporter drops the source scene's own cat, so the game builds this one
 // at runtime instead.
 
 import * as THREE from 'three';
+import { LOOK } from './look.js';
 
 // ---------------------------------------------------------------- bones
 // name, parent, local position (bind pose). Legs hang down (-Y) from their
@@ -544,7 +546,10 @@ function tailHangCurl(cat, side = 0.3) {
 function blinkAndPupils(cat, t, pupil = 0.45, lid = 1) {
   const cyc = t % 3.7;
   const b = cyc < 0.13 ? Math.sin((cyc / 0.13) * Math.PI) : 0; // 0..1 blink
-  for (const e of [cat.attachments.eyeL, cat.attachments.eyeR]) e.scale.y = lid * (1 - 0.92 * b);
+  for (const e of [cat.attachments.eyeL, cat.attachments.eyeR]) {
+    e.scale.y = lid * (1 - 0.92 * b);
+    for (let i = 1; i < e.children.length; i++) e.children[i].visible = lid > 0.1;   // shut (asleep): the ball alone, 6 fewer draws
+  }
   for (const p of [cat.attachments.pupilL, cat.attachments.pupilR]) p.scale.x = pupil;
 }
 // one leg's gait: phase-offset swings for upper/lower/paw
@@ -555,7 +560,7 @@ function gaitLeg(cat, tag, ph, amp, liftAmp) {
   R(B[`leg${tag}2`], -amp * 0.55 * Math.sin(ph) - liftAmp * 0.5 * Math.max(0, Math.sin(ph - 0.7)));
 }
 
-export const STATE_NAMES = ['idle', 'curious', 'walk', 'trot', 'sit', 'loaf', 'stretch', 'smack'];
+export const STATE_NAMES = ['idle', 'curious', 'walk', 'trot', 'sit', 'loaf', 'stretch', 'smack', 'sleep'];
 export function applyState(cat, state, t, opts = {}) {
   const B = cat.bones;
   resetPose(cat);
@@ -624,6 +629,26 @@ export function applyState(cat, state, t, opts = {}) {
       blinkAndPupils(cat, t, 0.34, 0.82); // sleepy loaf
       break;
     }
+    case 'sleep': {
+      // asleep in a loaf (acts 1 and 4, in his box): the loaf's fold with the head sunk onto the
+      // chest and the eyes shut; slow deep breaths lift his sides; now and then an ear twitches
+      // and the tail tip flicks (each a short pulse on its own long cycle)
+      const deep = Math.sin(t * 2.3);
+      B.hips.position.y -= 0.138 - deep * 0.0025;
+      R(B.hips, 0.03, 0, 0); R(B.spine, 0.06 + deep * 0.03, 0, 0); R(B.chest, 0.04 - deep * 0.02, 0, 0);
+      R(B.neck, 0.42, 0, 0); R(B.head, 0.3, 0, 0.12);
+      for (const s of ['L', 'R']) {
+        R(B[`legF${s}0`], -0.12, 0, 0); R(B[`legF${s}1`], 2.85, 0, 0); R(B[`legF${s}2`], -0.5, 0, 0);
+        R(B[`legH${s}0`], -1.30, 0, s === 'L' ? 0.05 : -0.05); R(B[`legH${s}1`], 2.75, 0, 0); R(B[`legH${s}2`], -1.1, 0, 0);
+      }
+      const pulse = (c, len) => (c < len ? Math.sin((c / len) * Math.PI) : 0);
+      R(B.earL, -0.45 * pulse(t % 9.3, 0.3), 0, 0.2 * pulse(t % 9.3, 0.3));
+      tailHangCurl(cat, 0.55);
+      const flick = pulse((t + 4.1) % 13.7, 0.7);
+      R(B.tail4, 0, 0, 0.5 * flick); R(B.tail5, 0, 0, 0.7 * flick);
+      blinkAndPupils(cat, 0.5, 0.34, 0.07);   // shut
+      break;
+    }
     case 'smack': {
       // one decisive paw chop (the boss finish): cock the right paw up
       // beside his head, slam it down-forward — contact at ~0.25 s — then
@@ -672,10 +697,10 @@ export function applyState(cat, state, t, opts = {}) {
 }
 
 // ------------------------------------------------------------ in the game
-// addDendi builds him hidden (both boss stages): the boss finish is the
-// only time he is ever seen — main.js places him beside the doomed boss
-// (placeForSmack), the paw lands (beginSmack), and endScene hides him
-// again and puts him back. A slow pose routine (loaf / idle / sit /
+// addDendi builds him hidden, or asleep at home (opts.asleep: acts 1 and 4,
+// in his box). The boss finish is the only time he is up — main.js places
+// him beside the doomed boss (placeForSmack), the paw lands (beginSmack),
+// and endScene puts him back home as he was (hidden, or asleep again). A slow pose routine (loaf / idle / sit /
 // curious, watching a near jelly) is kept for if he is ever placed
 // visibly; while hidden his tick costs nothing. Nothing he is made of
 // collides (noCollide throughout), and the camera fade ignores him.
@@ -689,7 +714,16 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
   cat.group.traverse((o) => { o.userData.noCollide = true; });
   if (opts.hidden) cat.group.visible = false;   // Act 2: he exists only for the boss finish
   scene.add(cat.group);
-  let t = Math.random() * 10, step = 0, left = ROUTINE[0][1], state = ROUTINE[0][0], pose = state;
+  // Asleep (opts.asleep, acts 1 and 4): he holds the 'sleep' pose and nothing else; his bones are
+  // posed only while he was drawn last frame, a few times a second (--dendi-sleep-fps), and not at
+  // all under Reduce effects (opts.calm). A fixed bounding sphere lets the camera cull him whole.
+  const asleep = !!opts.asleep, calm = opts.calm || (() => false), rate = LOOK.num('dendi-sleep-fps', 12);
+  cat.mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.17, -0.05), 0.42);
+  cat.mesh.frustumCulled = true;
+  let frame = 0, seen = -9, wait = 0, held = false;
+  cat.mesh.onBeforeRender = () => { seen = frame; };
+  if (asleep) applyState(cat, 'sleep', 0);
+  let t = Math.random() * 10, step = 0, left = ROUTINE[0][1], state = asleep ? 'sleep' : ROUTINE[0][0], pose = state;
   // The boss finish (main.js runs the scene): placeForSmack puts him beside
   // the doomed boss, beginSmack starts the chop, endScene hands him back.
   let sceneMode = null, sceneT = 0, smackRate = 1, walkTime = 0;
@@ -713,7 +747,10 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
     cat.group.position.copy(home.pos);
     cat.group.rotation.y = home.yaw;
     cat.group.visible = !home.hidden;
+    pose = state; wait = 0; held = false; seen = frame;   // pose him again next tick (the smack left him mid-chop)
   };
+  // back where he started, as he started (asleep at home, or hidden), and no scene running
+  const atHome = () => !sceneMode && cat.group.visible === !home.hidden && cat.group.position.distanceTo(home.pos) < 1e-6;
   const tick = (dt, jellyPos) => {
     if (sceneMode) {
       sceneT += dt * (sceneMode === 'smack' ? smackRate : 1);
@@ -728,6 +765,17 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
       return pose;
     }
     if (!cat.group.visible) return pose;
+    frame++;
+    if (asleep) {
+      t += dt;
+      if (calm()) { if (!held) { applyState(cat, 'sleep', 0); held = true; } return pose; }   // one still pose
+      held = false;
+      wait -= dt;
+      if (frame - seen > 2 || wait > 0) return pose;   // out of view, or posed a moment ago
+      wait = 1 / rate;
+      applyState(cat, 'sleep', t);
+      return pose;
+    }
     t += dt; left -= dt;
     const gp = cat.group.position;
     const near = jellyPos ? Math.hypot(jellyPos.x - gp.x, jellyPos.z - gp.z) : 99;
@@ -750,5 +798,5 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
     pose = state;
     return pose;
   };
-  return { ...cat, tick, state: () => pose, placeForSmack, approach, beginSmack, endScene };
+  return { ...cat, tick, state: () => pose, placeForSmack, approach, beginSmack, endScene, atHome, asleep, home };
 }

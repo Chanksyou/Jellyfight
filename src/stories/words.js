@@ -712,13 +712,13 @@ story('models/wasp-and-nest', {
   },
 });
 story('models/dendi-the-cat', {
-  about: 'Dendi the cat is never seen during a run: he exists hidden — a skinned tabby (26 bones) with working poses — and only the boss finish brings him out, then hides him again.',
+  about: 'Dendi the cat — a skinned tabby (26 bones) with working poses — sleeps at home (act 1: his box) or waits hidden, and only the boss finish gets him up, then puts him back as he was.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const d = window.dendi;
     if (!d) return ok(false, { dendi: null });
     const bones = d.mesh.skeleton.bones.length;
-    const hiddenAtBoot = !d.group.visible;
+    const hiddenAtBoot = d.atHome();   // asleep in his box (act 1) or hidden
     // posing: loaf and curious hold measurably different neck angles
     applyState(d, 'loaf', 1); const loafQ = d.bones.neck.quaternion.clone();
     applyState(d, 'curious', 1); const curQ = d.bones.neck.quaternion.clone();
@@ -732,8 +732,8 @@ story('models/dendi-the-cat', {
     d.beginSmack();
     const smacked = d.tick(0.05, null) === 'smack';
     d.endScene();
-    return ok(bones >= 26 && hiddenAtBoot && poses && shown && smacked && solid === 0 && !d.group.visible,
-      { bones, hiddenAtBoot, poses, shown, smacked, solid, goneAfter: !d.group.visible });
+    return ok(bones >= 26 && hiddenAtBoot && poses && shown && smacked && solid === 0 && d.atHome(),
+      { bones, hiddenAtBoot, poses, shown, smacked, solid, backHome: d.atHome() });
   },
 });
 story('words/hangs', {
