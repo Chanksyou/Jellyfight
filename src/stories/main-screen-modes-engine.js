@@ -1189,7 +1189,7 @@ story('engine/bugs-cast-soft-shadows', {
   about: 'Every bug standing on something gets a soft round shadow under it (systems.js ShadowSystem), all of them in one instanced draw, sized to the bug; a bug thrown into the air has none until it lands. The jelly\'s own shadow is the same soft picture.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
-    const bugs = [0, 1, 2].map((i) => spawn('ants', near(0.3 + i * 0.12, 0.2), { still: true }));
+    const bugs = [0, 1, 2].map((i) => spawn('ants', near(0.2 + i * 0.06, 0.12), { still: true }));
     step(30);
     const S = G().shadows, grounded = bugs.filter((e) => e.grounded).length, on = S.bugs.count;
     bugs[0].grounded = false; bugs[0].vy = 2; S.update(0);
