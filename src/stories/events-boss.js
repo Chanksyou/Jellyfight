@@ -240,7 +240,7 @@ story('boss/vacuum-two-shields-max', {
 
 // --- 3D attacks: the Vacuum's charge is a lane as tall as it is (8 cm: jump it), its brush sweeps
 story('boss/dendi-finishes-the-vacuum', {
-  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it in view of the camera, and his smack is what kills it — then the usual cleared flow runs.',
+  about: 'At 0 hp the Vacuum is doomed, not dead: the screen fades, Dendi appears beside it in view of the camera, and his smack is what kills it — then he goes back to sleep in his box and the usual cleared flow runs.',
   setup() { startVacuum('charge'); },
   play() {
     const { run } = G(), B = run.boss, d = window.dendi;
@@ -258,8 +258,8 @@ story('boss/dendi-finishes-the-vacuum', {
       }
       return B.dead && run.bossWon;
     });
-    return ok(doomed && smacked && catNear && onScreen && run.bossWon && !d.group.visible,
-      { doomed, smacked, catNear, onScreen, won: run.bossWon, goneAfter: !d.group.visible });
+    return ok(doomed && smacked && catNear && onScreen && run.bossWon && d.atHome() && d.state() === 'sleep',
+      { doomed, smacked, catNear, onScreen, won: run.bossWon, backAsleep: d.atHome() && d.state() });
   },
 });
 story('boss/finish-walk-impact-and-return', {
@@ -285,7 +285,7 @@ story('boss/finish-walk-impact-and-return', {
     });
     const fade=document.querySelector('.boss-fade');
     return ok(run.bossWon && calls===1 && walked>.05 && deadAt>3 && withheld && frozen && locked && elapsed>6 && elapsed<9
-      && player.position.distanceTo(at)<1e-6 && tpc.yaw===yaw && !hud.el.hidden && !d.group.visible && Number(fade.style.opacity)===0,
+      && player.position.distanceTo(at)<1e-6 && tpc.yaw===yaw && !hud.el.hidden && d.atHome() && Number(fade.style.opacity)===0,
       {calls,walked,deadAt,withheld,frozen,locked,elapsed,returned:player.position.distanceTo(at),yaw:tpc.yaw,hidden:hud.el.hidden});
   },
 });
@@ -296,7 +296,7 @@ story('boss/finish-reduced-effects', {
     const {run,hud}=G(), d=G().dendi;run.boss.damage(99999);
     let walked=false, elapsed=0;
     step(240,()=>{elapsed+=1/60;walked ||= d.state()==='walk';return run.bossWon;});
-    return ok(run.bossWon && !walked && elapsed<3 && juice.trauma===0 && !d.group.visible && !hud.el.hidden,{won:run.bossWon,walked,elapsed,trauma:juice.trauma});
+    return ok(run.bossWon && !walked && elapsed<3 && juice.trauma===0 && d.atHome() && !hud.el.hidden,{won:run.bossWon,walked,elapsed,trauma:juice.trauma});
   },
 });
 story('boss/finish-cancels-on-restart', {
@@ -305,8 +305,8 @@ story('boss/finish-cancels-on-restart', {
   play() {
     const {run,player,hud,tpc}=G();run.boss.damage(99999);step(100);
     fresh({elites:false});const at=player.position.clone(), yaw=tpc.yaw;step(2);
-    return ok(!G().dendi.group.visible && Number(document.querySelector('.boss-fade').style.opacity)===0 && !hud.el.hidden && !run.bossWon && player.position.distanceTo(at)<.01 && tpc.yaw===yaw,
-      {cat:G().dendi.group.visible,fade:document.querySelector('.boss-fade').style.opacity,hud:hud.el.hidden,moved:player.position.distanceTo(at)});
+    return ok(G().dendi.atHome() && Number(document.querySelector('.boss-fade').style.opacity)===0 && !hud.el.hidden && !run.bossWon && player.position.distanceTo(at)<.01 && tpc.yaw===yaw,
+      {cat:G().dendi.atHome(),fade:document.querySelector('.boss-fade').style.opacity,hud:hud.el.hidden,moved:player.position.distanceTo(at)});
   },
 });
 story('boss/finish-pauses-before-contact', {
@@ -319,7 +319,7 @@ story('boss/finish-pauses-before-contact', {
     overlay.hidden=false;input.mouseDX=300;step(120);
     const held=paw.angleTo(d.bones.legFR0.quaternion)<1e-6 && !B.dead && tpc.yaw===yaw;
     overlay.hidden=true;step(600,()=>run.bossWon);
-    return ok(held && run.bossWon && !d.group.visible,{held,won:run.bossWon});
+    return ok(held && run.bossWon && d.atHome(),{held,won:run.bossWon});
   },
 });
 story('boss/finish-respects-os-reduced-motion', {
