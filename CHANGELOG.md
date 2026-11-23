@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v631 adds a quiet room tone under each act: a fridge hum and the city far below in the living room, tile-room air and a slow tub drip in the bathroom, a humidifier's hiss and an air purifier's fan in the bedroom, and birds arriving as the sun rises in act 4. A wall clock ticks, a wind chime rings and a far siren passes now and then, each heard from where it is in the room. It steps back when bugs close in, more under a Boss, and is silent in the Encore.
+
 v630 tilts the camera steeper and keeps its lens in front of the kitchen counters when they would block the view of the jelly (they still never fade).
 
 v629 gives each act its own mood: a cool moonlit haze and grade in act 3, a stronger moon through the bedroom curtains, brighter morning sun and sky in act 4's dawn, a stronger cool city glow at act 1's windows and a cooler bathroom light in act 2, all baked in Blender. Every bug now has a soft shadow under it, and the jelly's shadow is soft too.
