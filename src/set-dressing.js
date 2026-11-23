@@ -8,6 +8,7 @@
 // scale, draw calls are not (see the v147 Mug for the same treatment on an elite).
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { AMBIENT } from './ambient.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -25,7 +26,7 @@ const merge = (parts) => mergeGeometries(parts.map((g) => (g.index ? g.toNonInde
 // The wall TV and its soundbar, after the real ones: a near-frameless glossy panel
 // on a wall mount, and a slim fabric-fronted bar under it. The front faces -z (the
 // room), the wall is at the box's +z face.
-function buildTV(box) {
+function buildTV(box, { screensaver = false } = {}) {
   const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
   const g = new THREE.Group();
   const panel = new RoundedBoxGeometry(s.x, s.y, 0.03, 3, 0.008).translate(0, 0, 0.012);
@@ -35,6 +36,7 @@ function buildTV(box) {
   const screen = new THREE.Mesh(new THREE.BoxGeometry(s.x - 0.014, s.y - 0.014, 0.003),
     new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.08, metalness: 0.25, envMapIntensity: 1.6 }));
   screen.position.z = -0.0045;
+  if (screensaver) idleScreen(screen.material);
   screen.name = 'TV screen';              // act 4's concert dressing lights it (concert-dressing.js)
   const led = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.0025, 0.001),
     new THREE.MeshStandardMaterial({ color: 0x1a0505, emissive: 0xff2d1e, emissiveIntensity: 1.6 }));
@@ -43,6 +45,26 @@ function buildTV(box) {
   g.position.copy(c);
   g.position.z -= 0.008;                 // screen front on the baked panel's plane; the mount sinks into the wall
   return g;
+}
+
+// The TV's idle screen: slow drifting colour blobs, a screensaver (the same drift as the pool of light it throws
+// on the floor, floor-light.js screenColor). All in the screen's own shader; the clock is the ambient one, so it
+// holds still under Reduce effects.
+function idleScreen(mat) {
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { ambientOn: AMBIENT.uniforms.ambientOn, ambientTime: AMBIENT.uniforms.ambientTime,
+      idleRate: { value: LOOK.num('floor-light-rate', 0.2094) }, idleGlow: { value: LOOK.num('floor-light-screen', 0.32) } });
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vScr;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvScr = position.xy;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vScr; uniform float ambientOn, ambientTime, idleRate, idleGlow;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float idleT = ambientOn > 0.5 ? ambientTime : 0.0;
+        vec2 idleP = vScr * 2.2;
+        float idleBlob = 0.5 + 0.5 * sin(idleP.x * 3.0 + idleT * idleRate * 1.5) * sin(idleP.y * 4.0 - idleT * idleRate);
+        vec3 idleCol = 0.5 + 0.5 * cos(idleT * idleRate + vec3(0.0, 2.0, 4.0) + idleP.x + idleP.y * 0.7);
+        totalEmissiveRadiance += idleCol * idleBlob * idleGlow;`);
+  };
+  mat.needsUpdate = true;
 }
 
 function buildSoundbar(box) {
@@ -162,7 +184,7 @@ export const DRESSED = BUILDERS.map(([name]) => THREE.PropertyBinding.sanitizeNo
 // Call after the layout is applied and before the collision world is built (boot:
 // every loaded act is present, since acts reload the page rather than stream in).
 // Returns nothing; safe to call again (already-dressed pieces are skipped).
-export function dressSet(scene, root) {
+export function dressSet(scene, root, { tvScreensaver = false } = {}) {
   const app = root.getObjectByName('Apartment') || root;
   // The knit throw's 6 cm fold catches the jelly; keep its texture and hanging sides,
   // but compress the fold above the sheet before the same geometry becomes collision.
@@ -193,7 +215,7 @@ export function dressSet(scene, root) {
     baked.visible = false;
     baked.userData.dressed = true;
     baked.traverse((m) => { if (m.isMesh) m.userData.noCollide = true; });   // not shown, not solid: the replacement is
-    const g = build(box);
+    const g = build(box, { screensaver: tvScreensaver });
     g.name = want;                       // stage treatments look pieces up by this name (traversal.js)
     scene.add(g);
   }

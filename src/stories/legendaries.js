@@ -345,6 +345,21 @@ story('treasures/stomp-elite', {
   },
 });
 
+story('treasures/stomp-boss', {
+  about: 'stomp: the boss can be stomped from a plain jump (4x Attack damage, and the jelly bounces), but it is never Stunned.',
+  setup() { fresh({ bubbles: false, lash: false }); give('pogoStick'); G().run.startBossIntro(); },
+  play() {
+    const { run, player, enemies } = G(), log = record('damage_taken');
+    step(180);
+    const B = run.boss, e = enemies.list.find((x) => x.proxy === B);
+    B.rise = 1; B.state = 'chase'; B.stateT = 99;
+    const c = enemies.center(e);
+    player.position.set(c.x, B.holder.position.y + run.cfg.jumpHeight, c.z);   // the peak of a plain jump from the floor player.peakY = player.position.y; player.grounded = false; player.velocity.set(0, 0, 0);
+    const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === e.id;
+    return ok(k === 4 && hit && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, stun: e.stunT, vy: player.velocity.y, phase: run.phase });
+  },
+});
+
 story('treasures/stomp-is-not-a-landing', {
   about: 'stomp: a bounce off a bug is not a landing, so Cotton Ball\'s shockwave stays quiet until the jelly really lands.',
   setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick', 'cottonBall'); },

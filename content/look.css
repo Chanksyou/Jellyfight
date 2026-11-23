@@ -1124,6 +1124,14 @@
   --ambient-cloth: 0.006;        /* m: a curtain's slow idle ripple at its hem (nothing moves at the rail) */
   --ambient-cloth-billow: 0.05;  /* m: how far a full gust billows the hem away from it (the jelly passing through counts) */
   --ambient-cloth-rate: 0.9;     /* rad/s: how fast the ripple runs */
+  /* Light moving on the floor (floor-light.js) and a living city (skyline.js) */
+  --floor-light-opacity: 0.28;   /* how strong a screen's pool on the floor is (the jelly's own glow stays brighter) */
+  --floor-light-rate: 0.2094;    /* rad/s: how fast a screen's colours drift (2 * pi * 20 / 600, so the clock's wrap is invisible) */
+  --floor-light-lift: 0.015;     /* m: how far above the floor a pool sits */
+  --floor-light-screen: 0.32;    /* how bright the TV's own screensaver is */
+  --city-windows: 0.12;          /* share of the city's lit windows that switch on and off */
+  --city-window-dim: 0.12;       /* how dark a window goes when it is off, 0..1 */
+  --city-beacon-dim: 0.2;        /* how dim a red beacon goes between blinks, 0..1 */
   /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
   --rain-cell: 0.02;             /* m: one still drop per cell at most */
   --rain-drops: 0.4;             /* share of cells with a drop */
