@@ -1185,6 +1185,18 @@ story('engine/baked-light-is-current', {
     return ok(!stale.length, { stale });
   },
 });
+story('engine/bugs-cast-soft-shadows', {
+  about: 'Every bug standing on something gets a soft round shadow under it (systems.js ShadowSystem), all of them in one instanced draw, sized to the bug; a bug thrown into the air has none until it lands. The jelly\'s own shadow is the same soft picture.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const bugs = [0, 1, 2].map((i) => spawn('ants', near(0.3 + i * 0.12, 0.2), { still: true }));
+    step(30);
+    const S = G().shadows, grounded = bugs.filter((e) => e.grounded).length, on = S.bugs.count;
+    bugs[0].grounded = false; bugs[0].vy = 2; S.update(0);
+    const thrown = S.bugs.count;
+    return ok(grounded === 3 && on === 3 && thrown === 2 && S.bugs.isInstancedMesh && !!S.blob.material.alphaMap, { grounded, on, thrown });
+  },
+});
 story('engine/baked-light-maps-the-big-pieces', {
   about: 'The big pieces of furniture (piece-light.js: the kitchen, the sofa, the cabinets) each read their own light map from the bake, and every one the bake mapped still matches its piece (another triangle count would leave it on the light grid). The maps cost no draws: everything of the same material carries a light map attribute, so the furniture batches still join them.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); step(2); },

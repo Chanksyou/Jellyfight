@@ -5,7 +5,7 @@ import { World } from './collision.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Input } from './input.js';
-import { Graphics, CHOICES } from './graphics.js';
+import { Graphics, CHOICES, GRADE } from './graphics.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
 import { EXPERIMENTS } from './experiments.js';
@@ -256,10 +256,15 @@ if (!ARENA) await applyLayout(APT.root, stage.id);   // your saved furniture edi
 // Night: the room is lit by its own lamps (warm pools, dark corners). The image-based fill the
 // apartment ships with brightened everything to daylight, so it's turned almost all the way
 // down; a faint warm haze gives the far side of the room some depth.
-scene.environmentIntensity = LOOK.num('night-fill', 0.12);
-scene.background = new THREE.Color(LOOK.color(ARENA ? 'arena-background' : 'night-sky', ARENA ? '#030611' : '#05060c'));
+// Each act can set its own mood: `--<name>-act<n>` in look.css wins over `--<name>` (the fill, the sky, the haze
+// and the colour grade).
+const actNum = (n, d) => LOOK.num(`${n}-act${stage.id}`, LOOK.num(n, d));
+const actColor = (n, d) => LOOK.color(`${n}-act${stage.id}`, LOOK.color(n, d));
+scene.environmentIntensity = actNum('night-fill', 0.12);
+scene.background = new THREE.Color(ARENA ? LOOK.color('arena-background', '#030611') : actColor('night-sky', '#05060c'));
 scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'), LOOK.num('arena-haze', 0.3))
-  : new THREE.FogExp2(LOOK.color('haze-color', '#0c0604'), LOOK.num('haze', 0.14));
+  : new THREE.FogExp2(actColor('haze-color', '#0c0604'), actNum('haze', 0.14));
+if (!ARENA) { GRADE.gain.set(actColor('grade-gain', '#ffffff')); GRADE.lift.set(actColor('grade-lift', '#000000')); GRADE.sat = actNum('grade-sat', 1); }
 // A stage with a `sky` (act 4's dawn) reads `--<sky>-*` from look.css instead of the night's values: each
 // at the night's first clock minute, and `-late` at its last. setNight (below) moves them along.
 const SKY = !ARENA && stage.sky || null;
@@ -494,7 +499,7 @@ const systems = {
   avatar: new AvatarSystem({ state, player, menuOpen }),
   input: new InputSystem({ state, input, menuOpen }),
   camera: camSys,
-  shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player }),
+  shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player, enemies }),
   hud: new HudSystem({ state, hud, player, tpc, run }),
   debug: new DebugSystem({ state, hud, player, run, enemies, xpDrops, gfx, extra: () => pacingReadout() }),
   render: new RenderSystem({ gfx, statics }),
@@ -1272,4 +1277,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });

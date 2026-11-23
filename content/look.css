@@ -643,6 +643,13 @@
   --surface-paint: 0.19;      /* fine relief on paint and glazed finishes */
   --haze: 0.14;                /* how thick the warm haze across the room is (0 = none) */
   --haze-color: #0c0604;
+  /* each act's own mood (main.js): --<name>-act<n> wins over --<name> for night-fill, night-sky, haze, haze-color
+     and the colour grade below (Medium and High: Low has no output pass) */
+  --grade-gain: #ffffff;       /* the act's picture multiplied by this, after tone mapping */
+  --grade-lift: #000000;       /* its darks lifted toward this */
+  --grade-sat: 1;              /* colour saturation (1 = as it is) */
+  --haze-act3: 0.2;            --haze-color-act3: #0d1730;   /* act 3: the bedroom's moonlit blue air */
+  --grade-gain-act3: #e8efff;  --grade-lift-act3: #000000;   --grade-sat-act3: 0.94;
 
   /* --- the dawn (act 4's living room): each value at 6:00 AM, then "-late" at 8:00 AM; the look moves between
      them across the 3 minutes. A bit brighter than the night but still dim, so cool friendly and hot hostile
@@ -706,6 +713,9 @@
   --jelly-motion-roll-halflife: 0.2;
   --jelly-motion-roll-freq: 1.4;
   --jelly-light: 0.9;          /* the jelly's own light on the floor around it */
+  --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
+  --bug-shadow: 0.6;           /* and under each bug standing on something (one instanced draw, systems.js) */
+  --bug-shadow-size: 1.9;      /* a bug's shadow's radius, in the bug's own radius */
   --jelly-light-reach: 0.4;    /* meters */
   /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
   --jelly-motion-squeeze: 0.3;    /* how far in the rim pulls at a full stroke, of its radius (it flares out a third of that as it relaxes) */
