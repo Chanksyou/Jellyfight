@@ -1114,6 +1114,9 @@
   --ambient-gust-fade: 0.8;      /* s: a hit's gust dies away over this */
   --ambient-rattle: 0.0015;      /* m: how far a glass shivers in a full gust (never at rest) */
   --ambient-rattle-rate: 60;     /* rad/s: how fast */
+  --ambient-cloth: 0.006;        /* m: a curtain's slow idle ripple at its hem (nothing moves at the rail) */
+  --ambient-cloth-billow: 0.05;  /* m: how far a full gust billows the hem away from it (the jelly passing through counts) */
+  --ambient-cloth-rate: 0.9;     /* rad/s: how fast the ripple runs */
   /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
   --rain-cell: 0.02;             /* m: one still drop per cell at most */
   --rain-drops: 0.4;             /* share of cells with a drop */

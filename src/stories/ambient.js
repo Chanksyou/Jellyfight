@@ -56,21 +56,26 @@ story('ambient/act4-sways-like-act1', {
 
 // The room drawn small from a camera on a plant, with the clock and the gusts set by hand
 const target = {};
-function shot(piece, { time, gust = 0, calm = false }) {
+function shot(piece, { time, gust = 0, calm = false, hem = false }) {
   const { APT, ambient, statics } = G(), R = APT.renderer, u = ambient.uniforms;
   const box = new THREE.Box3().setFromObject(piece), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
   const cam = target.cam ||= new THREE.PerspectiveCamera(40, 1, 0.01, 10);
-  cam.position.copy(c).add(V(0.7, 0.35, 0.7).multiplyScalar(size)); cam.lookAt(c); cam.updateMatrixWorld();
+  if (hem) {   // a hanging seen edge-on at its hem (along its long side), so a ripple across it shows sideways
+    const s = box.getSize(new THREE.Vector3()), long = s.x > s.z ? V(1, 0, 0) : V(0, 0, 1);
+    c.y = box.min.y + 0.1;
+    cam.position.copy(c).addScaledVector(long, 0.55).add(V(0, 0.1, 0)); cam.far = 4;
+  } else cam.position.copy(c).add(V(0.7, 0.35, 0.7).multiplyScalar(size));
+  cam.lookAt(c); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
   ambient.calm = () => calm;
   ambient.update(0, V(99, 0, 99), 0);   // (the jelly far off: only the gust set below)
   u.ambientTime.value = time;
   u.ambientGust.value.forEach((g) => g.set(0, 0, 0, 0));
-  u.ambientGust.value[1].set(c.x + 0.05, c.y, c.z, gust);
+  u.ambientGust.value[1].set(c.x + (hem ? 0 : 0.05), c.y, c.z + (hem ? 0.05 : 0), gust);
   const was = [statics.camera, R.getRenderTarget()];
   statics.camera = cam; statics.at.pos.x = Infinity; statics.sync();   // the batches culled for this camera
-  target.rt ||= new THREE.WebGLRenderTarget(96, 96);
-  const px = new Uint8Array(96 * 96 * 4);
-  try { R.setRenderTarget(target.rt); R.render(APT.scene, cam); R.readRenderTargetPixels(target.rt, 0, 0, 96, 96, px); }
+  target.rt ||= new THREE.WebGLRenderTarget(192, 192);
+  const px = new Uint8Array(192 * 192 * 4);
+  try { R.setRenderTarget(target.rt); R.render(APT.scene, cam); R.readRenderTargetPixels(target.rt, 0, 0, 192, 192, px); }
   finally { statics.camera = was[0]; statics.at.pos.x = Infinity; R.setRenderTarget(was[1]); }
   return px;
 }
@@ -113,6 +118,65 @@ story('ambient/hits-and-the-jelly-make-gusts', {
     step(60);
     const later = Math.max(g[1].w, g[2].w, g[3].w);
     return ok(still === 0 && moving > 0.9 && near && small === 0 && big > 0.9 && later === 0, { still, moving, near, small, big, later });
+  },
+});
+
+// ---- cloth: curtains and shades (A2)
+const hangs = (name) => G().ambient.pieces.filter((p) => p.userData.ambient === 'cloth' && baseName(p.name) === name);
+const clothOf = (p) => { const out = []; p.traverse((o) => { const a = o.isMesh && o.geometry.attributes.ambient; if (a) out.push(a); }); return out; };
+// every hanging: its vertices move toward the hem and never at the rail, and no batch is split by the mark
+function clothMarks(name) {
+  const pieces = hangs(name), bad = [];
+  let hem = 0, rail = 0;
+  for (const p of pieces) for (const a of clothOf(p)) for (let i = 0; i < a.count; i++) {
+    const y = a.getY(i);
+    if (y > 0 || a.getX(i) !== 0) bad.push(p.name);
+    if (y < -0.95) hem++;
+    if (y === 0) rail++;
+  }
+  return { pieces: pieces.length, hem, rail, bad: bad.length };
+}
+const hangStory = (id, about, name, act) => story(id, {
+  about, act,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const m = clothMarks(name), { statics } = G(), by = new Map();
+    for (const b of statics.batches) { const k = b.batch.material.uuid; (by.get(k) || by.set(k, new Set()).get(k)).add(!!b.batch.geometry.attributes.ambient); }
+    const mixed = [...by.values()].filter((s) => s.size > 1).length;
+    return ok(m.pieces > 0 && m.hem > 0 && m.rail > 0 && !m.bad && !mixed, { ...m, mixed });
+  },
+});
+hangStory('ambient/curtains-hang-from-the-rail-act-2', 'The shower curtain is pinned at its rod and free at the hem; the mark splits no batch.', 'Shower_curtain', 2);
+hangStory('ambient/curtains-hang-from-the-rail-act-3', 'The sheer curtains are pinned at their rail and free at the hem; the mark splits no batch.', 'Sheer_curtain', 3);
+hangStory('ambient/roller-shades-hang-from-the-rail', "The roller shades (act 1, and act 4 is the same room) swing from their rail; the mark splits no batch.", 'Roller_shade');
+hangStory('ambient/act4-shades-match-act1', "Act 4 is act 1's room: its roller shades swing the same way.", 'Roller_shade', 4);
+
+story('ambient/curtain-ripples-billows-and-holds-still-when-calm', {
+  about: 'The shower curtain ripples a little on its own and billows out of the way when the jelly passes it; with Reduce effects on it holds its rest pose.',
+  act: 2,
+  setup() { fresh({ elites: false }); step(2); },
+  play() {
+    const { ambient } = G(), curtain = hangs('Shower_curtain')[0];
+    if (!curtain) return ok(false, { curtain: 'not marked' });
+    const calm = ambient.calm;
+    try {
+      const a = shot(curtain, { time: 1, hem: true }), idle = moved(a, shot(curtain, { time: 2.6, hem: true }));
+      const gusted = moved(a, shot(curtain, { time: 1, gust: 1, hem: true }));
+      const held = moved(shot(curtain, { time: 1, calm: true, hem: true }), shot(curtain, { time: 2.6, gust: 1, calm: true, hem: true }));
+      return ok(idle > 0 && gusted > 0 && held === 0, { idle, gusted, held });
+    } finally { ambient.calm = calm; }
+  },
+});
+
+story('ambient/clog-fight-curtain-still-faint-and-moving', {
+  about: "The Clog's see-through shower curtain keeps its ripple when the fight fades it: the faint copy runs the same shader.",
+  act: 2,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const curtain = hangs('Shower_curtain')[0];
+    if (!curtain) return ok(false, { curtain: 'not marked' });
+    const mats = []; curtain.traverse((o) => o.isMesh && o.geometry.attributes.ambient && mats.push(o.material));
+    return ok(mats.length > 0 && mats.every((m) => m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile && m.defaultAttributeValues?.ambient), { patched: mats.length });
   },
 });
 
