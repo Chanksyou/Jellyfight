@@ -29,6 +29,16 @@ export const STAGE1 = {
   cat: { at: [4.155, 0.006, 4.53], yaw: Math.PI + 0.06 },
   // Light on the floor (floor-light.js): the TV's colours on the rug in front of the media console, the monitor's by the desk
   floorLight: [{ at: [1.62, 3.8], r: 0.7, kind: 'screen' }, { at: [1.0, 3.2], r: 0.55, kind: 'screen' }],
+  // The powered apartment (powered.js): the little lights on what is plugged in, and the smoke off what burns
+  status: [
+    { at: [0.822, 0.46, 2.85], colour: 'green', pattern: 'pulse', period: 6 },                    // the PC tower, breathing
+    { at: [1.42, 0.40, 4.385], colour: 'blue', pattern: 'pulse', period: 5, phase: 0.3 },          // the game console, in standby
+    { at: [1.5, 0.40, 4.385], colour: 'white', pattern: 'blink', period: 10, phase: 0.6 },         // ... its disc light
+  ],
+  smoke: [
+    { at: [1.2, 0.62, 4.415], h: 0.3, kind: 'thread' },                                            // the incense, a thin curl
+    { at: [1.72, 0.68, 4.43], h: 0.1, kind: 'thread' },                                            // the candle's wick
+  ],
   tvScreensaver: true,                // the wall TV shows its idle colours (set-dressing.js); act 4's concert dressing owns it there
   rain: true,                         // rain on the windows (rain.js) and in the room tone (ambience.js); act 4 is the same room, dry
 

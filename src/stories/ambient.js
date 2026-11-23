@@ -342,3 +342,76 @@ story('ambient/city-twinkles-at-night', {
     } finally { ambient.calm = calm; }
   },
 });
+
+// ---- the powered apartment (A4): status lights and smoke (src/powered.js)
+const poweredParts = () => G().powered?.parts || [];
+const lightCount = () => G().powered?.lights?.geometry.attributes.position.count ?? 0;
+
+story('ambient/status-lights-and-smoke-are-one-draw-each', {
+  about: "Act 1's little lights (the PC and the console) are one Points draw and its two smoke threads one more (drawn twice over when the frame draws the room for its AO and its picture); neither adds a light.",
+  setup() { fresh({ elites: false }); tp(1.5, 0.05, 3.5, Math.PI); step(2); },
+  play() {
+    const { powered, APT } = G(), parts = poweredParts();
+    if (!powered?.lights || !powered.smoke) return ok(false, { parts: parts.length });
+    let lights = 0; APT.scene.traverse((o) => { if (o.isLight) lights++; });
+    const was = parts.map((p) => p.visible);
+    drawn(2);
+    const withAll = calls();
+    parts.forEach((p) => (p.visible = false));
+    const without = calls();
+    parts.forEach((p, i) => (p.visible = was[i]));
+    const delta = withAll - without;
+    return ok(lightCount() === 3 && delta > 0 && delta <= parts.length * 2 && parts.every((p) => p.parent === APT.root), { lights: lightCount(), delta, parts: parts.length, inRoom: parts.every((p) => p.parent === APT.root) });
+  },
+});
+
+story('ambient/smoke-is-the-vent-wisp-shader-in-grey', {
+  about: 'The smoke is the vents\' own wisp shader (no new program), grey-white and drawn with normal blending, never additive; Low draws none of it.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { powered, traversal } = G(), wisp = traversal.air.parts[2].material, m = powered?.smoke?.material;
+    if (!m) return ok(false, { smoke: false });
+    const c = m.uniforms.uColor.value, same = m.vertexShader === wisp.vertexShader && m.fragmentShader === wisp.fragmentShader;
+    const plain = m.blending === THREE.NormalBlending && c.r > 0.7 && Math.abs(c.r - c.g) < 0.05 && Math.abs(c.g - c.b) < 0.08;
+    const low = powered.low; let dropped, kept;
+    try { powered.low = () => true; powered.update(0.016); dropped = !powered.smoke.visible; powered.low = () => false; powered.update(0.016); kept = powered.smoke.visible; } finally { powered.low = low; }
+    return ok(same && plain && dropped && kept, { same, plain, dropped, kept });
+  },
+});
+
+story('ambient/status-lights-blink-and-hold-steady-when-calm', {
+  about: 'The lights run on the clock (the blink, the breath and the flicker are worked out in their shader); under Reduce effects every light stays on and nothing blinks.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { powered } = G(), u = powered?.lights?.material.uniforms;
+    if (!u) return ok(false, { lights: false });
+    const calm = powered.calm; let moving, held, calmFlag;
+    try {
+      powered.calm = () => false; powered.update(0.5); const a = u.uTime.value; powered.update(0.5); moving = u.uTime.value > a && u.uCalm.value === 0;
+      powered.calm = () => true; powered.update(0.5); held = u.uTime.value === 0; calmFlag = u.uCalm.value === 1;
+    } finally { powered.calm = calm; }
+    const pats = [...powered.lights.geometry.attributes.pat.array].filter((_, i) => i % 4 === 0), period = [...powered.lights.geometry.attributes.pat.array].filter((_, i) => i % 4 === 1);
+    return ok(moving && held && calmFlag && new Set(pats).size >= 3 && period.every((p) => 600 % p === 0), { moving, held, calmFlag, patterns: [...new Set(pats)], period });
+  },
+});
+
+story('ambient/act4-has-the-same-lights-and-smoke', {
+  about: 'Act 4 is act 1\'s room: it has the same status lights and the same two smoke threads.',
+  act: 4,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(lightCount() === 3 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
+});
+
+story('ambient/act2-has-smoke-only', {
+  about: "Act 2's bathroom has the candle's and the oil burner's curls and steam over the tub, and no status lights.",
+  act: 2,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(!G().powered?.lights && !!G().powered?.smoke, { lights: !!G().powered?.lights, smoke: !!G().powered?.smoke }); },
+});
+
+story('ambient/act3-has-a-light-and-a-plume', {
+  about: "Act 3's bedroom has the air purifier's light and the humidifier's plume, and nothing for the sleeping baby.",
+  act: 3,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(lightCount() === 1 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
+});

@@ -73,8 +73,8 @@ const LIT = GRID_GLSL + /* glsl */`
 `;
 
 // Wisps: flat ribbons that always face the camera, static; only the streak pattern and a sway move
-function wispMesh(vents, look) {
-  const WISPS = LOOK.num('vent-wisps', 6), PUFFS = LOOK.num('vent-puffs', 4), spread = LOOK.num('vent-spread', 1.6);
+export function wispMesh(vents, look, counts = {}) {
+  const WISPS = counts.wisps ?? LOOK.num('vent-wisps', 6), PUFFS = counts.puffs ?? LOOK.num('vent-puffs', 4);
   const X = [], P = [], B = [], A = [];   // X: where the ribbon stands at rest (the shape the Overdraw view draws) | P: side, t, seed | B: base xyz + height | A: angle, radius, reach, speed
   const idx = [];
   let n = 0;
@@ -264,20 +264,26 @@ function tailMesh(vents, look) {
   return mesh;
 }
 
+// The uniforms every air shader reads (the vents' and the smoke's, which is the same wisp shader with its own colour):
+// act: the stage's id, for an act's own --vent-*-act<n> over --vent-* (wisp, air, mote, ribbon-glow)
+export function airLook(act = 0) {
+  const own = (name) => (LOOK.has(`${name}-act${act}`) ? `${name}-act${act}` : name);
+  const U = (value) => ({ value });
+  return { uniforms: {
+    uTime: U(0), uCalm: U(0), uFlow: U(1), uGust: U(new THREE.Vector4(0, 0, 0, 0)), uGustClock: U(0), uPx: U(2.2),
+    uPr: U(1), uWide: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
+    uColor: U(new THREE.Color(LOOK.color(own('vent-air'), '#eaf6ff'))), uWisp: U(LOOK.num(own('vent-wisp'), 0.26)), uMote: U(LOOK.num(own('vent-mote'), 0.75)),
+    uLit: U(LOOK.num('vent-light', 1)), uLitRef: U(LOOK.num('vent-light-ref', 0.35)), uLitMin: U(LOOK.num('vent-light-min', 0.3)),
+    uLitMax: U(LOOK.num('vent-light-max', 1.2)), uLitTint: U(LOOK.num('vent-light-tint', 0.5)), ...BAKED_LIGHT.uniforms,
+    uTail: U(new THREE.Color(LOOK.color('vent-ribbon', '#8fd6d0'))), uRoom: U(LOOK.num(own('vent-ribbon-glow'), 0.8)),
+  } };
+}
+
 export class VentAir {
   // act: the stage's id, for an act's own --vent-*-act<n> over --vent-* (wisp, air, mote, ribbon-glow)
   constructor(group, vents, act = 0) {
     this.group = group;
-    const own = (name) => (LOOK.has(`${name}-act${act}`) ? `${name}-act${act}` : name);
-    const U = (value) => ({ value });
-    this.look = { uniforms: {
-      uTime: U(0), uCalm: U(0), uFlow: U(1), uGust: U(new THREE.Vector4(0, 0, 0, 0)), uGustClock: U(0), uPx: U(2.2),
-      uPr: U(1), uWide: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
-      uColor: U(new THREE.Color(LOOK.color(own('vent-air'), '#eaf6ff'))), uWisp: U(LOOK.num(own('vent-wisp'), 0.26)), uMote: U(LOOK.num(own('vent-mote'), 0.75)),
-      uLit: U(LOOK.num('vent-light', 1)), uLitRef: U(LOOK.num('vent-light-ref', 0.35)), uLitMin: U(LOOK.num('vent-light-min', 0.3)),
-      uLitMax: U(LOOK.num('vent-light-max', 1.2)), uLitTint: U(LOOK.num('vent-light-tint', 0.5)), ...BAKED_LIGHT.uniforms,
-      uTail: U(new THREE.Color(LOOK.color('vent-ribbon', '#8fd6d0'))), uRoom: U(LOOK.num(own('vent-ribbon-glow'), 0.8)),
-    } };
+    this.look = airLook(act);
     // Lambert, not Standard: no per-lamp shine maths, and one material on every graphics tier
     this.grilleMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.heatScene = new THREE.Scene();   // drawn only by the heat shimmer experiment (src/heat-shimmer.js), into its own small map
