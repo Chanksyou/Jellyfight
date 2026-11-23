@@ -1114,6 +1114,20 @@
   --ambient-gust-fade: 0.8;      /* s: a hit's gust dies away over this */
   --ambient-rattle: 0.0015;      /* m: how far a glass shivers in a full gust (never at rest) */
   --ambient-rattle-rate: 60;     /* rad/s: how fast */
+  /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
+  --rain-cell: 0.02;             /* m: one still drop per cell at most */
+  --rain-drops: 0.4;             /* share of cells with a drop */
+  --rain-drop-size: 0.3;         /* a drop's radius, as a share of its cell */
+  --rain-glint: 0.5;             /* how bright the glint on a drop is */
+  --rain-glint-color: #d8e6ff;
+  --rain-tint: #25303d;          /* the colour a drop darkens the glass to */
+  --rain-opacity: 0.4;           /* ... and how much */
+  --rain-column: 0.035;          /* m: the glass is split into columns this wide... */
+  --rain-streaks: 0.3;           /* ... and this share of them has a drop running down (none under Reduce effects) */
+  --rain-speed: 0.09;            /* m/s: how fast a running drop goes (each column a little faster or slower) */
+  --rain-trail: 0.2;             /* m: the wet trail above it */
+  --rain-haze: 0.35;             /* how much the city behind the wet glass goes flat and hazy, 0..1 */
+  --rain-haze-color: #2a3442;
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */
