@@ -1,1 +1,0 @@
-makes the curtains and shades hang and move: the shower curtain, the sheer curtains and the roller shades ripple slowly from the rail down to the hem, and billow away when the jelly brushes past or something big lands near them. It's all in the shaders, so no extra draws, and Reduce effects holds them still.
