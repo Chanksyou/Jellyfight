@@ -1197,6 +1197,43 @@ story('engine/bugs-cast-soft-shadows', {
     return ok(grounded === 3 && on === 3 && thrown === 2 && S.bugs.isInstancedMesh && !!S.blob.material.alphaMap, { grounded, on, thrown });
   },
 });
+// how many pixels differ between two renders of the same frame, one after `change` (stories below)
+function changedPixels(change, undo) {
+  const { APT, gfx } = G(), gl = APT.renderer.getContext();
+  const shot = () => { G().batcher.sync(); gfx.render(); const a = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, a); return a; };
+  const A = shot(); change(); const B = shot(); undo();
+  let n = 0;
+  for (let i = 0; i < A.length; i += 4) if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 6) n++;
+  return n;
+}
+story('engine/bugs-and-jelly-take-the-baked-light', {
+  about: 'The jelly and the bugs take a little of the baked light where they stand (baked-light.js tintShader, --baked-tint): every lit material of the jelly and the bugs reads the furniture\'s light grid, so turning the tint up changes how they are drawn, and it is a number, not a new shader.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    for (let i = 0; i < 4; i++) spawn('roach', near(0.2 + i * 0.06, 0.12), { still: true });
+    step(10);
+    const U = BAKED_LIGHT.uniforms.lbTint, was = U.value, lit = [];
+    G().player.avatar.root.traverse((o) => { if (o.isMesh) [].concat(o.material).forEach((m) => { if (m.isMeshStandardMaterial) lit.push(!!m.userData.tinted); }); });
+    G().batcher.sync(); G().gfx.render();   // (the new bugs' first draw builds their shaders)
+    const programs = G().APT.renderer.info.programs.length;
+    const changed = changedPixels(() => { U.value = 20; }, () => { U.value = was; });
+    const built = G().APT.renderer.info.programs.length - programs;
+    return ok(was > 0 && lit.length > 0 && lit.every(Boolean) && changed > 50 && built === 0, { tint: was, jellyLit: lit.length, changed, built });
+  },
+});
+story('engine/lamps-glow-in-the-air', {
+  about: 'Every lamp has a soft glow round its bulb in its own colour, as bright as the lamp is (air-light.js), all of them one draw; the dev panel\'s lamps switch puts them out with the lamps. Act 1 has no dust in the air (only act 3\'s moonlight and act 4\'s sun do).',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); step(2); },
+  async play() {
+    const air = G().air, { APT, GAME } = G(), tint = air.halos.geometry.attributes.tint;
+    const lit = () => { let n = 0; for (let i = 0; i < air.lamps.length; i++) if (tint.getX(i) + tint.getY(i) + tint.getZ(i) > 0) n++; return n; };
+    const lamps = air.lamps.length, on = lit();
+    GAME.toggleLamps(); air.update(0, APT.renderer, APT.camera);
+    const off = lit();
+    GAME.toggleLamps(); air.update(0, APT.renderer, APT.camera);
+    return ok(lamps > 5 && on === lamps && off === 0 && lit() === lamps && air.halos.isPoints && !air.motes, { lamps, on, off, motes: !!air.motes });
+  },
+});
 story('engine/baked-light-maps-the-big-pieces', {
   about: 'The big pieces of furniture (piece-light.js: the kitchen, the sofa, the cabinets) each read their own light map from the bake, and every one the bake mapped still matches its piece (another triangle count would leave it on the light grid). The maps cost no draws: everything of the same material carries a light map attribute, so the furniture batches still join them.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); step(2); },

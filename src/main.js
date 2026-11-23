@@ -44,6 +44,7 @@ import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
 import { StaticBatches, freeze } from './static-batch.js';
 import { LOOK } from './look.js';
+import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
 const BUILD = 'v631';   // shown in the corner of the main screen, so you can tell which version is running
@@ -324,6 +325,8 @@ picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick scr
 const slotCount = ARENA ? 0 : IS_TOUCH ? (EXPERIMENTS.lights ?? LOOK.num('phone-lights', 6)) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
 const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
 if (lightSlots) APT.lights.rescan();
+const air = ARENA ? null : new AirLight(scene, stage, { low: () => gfx.quality === 'low', calm: () => juice.calm });   // lamp halos and dust in the light (air-light.js)
+window.air = air;
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
@@ -574,6 +577,7 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
+  air?.rescan();                      // and glow
   const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
   APT.lightMapped += mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);
   world.addObjects([...added, ...made]);
@@ -810,6 +814,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
+    air?.update(dt, renderer, camera);
     systems.hud.update(dt);
     systems.debug.update(dt);
   },
@@ -899,6 +904,7 @@ let lampsOn = true;
 function toggleLamps() {
   lampsOn = !lampsOn;
   scene.traverse((o) => { if (o.isPointLight && (lightSlots ? o.userData.slot : o.userData.lamp)) o.visible = lampsOn; });
+  if (air) air.on = lampsOn;
   return lampsOn;
 }
 GAME.toggleLamps = toggleLamps;   // the phone bench's lamps-off replay (bench.js)

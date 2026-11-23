@@ -1,0 +1,1 @@
+adds light you can see in the air: each lamp has a soft glow round its bulb, dust drifts in act 3's moonlight and in act 4's sun (not on Low graphics), and the jelly and the bugs pick up a little of the baked light where they stand, cool in the moonlight and warm in the sun.

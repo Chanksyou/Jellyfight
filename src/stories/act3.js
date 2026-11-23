@@ -518,3 +518,23 @@ act3('final-health-by-act',{
     const want={soap:800,clock:800,whipper:800,vacuum:1200,shark:8000,croc:1800,bull:1800,coffer:1800,bowl:3200,pillow:3200,headphones:3200};
     return ok(JSON.stringify(got)===JSON.stringify(want),got);},
 });
+
+act3('dust-drifts-in-the-moonlight', {
+  about: 'Dust drifts in the moonlight from the bedroom window (air-light.js, stage3.js motes): one draw of points that show only where the baked light grid says the moon comes through, so the room seen from the door shows some. Low graphics draws none; Reduce effects holds them still.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(0.2, 0.05, 9.6, 1.57); step(10); },
+  async play() {
+    const { air, APT, gfx } = G(), M = air.motes, gl = APT.renderer.getContext(), cam = APT.camera;
+    if (!M) return ok(false, { motes: false });
+    cam.position.set(1.4, 1.2, 9.6); cam.lookAt(-1.0, 0.4, 9.8); cam.updateMatrixWorld();
+    air.update(0, APT.renderer, cam);
+    const shot = () => { G().batcher.sync(); gfx.render(); const a = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, a); return a; };
+    const A = shot(); M.visible = false; const B = shot(); M.visible = true;
+    let shown = 0;
+    for (let i = 0; i < A.length; i += 4) if (A[i] + A[i + 1] + A[i + 2] > B[i] + B[i + 1] + B[i + 2] + 6) shown++;
+    const t0 = M.material.uniforms.uTime.value;
+    const calm = juice.calm; juice.calm = true; air.update(0.5, APT.renderer, cam); const held = M.material.uniforms.uTime.value === t0; juice.calm = calm;
+    air.update(0.5, APT.renderer, cam); const drifts = M.material.uniforms.uTime.value > t0;
+    const low = air.low; air.low = () => true; air.update(0, APT.renderer, cam); const lowHides = !M.visible; air.low = low; air.update(0, APT.renderer, cam);
+    return ok(M.isPoints && shown > 20 && held && drifts && lowHides && M.visible, { shown, held, drifts, lowHides });
+  },
+});
