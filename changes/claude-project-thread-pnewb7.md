@@ -1,1 +1,0 @@
-brings rain to act 1: drops sit on the living room windows, a few run down the glass, the city behind goes soft and hazy, and the room tone adds rain on the glass with far thunder now and then. Act 4 is the same room at dawn and stays dry.
