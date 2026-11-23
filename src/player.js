@@ -151,7 +151,8 @@ export class Player {
     wish.multiplyScalar(walk);
 
     // slipping (soap underfoot): almost no grip, so you keep sliding the way you were going
-    const accel = this.grounded ? c.groundAccel * (1 - 0.88 * (env.slip ?? 0)) : c.airAccel;
+    // (tumbling, thrown by a hit: the same loss of grip on the ground and in the air)
+    const accel = (this.grounded ? c.groundAccel * (1 - 0.88 * (env.slip ?? 0)) : c.airAccel) * (1 - 0.95 * (env.tumble ?? 0));
     const t = 1 - Math.exp(-accel * dt);
     this.velocity.x += (wish.x - this.velocity.x) * t;
     this.velocity.z += (wish.z - this.velocity.z) * t;

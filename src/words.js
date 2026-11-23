@@ -490,9 +490,9 @@ export const ENEMY_WORDS = {
   },
 
   burrow: {
-    doc: 'Within `range` m every `every` s or so, digs in for `dig` s, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up. It stands dazed for `daze` s (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
+    doc: 'Within `range` m every `every` s or so, digs in for `dig` beats, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up, and for `tumble` beats you tumble: almost no grip, so the stick can\'t cancel the throw (0: none). It stands dazed for `daze` beats (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
     phases: { dig: 'build', under: 'build', dazed: 'fire' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.55, every: 6, dig: 0.45, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, daze: 1.6 },
+    props: { range: 0.55, every: 6, dig: 1, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, tumble: 0, daze: 4 },
     make: (_, p) => ({
       burrowRadius: p.radius,
       init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; },
@@ -500,11 +500,11 @@ export const ENEMY_WORDS = {
         const live = c.slow > 0 ? 1 : 0;
         e.burrowCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig; e.vel.set(0, 0, 0); en.burrowDig(e); }
+          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig * c.spb; e.vel.set(0, 0, 0); en.burrowDig(e); }
         } else if (e.state === 'dig') {
           c.speed = 0;
           e.stateT -= c.dt * live;
-          e.digK = 1 - Math.max(0, e.stateT) / p.dig;
+          e.digK = 1 - Math.max(0, e.stateT) / (p.dig * c.spb);
           if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowBeats = 0; e.beatSeen = c.beat; en.burrowGo(e); }
         } else if (e.state === 'under') {
           c.speed = 0;
@@ -515,7 +515,7 @@ export const ENEMY_WORDS = {
           if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
           else {
             e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
-            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
+            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze * c.spb; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
           }
         } else if (e.state === 'dazed') {
           c.speed = 0;

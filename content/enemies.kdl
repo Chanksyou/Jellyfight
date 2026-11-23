@@ -167,14 +167,15 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 // glossy black tank with big red-orange eyes, orange legs and clear orange-veined wings. It trudges after
 // you; within reach, on a beat, it digs into the floor and goes under, where it can't be hit. A
 // mound trails after you for 5 beats of the song (fast: 3 m/s), then locks, and a circle and dome fill over the spot
-// for one beat; on the beat it bursts up there (a Blast: it hurts and tosses you). Step off the circle,
-// or jump clear of the dome. Then it stands dazed for a moment: that's when to hit it.
+// for 2 beats; on the beat it bursts up there (a Blast: it hurts and throws you across the floor, tumbling for a
+// beat). dig and daze are beats too, so the whole attack runs on the song: dig 1 + trail 5 + Warning 2 = two bars.
+// Step off the circle, or jump clear of the dome. Then it stands dazed for 4 beats: that's when to hit it.
 enemy "cicada" name="Cicada" hp=1200 r=0.058 dmg=1 xp=12 model="cicada" {
     death-motion "flutter"
     attack-motion "pounce" tier="heavy"
     chase 0.13
     on-beat every=2
-    burrow range=0.55 every=4 dig=0.45 follow=5 warn=1 speed=3 radius=0.15 dmg=5 knock=0.5 launch=0.5 daze=1.6
+    burrow range=0.55 every=4 dig=1 follow=5 warn=2 speed=3 radius=0.15 dmg=5 knock=1.5 launch=0.5 tumble=1 daze=4
 }
 
 // Act 3 (from 1:30, src/stage3.js nests): the wasp nest, a grey paper teardrop stuck to a wall or the side of

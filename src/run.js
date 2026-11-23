@@ -193,8 +193,9 @@ export class Run {
         this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.1), 'BLEED', LOOK.color('bleed', '#ff2a4a'), 13);
       }
     });
-    bus.on('knockback', ({ targetId, dir, force, launch }) => {
+    bus.on('knockback', ({ targetId, dir, force, launch, tumble }) => {
       if (targetId !== PLAYER) return;
+      if (tumble) this.tumbleT = Math.max(this.tumbleT, tumble);   // thrown: no grip for a moment, so the stick can't cancel it
       this.shovedAt = this.frame; this.hitPush = null;   // an attack that shoves you itself takes the place of the hit's pushback
       const v = this.player.velocity;
       v.addScaledVector(dir, force);
@@ -353,7 +354,7 @@ export class Run {
     this.stompChain = 0;              // stomp (Pogo Stick): stomps in a row since the jelly last touched the ground
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
-    this.slipT = 0;
+    this.slipT = 0; this.tumbleT = 0;
     this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
     this.bleedDripT = 0;
     this.stillT = 0;
@@ -612,7 +613,7 @@ export class Run {
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
-        slip: this.slipT > 0 ? 1 : 0,
+        slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0,
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
       if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
@@ -637,7 +638,7 @@ export class Run {
     }
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
-    this.slipT = Math.max(0, this.slipT - dt);
+    this.slipT = Math.max(0, this.slipT - dt); this.tumbleT = Math.max(0, this.tumbleT - dt);
     if (this.bleeds.length) this.bleed(dt);
     if (this.ink && this.t < this.ink.until && (this.inkT = (this.inkT || 0) - dt) <= 0) {   // the Ink Cloud drifting round you while it lasts
       this.inkT = 0.12;
@@ -2238,7 +2239,7 @@ export class Run {
   keepTime(dt) {
     const b = this.song?.beat?.();
     this.beat = Number.isFinite(b) ? b : (this.beat ?? 0) + dt * (this.bpm || 120) / 60;
-    this.enemies.beat = this.beat;   // the song's beat for bugs with on-beat
+    this.enemies.beat = this.beat; this.enemies.bpm = this.bpm || 120;   // the song's beat for bugs with on-beat, and its tempo (a word's beats turned into seconds)
   }
 
   // What the soundtrack (music.js) should play: the act's own song while you explore (its stage's
