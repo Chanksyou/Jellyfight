@@ -2,7 +2,7 @@
 // Run it after moving furniture (tools/bake-layout.mjs runs it for the acts it touched), re-exporting the
 // apartment, or changing a lamp or src/bake-lights.js; the story engine/baked-light-is-current fails until you do.
 // Needs the tests' setup (cd tests && npm install) and Blender as a Python module with Pillow (pip install bpy pillow).
-// About 5 to 20 minutes an act on 4 processors. Writes assets/light-<act>.json and assets/light-<act>[-day][-grid].webp (the shell's picture and the furniture's grid).
+// About 30 to 60 minutes an act on 4 processors. Writes assets/light-<act>.json and assets/light-<act>[-day][-grid].webp (the shell's picture and the furniture's grid).
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
