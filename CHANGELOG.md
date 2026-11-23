@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v643 remodels act 4's Cicada as a periodical cicada: a glossy black body with sculpted plates and an orange X on its back, big red-orange eyes, orange legs with thick digging forelegs, pale ribbed tymbals, and clear wings with painted orange veins and a black W, folded in a tent over its back. Looks only; it plays the same.
+
 v642 gives act 4's Firefly a real flying look: raised dark wing covers edged in orange, smoky veined hind wings beating as a blur, an orange shield and thorax, beaded antennae and a body that hangs tail down and leans into its flight. Its lantern now swells and fades once every 4 beats of the song (about every 2 s) instead of blinking on every beat, and it flies lower and a little nearer, 10 to 25 cm above the jelly instead of 30 to 50.
 
 v641 Act 2's camera now looks over the open bathroom door, tilting steeper instead of squeezing down to floor height behind it.

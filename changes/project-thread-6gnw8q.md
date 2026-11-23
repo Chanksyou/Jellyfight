@@ -1,1 +1,0 @@
-remodels act 4's Cicada as a periodical cicada: a glossy black body with sculpted plates and an orange X on its back, big red-orange eyes, orange legs with thick digging forelegs, pale ribbed tymbals, and clear wings with painted orange veins and a black W, folded in a tent over its back. Looks only; it plays the same.
