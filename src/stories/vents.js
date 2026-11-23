@@ -109,6 +109,35 @@ story('vents/air-rests-where-it-blows', {
   },
 });
 
+// the heat shimmer's bend map, read back: how many of its pixels bend the picture
+function bentPixels(gfx) {
+  const m = gfx.shimmer.map, px = new Uint16Array(m.width * m.height * 4);
+  G().APT.renderer.readRenderTargetPixels(m, 0, 0, m.width, m.height, px);
+  let n = 0;
+  for (let i = 0; i < px.length; i += 4) if ((px[i] & 0x7fff) || (px[i + 1] & 0x7fff)) n++;
+  return n;
+}
+story('vents/shimmer-bends-only-when-asked', {
+  about: 'Heat shimmer is an experiment (?shimmer=1): without it the game builds no bend map; with it, on Medium or High, a vent in view bends some of the picture, nothing bends with Reduce effects, and Low has no bend map at all.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { gfx, traversal, tpc, GAME } = G(), v = traversal.vents[0], was = gfx.quality, off = !gfx.shimmer;
+    tp(v.x + 0.25, v.y, v.z + 0.25);
+    try {
+      gfx.heat = traversal.air.heatScene;
+      gfx.setTier(was === 'low' ? 'medium' : was);
+      let bent = 0;
+      for (let i = 0; i < 4 && !bent; i++) { tpc.yaw = (i * Math.PI) / 2; step(4); GAME.render(); bent = bentPixels(gfx); }
+      traversal.air.update(0, { calm: true }); GAME.render();
+      const calm = bentPixels(gfx);
+      traversal.air.update(0, {});
+      gfx.setTier('low');
+      const low = gfx.shimmer;
+      return ok(off && bent > 20 && calm === 0 && !low, { off, bent, calm, low: !!low });
+    } finally { gfx.heat = null; gfx.setTier(was); }
+  },
+});
+
 story('vents/ride-gusts-then-settles', {
   about: 'Stepping on a vent sends one vent_ride; that vent\'s air gusts (streaks faster, ribbons pulled straight) for --vent-gust-hold s, eases back to calm after, and the jelly still lands where the vent sends it.',
   setup() { fresh({ elites: false }); const v = G().traversal.vents[0]; tp(v.x, v.y + 0.05, v.z, 0); },

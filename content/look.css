@@ -752,6 +752,10 @@
   --vent-gust-speed: 2;        /* how much faster than usual its streaks run at the gust's height (2: three times as fast) */
   --vent-off-time: 0.5;        /* vents off in a Boss fight: the air stops (and later starts again) over this long (s) */
   --vent-hum-reach: 0.3;       /* the air's soft hiss fades in within this far of a vent's edge (m) */
+  /* heat shimmer over the vents: an experiment (?shimmer=1, src/heat-shimmer.js), Medium and High only, never with Reduce effects */
+  --vent-shimmer: 2.5;         /* how far the picture behind the air bends, in pixels at pixel ratio 1 */
+  --vent-shimmer-width: 3;     /* the bending air's width, times a wisp's */
+  --vent-shimmer-scale: 0.5;   /* the bend map's size, of the screen's (0.5: a quarter of the pixels) */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
   --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
   --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
