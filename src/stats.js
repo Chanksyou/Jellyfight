@@ -110,13 +110,14 @@ export function cardText(card) {
   if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} seconds`;
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Attack' : 'Attacks'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
-  return `+${amount} ${info.name}`;
+  return `+${amount} ${info.name}${card.stat === 'range' ? ' and Tentacle reach' : ''}`;
 }
 
 export function applyCard(stats, card) {
   const v = CARD_FLAGS[card.stat] || {};
   if (v.pct) stats[card.stat] += BASE_STATS[card.stat] * card.amount / 100;
   else stats[card.stat] += card.amount;
+  if (card.stat === 'range') stats.reach += BASE_STATS.reach * card.amount / 100;   // Range stretches tentacles too
   stats.bubbles = Math.min(MAX_BUBBLES, stats.bubbles);
 }
 

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
+import { BASE_STATS, applyCard, knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
 import { G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
 
@@ -375,6 +375,17 @@ story('progression/regen-card-reads-every-5-seconds', {
     const texts = amounts.map((amount) => cardText({ stat: 'regen', amount }));
     const want = ['+0.5 Health every 5 seconds', '+1 Health every 5 seconds', '+1.5 Health every 5 seconds'];
     return ok(amounts.join() === '0.1,0.2,0.3' && texts.every((t, i) => t === want[i]), { amounts, texts });
+  },
+});
+story('progression/range-card-stretches-tentacle-reach', {
+  about: 'The Range card adds its percentage to Range and to Tentacle reach, and its text says so; other cards leave reach alone.',
+  setup() {},
+  play() {
+    const s = { ...BASE_STATS }, card = { stat: 'range', amount: 20 };
+    applyCard(s, card);
+    const other = { ...BASE_STATS }; applyCard(other, { stat: 'fireRate', amount: 12 });
+    const grew = Math.abs(s.reach - BASE_STATS.reach * 1.2) < 1e-9 && Math.abs(s.range - BASE_STATS.range * 1.2) < 1e-9;
+    return ok(grew && other.reach === BASE_STATS.reach && cardText(card) === '+20% Range and Tentacle reach', { reach: s.reach, text: cardText(card) });
   },
 });
 story('progression/regen', {

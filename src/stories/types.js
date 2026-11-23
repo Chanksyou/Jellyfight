@@ -183,7 +183,7 @@ story('types/tentacle-attacks-strike-different-bugs', {
 });
 
 story('types/tentacle-is-not-offered-range', {
-  about: 'A Tentacle jelly is never offered the Range card or a Treasure that only adds Range or Pierce (Drinking Straw, Bobby Pin): not-for="tentacle" on the card and Treasure. A Fire jelly is.',
+  about: 'A Tentacle jelly is never offered a Treasure that only adds Range or Pierce (Drinking Straw, Bobby Pin): not-for="tentacle" on the Treasure. It is offered the Range card (which stretches its Tentacle reach); a Fire jelly is offered all of them.',
   setup() { fresh({ types: 'tentacle', levels: true }); },
   play() {
     const { run } = G();
@@ -197,7 +197,7 @@ story('types/tentacle-is-not-offered-range', {
     const t = offered();
     fresh({ types: 'fire', levels: true });
     const f = offered();
-    const tentacleNot = !t.cards.has('range') && !t.treasures.has('straw') && !t.treasures.has('bobbyPin') && t.cards.has('fireRate');
+    const tentacleNot = t.cards.has('range') && !t.treasures.has('straw') && !t.treasures.has('bobbyPin') && t.cards.has('fireRate');
     const fireGets = f.cards.has('range') && f.treasures.has('straw');
     const caught = (() => { try { compileTreasures(parse('treasure "x" name="X" icon="x" text="x" not-for="laser" {\n    stat range 1\n}', 't.kdl'), 't.kdl'); return null; } catch (e) { return e.message; } })();
     return ok(tentacleNot && fireGets && /not-for= takes attacks from/.test(caught), { tentacle: [...t.cards], fireCards: [...f.cards], straw: f.treasures.has('straw'), caught });
