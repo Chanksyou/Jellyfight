@@ -47,10 +47,11 @@ const hum = (base, level, harmonics = [1, 2, 3], wobble = 0.05) => (c, out) => {
 const FRIDGE = hum(54, 0.05, [1, 2, 3, 5], 0.12);
 const CITY = air('lowpass', 420, 0.4, 0.08, 0.07, 0.35);
 const TRAFFIC = air('bandpass', 1500, 0.5, 0.012, 0.043, 0.5);
-// act 1 and act 4 are the same room: one list. Act 1 adds its rain later by listing its own.
+// act 1 and act 4 are the same room: one list. Act 1 adds its rain on the glass (rain.js; act 4 is dry).
 const LIVING_ROOM = [FRIDGE, CITY, TRAFFIC];
+const RAIN = [air('bandpass', 3200, 0.35, 0.03, 0.06, 0.3), air('lowpass', 900, 0.5, 0.035, 0.03, 0.25)];   // the patter on the glass, its softer body
 export const BEDS = {
-  1: LIVING_ROOM,
+  1: [...LIVING_ROOM, ...RAIN],
   2: [air('bandpass', 700, 0.6, 0.05, 0.05, 0.3), hum(120, 0.012, [1, 2], 0.2), air('lowpass', 300, 0.5, 0.05, 0.03, 0.4)],   // tile-room air, a pipe's hum
   3: [air('bandpass', 5200, 0.7, 0.05, 0.14, 0.3), air('lowpass', 230, 0.5, 0.1, 0.02, 0.2), hum(96, 0.012, [1, 2], 0.1)],   // the humidifier's hiss, the air purifier's fan
   4: LIVING_ROOM,
@@ -115,8 +116,12 @@ const BIRDS = { name: 'dawn-birds', every: [3, 14], at: [2.4, 1.4, 0.15], reach:
     const base = 3200 + Math.random() * 1800;
     for (let i = 0, k = 2 + Math.floor(Math.random() * 4); i < k; i++) { const at = t + i * 0.13; tone(c, out, at, base, base * (1.15 + Math.random() * 0.3), 0.09, 0.7); tone(c, out, at + 0.045, base * 1.3, base * 0.9, 0.06, 0.3); }
   } };
+// far thunder in act 1's rain: a long low roll, no flash
+const THUNDER = { name: 'far-thunder', every: [50, 110], at: null, reach: 1, level: 0.05, play(c, out, t, n) {
+  burst(c, out, n, t, 90, 0.7, 3.5, 1, 'lowpass'); burst(c, out, n, t + 0.4, 160, 0.9, 2.2, 0.6, 'lowpass');
+} };
 export const ONCE = {
-  1: [CHIME, FRIDGE_KICK, SIREN, PIPE],
+  1: [CHIME, FRIDGE_KICK, SIREN, PIPE, THUNDER],
   2: [CLOCK, DRIP, PIPE, CREAK],
   3: [CREAK, { ...SIREN, every: [110, 200], level: 0.02 }],
   4: [CHIME, FRIDGE_KICK, { ...SIREN, when: (s) => (s.dawn > 0.6 ? 0.5 : 1) }, BIRDS],

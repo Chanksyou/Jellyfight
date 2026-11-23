@@ -752,6 +752,10 @@
   --vent-gust-speed: 2;        /* how much faster than usual its streaks run at the gust's height (2: three times as fast) */
   --vent-off-time: 0.5;        /* vents off in a Boss fight: the air stops (and later starts again) over this long (s) */
   --vent-hum-reach: 0.3;       /* the air's soft hiss fades in within this far of a vent's edge (m) */
+  /* heat shimmer over the vents: an experiment (?shimmer=1, src/heat-shimmer.js), Medium and High only, never with Reduce effects */
+  --vent-shimmer: 2.5;         /* how far the picture behind the air bends, in pixels at pixel ratio 1 */
+  --vent-shimmer-width: 3;     /* the bending air's width, times a wisp's */
+  --vent-shimmer-scale: 0.5;   /* the bend map's size, of the screen's (0.5: a quarter of the pixels) */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
   --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
   --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
@@ -817,23 +821,26 @@
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, its lobbed glow, the Warning and the pool it leaves: hot acid yellow */
-  --firefly-dim: #3a2208;        /* its lamp between blinks */
-  --firefly-glow: 1.8;           /* how far past white its lamp burns at a blink (bloom lifts it) */
+  --firefly-dim: #4e4018;        /* its lamp between flashes: a dull pale yellow, like the real one's lantern unlit */
+  --firefly-blink-beats: 4;      /* beats from one lamp flash to the next (128 bpm: 4 beats = 1.875 s); a whole number */
+  --firefly-glow: 2.4;           /* how far past white its lamp burns at a flash (bloom lifts it) */
   --firefly-lob-size: 0.007;     /* m: the glowing blob it lobs (its core; the halo is about 9x) */
   --firefly-warning-opacity: 0.32;   /* the circle filling where a lob will land */
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */
   --firefly-pool-opacity: 0.4;       /* the glowing pool it leaves (fades out over its last 0.4 s) */
   --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
-  --hostile-moth: #ffb300;       /* the moth's plunge as it lands: hot amber (its wings are pale, so the hit isn't) */
-  --plunge-warning-opacity: 0.3;  /* the moth's circle on the floor as it climbs (it follows you, then locks and brightens) */
-  --plunge-column-opacity: 0.25;  /* and the column over it, as tall as the plunge reaches */
-  --smoke-size: 0.07;            /* the moth's smoke: each of its four blobs (m); the puff is about 25 cm across */
-  --smoke-spread: 0.05;          /* how far the blobs sit from the middle (m) */
-  --smoke-hold: 1;               /* seconds it hangs full */
-  --smoke-fade: 0.4;             /* seconds it then thins out */
-  --smoke-opacity: 0.85;         /* how dark each blob is: bugs, XP and pools behind it all but vanish */
-  --smoke-ember: #4a2208;        /* the middle blob as it lands, cooling to black in 0.3 s */
-  --smoke-max: 3;                /* puffs alive at once (phones: the oldest goes) */
+  --hostile-butterfly: #ffb300;  /* the butterfly's prism: its Warning and burst (the ball and bolts run round --prism-colors) */
+  --prism-colors: #ff2a2a #ff7a1a #ffcc1a #ff4fa0 #ff2ad4;   /* the hot rainbow (never blue or green: those are the jelly's) */
+  --prism-glow: 1;               /* how far over white the bolts and the ball's shell are pushed, for bloom */
+  --prism-ball-size: 0.015;      /* the ball in flight (m) */
+  --prism-bolt-size: 0.007;      /* each bolt's radius (m); drawn 2.6x as long along its flight */
+  --prism-bolts-max: 240;        /* bolts alive at once (the oldest goes) */
+  --prism-spin: 4.7;             /* how fast the ball in flight turns (radians a beat) */
+  --prism-warning-opacity: 0.32; /* the circle where the ball will land */
+  --prism-dome-opacity: 0.26;    /* and the dome over it */
+  --butterfly-beat: 0.17;        /* one wingbeat (s): a monarch beats about 6 times a second */
+  --butterfly-glide: 0.45;       /* the glide after each burst of beats (s) */
+  --butterfly-glide-v: 0.3;      /* how far its wings are raised while it glides (radians): the shallow V */
   --hostile-dragonfly: #ff2a80;  /* the dragonfly's beam and whirlwind: hot rose */
   --whirl-blade-opacity: 1;     /* the dragonfly's whirlwind: its spinning blades */
   --whirl-blur-opacity: 0.1;     /* and the blurred discs they spin in */
@@ -888,11 +895,48 @@
   --headphones-shove-flash: 0.02; /* the white flash on the jelly a wave shoves (m), */
   --headphones-scuff: #6c6680;   /* and the fading scuff it leaves (under a jelly it hit; the half itself, a bigger one), muted: harmless leftovers never wear a hostile hue */
   --headphones-scuff-size: 0.014;
+  --cicada-black: #0c0b0b;       /* the Cicada (a periodical cicada, src/critters.js cicadaSkin): its glossy black plates, */
+  --cicada-sheen: #5a5c66;       /* the sheen breaking on their ridges and the lit edge of each groove, */
+  --cicada-orange: #d0581a;      /* the orange bands under its abdomen and the X on its back, */
+  --cicada-deep: #6a2408;        /* the darker orange round its joints and behind its eyes, */
+  --cicada-eye: #e8441a;         /* its big red-orange eyes, */
+  --cicada-ocellus: #ff3a1a;     /* the three small red eyes between them, */
+  --cicada-leg: #c0521c;         /* its legs, */
+  --cicada-tymbal: #d8c6a0;      /* the pale ribbed tymbals behind its wings, */
+  --cicada-vein: #f0801c;        /* its wings' veins and root (src/critters.js cicadaWing), */
+  --cicada-vein-tip: #9a4410;    /* darkening toward the tip, */
+  --cicada-membrane: #f0d8b0;    /* the faint warm tint of the clear wing, */
+  --cicada-w-mark: #1a0c06;      /* the black W near each forewing's tip, */
+  --cicada-roughness: 0.3;       /* how glossy its body is (lower: shinier), */
+  --cicada-rim: 0.6;             /* the warm rim that keeps its black body readable in the dark room, */
+  --cicada-wing-tent: 0.35;      /* and how steeply its folded wings slope down its sides (radians) */
   --hostile-cicada: #9dff00;     /* the cicada's burrow: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2): its mound's rim, the circle and dome over the spot it will burst up from, and the burst */
   --burrow-mound-rim: 0.25;      /* the trailing mound's rim: dimmer than the locked circle, so the moment it locks stands out */
   --burrow-floor-opacity: 0.3;   /* the circle on the floor over a locked mound */
   --burrow-dome-opacity: 0.24;   /* and the dome over it */
   --burrow-dome-glow: 0.8;       /* and the dome's brightness (the normal volume's is --warning-volume-glow) */
+  /* the burrow's beats (critters.js buildCicada, enemies.js burrow*): rear up, dig, trail, hush, swell, burst, land */
+  --burrow-rear: 0.55;           /* radians it rears back (head up) on the dig's first beat, wings flared, tymbals flashing */
+  --burrow-heave: 0.3;           /* how much higher the trailing mound humps on each beat */
+  --burrow-hush: 0.8;            /* how flat the mound sinks on the Warning's first beat (share of its height) */
+  --burrow-chimney: 1.1;         /* radii: the mud chimney pushed up in the middle over the hush */
+  --burrow-swell: 2.3;           /* radii: how wide the floor bulges on the Warning's second beat */
+  --burrow-still: 0.9;           /* share of the Warning after which everything holds dead still, the last tenth of a second */
+  --burrow-rise: 2;              /* radii it rockets up on the burst */
+  --burrow-stretch: 2.1;         /* how long it is stretched at the top (1: its own shape) */
+  --burrow-up: 0.06;             /* s to the top */
+  --burrow-hang: 0.1;            /* s it hangs there */
+  --burrow-fall: 0.1;            /* s back down */
+  --burrow-overshoot: 1.3;       /* a burst that missed goes this much higher and lands on its back */
+  --burrow-back: 0.47;           /* s on its back kicking (a beat) before it rolls upright */
+  --burrow-crater: 1.8;          /* s the crater and shed shell take to fade (the dazed 4 beats) */
+  --burrow-crater: #3a2a1c;      /* the crater it leaves (plain brown: harmless) */
+  --burrow-shell: #9a7448;       /* the papery shell it leaves beside it */
+  --burrow-crack: #1a120c;       /* the cracks it leaves in the floor (trail, Warning, crater): harmless marks */
+  --burrow-chunks: 22;           /* floor chunks thrown out by the burst (Low: half) */
+  --jelly-thrown-squash: 0.45;   /* the jelly squashed flat in the freeze when a burst throws it */
+  --jelly-thrown-turns: 1;       /* somersaults while it tumbles (none under Reduce effects) */
+  --camera-thrown-lag: 0.75;     /* how far behind the camera falls while the jelly tumbles (none under Reduce effects) */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
   --encore-record-radius: 0.055; /* m: the silver DJ's records (11 cm across), standing on edge where they land (encore-records.js) */
@@ -1058,6 +1102,35 @@
   --ambience-duck: 0.45;         /* how much of the bed is left with bugs all round you */
   --ambience-boss: 0.25;         /* ... and during a Boss fight */
   --ambience-hold: 0.6;          /* ... and while the game is paused */
+  /* Ambient life (src/ambient.js): what moves in the room by itself. Shader-only, millimetres; Reduce effects holds it still */
+  --ambient-lean: 0.004;         /* m: a plant's slow idle lean, at its tip (nothing moves below the pot's rim) */
+  --ambient-flutter: 0.0008;     /* m: its leaf edges' idle flutter */
+  --ambient-push: 0.025;         /* m: how far a full gust pushes a tip away from it */
+  --ambient-gust-flutter: 0.004; /* m: extra flutter in a full gust */
+  --ambient-reach: 0.3;          /* m: how far a gust reaches (it fades to nothing there) */
+  --ambient-wake-speed: 0.8;     /* m/s: the jelly moving this fast is a full gust round itself */
+  --ambient-gust-min: 0.04;      /* m: a hit landing (fx.impact) at least this big is a gust */
+  --ambient-gust-size: 0.08;     /* m: ... and one this big a full one */
+  --ambient-gust-fade: 0.8;      /* s: a hit's gust dies away over this */
+  --ambient-rattle: 0.0015;      /* m: how far a glass shivers in a full gust (never at rest) */
+  --ambient-rattle-rate: 60;     /* rad/s: how fast */
+  --ambient-cloth: 0.006;        /* m: a curtain's slow idle ripple at its hem (nothing moves at the rail) */
+  --ambient-cloth-billow: 0.05;  /* m: how far a full gust billows the hem away from it (the jelly passing through counts) */
+  --ambient-cloth-rate: 0.9;     /* rad/s: how fast the ripple runs */
+  /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
+  --rain-cell: 0.02;             /* m: one still drop per cell at most */
+  --rain-drops: 0.4;             /* share of cells with a drop */
+  --rain-drop-size: 0.3;         /* a drop's radius, as a share of its cell */
+  --rain-glint: 0.5;             /* how bright the glint on a drop is */
+  --rain-glint-color: #d8e6ff;
+  --rain-tint: #25303d;          /* the colour a drop darkens the glass to */
+  --rain-opacity: 0.4;           /* ... and how much */
+  --rain-column: 0.035;          /* m: the glass is split into columns this wide... */
+  --rain-streaks: 0.3;           /* ... and this share of them has a drop running down (none under Reduce effects) */
+  --rain-speed: 0.09;            /* m/s: how fast a running drop goes (each column a little faster or slower) */
+  --rain-trail: 0.2;             /* m: the wet trail above it */
+  --rain-haze: 0.35;             /* how much the city behind the wet glass goes flat and hazy, 0..1 */
+  --rain-haze-color: #2a3442;
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */
@@ -1295,6 +1368,7 @@
   --feel-kill-big: 0.3 0.06;   /* a bigger bug finished off */
   --feel-impact-big: 0.4 0;    /* a heavy Elite or bug attack landing */
   --feel-hurt: 0.55 0;         /* the jelly takes a hit */
+  --feel-launched: 0.6 0.06;   /* the jelly is thrown (the Cicada's burst): a short freeze on the hit, then the shake */
   --feel-save: 0.8 0.3;        /* Snooze Button saving you from your last hit */
   --feel-elite-kill: 0.7 0.15;
   --feel-boss-kill: 1 0.25;
@@ -1331,6 +1405,7 @@
   --boss-see-through: 0.15;     /* how solid what a boss arena sees through looks during its fight (a stage's boss `seeThrough`: the Clog's shower curtain) */
   --boss-force-field: 0;        /* 1: draw every boss arena's force field (0: invisible, still solid, so the camera can stand behind it; a stage's boss `forceField: true` draws its own: the Vacuum's) */
   --camera-tilt: 1.05;         /* radians down from level at the start (~60 degrees) */
+  --dendi-sleep-fps: 12;      /* how often Dendi asleep in his box (acts 1 and 4) is posed while in view; he barely moves */
   --cat-scene-distance: 1.2;   /* meters behind the jelly while Dendi finishes a boss (he is 26 cm at the shoulder) */
   --cat-scene-tilt: 0.6;       /* radians down from level then (~35 degrees) */
   --cat-scene-fade: 0.55;     /* seconds for each fade into/out of the finishing scene */

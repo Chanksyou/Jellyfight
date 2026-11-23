@@ -33,7 +33,7 @@ export const ATTACKS = [
   { id: 'worm', type: 'worm', at: [0.25, 0], begin: (e) => e.state === 'windup', hit: 'whip' },
   { id: 'beetle', type: 'beetle', at: [0.4, 0], begin: (e) => e.state === 'charge', hit: 'sparkShot', aim: aimed },
   { id: 'wasp', type: 'wasp', at: [0.3, 0], begin: (e) => e.state === 'windup', hit: 'sting' },
-  { id: 'moth', type: 'moth', at: [0.3, 0], begin: (e) => e.state === 'climb', hit: 'plungeLand' },
+  { id: 'butterfly', type: 'butterfly', at: [0.4, 0], begin: (e) => e.state === 'windup', hit: 'prism', aim: (e, c) => c.foot },
   { id: 'firefly', type: 'firefly', at: [0.4, 0], begin: (e) => e.state === 'windup', hit: 'lob', aim: (e, c) => c.foot },
   { id: 'cicada', type: 'cicada', at: [0.3, 0], begin: (e) => e.state === 'dig', hit: 'burrowBurst' },
 ];
@@ -202,11 +202,11 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 
 // the bugs converted to an attack-motion, each filmed through one attack
 const THROWS = ['ants', 'spider', 'firefly', 'ladybug', 'beetle'];   // (the throw style: aimed Shots)
-const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'moth', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
+const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'butterfly', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
 // a Wasp that stings dies doing it, so only its miss has a recoil to film
 const filmed = (id, o = {}) => film(id, { miss: id === 'wasp', probe: PROBES[id], ...o });
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Moth\'s plunge, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Monarch butterfly\'s prism, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
     const out = {};
@@ -289,11 +289,11 @@ story('motion/contact-pose-is-on-the-hit', {
 });
 
 story('motion/landing-pose-is-on-the-hit', {
-  about: 'On the frame a Spotted lanternfly, Moth or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
+  about: 'On the frame a Spotted lanternfly or Cicada comes down and its hit is tested, its drawn body is where the bug really is and over the spot the hit is tested round (within 1 cm across): a landing pose never shows it somewhere its hit is not.',
   setup() {},
   play() {
     const out = {}, v = new THREE.Vector3();
-    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['moth', (e) => e.plungeAt], ['cicada', (e) => e.burrowAt]]) {
+    for (const [id, spot] of [['lanternfly', (e) => e.pos], ['cicada', (e) => e.burrowAt]]) {
       const S = stage(ATTACKS.find((a) => a.id === id), { hurt: true, touch: false });
       try {
         while (S.frame < MAX_FRAMES && !S.found) S.advance();
@@ -352,6 +352,42 @@ story('motion/cicada-burst-lands-or-misses', {
     const tip = (R) => (R.length ? Math.abs(R.reduce((a, f) => a + f.rz, 0) / R.length) : 9);
     const landed = !!H[0]?.hit && tip(H) < 0.08, missed = !!M[0] && !M[0].hit && tip(M) > 0.15;
     return ok(landed && missed, { hit: H[0]?.hit, hitTip: +tip(H).toFixed(3), missHit: M[0]?.hit, missTip: +tip(M).toFixed(3), frames: [H.length, M.length] });
+  },
+});
+
+story('motion/cicada-burrow-beats', {
+  about: 'The Cicada\'s burrow shows every beat (plan cicada-burrow, task 3): it rears back head up before it sinks; under, the mound humps higher just after each beat; locked, it sinks flat while a mud chimney pushes up (the hush), then bulges past twice its width (the swell) and holds dead still for the last tenth; on the hit frame its body is still at the floor, then it rockets up stretched past 1.8 and lands squashed, leaving a crater and its shed shell that fade before it walks off, with no hostile glow on them.',
+  setup() {},
+  play() {
+    const read = (e, b) => { const C = ['mound', 'chimney', 'shell', 'crater'].map((n) => e.mesh.getObjectByName(n)); C.unshift(b); return { st: e.state, dig: e.digK || 0, lock: e.under && e.burrowLocked ? e.burrowK : -1, beats: e.under && !e.burrowLocked ? e.burrowBeats : -1, bt: e.state === 'dazed' ? e.burstT : -1,
+      mh: C[1].visible ? C[1].scale.y : 0, mw: C[1].scale.x, mx: C[1].position.x, ch: C[2].visible ? C[2].scale.y : 0, chx: C[2].position.x, shell: C[3].visible, crater: C[4].visible, rx: b.rotation.x, y: b.position.y, sy: b.scale.y }; };
+    const F = film('cicada', { read }).map((f) => ({ ...f.x, phase: f.phase }));
+    const rearUp = Math.min(...F.filter((f) => f.st === 'dig' && f.dig < 0.3).map((f) => f.rx)), rearHigh = Math.max(...F.filter((f) => f.st === 'dig' && f.dig < 0.3).map((f) => f.y));
+    const trail = F.filter((f) => f.beats > 1), onBeat = trail.filter((f) => f.beats % 1 < 0.06), offBeat = trail.filter((f) => f.beats % 1 > 0.4 && f.beats % 1 < 0.6);
+    const avg = (L, k) => L.reduce((a, f) => a + f[k], 0) / Math.max(1, L.length);
+    const hush = F.filter((f) => f.lock > 0.3 && f.lock < 0.45), swell = F.filter((f) => f.lock > 0.8 && f.lock < 0.89), still = F.filter((f) => f.lock >= 0.92);
+    const first = F.find((f) => f.st === 'dazed'), top = Math.max(...F.filter((f) => f.bt >= 0 && f.bt < 0.2).map((f) => f.y)), long = Math.max(...F.filter((f) => f.bt >= 0 && f.bt < 0.2).map((f) => f.sy));
+    const landed = F.filter((f) => f.bt > 0.3 && f.bt < 0.5), left = F.filter((f) => f.bt > 1.85);
+    const out = {
+      rear: +rearUp.toFixed(2), rearHigh: +rearHigh.toFixed(3), heave: [+avg(onBeat, 'mh').toFixed(2), +avg(offBeat, 'mh').toFixed(2)], hush: [+avg(hush, 'mh').toFixed(2), +avg(hush, 'ch').toFixed(2)],
+      swell: +avg(swell, 'mw').toFixed(2), still: still.length && Math.max(...still.map((f) => Math.abs(f.mx) + Math.abs(f.chx))), hitFrameY: first && +first.y.toFixed(3), top: +top.toFixed(2), long: +long.toFixed(2),
+      landSquash: +Math.min(...landed.map((f) => f.sy)).toFixed(2), leftovers: landed.some((f) => f.shell && f.crater), gone: left.length ? left.every((f) => !f.shell && !f.crater) : 'n/a',
+    };
+    const good = rearUp < -0.3 && rearHigh > -0.2 && onBeat.length && offBeat.length && out.heave[0] > out.heave[1] + 0.1 && out.hush[0] < 0.6 * avg(offBeat, 'mh') && out.hush[1] > 0.5
+      && out.swell > 2 && still.length && out.still === 0 && Math.abs(out.hitFrameY) < 0.05 && out.top > 1.5 && out.long > 1.8 && out.landSquash < 0.8 && out.leftovers && out.gone !== false;
+    return ok(good, out);
+  },
+});
+
+story('motion/cicada-miss-lands-on-its-back', {
+  about: 'A Cicada whose burst misses goes higher and lands on its back, kicking its legs for about a beat, then rolls upright before its dazed beats run out.',
+  setup() {},
+  play() {
+    const away = (S) => { const go = S.advance; let moved = false; S.advance = () => { if (!moved && S.e.burrowLocked) { G().player.position.z += 0.6; moved = true; } return go(); }; return null; };
+    const F = film('cicada', { also: away, read: (e) => (e.state === 'dazed' ? e.burstT : -1) }).filter((f) => f.x >= 0);
+    const back = F.filter((f) => f.x > 0.35 && f.x < 0.6), end = F.filter((f) => f.x > 1.3);
+    const onBack = back.length && back.every((f) => Math.abs(Math.cos(f.rz)) > 0.9 && Math.cos(f.rz) < 0), upright = end.length && end.every((f) => Math.cos(f.rz) > 0.9);
+    return ok(!F[0]?.hit && onBack && upright, { hit: F[0]?.hit, back: back.length, onBack, upright, frames: F.length });
   },
 });
 

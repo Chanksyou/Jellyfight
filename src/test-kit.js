@@ -133,7 +133,7 @@ export class TestKit {
       <div class="ic">${STAT_INFO[stat].icon}</div><div class="tx"><b>${label}</b><span>${text}</span></div>
       <button data-k="statMinus">−</button><div class="n">${STAT_INFO[stat].fmt(S[stat])}</div><button data-k="statPlus">+</button></div>`;
     const cards = Object.keys(CONTENT.levelups.cards).map((stat) => {
-      const a = cardAmount(stat, CONTENT.levelups.cards[stat].amounts[this.tier] || CONTENT.levelups.cards[stat].amounts.find((x) => x) || 0, S[stat]);
+      const a = cardAmount(stat, CONTENT.levelups.cards[stat].amounts[this.tier] || CONTENT.levelups.cards[stat].amounts.find((x) => x) || 0, S[stat], S.dodgeCap);
       return row('card', stat, STAT_INFO[stat].name, a, cardText({ stat, amount: a }));
     });
     box.innerHTML = `<div class="tiers">${RARITY.map((r, i) => `<button data-tier="${i}" class="${i === this.tier ? 'on' : ''}">${r.name || r.id}</button>`).join('')}</div>`
@@ -203,7 +203,7 @@ export class TestKit {
   // add (+1) or take away (-1) one level-up card at the chosen tier, or a flat bit of Attack damage / Fire rate
   giveStat(key, stat, d) {
     const R = this.run, info = CONTENT.levelups.cards[stat];
-    const amount = key === 'flat' ? (stat === 'fireRate' ? 1 : 5) : cardAmount(stat, info.amounts[this.tier] || info.amounts.find((x) => x) || 0, R.S[stat]);
+    const amount = key === 'flat' ? (stat === 'fireRate' ? 1 : 5) : cardAmount(stat, info.amounts[this.tier] || info.amounts.find((x) => x) || 0, R.S[stat], R.S.dodgeCap);
     if (key === 'flat') R.stats[stat] += d * amount;
     else applyCard(R.stats, { stat, amount: d * amount });
     R.stats.fireRate = Math.max(0.1, R.stats.fireRate);

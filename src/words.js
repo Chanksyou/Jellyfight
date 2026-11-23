@@ -490,36 +490,38 @@ export const ENEMY_WORDS = {
   },
 
   burrow: {
-    doc: 'Within `range` m every `every` s or so, digs in for `dig` s, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up. It stands dazed for `daze` s (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
+    doc: 'Within `range` m every `every` s or so, digs in for `dig` beats, then goes under: a mound trails after you at `speed` m/s for `follow` beats of the act\'s song (under, it can\'t be hit, touched, frozen or stunned), then locks where it is: a Warning circle and dome `radius` m round fill over the next `warn` beats. On that beat it bursts up as a Blast: you take `dmg`, a `knock` shove away from it and a toss `launch` up, and for `tumble` beats you tumble: almost no grip, so the stick can\'t cancel the throw (0: none). It stands dazed for `daze` beats (the time to hit it), then goes back to walking. List it after the walking word; with `on-beat` it starts on the bar.',
     phases: { dig: 'build', under: 'build', dazed: 'fire' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.55, every: 6, dig: 0.45, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, daze: 1.6 },
+    props: { range: 0.55, every: 6, dig: 1, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, tumble: 0, daze: 4 },
     make: (_, p) => ({
       burrowRadius: p.radius,
-      init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; },
+      init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; e.burstT = 0; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
         e.burrowCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig; e.vel.set(0, 0, 0); en.burrowDig(e); }
+          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig * c.spb; e.vel.set(0, 0, 0); en.burrowDig(e); }
         } else if (e.state === 'dig') {
           c.speed = 0;
           e.stateT -= c.dt * live;
-          e.digK = 1 - Math.max(0, e.stateT) / p.dig;
-          if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowBeats = 0; e.beatSeen = c.beat; en.burrowGo(e); }
+          e.digK = 1 - Math.max(0, e.stateT) / (p.dig * c.spb);
+          if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowSwell = false; e.burrowBeats = 0; e.burrowBeatN = 0; e.beatSeen = c.beat; en.burrowGo(e); }
         } else if (e.state === 'under') {
           c.speed = 0;
-          en.burrowRumble();
+          if (!e.burrowLocked) en.burrowRumble(e.burrowBeats / p.follow);   // the hush: it cuts out
           e.burrowBeats += THREE.MathUtils.clamp(c.beat - e.beatSeen, 0, 0.5);   // a song handing over (the beat jumping) can't strand it down there
           e.beatSeen = c.beat;
-          if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); }
+          if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); en.burrowLock?.(e, p.radius); }
+          else if (e.burrowLocked && e.burrowBeats >= p.follow + p.warn / 2 && !e.burrowSwell) { e.burrowSwell = true; en.burrowSwell?.(e, p.radius, p.warn / 2 * c.spb); }   // the Warning's last half: the floor swells
+          else if (!e.burrowLocked && Math.floor(e.burrowBeats) > e.burrowBeatN) { e.burrowBeatN = Math.floor(e.burrowBeats); en.burrowHeave?.(e, e.burrowBeats / p.follow); }   // the mound heaves on each beat
           if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
           else {
             e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
-            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
+            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze * c.spb; e.burstT = 0; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
           }
         } else if (e.state === 'dazed') {
           c.speed = 0;
-          e.stateT -= c.dt;
+          e.stateT -= c.dt; e.burstT += c.dt;   // (burstT: its pose's clock from the burst, critters.js)
           if (e.stateT <= 0) { e.state = 'approach'; e.burrowCd = p.every; }
         }
       },
@@ -697,47 +699,32 @@ export const ENEMY_WORDS = {
     }),
   },
 
-  plunge: {
-    doc: 'Within `range` m every `every` s or so, climbs to `height` m over you while a circle and a column of radius `radius` m fill on the floor under it (they follow you, and lock where they are with `lock` of the `windup` s left), then drops straight down: you are hit for `dmg` if you are in the column when it lands (a jump does not dodge it; step off the circle). It leaves a puff of black smoke there (`smoke`), pulls up, rests `rest` s and goes back to circling. List it after the flying word.',
-    phases: { climb: 'build', drop: 'swing', rest: 'recoil' }, lock: { climb: (p) => 1 - p.lock }, span: { drop: (p) => p.height / p.speed },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.45, every: 3, windup: 1, lock: 0.35, height: 0.3, climb: 0.5, speed: 1.6, radius: 0.08, dmg: 3, rest: 0.9 },
-    make: (_, p) => ({
-      plungeRadius: p.radius, plungeHeight: p.height,
-      init(e) { e.diveCd = 1 + Math.random() * 1.5; e.plungeAt = new THREE.Vector3(); e.plungeK = 0; },
+  prism: {
+    doc: 'Within `range` m every `every` s or so, stops, faces you and winds up for `windup` s (a ball of hot rainbow light grows between its forelegs), then lobs it in a slow arc (rising `peak` m over the straight line) at the floor under where you are, landing `beats` beats later; while it flies, a Warning circle and dome `radius` m round fill there. The ball spins as it goes: on every beat it fires a burst of bolts out every way, up, down and all round (`rows` rows between the two poles, `count` round its middle and fewer toward the poles; `speed` m/s, gone after `life` s or at the floor, a wall or furniture, `dmg` each; each burst turned half a gap from the last, so the gaps spiral). It lands as a Blast (`burst`) with a last burst. At most `most` balls fly at once. List it after on-beat so it throws on a beat.',
+    phases: { windup: 'build', rest: 'fire' }, thrown: true,   // how its attack moves (src/attack-motion.js)
+    props: { range: 0.6, every: 6, windup: 0.6, beats: 4, peak: 0.18, radius: 0.12, count: 12, rows: 5, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3, rest: 0.6 },
+    make: (_, p, where) => {
+      if (!(Number.isInteger(p.beats) && p.beats >= 1)) throw new Error(`${where}: prism beats= must be a whole number of beats, 1 or more`);
+      return {
+      init(e) { e.prismCd = 1 + Math.random() * 3; },
       tick(e, c, en) {
-        const live = c.slow > 0 ? 1 : 0, at = e.plungeAt;
-        e.stateT -= c.dt * live;
-        e.diveCd -= c.dt;
+        const live = c.slow > 0 ? 1 : 0;   // frozen or stunned: it stays put
+        e.prismCd -= c.dt;
+        if (e.firedT > 0) e.firedT -= c.dt;
+        if (e.state === 'windup' && !live) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.prismCd = 1.5; }   // broken off
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && !c.wait) {
-            e.state = 'climb'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.plungeLocked = false;
-            at.set(c.foot.x, en.floorBelow(c.foot, c.foot.y), c.foot.z); en.diveWind(e, p.windup);
-          }
-        } else if (e.state === 'climb') {
-          if (!e.plungeLocked) {                                          // the circle follows you until it locks
-            if (e.stateT <= p.windup * p.lock) e.plungeLocked = true;
-            else at.set(c.foot.x, en.floorBelow(c.foot, at.y), c.foot.z);
-          }
-          e.plungeK = 1 - Math.max(0, e.stateT) / p.windup;
-          _want.set(at.x, at.y + p.height, at.z).sub(e.pos);
-          e.vel.lerp(_want.clampLength(0, 1).multiplyScalar(p.climb * 6).clampLength(0, p.climb * c.slow), 1 - Math.exp(-6 * c.dt));
-          en.move(e, e.vel, c.dt);
-          e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
-          if (e.stateT <= 0) { e.state = 'drop'; e.stateT = 1; en.diveGo(e); }
-        } else if (e.state === 'drop') {
-          if (!live) return;
-          e.plungeK = 1;
-          e.vel.set((at.x - e.pos.x) * 12, -p.speed, (at.z - e.pos.z) * 12);   // straight down the column
-          const blocked = en.move(e, e.vel, c.dt, false);
-          if (e.pos.y <= at.y + e.r || blocked || e.stateT <= 0) { en.plungeLand(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.vel.set(0, 0.3, 0); }
+          if (c.dist < p.range && e.prismCd <= 0 && live && !e.flyHeld && !c.wait && en.prismBalls.flying() < p.most) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.prismWind(e, p.windup); }
+        } else if (e.state === 'windup') {
+          let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;   // turns to face you
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          e.root.rotation.y += d * (1 - Math.exp(-12 * c.dt));
+          if ((e.stateT -= c.dt) <= 0) { en.prism(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.3; }
         } else if (e.state === 'rest') {
-          e.plungeK = 0;
-          e.vel.multiplyScalar(Math.exp(-4 * c.dt));
-          en.move(e, e.vel, c.dt * live);
-          if (e.stateT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.diveCd = p.every; }
+          if ((e.stateT -= c.dt * live) <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.prismCd = p.every; }
         }
       },
-    }),
+      };
+    },
   },
 
   bite: {
@@ -817,7 +804,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);
@@ -825,7 +812,7 @@ export const ENEMY_WORDS = {
         init(e) { e.beatN = null; e.beatPulse = 0; },
         tick(e, c) {
           const n = Math.floor(c.beat), on = e.beatN !== null && n !== e.beatN;   // a new beat this frame
-          e.beatN = n;
+          e.beatN = n; e.beatAt = c.beat;                                         // (a firefly's lamp keeps time with it)
           e.beatPulse = on ? 1 : Math.max(0, e.beatPulse - c.dt * 4);           // its model (or the size pulse) shows it
           c.wait = !(on && n % p.every === 0);
         },
@@ -869,8 +856,9 @@ export function newMods() {
     mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
     reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
-    stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
+    stats: { add: {}, pct: {}, dodge: [] },     // stat bonuses: added, and % of the starting value; dodge: each treasure's Dodge, closing that share of the gap to the cap (Run.S)
     landingShockwave: null, extraJumps: 0,
+    dodgeCap: 0,                     // dodge-cap: a higher most Dodge than the usual 60% (Run.S)
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
     squeaks: [], onHurt: [], onAttack: [], landHeal: null, spotlight: null, burstOnKill: null, cardRarity: 0,
@@ -1404,9 +1392,10 @@ export const TREASURE_WORDS = {
       return (m) => { m.crumbs = m.crumbs ? { chance: m.crumbs.chance + p.chance, health: Math.max(m.crumbs.health, p.health) } : { chance: p.chance, health: p.health }; };
     },
   },
+  'dodge-cap': { doc: 'Raises the most Dodge you can have to `percent`% (60% without it). Dodge cards and treasures then close their share of the gap to that higher cap.', args: ['percent'], make: ([c]) => (m) => { m.dodgeCap = Math.max(m.dodgeCap, c); } },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses; each treasure closes that share of the gap to the 60% cap, so copies give less and less), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
     args: ['name', 'amount'],
     props: { percent: false, 'no-penalty': false },
     make: ([name, amount], p) => {
@@ -1414,6 +1403,7 @@ export const TREASURE_WORDS = {
       if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
       if (p['no-penalty'] && (key !== 'bubbles' || p.percent || !(amount > 0))) throw new Error('stat: no-penalty=#true only goes with a positive whole number of bubbles (Attacks)');
+      if (key === 'dodge' && !p.percent && amount > 0) return (m) => { m.stats.dodge.push(amount); };   // Dodge scales like the cards: each copy closes a share of the gap to the cap
       return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; if (p['no-penalty']) m.freeAttacks += amount; };
     },
   },

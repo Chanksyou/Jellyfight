@@ -23,11 +23,12 @@ import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingActi
 import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
-import { dressSet } from './set-dressing.js';
+import { dressSet, DRESSED } from './set-dressing.js';
 import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
+import { addRain } from './rain.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -47,7 +48,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v639';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v652';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -65,6 +66,7 @@ import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
 import { FieldPerf } from './field-perf.js';
+import { Ambient } from './ambient.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -293,18 +295,23 @@ if (stage.details === 'bathroom') {   // after the collision world: decoration o
   const wide = stage.boss.set?.stretch?.[0]?.z[1];
   if (wide) addBathroomDetails(scene, wide).visible = false;   // the widened tub's, shown for the fight (boss-set.js)
 }
-// Dendi the cat (src/cat.js): never seen during a run — he exists, hidden,
-// purely to show up for the boss finish (see the scene below), then he's
-// gone again. Both boss stages get one; a stage with no boss needs none.
-const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hidden until he finishes a boss
+// Dendi the cat (src/cat.js): he shows up for the boss finish (see the scene below), then goes
+// back. A stage with a `cat` (acts 1 and 4: his box by the scratcher) has him asleep there all
+// night; elsewhere, and with ?ambient=0, he waits hidden.
+const catHome = !ARENA && EXPERIMENTS.ambient !== 0 ? stage.cat : null;
+const dendi = addDendi(scene, catHome ? new THREE.Vector3(...catHome.at) : new THREE.Vector3(), catHome?.yaw || 0,
+  { hidden: !catHome, asleep: !!catHome, calm: () => juice.calm || fx.reducedMotion.matches });
 // fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
 if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
+const raining = !!stage.rain && !ARENA && EXPERIMENTS.ambient !== 0;   // rain on the windows (rain.js): act 1 only
+if (raining) addRain(APT.root);   // (after the bake's patch, which it wraps)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
-if (!ARENA) { statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
-const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
+const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
+if (!ARENA) { ambient.mark(APT.root); scene.children.filter((o) => DRESSED.includes(o.name)).forEach((o) => ambient.mark(o)); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
+const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas, { haze: raining ? LOOK.num('rain-haze', 0.35) : 0 });
 function setNight(minutes) {
   cityTime?.(minutes);
   if (SKY) skyNow(THREE.MathUtils.clamp((minutes - stage.clock[0]) / (stage.clock[1] - stage.clock[0]), 0, 1));
@@ -317,7 +324,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
-const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO);   // phones start on Medium so Low is a choice, not a default
+const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO, EXPERIMENTS.shimmer ? traversal.air.heatScene : null);   // phones start on Medium so Low is a choice, not a default
 fx.low = () => gfx.quality === 'low';
 picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick screen's side cards drawn in shaders
 // Phones light the room with a few shared lights instead of every lamp (light-slots.js). Made
@@ -581,7 +588,7 @@ async function loadRooms(parts, onProgress) {
   const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
   APT.lightMapped += mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);
   world.addObjects([...added, ...made]);
-  [...added, ...made].forEach((o) => statics.add(o));
+  [...added, ...made].forEach((o) => { ambient.mark(o); statics.add(o); });
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones
   const box = new THREE.Box3();
   added.forEach((o) => box.expandByObject(o));
@@ -813,6 +820,7 @@ const GAME = {
     run.victory.update(dt);           // the ending: the jelly swimming home to the sea
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
+    ambient.update(dt, player.position, player.velocity.length());
     systems.shadow.update(dt);
     air?.update(dt, renderer, camera);
     systems.hud.update(dt);
@@ -988,7 +996,6 @@ async function warmUp() {
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
   fx.splat(P.clone(), 0xffffff, 0.01, 'ink');   // the floor marks' painted sheet (every shape shares its shader)
-  fx.smoke(P.clone().setY(P.y + 0.02));          // a moth's black smoke (its own shader: the jelly shows through it)
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
@@ -998,6 +1005,7 @@ async function warmUp() {
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
   enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
+  enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));   // a butterfly's bolt and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -1039,6 +1047,7 @@ async function warmUp() {
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
   enemies.glowPools.warm(false);
+  enemies.prismBalls.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
@@ -1297,4 +1306,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, ambient, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });

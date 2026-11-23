@@ -5,7 +5,7 @@ import { ModelPool } from './model-pool.js';
 import * as THREE from 'three';
 import { hitSpot } from './collision.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildMoth, buildFirefly, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
+import { buildRoach, buildAnts, buildMosquito, buildLanternfly, buildSpider, buildHouseFly, buildMillipede, buildLadybug, buildDragonfly, buildMantis, buildWorm, buildWasp, buildButterfly, buildFirefly, buildNest, buildMissile, buildBeetle, buildCicada, buildPushpin } from './critters.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
 import { bus, PLAYER, nextId } from './events.js';
@@ -16,6 +16,7 @@ import { CONTENT } from './content.js';
 import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
 import { GlowPools } from './glow-pools.js';
+import { PrismBalls } from './prism-balls.js';
 import { attackClock, beginFrame, newAttack, WORK } from './attack-motion.js';
 
 // what each type bursts into when it dies
@@ -53,6 +54,7 @@ function iceCrown() {
 }
 const GOO = LOOK.list('hurt-goo', ['#8fd8ff', '#dff8ff']);              // drops of jelly a bug's hit knocks off (they splat and fade)
 const SCUFF = LOOK.color('bug-scuff', '#4a3c30');                      // a fading dust mark where a bug slammed or struck the floor
+const BURROW = { crack: LOOK.color('burrow-crack', '#1a120c'), floor: [0x3a2a1e, 0x5a4636, 0x8a7458, 0x2a2018], chunks: LOOK.num('burrow-chunks', 22) };   // the Cicada's cracks and the floor it throws up
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -219,7 +221,7 @@ function makeLooks() {
     millipede: buildMillipede,
     ladybug: buildLadybug,
     dragonfly: buildDragonfly,
-    moth: buildMoth,
+    butterfly: buildButterfly,
     firefly: buildFirefly,
     mantis: () => buildMantis(),
     worm: buildWorm,
@@ -255,6 +257,7 @@ export class Enemies {
     this.shots = [];          // web balls and pushpins in flight (the spit word)
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
     this.glowPools = new GlowPools(scene, fx);   // fireflies' lobs in flight and the glowing pools they leave (the lob word)
+    this.prismBalls = new PrismBalls(scene, fx, world);   // butterflies' prism balls in flight and the rings of bolts they fire (the prism word)
     this.pull = null;         // the dragonflies' whirlwinds sucking the jelly in this frame (m/s, flat), or null: the run adds it to its swimming
     this._whirlPull = new THREE.Vector3();
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
@@ -274,7 +277,6 @@ export class Enemies {
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
-    this.plungeMarks = [];    // pooled: the circle and column under each moth about to plunge (the plunge word)
     this.burrowMarks = [];    // pooled: the circle and dome over each locked mound about to burst up (the burrow word)
     this.whipMarks = [];      // pooled: the line each worm is about to whip down along (the whip word)
     this.burstMarks = [];     // pooled: the circle round each carcass about to burst (the burst word)
@@ -650,6 +652,7 @@ export class Enemies {
     for (const w of this.whirls || []) if (w.live) this.endWhirl(w);
     this.pull = null;
     this.glowPools.clear();
+    this.prismBalls.clear();
   }
 
   // A bug's hit landed on the jelly (the player_hurt event): the bug squashes with the blow (e.recoil,
@@ -1280,31 +1283,58 @@ export class Enemies {
   // ---------------------------------------------------------------- the cicada (burrow)
   // it digs in: a puff of dust and a scrape (it sinks out of sight over the dig)
   burrowDig(e) { sfx.burrowDig(); this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.6, 0.4); this.fx.burst(e.pos.clone(), [0x3a2a1e, 0x5a4636, 0x9ab85a], 6, 0.003, 0.3, e.pos.y); }
-  burrowRumble() { sfx.burrowRumble(); }
+  burrowRumble(k) { sfx.burrowRumble(k); }   // k: 0..1 along the trail, the song swelling
   // it is under: the mound shows (its model), and the floor kicks up as it goes
   burrowGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.2, 0.3); }
+  // on each beat under, the mound humps: a puff, and a crack left behind it (not on Low)
+  burrowHeave(e, k) {
+    sfx.burrowHeave(k);
+    this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.1, 0.3, 0.4);
+    if (!this.fx.low()) this.fx.splat(e.pos, BURROW.crack, e.r * 1.8, 'scorch');
+  }
+  // it locks (the hush): cracks run out to the Warning's edge
+  burrowLock(e, radius) { sfx.burrowLock(); this.fx.splat(e.burrowAt, BURROW.crack, radius, 'scorch'); }
+  // the swell: pebbles hop inside the circle (not on Low)
+  burrowSwell(e, radius, secs) {
+    sfx.burrowSwell(secs);
+    if (this.fx.low()) return;
+    for (let i = 0; i < 3; i++) { const a = e.phase + i * 2.1; this.fx.burst(S.spot.set(e.burrowAt.x + Math.cos(a) * radius * 0.6, e.burrowAt.y + 0.004, e.burrowAt.z + Math.sin(a) * radius * 0.6), BURROW.floor, 3, 0.0025, 0.12, e.burrowAt.y); }
+  }
   // it bursts up where it locked: a Blast on the floor, `radius` round. You're hurt if inside it (a jump high over the dome clears it),
   // shoved away from the middle and tossed up
-  burrowBurst(e, c, { radius, dmg, knock, launch }) {
+  burrowBurst(e, c, { radius, dmg, knock, launch, tumble }) {
     const at = e.burrowAt, col = hostile('cicada'), P = this.player, f = c.realFoot || c.foot;
     sfx.burrowBurst();
     this.fx.impact(S.o.set(at.x, at.y + 0.015, at.z).clone(), col, radius * 0.45, 16);
     this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), col, radius * 1.05, 0.4);
     this.fx.puff(S.spot.set(at.x, at.y + 0.015, at.z), 0xb8a890, radius * 0.9, 0.5);
-    this.fx.burst(at.clone().setY(at.y + 0.01), [0x3a2a1e, 0x5a4636, 0x9ab85a], 14, 0.004, 0.45, at.y);   // the floor thrown up
+    const n = this.fx.low() ? BURROW.chunks >> 1 : BURROW.chunks;
+    this.fx.burst(at.clone().setY(at.y + 0.01), BURROW.floor, n, 0.006, 0.7, at.y);   // a ring of floor chunks thrown out
+    for (let i = 0; i < 3; i++) this.fx.puff(S.spot.set(at.x, at.y + 0.02 + i * e.r * 1.4, at.z), 0x8a7458, radius * (0.4 - i * 0.08), 0.4 + i * 0.1, 0.28);   // a column of dust
     this.fx.splat(S.spot.set(at.x, at.y, at.z), SCUFF, radius * 0.6, 'dust');
+    this.fx.splat(at, BURROW.crack, radius * 1.15, 'scorch');   // the crater's cracks
+    e.burrowLandT = LOOK.num('burrow-up', 0.06) + LOOK.num('burrow-hang', 0.1) + LOOK.num('burrow-fall', 0.1);   // when it comes down (drawBurrows)
     if (P && blastHits(S.o.set(at.x, at.y, at.z), radius, P.position, P)) {
       this.fx.impact((c.realPc || c.pc).clone(), col, 0.022, 12);
+      sfx.burrowHit();
       bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
       const away = S.dir.set(f.x - at.x, 0, f.z - at.z);
       if (away.lengthSq() < 1e-8) away.set(Math.cos(e.phase), 0, Math.sin(e.phase));   // right on top of it: any way is away
-      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch });
+      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch, tumble: tumble * c.spb });   // (beats to seconds)
+      if (tumble) juice.feel('launched');   // a throw: a freeze on the squashed jelly, then it flies
     } else if (P && P.position.distanceTo(at) < radius * 2.5) juice.feel('impact');   // a near miss still rocks the screen
   }
   // the Warning over each locked mound: a floor circle and the dome over it, filling together to the beat it bursts up on
-  drawBurrows(t) {
+  drawBurrows(t, dt) {
     let n = 0;
     for (const e of this.list) {
+      if (e.burrowLandT > 0 && (e.burrowLandT -= dt) <= 0 && !e.dead) {   // it comes down heavy: a second, smaller ring, dust, chunks raining back
+        sfx.burrowLand();
+        const at = e.burrowAt;
+        this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), 0xb8a890, e.r * 2.4, 0.35);
+        this.fx.puff(S.spot.set(at.x, at.y + 0.01, at.z), 0xb8a890, e.r * 2, 0.4, 0.45);
+        if (!this.fx.low()) this.fx.burst(S.spot.set(at.x, at.y + e.r * 3, at.z).clone(), BURROW.floor, 6, 0.004, 0.15, at.y);
+      }
       if (e.dead || !e.under || !e.burrowLocked) continue;
       const w = e.T.words.find((x) => x.burrowRadius);
       let M = this.burrowMarks[n];
@@ -1326,42 +1356,6 @@ export class Enemies {
     }
     for (let i = n; i < this.burrowMarks.length; i++) this.burrowMarks[i].floor.visible = this.burrowMarks[i].vol.visible = false;
   }
-  // the Warning under each moth about to plunge: a floor circle and the column over it, filling
-  // together as it climbs (brighter once locked)
-  drawPlunges(t) {
-    let n = 0;
-    for (const e of this.list) {
-      if (e.dead || !e.plungeAt || (e.state !== 'climb' && e.state !== 'drop')) continue;
-      const w = e.T.words.find((x) => x.plungeRadius);
-      let M = this.plungeMarks[n];
-      if (!M) {
-        const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), new TeleMaterial(hostile('moth'), 'circle'));
-        floor.renderOrder = 3; this.scene.add(floor);
-        M = { floor, vol: this.fx.volume(hostile('moth'), 'disc', e.pos, 1) }; this.plungeMarks.push(M);
-      }
-      n++;
-      const a = e.plungeAt, locked = e.plungeLocked, pulse = locked ? 1 : 0.8 + 0.2 * Math.abs(Math.sin(t * 12));
-      M.floor.visible = M.vol.visible = true;
-      M.floor.position.set(a.x, a.y + 0.003, a.z); M.floor.scale.setScalar(w.plungeRadius);
-      M.vol.position.set(a.x, a.y, a.z); M.vol.scale.set(w.plungeRadius, w.plungeHeight, w.plungeRadius);
-      M.floor.material.progress = M.vol.material.progress = e.plungeK;
-      M.floor.material.opacity = pulse * LOOK.num('plunge-warning-opacity', 0.3);
-      M.vol.material.opacity = pulse * LOOK.num('plunge-column-opacity', 0.25);
-    }
-    for (let i = n; i < this.plungeMarks.length; i++) this.plungeMarks[i].floor.visible = this.plungeMarks[i].vol.visible = false;
-  }
-  // the moth lands in its column: a hit if you're in the column (a jump doesn't clear it), then the smoke
-  plungeLand(e, c, { radius, height, dmg }) {
-    const a = e.plungeAt, col = hostile('moth'), f = c.realFoot || c.foot;
-    sfx.waspSting();
-    this.fx.impact(S.o.set(a.x, a.y + 0.012, a.z), col, 0.03, 12);
-    this.fx.ring(S.spot.set(a.x, a.y + 0.003, a.z), col, radius, 0.3);
-    this.fx.smoke(S.o.set(a.x, a.y + 0.07, a.z));
-    if (Math.hypot(f.x - a.x, f.z - a.z) < radius + (this.playerRadius || 0.03) && f.y < a.y + height) {
-      this.fx.impact((c.realPc || c.pc).clone(), col, 0.025, 12);
-      bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at: a });
-    }
-  }
   // ---------------------------------------------------------------- wasps and their nest (dive, brood)
   diveWind(e, dur) { sfx.waspWind(dur); }
   diveGo(e) { sfx.diveGo(); this.fx.puff(this.center(e, S.spot), 0xe8e4d8, e.r * 0.8, 0.25); }
@@ -1380,6 +1374,14 @@ export class Enemies {
     const k = e.mesh.scale.x, a = e.root.rotation.y, floor = this.floorBelow(c.foot, c.foot.y);
     const from = S.spot.set(e.pos.x - Math.sin(a) * k * 1.5, e.pos.y + k * 0.3, e.pos.z - Math.cos(a) * k * 1.5);
     this.glowPools.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type);
+  }
+  // ---------------------------------------------------------------- the butterfly (prism)
+  prismWind(e, dur) { sfx.prismWind(dur); }
+  // the fling: from between its forelegs, at the floor under where you are now
+  prism(e, c, p) {
+    const k = e.mesh.scale.x, a = e.root.rotation.y, floor = this.floorBelow(c.foot, c.foot.y);
+    const from = S.spot.set(e.pos.x + Math.sin(a) * k * 0.75, e.pos.y - k * 0.2, e.pos.z + Math.cos(a) * k * 0.75);
+    this.prismBalls.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type, this.beat ?? this.now * 2);
   }
   // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
   // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
@@ -1588,7 +1590,7 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
@@ -1692,6 +1694,7 @@ export class Enemies {
     this.updateShots(dt);
     this.updateSparkShots(dt);
     this.glowPools.update(dt, player, t);
+    this.prismBalls.update(dt, player, this.beat ?? t * 2);
     this.drawSparkBalls();
     this.drawLeaps(t);
     this.drawPokes(t);
@@ -1699,9 +1702,7 @@ export class Enemies {
     this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
-    this.drawBurrows(t);
-    this.drawPlunges(t);
-    this.fx.smokeMat.userData.holdout.value.set(player.position.x, player.position.y + 0.05, player.position.z, 0.07);   // the jelly shows through its own smoke
+    this.drawBurrows(t, dt);
     this.updateMissiles(dt, pc, player.radius || 0.03);
     this.drawLocks(t);
     if (this.frame % 30 === 0) this.list = list.filter((e) => !e.dead);

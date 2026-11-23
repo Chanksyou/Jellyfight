@@ -25,6 +25,10 @@ export const STAGE1 = {
   clock: [0, 120],                    // in-game minutes after midnight: 12:00 AM -> 2:00 AM
   music: 'drift',                     // the song while you explore (music.js SONGS): "Puddle Drift"
 
+  // Dendi asleep in his box by the cat scratcher all night (cat.js addDendi; he gets up only to finish the boss)
+  cat: { at: [4.155, 0.006, 4.53], yaw: Math.PI + 0.06 },
+  rain: true,                         // rain on the windows (rain.js) and in the room tone (ambience.js); act 4 is the same room, dry
+
   noCollide: [],
   hide: ['Ornate wall clock'],         // replaced by the detailed clock (HALL_CLOCK, drawn as decor here)
   decor: [HALL_CLOCK],
