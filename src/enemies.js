@@ -1281,18 +1281,20 @@ export class Enemies {
   // ---------------------------------------------------------------- the cicada (burrow)
   // it digs in: a puff of dust and a scrape (it sinks out of sight over the dig)
   burrowDig(e) { sfx.burrowDig(); this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.6, 0.4); this.fx.burst(e.pos.clone(), [0x3a2a1e, 0x5a4636, 0x9ab85a], 6, 0.003, 0.3, e.pos.y); }
-  burrowRumble() { sfx.burrowRumble(); }
+  burrowRumble(k) { sfx.burrowRumble(k); }   // k: 0..1 along the trail, the song swelling
   // it is under: the mound shows (its model), and the floor kicks up as it goes
   burrowGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.2, 0.3); }
   // on each beat under, the mound humps: a puff, and a crack left behind it (not on Low)
-  burrowHeave(e) {
+  burrowHeave(e, k) {
+    sfx.burrowHeave(k);
     this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.1, 0.3, 0.4);
     if (!this.fx.low()) this.fx.splat(e.pos, BURROW.crack, e.r * 1.8, 'scorch');
   }
   // it locks (the hush): cracks run out to the Warning's edge
-  burrowLock(e, radius) { this.fx.splat(e.burrowAt, BURROW.crack, radius, 'scorch'); }
+  burrowLock(e, radius) { sfx.burrowLock(); this.fx.splat(e.burrowAt, BURROW.crack, radius, 'scorch'); }
   // the swell: pebbles hop inside the circle (not on Low)
-  burrowSwell(e, radius) {
+  burrowSwell(e, radius, secs) {
+    sfx.burrowSwell(secs);
     if (this.fx.low()) return;
     for (let i = 0; i < 3; i++) { const a = e.phase + i * 2.1; this.fx.burst(S.spot.set(e.burrowAt.x + Math.cos(a) * radius * 0.6, e.burrowAt.y + 0.004, e.burrowAt.z + Math.sin(a) * radius * 0.6), BURROW.floor, 3, 0.0025, 0.12, e.burrowAt.y); }
   }
@@ -1312,6 +1314,7 @@ export class Enemies {
     e.burrowLandT = LOOK.num('burrow-up', 0.06) + LOOK.num('burrow-hang', 0.1) + LOOK.num('burrow-fall', 0.1);   // when it comes down (drawBurrows)
     if (P && blastHits(S.o.set(at.x, at.y, at.z), radius, P.position, P)) {
       this.fx.impact((c.realPc || c.pc).clone(), col, 0.022, 12);
+      sfx.burrowHit();
       bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
       const away = S.dir.set(f.x - at.x, 0, f.z - at.z);
       if (away.lengthSq() < 1e-8) away.set(Math.cos(e.phase), 0, Math.sin(e.phase));   // right on top of it: any way is away
@@ -1324,6 +1327,7 @@ export class Enemies {
     let n = 0;
     for (const e of this.list) {
       if (e.burrowLandT > 0 && (e.burrowLandT -= dt) <= 0 && !e.dead) {   // it comes down heavy: a second, smaller ring, dust, chunks raining back
+        sfx.burrowLand();
         const at = e.burrowAt;
         this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), 0xb8a890, e.r * 2.4, 0.35);
         this.fx.puff(S.spot.set(at.x, at.y + 0.01, at.z), 0xb8a890, e.r * 2, 0.4, 0.45);

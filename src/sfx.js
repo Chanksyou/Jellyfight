@@ -1408,16 +1408,75 @@ export const sfx = {
   whirlFling() { if (!ready() || !gap('whirlFling', 80)) return; const j = jitter(0.12); noise(2200 * j, 1.2, 0.3, 0.1, 'bandpass', 0, 600 * j); tone('sine', 260 * j, 120, 0.12, 0.04); },
   whirlEnd(hit) { if (!ready() || !gap('whirlEnd', 60)) return; const j = jitter(0.12); noise((hit ? 500 : 900) * j, 1, hit ? 0.22 : 0.15, hit ? 0.16 : 0.06, 'lowpass', 0, 200); if (hit) tone('sine', 140 * j, 60, 0.12, 0.08); },
   // the cicada's burrow: a scrape and a rush of grit as it digs in, then a deep thud with the floor thrown up when it bursts out
-  burrowDig() {
+  burrowDig() {   // it rears up with a rising buzz, then scrapes in with grit
     if (!ready() || !gap('burrowDig', 80)) return;
     const j = jitter(0.1);
-    noise(1500 * j, 1.5, 0.4, 0.1, 'bandpass', 0, 450 * j); tone('sine', 170 * j, 60, 0.3, 0.07); patter(5, 0.05, 0.3);
+    tone('sawtooth', 380 * j, 1500 * j, 0.22, 0.05); noise(4200 * j, 2, 0.2, 0.04, 'bandpass', 0, 6500);
+    noise(1500 * j, 1.5, 0.4, 0.1, 'bandpass', 0.18, 450 * j); tone('sine', 170 * j, 60, 0.3, 0.07, 0.18); patter(5, 0.2, 0.3);
   },
-  burrowRumble() { if (!ready() || !gap('burrowRumble', 380)) return; const j = jitter(0.12); noise(260 * j, 0.8, 0.32, 0.07, 'lowpass', 0, 110); tone('sine', 62 * j, 46, 0.3, 0.05); },   // the mound ploughing along under the floor
-  burrowBurst() {
+  // the mound ploughing along under the floor; k 0..1 along the trail: the rumble comes closer and the song swells in it
+  burrowRumble(k = 0) {
+    if (!ready() || !gap('burrowRumble', 380)) return;
+    const j = jitter(0.12), v = 0.6 + 0.9 * k;
+    noise(260 * j, 0.8, 0.32, 0.07 * v, 'lowpass', 0, 110); tone('sine', 62 * j, 46, 0.3, 0.05 * v);
+    const t = now(), o = ctx.createOscillator(), g = ctx.createGain(), buzz = tremolo(t, t + 0.4, 42, 0.8);   // the song: a buzz that gets louder and higher
+    o.type = 'sawtooth'; o.frequency.value = (1500 + 1300 * k) * j * pitch();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.004 + 0.02 * k, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+    o.connect(g).connect(buzz.out); buzz.out.connect(sfxBus); o.start(t); o.stop(t + 0.4);
+  },
+  burrowHeave(k = 0) {   // each beat under: the floor humps, a heavier thump as it nears you
+    if (!ready() || !gap('burrowHeave', 120)) return;
+    const j = jitter(0.08);
+    tone('sine', 95 * j, 42, 0.16, 0.07 + 0.08 * k); noise(500 * j, 0.8, 0.1, 0.05 + 0.04 * k, 'lowpass', 0, 160); patter(3, 0.02, 0.12, 0.03);
+  },
+  burrowLock() {   // the hush: one low knock, a dip, and then nothing (the rumble stops with it)
+    if (!ready() || !gap('burrowLock', 200)) return;
+    const j = jitter(0.05);
+    tone('sine', 70 * j, 30, 0.2, 0.1); noise(3000 * j, 2, 0.05, 0.03, 'bandpass', 0, 600);
+  },
+  burrowSwell(secs = 0.47) {   // the inhale: a long rising breath and a climbing tone that stops on the burst
+    if (!ready() || !gap('burrowSwell', 200)) return;
+    const j = jitter(0.05), d = Math.max(0.2, secs), t = now(), g = ctx.createGain(), o = ctx.createOscillator(), buzz = tremolo(t, t + d + 0.03, 24, 0.6);
+    const br = ctx.createBufferSource(), bf = ctx.createBiquadFilter(), bg = ctx.createGain();   // the breath: noise that climbs and swells (noise() only decays)
+    br.buffer = noiseBuf; br.loop = true; bf.type = 'bandpass'; bf.Q.value = 2;
+    bf.frequency.setValueAtTime(300 * j, t); bf.frequency.exponentialRampToValueAtTime(4200 * j, t + d);
+    bg.gain.setValueAtTime(0.0001, t); bg.gain.exponentialRampToValueAtTime(0.16 * loud, t + d * 0.95); bg.gain.linearRampToValueAtTime(0.0001, t + d + 0.01);
+    br.connect(bf).connect(bg).connect(sfxBus); br.start(t); br.stop(t + d + 0.03);
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(140 * j * pitch(), t); o.frequency.exponentialRampToValueAtTime(900 * j * pitch(), t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * loud, t + d * 0.95); g.gain.linearRampToValueAtTime(0.0001, t + d + 0.01);
+    o.connect(g).connect(buzz.out); buzz.out.connect(sfxBus); o.start(t); o.stop(t + d + 0.03);
+  },
+  burrowBurst() {   // the big one: a sub thud, a crack on top, a rush of dust and chunks, and its shriek
     if (!ready() || !gap('burrowBurst', 70)) return;
-    const j = jitter(0.1);
-    tone('sine', 150 * j, 45, 0.35, 0.22); noise(600 * j, 0.8, 0.3, 0.28, 'lowpass', 0, 180); noise(3200 * j, 2, 0.12, 0.1, 'bandpass', 0.03); patter(8, 0.04, 0.3, 0.05);
+    const j = jitter(0.08), t = now(), k = pitch();
+    tone('sine', 120 * j, 28, 0.55, 0.42); tone('triangle', 220 * j, 60, 0.18, 0.2);
+    noise(5200 * j, 1, 0.07, 0.34, 'highpass'); noise(2400 * j, 1.5, 0.16, 0.26, 'bandpass', 0, 500);   // the crack
+    noise(700 * j, 0.8, 0.55, 0.3, 'lowpass', 0, 140); patter(10, 0.04, 0.45, 0.06);
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), shriek = tremolo(t, t + 0.7, 38, 0.7);   // the shriek
+    o.type = 'sawtooth'; o2.type = 'square';
+    for (const [x, m] of [[o, 1], [o2, 1.51]]) { x.frequency.setValueAtTime(3300 * j * k * m, t + 0.02); x.frequency.exponentialRampToValueAtTime(2100 * j * k * m, t + 0.65); x.connect(g); x.start(t + 0.02); x.stop(t + 0.7); }
+    g.gain.setValueAtTime(0.0001, t + 0.02); g.gain.exponentialRampToValueAtTime(0.07 * loud, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.66);
+    g.connect(shriek.out); shriek.out.connect(sfxBus);
+  },
+  burrowHit() {   // the jelly is caught in it: a heavy smack and a crunch (the freeze is 60 ms: its flight starts after)
+    if (!ready() || !gap('burrowHit', 120)) return;
+    const j = jitter(0.06);
+    tone('sine', 190 * j, 50, 0.3, 0.3); noise(1400 * j, 1, 0.12, 0.3, 'bandpass', 0, 300); noise(4500 * j, 2, 0.05, 0.16, 'highpass'); tone('square', 520 * j, 140, 0.08, 0.08);
+  },
+  burrowLand() {   // it comes down heavy: a second, smaller thump and the chunks clattering back
+    if (!ready() || !gap('burrowLand', 150)) return;
+    const j = jitter(0.08);
+    tone('sine', 90 * j, 36, 0.22, 0.22); noise(600 * j, 0.8, 0.2, 0.16, 'lowpass', 0, 160); patter(9, 0.05, 0.7, 0.05);
+  },
+  thrown(beats = 1) {   // the jelly flung: a whoosh that rises and falls away (after the hit's freeze)
+    if (!ready() || !gap('thrown', 300)) return;
+    const j = jitter(0.08), d = 0.5 + 0.2 * Math.min(1, beats);
+    noise(500 * j, 1.5, d, 0.2, 'bandpass', 0.06, 2600 * j); tone('sine', 300 * j, 110 * j, d, 0.05, 0.06);
+  },
+  thrownLand() {   // the throw ends: a heavy wet thump and a skid
+    if (!ready() || !gap('thrownLand', 200)) return;
+    const j = jitter(0.08);
+    tone('sine', 150 * j, 42, 0.26, 0.3); noise(900 * j, 1, 0.12, 0.2, 'lowpass', 0, 250); noise(2600 * j, 2, 0.22, 0.05, 'bandpass', 0.05, 800); patter(4, 0.04, 0.18, 0.03);
   },
   // the stag beetle: an electric whine rising through its charge with crackles thickening in it
   // (returns a function that cuts it off), the zap of the release with a whoosh as the ball flies,

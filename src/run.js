@@ -197,6 +197,7 @@ export class Run {
       if (targetId !== PLAYER) return;
       if (tumble) {   // thrown: no grip for a moment, so the stick can't cancel it; squashed flat in the freeze, then it somersaults off
         this.tumbleT = this.tumbleMax = Math.max(this.tumbleT, tumble); this.thrownAir = true;
+        sfx.thrown(tumble);
         this.player.avatar?.thrown?.(LOOK.num('jelly-thrown-squash', 0.45));
       }
       this.shovedAt = this.frame; this.hitPush = null;   // an attack that shoves you itself takes the place of the hit's pushback
@@ -229,6 +230,7 @@ export class Run {
         this.thrownAir = false;
         const P = this.player.position;
         this.player.avatar?.land(1.2);
+        sfx.thrownLand();
         this.fx.puff(_drop.set(P.x, P.y + 0.01, P.z), 0xb8a890, this.cfg.radius * 2.2, 0.4, 0.5);
         this.fx.splat(_drop, null, this.cfg.radius * 1.4, 'dust');
       }

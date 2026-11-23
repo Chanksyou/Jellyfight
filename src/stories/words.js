@@ -8,7 +8,7 @@ import { CONTENT, compileEnemies } from '../content.js';
 import { TREASURES, STAT_INFO, EVOLUTIONS } from '../stats.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
-import { sfx, unlock as unlockAudio, audio } from '../sfx.js';
+import { sfx, unlock as unlockAudio, audio, cueLog } from '../sfx.js';
 import { juice } from '../juice.js';
 import { SPECIES, buildCharacter, normalizeLook, bellFront, bellHalfWidth } from '../character.js';
 import { bellFlex } from '../bell-flex.js';
@@ -1320,6 +1320,20 @@ story('words/burrow-throws-the-jelly-far', {
     step(60 * 5, () => player.grounded && Math.hypot(player.velocity.x, player.velocity.z) < 0.02);
     const far = Math.hypot(player.position.x - at.x, player.position.z - at.z);
     return ok(launched && up && far >= 0.8 && far <= 1.6, { launched, up, far: +far.toFixed(2) });
+  },
+});
+story('words/burrow-sounds-follow-its-beats', {
+  about: 'The burrow is heard beat by beat: the dig, the rumble and a thump on each beat of the trail (4, the fifth is the hush), then at the hush the lock and no more rumble, the inhale, the burst, the hit, the throw\'s whoosh and the chunks coming down.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies } = G(), e = enemies.list[0], log = cueLog(() => 0);
+    step(60 * 25, () => e.state === 'dazed');
+    step(60);
+    cueLog(null);
+    const names = log.map((c) => c.cue), at = (n) => names.indexOf(n), count = (n) => names.filter((x) => x === n).length;
+    const afterLock = names.slice(at('burrowLock')).includes('burrowRumble');
+    const order = ['burrowDig', 'burrowHeave', 'burrowLock', 'burrowSwell', 'burrowBurst', 'burrowHit', 'thrown', 'burrowLand'].map(at);
+    return ok(order.every((i, k) => i >= 0 && (!k || i > order[k - 1])) && count('burrowHeave') === 4 && count('burrowRumble') > 0 && !afterLock, { order, heaves: count('burrowHeave'), afterLock });
   },
 });
 story('words/burrow-tumble-cant-be-steered', {
