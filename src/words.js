@@ -495,7 +495,7 @@ export const ENEMY_WORDS = {
     props: { range: 0.55, every: 6, dig: 1, follow: 4, warn: 2, speed: 0.22, radius: 0.1, dmg: 4, knock: 0.5, launch: 0.5, tumble: 0, daze: 4 },
     make: (_, p) => ({
       burrowRadius: p.radius,
-      init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; },
+      init(e) { e.burrowCd = 1 + Math.random() * 2; e.burrowAt = new THREE.Vector3(); e.burrowK = 0; e.digK = 0; e.under = false; e.burstT = 0; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
         e.burrowCd -= c.dt;
@@ -505,21 +505,23 @@ export const ENEMY_WORDS = {
           c.speed = 0;
           e.stateT -= c.dt * live;
           e.digK = 1 - Math.max(0, e.stateT) / (p.dig * c.spb);
-          if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowBeats = 0; e.beatSeen = c.beat; en.burrowGo(e); }
+          if (e.stateT <= 0) { e.state = 'under'; e.under = true; e.burrowLocked = false; e.burrowSwell = false; e.burrowBeats = 0; e.burrowBeatN = 0; e.beatSeen = c.beat; en.burrowGo(e); }
         } else if (e.state === 'under') {
           c.speed = 0;
           en.burrowRumble();
           e.burrowBeats += THREE.MathUtils.clamp(c.beat - e.beatSeen, 0, 0.5);   // a song handing over (the beat jumping) can't strand it down there
           e.beatSeen = c.beat;
-          if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); }
+          if (!e.burrowLocked && e.burrowBeats >= p.follow) { e.burrowLocked = true; e.burrowAt.copy(e.pos); e.vel.set(0, 0, 0); en.burrowLock?.(e, p.radius); }
+          else if (e.burrowLocked && e.burrowBeats >= p.follow + p.warn / 2 && !e.burrowSwell) { e.burrowSwell = true; en.burrowSwell?.(e, p.radius); }   // the Warning's last half: the floor swells
+          else if (!e.burrowLocked && Math.floor(e.burrowBeats) > e.burrowBeatN) { e.burrowBeatN = Math.floor(e.burrowBeats); en.burrowHeave?.(e); }   // the mound heaves on each beat
           if (!e.burrowLocked) { c.dir.copy(c.flatDir); c.speed = p.speed; }     // the mound trails after you
           else {
             e.burrowK = THREE.MathUtils.clamp((e.burrowBeats - p.follow) / p.warn, 0, 1);
-            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze * c.spb; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
+            if (e.burrowBeats >= p.follow + p.warn) { e.under = false; e.pos.copy(e.burrowAt); e.digK = 0; e.burrowK = 0; e.state = 'dazed'; e.stateT = p.daze * c.spb; e.burstT = 0; e.vel.set(0, 0, 0); en.burrowBurst(e, c, p); }
           }
         } else if (e.state === 'dazed') {
           c.speed = 0;
-          e.stateT -= c.dt;
+          e.stateT -= c.dt; e.burstT += c.dt;   // (burstT: its pose's clock from the burst, critters.js)
           if (e.stateT <= 0) { e.state = 'approach'; e.burrowCd = p.every; }
         }
       },

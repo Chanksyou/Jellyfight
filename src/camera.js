@@ -240,7 +240,7 @@ export class ThirdPersonCamera {
 
     // Smooth follow on the focus point
     this._jelly.set(target.x, target.y + c.height, target.z);
-    this.focus.lerp(this._jelly, 1 - Math.exp(-20 * dt));
+    this.focus.lerp(this._jelly, 1 - Math.exp(-20 * (1 - (this.lag || 0)) * dt));   // lag (0 to 1, run.js): a thrown jelly is followed a touch late
 
     this.dirAt(this.viewPitch, this._dir);
     // Clearance: in at once where a wall would be in the way, back out after a pause (the view's

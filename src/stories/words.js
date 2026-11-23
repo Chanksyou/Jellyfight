@@ -1342,6 +1342,33 @@ story('words/burrow-tumble-cant-be-steered', {
     return ok(Math.abs(shove.tumble - beat) < 1e-6 && tumbling && v0 > 0.9 && vTumble > 0.8 * v0 && vFree < 0.8 * v1, { tumble: shove.tumble, tumbling, v0: +v0.toFixed(2), vTumble: +vTumble.toFixed(2), v1: +v1.toFixed(2), vFree: +vFree.toFixed(2) });
   },
 });
+story('words/burrow-throw-shows-on-the-jelly', {
+  about: 'Thrown by the burst, the jelly is squashed flat in the freeze, somersaults a whole turn about its middle while it tumbles and comes out of it upright, the camera falls a touch behind and then catches up, and it lands with a puff and a scuff. Under Reduce effects it neither spins nor leaves the camera behind.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies, player, run, tpc, fx } = G(), e = enemies.list[0], puffs = spy(fx, 'puff'), scuffs = spy(fx, 'splat');
+    step(60 * 25, () => e.state === 'dazed');
+    const squashed = player.avatar.squash.scale.y;
+    let turned = 0, lagged = 0, behind = 0, landed = -1;
+    const n0 = puffs.length;
+    for (let i = 0; i < 60 && (run.tumbleT > 0 || landed < 0); i++) {
+      step(1);
+      turned = Math.max(turned, player.mesh.rotation.x); lagged = Math.max(lagged, tpc.lag || 0);
+      behind = Math.max(behind, Math.hypot(tpc.focus.x - player.position.x, tpc.focus.z - player.position.z));
+      if (landed < 0 && player.grounded) landed = i;
+    }
+    step(30);
+    const upright = player.mesh.rotation.x === 0, caught = Math.hypot(tpc.focus.x - player.position.x, tpc.focus.z - player.position.z) < 0.02 && !tpc.lag;
+    const puffed = puffs.slice(n0).some((a) => a[2] >= G().CONFIG?.player?.radius * 2 || a[2] > 0.04), scuffed = scuffs.some((a) => a[3] === 'dust');
+    // Reduce effects: a fresh tumble shows no somersault and no camera lag
+    const was = juice.calm; juice.calm = true;
+    run.tumbleT = run.tumbleMax = 0.4; step(5);
+    const calm = player.mesh.rotation.x === 0 && !tpc.lag;
+    juice.calm = was; run.tumbleT = 0;
+    return ok(squashed < 0.7 && turned > 2 && lagged > 0.5 && behind > 0.03 && landed >= 0 && upright && caught && puffed && scuffed && calm,
+      { squashed: +squashed.toFixed(2), turned: +turned.toFixed(2), lagged, behind: +behind.toFixed(3), landed, upright, caught, puffed, scuffed, calm });
+  },
+});
 story('words/burrow-bursts-on-the-downbeat', {
   about: 'Dig 1 beat, trail 5, Warning 2: the burst lands 8 beats after the dig starts (two bars), on a beat of the song.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
