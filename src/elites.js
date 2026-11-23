@@ -757,7 +757,7 @@ export class Elites {
       this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-shot-scuff', 0.012), 'dust');
       sfx.bullHit();
     };
-    this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3(); this._mid2 = new THREE.Vector3();   // scratch for the Bull
+    this._camEuler = new THREE.Euler(); this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3(); this._mid2 = new THREE.Vector3();   // scratch for the Bull
     // the pull on the jelly this frame (m/s, flat), or null: the Coffer's tongue. The run adds it
     // to the jelly's movement next frame, as it does a Boss's `push`
     this.pull = null;
@@ -1536,7 +1536,8 @@ export class Elites {
           if (dir === 'down' || dir === 'up') mid.y += dir === 'down' ? out : -out; else mid.addScaledVector(e.arrowSide, side * out);
           const m = e.arrowMesh, S = D.size;
           m.position.copy(mid); m.scale.setScalar(S);
-          m.rotation.set(0, Math.atan2(-e.arrowSide.z, e.arrowSide.x), dir === 'down' ? Math.PI : dir === 'up' ? 0 : side * Math.PI / 2);   // face the camera, tip the way it flies
+          m.rotation.order = 'YXZ';   // turn to the camera, lean back with its pitch (a flat slab seen from above is a sliver), then tip the way it flies
+          m.rotation.set(this._camEuler.setFromQuaternion(camQ, 'YXZ').x * 0.8, Math.atan2(-e.arrowSide.z, e.arrowSide.x), dir === 'down' ? Math.PI : dir === 'up' ? 0 : side * Math.PI / 2);
           g.rotation.x = Math.min(1, k) * LOOK.num('controller-windup-tilt', 0.12);
           if (w >= D.warn + D.strike) {
             const struck = blastHits(at, R, P, cfg);

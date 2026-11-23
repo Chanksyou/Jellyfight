@@ -13,7 +13,7 @@ pace recover=1 tempo=1.4
 elite "controller" name="The Controller" icon="🎮" hp=250 aggro=1.1 {
     barrage dmg=3 windup=1.4 gap=0.35 radius=0.075 height=0.06 spread=0.19 rest=1.6   // gap: tempo s between symbols going off, in their buttons' order
     rumble dmg=3
-    arrow dmg=3 warn=1 lock=0.6 strike=0.12 radius=0.07 reach=0.16 size=0.07 air=0.03 rest=1.6   // a pad arrow hovers reach= m off you for warn= real s (following you until lock= of it), then flies in over strike= s; air= m off the floor is 'in the air' (only then can it come up from below)
+    arrow dmg=3 warn=1 lock=0.6 strike=0.12 radius=0.07 reach=0.22 size=0.1 air=0.03 rest=1.6   // a pad arrow hovers reach= m off you for warn= real s (following you until lock= of it), then flies in over strike= s; air= m off the floor is 'in the air' (only then can it come up from below)
 }
 
 elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
