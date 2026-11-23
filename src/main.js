@@ -38,6 +38,7 @@ import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { shadeWithBakedAO } from './baked-ao.js';
 import { BAKED_LIGHT, followGlow, setBakedLight } from './baked-light.js';
+import { mapPieces } from './piece-light.js';
 import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
 import { StaticBatches, freeze } from './static-batch.js';
@@ -275,6 +276,7 @@ function skyNow(t) {
 }
 if (!ARENA) dressSet(scene, APT.root);   // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
+if (!ARENA) APT.lightMapped = mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);   // the big pieces' own light maps (piece-light.js), before the collision world and the batches take their vertices
 const world = new World(scene, { staticScene: true });
 // the arena's invisible solids (its continuous floor, the jump-safe rails, the Encore's stage) collide
 if (ARENA) for (const m of ARENA.solids) if (m.userData.noCollide) world.addCollider(m, false);
@@ -567,6 +569,7 @@ async function loadRooms(parts, onProgress) {
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
   const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
+  APT.lightMapped += mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);
   world.addObjects([...added, ...made]);
   [...added, ...made].forEach((o) => statics.add(o));
   // the new rooms' see-through copies and GPU uploads, as warmUp does for the first ones

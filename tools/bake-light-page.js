@@ -13,6 +13,7 @@ import { MeshBVH } from 'three-mesh-bvh';
 import { bakeFingerprint } from '../src/baked-light.js';
 import { BAKE_LIGHTS } from '../src/bake-lights.js';
 import { BAKED_LAYOUT } from '../src/layout-baked.js';
+import { lightPieces, wantsMap, chartPiece, PIECE } from '../src/piece-light.js';
 
 const RES = { floor: 0.01, wall: 0.02, ceiling: 0.04 };   // metres a texel
 const PAD = 3, MAX_W = 4096;
@@ -80,6 +81,10 @@ export async function exportAct(stageId) {
     if (shellUV) for (const t of shellUV) g.uv1.push(t[0], t[1]);
   };
 
+  // the big pieces that get a light map of their own (src/piece-light.js): cut into charts here, packed after the shell
+  const pieces = new Map();
+  for (const { id, mesh } of lightPieces(root)) if (shown(mesh) && wantsMap(mesh)) pieces.set(mesh, { id, ...chartPiece(mesh), tris: [] });
+
   // pass 1: every solid triangle in world space; shell triangles looking straight along an axis are kept to lay out
   const shellTris = [];
   const m4 = new THREE.Matrix4(), box = new THREE.Box3(), size = new THREE.Vector3();
@@ -97,6 +102,8 @@ export async function exportAct(stageId) {
       box.copy(g.boundingBox).applyMatrix4(m4);
       const fixture = !shell && box.getSize(size).length() < 1.2 && lampAt.some((p) => box.distanceToPoint(p) < 0.12);
       if (fixture) fixtures++;
+      const piece = !fixture && !shell && !o.isInstancedMesh && pieces.get(o);
+      if (fixture || shell) pieces.delete(o);
       for (const part of parts) {
         const sm = list[part.materialIndex];
         if (!solid(sm)) continue;
@@ -105,6 +112,7 @@ export async function exportAct(stageId) {
           A.fromBufferAttribute(pos, ia).applyMatrix4(m4); B.fromBufferAttribute(pos, ib).applyMatrix4(m4); C.fromBufferAttribute(pos, ic).applyMatrix4(m4);
           const uvs = [ia, ib, ic].map((k) => (uv ? new THREE.Vector2().fromBufferAttribute(uv, k) : new THREE.Vector2()));
           triangles++;
+          if (piece) { piece.tris.push({ t: i / 3, tri: [A.clone(), B.clone(), C.clone()], uvs, mat: copyOf(sm, 'shell') }); continue; }
           if (shell) {
             n.crossVectors(e1.subVectors(B, A), e2.subVectors(C, A));
             const area = n.length();
@@ -150,7 +158,32 @@ export async function exportAct(stageId) {
     if (x + p.w > MAX_W) { x = 0; y += shelf; shelf = 0; }
     p.u0 = x + PAD; p.v0 = y + PAD; x += p.w; shelf = Math.max(shelf, p.h); W = Math.max(W, x);
   }
+  // then the pieces' charts, on shelves below the shell's planes
+  const charts = [];
+  for (const p of pieces.values()) for (const c of p.charts) {
+    c.w = Math.ceil(c.hi[0] - c.lo[0]) + 1 + PIECE.pad * 2; c.h = Math.ceil(c.hi[1] - c.lo[1]) + 1 + PIECE.pad * 2;
+    charts.push(c);
+  }
+  charts.sort((a, b) => b.h - a.h || b.w - a.w);
+  y += shelf; x = 0; shelf = 0;
+  for (const c of charts) {
+    if (c.w > MAX_W) throw new Error(`a chart is ${c.w} texels wide`);
+    if (x + c.w > MAX_W) { x = 0; y += shelf; shelf = 0; }
+    c.du = x + PIECE.pad - c.lo[0]; c.dv = y + PIECE.pad - c.lo[1]; x += c.w; shelf = Math.max(shelf, c.h); W = Math.max(W, x);
+  }
   const H = y + shelf;
+  for (const p of pieces.values()) {
+    for (const { t, tri, uvs, mat } of p.tris) {
+      const c = p.charts[p.chart[t]], [ua, va] = PLANE_AXES[c.a];
+      add(mat, tri, uvs, tri.map((P) => [(P.getComponent(ua) / PIECE.res + c.du) / W, (P.getComponent(va) / PIECE.res + c.dv) / H]));
+    }
+  }
+  const pieceMeta = [...pieces.values()].filter((p) => p.tris.length).map((p) => {
+    const bytes = new Uint8Array(new Uint16Array(p.chart).buffer);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { id: p.id, tris: p.chart.length, chart: btoa(bin), at: p.charts.flatMap((c) => [c.a, +c.du.toFixed(4), +c.dv.toFixed(4)]) };
+  });
   // texel coordinates of a world point on a plane: (along - lo) / res + u0 (the picture's top row is v = 0)
   for (const t of shellTris) {
     const p = t.plane, [ua, va] = PLANE_AXES[t.a];
@@ -186,10 +219,11 @@ export async function exportAct(stageId) {
       stage: stageId, parts: [...APT.loaded], atlas: [W, H], made: await bakeFingerprint(stageId, [...APT.loaded], BAKED_LAYOUT[stageId]),
       grid: { min: grid.min, dims: grid.dims, step: GRID.step },
       planes: list.map((p) => ({ o: p.o, k: p.k, res: p.res, lo: p.lo.map((c) => +c.toFixed(4)), u0: p.u0, v0: p.v0, w: p.w - PAD * 2, h: p.h - PAD * 2 })),
+      pieces: pieceMeta,
     },
     scene: { lamps: lights, extra: (own.lights || []).map((L) => ({ ...L, ...(L.at && { at: arrB(L.at) }), ...(L.to && { to: arrB(L.to) }), ...(L.dir && { dir: arrB(L.dir) }) })), sets: own.sets || ['lamps'], exposure: own.exposure ?? 1, samples: own.samples },
     inside: grid.inside,
-    stats: { inside: grid.inside.reduce((a, b) => a + b, 0), points: grid.inside.length, triangles, shell: shellTris.length, planes: list.length, fixtures, materials: groups.size },
+    stats: { inside: grid.inside.reduce((a, b) => a + b, 0), points: grid.inside.length, triangles, shell: shellTris.length, planes: list.length, pieces: pieceMeta.length, charts: charts.length, fixtures, materials: groups.size },
   };
 }
 
