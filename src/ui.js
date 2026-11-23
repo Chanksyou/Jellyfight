@@ -25,6 +25,8 @@ const tierCard = ({ i, tier, icon: ic, name, body, badges = '', key = '', d, up 
     <span class="ui-card-icon ic">${ic}</span>${tier ? `<span class="ui-card-rarity rar">${esc(tier.name)}${up ? ' <span class="jf-new jf-up">▲ Upgraded</span>' : ''}</span>` : ''}<span class="ui-card-name">${name}</span>
     <span class="ui-card-body">${body}</span><span class="jf-badges">${key ? `<span class="key" aria-hidden="true">${key}</span>` : ''}${badges}</span></button>`;
 };
+// A treasure pick card's "Dodge 30% → 45%" lines (run.statChanges): the stats it changes, now and after
+const changeLines = (list) => (list || []).map((c) => { const f = STAT_INFO[c.stat].fmt, show = (v) => (c.stat === 'bubbles' ? `${v}` : f(v)); return `<br><span class="jf-now">${STAT_INFO[c.stat].icon} ${STAT_INFO[c.stat].name} ${show(c.from)} → <b>${show(c.to)}</b></span>`; }).join('');
 const BEAT = 300;     // a level-up's beat (ms) before the first card is dealt (when no spin plays)
 const COUNT = 0.7;    // an end screen's tally: seconds a number counts up
 const DEAL_MAX = 360; // a deal or a cascade of rows is over inside this many ms (the skill's staggers stay under 400)
@@ -65,6 +67,7 @@ const CSS = `
   background: linear-gradient(115deg, transparent 20%, color-mix(in srgb, var(--rarity) 22%, transparent) 50%, transparent 80%); transform: translateX(-110%); }
 @keyframes jfSheen { 0% { transform: translateX(-110%); } 42%, 100% { transform: translateX(230%); } }
 /* count / New! in the card's top corner, and the number key that picks it */
+.jf-now { display: inline-block; margin-top: var(--ui-space-1); font: 600 var(--ui-size-label)/1.3 var(--ui-font-text); font-variant-numeric: tabular-nums; color: var(--ui-ink); }
 .jf-badges { position: absolute; top: var(--ui-space-2); right: var(--ui-space-2); display: flex; gap: var(--ui-space-1); align-items: center; }
 .jf-badges .ui-card-count { position: static; }
 .jf-card .key { font: 700 var(--ui-size-label)/1 var(--ui-font-text); opacity: .55; }
@@ -372,7 +375,7 @@ export class UI {
     const render = () => {
       const at = dealDelays(choices.map((c) => c.tier?.name));
       this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
-        <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text), key: i + 1, d: at[i],
+        <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text) + changeLines(c.changes), key: i + 1, d: at[i],
           up: c.upgraded, badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
       this.dealSound(at, choices.map((c) => c.tier?.name));
     };

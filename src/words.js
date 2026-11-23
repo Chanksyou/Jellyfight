@@ -869,7 +869,7 @@ export function newMods() {
     mouse: null,                     // toy-mouse: { every, dmg, speed, size, splash, push }
     reflect: null,                   // reflect: { every, invuln, dmg, burst, burstDmg, push }
     deathSave: null,                 // death-save: { health } (a share of max Health)                    // zap-on-pop: { chance, count, range, stun, dmg }
-    stats: { add: {}, pct: {} },     // stat bonuses: added, and % of the starting value
+    stats: { add: {}, pct: {}, dodge: [] },     // stat bonuses: added, and % of the starting value; dodge: each treasure's Dodge, closing that share of the gap to the cap (Run.S)
     landingShockwave: null, extraJumps: 0,
     xpReach: 1, xpMult: 1, healOnKill: 0, healOnHit: null, damageTaken: 1,
     growth: [], bugSpeed: 1, moreBugs: 1, cardChoices: 0,
@@ -1406,7 +1406,7 @@ export const TREASURE_WORDS = {
   },
   'xp-reach': { doc: 'XP drifts to you from `times` as far.', args: ['times'], make: ([k]) => (m) => { m.xpReach *= k; } },
   stat: {
-    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
+    doc: 'Raises a stat by `amount` (negative lowers it): bubbles, range, bubble-damage, fire-rate, health, shield, move-speed, health-regen (health a second), dodge (% chance a hit misses; each treasure closes that share of the gap to the 60% cap, so copies give less and less), luck (rarer cards and treasures), bubble-size, jump-height, tentacles (how many lash at once), tentacle-reach, tentacle-speed, tentacle-damage or burn-damage (how hard Burn hurts, 1 = as usual). `percent=#true` means % of its starting value. `no-penalty=#true` (bubbles only): those extra Attacks cost the others none of their damage.',
     args: ['name', 'amount'],
     props: { percent: false, 'no-penalty': false },
     make: ([name, amount], p) => {
@@ -1414,6 +1414,7 @@ export const TREASURE_WORDS = {
       if (!key) throw new Error(`stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
       if (typeof amount !== 'number') throw new Error(`stat ${name} needs a number`);
       if (p['no-penalty'] && (key !== 'bubbles' || p.percent || !(amount > 0))) throw new Error('stat: no-penalty=#true only goes with a positive whole number of bubbles (Attacks)');
+      if (key === 'dodge' && !p.percent && amount > 0) return (m) => { m.stats.dodge.push(amount); };   // Dodge scales like the cards: each copy closes a share of the gap to the cap
       return (m) => { const t = p.percent ? m.stats.pct : m.stats.add; t[key] = (t[key] || 0) + amount; if (p['no-penalty']) m.freeAttacks += amount; };
     },
   },
