@@ -92,3 +92,19 @@ story('vents/low-draws-no-dust-and-calm-stills-ribbons', {
     return ok(low === 0 && dust > 1000 && calm === 1 && U.uCalm.value === 0 && calmDt < lowDt * 0.5, { low, dust, calm, lowDt, calmDt });
   },
 });
+
+story('vents/air-rests-where-it-blows', {
+  about: 'Every vent piece\'s own shape (what the Overdraw view and any plain material draw, without the moving shader) stands over a vent, never at the room\'s origin, so the overdraw count sees the air where it is.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { traversal } = G(), far = [];
+    for (const o of traversal.air.parts) {
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const near = traversal.vents.some((v) => Math.hypot(p.getX(i) - v.x, p.getZ(i) - v.z) < v.radius * 2 && p.getY(i) >= v.y - 0.01 && p.getY(i) <= v.land[1] + 0.05);
+        if (!near) { far.push(`${o.type} ${i}: ${p.getX(i).toFixed(2)}, ${p.getY(i).toFixed(2)}, ${p.getZ(i).toFixed(2)}`); break; }
+      }
+    }
+    return ok(traversal.air.parts.length === 4 && !far.length, { far });
+  },
+});

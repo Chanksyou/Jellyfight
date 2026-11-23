@@ -55,7 +55,7 @@ const COMMON = /* glsl */`
 // Wisps: flat ribbons that always face the camera, static; only the streak pattern and a sway move
 function wispMesh(vents, look) {
   const WISPS = LOOK.num('vent-wisps', 6), PUFFS = LOOK.num('vent-puffs', 4), spread = LOOK.num('vent-spread', 1.6);
-  const P = [], B = [], A = [];   // P: side, t, seed | B: base xyz + height | A: angle, radius, reach, speed
+  const X = [], P = [], B = [], A = [];   // X: where the ribbon stands at rest (the shape the Overdraw view draws) | P: side, t, seed | B: base xyz + height | A: angle, radius, reach, speed
   const idx = [];
   let n = 0;
   for (const v of vents) for (let k = 0; k < WISPS + PUFFS; k++) {
@@ -64,6 +64,7 @@ function wispMesh(vents, look) {
     const rad = v.radius * (0.2 + Math.random() * 0.5), speed = 0.7 + Math.random() * 0.6;
     for (let s = 0; s <= SEG; s++) for (const side of [-1, 1]) {
       P.push(side, s / SEG, seed);
+      X.push(v.x + Math.cos(ang) * rad + side * 0.01, v.y + (s / SEG) * h, v.z + Math.sin(ang) * rad);
       B.push(v.x, v.y, v.z, h);
       A.push(ang, rad, puff ? 1 : 0, speed);
     }
@@ -71,14 +72,15 @@ function wispMesh(vents, look) {
     n += (SEG + 1) * 2;
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(X, 3));
+  g.setAttribute('wp', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('base', new THREE.Float32BufferAttribute(B, 4));
   g.setAttribute('shape', new THREE.Float32BufferAttribute(A, 4));
   g.setIndex(idx);
   const m = new THREE.ShaderMaterial({
     uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,   // (always facing the camera: one layer, not two)
     vertexShader: /* glsl */`
-      attribute vec4 base; attribute vec4 shape;
+      attribute vec3 wp; attribute vec4 base; attribute vec4 shape;
       varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear;
       ${COMMON}
       vec3 path(float t, float g) {
@@ -88,13 +90,13 @@ function wispMesh(vents, look) {
         return base.xyz + vec3(cos(a) * r, t * base.w, sin(a) * r);
       }
       void main() {
-        float t = position.y, g = gustAt(base.xyz);
+        float t = wp.y, g = gustAt(base.xyz);
         vec3 c = path(t, g), tan = normalize(path(t + 0.02, g) - c);
         vec3 right = normalize(cross(tan, cameraPosition - c));
         float width = mix(0.005, 0.016, t) * (shape.z > 0.5 ? 0.9 : 1.0) * (1.0 + g);
-        vUv = vec3(position.x, t, position.z); vPuff = shape.z; vGust = g;
+        vUv = vec3(wp.x, t, wp.z); vPuff = shape.z; vGust = g;
         vNear = distance(c, cameraPosition);
-        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * position.x * width, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * wp.x * width, 1.0);
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uColor; uniform float uWisp;
@@ -156,35 +158,36 @@ function moteMesh(vents, look) {
 // Tell-tale ribbons tied to the louvres: the way people check a real vent is blowing
 function tailMesh(vents, look) {
   const TAILS = LOOK.num('vent-ribbons', 3);
-  const P = [], B = [], idx = [];
+  const X = [], P = [], B = [], idx = [];   // X: the ribbon at rest (what the Overdraw view draws) | P: side, u, seed | B: root xyz + length
   let n = 0;
   for (const v of vents) for (let k = 0; k < TAILS; k++) {
     const ox = (k - (TAILS - 1) / 2) * v.radius * 0.55, oz = (Math.random() - 0.5) * v.radius * 0.5, seed = Math.random() * 6.283, len = 0.035 + Math.random() * 0.02;
-    for (let s = 0; s <= TAIL_SEG; s++) for (const side of [-1, 1]) { P.push(side, s / TAIL_SEG, seed); B.push(v.x + ox, v.y + 0.003, v.z + oz, len); }
+    for (let s = 0; s <= TAIL_SEG; s++) for (const side of [-1, 1]) { P.push(side, s / TAIL_SEG, seed); X.push(v.x + ox + side * 0.0017, v.y + 0.003 + (s / TAIL_SEG) * len, v.z + oz); B.push(v.x + ox, v.y + 0.003, v.z + oz, len); }
     for (let s = 0; s < TAIL_SEG; s++) { const a = n + s * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     n += (TAIL_SEG + 1) * 2;
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(X, 3));
+  g.setAttribute('wp', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('base', new THREE.Float32BufferAttribute(B, 4));
   g.setIndex(idx);
   const m = new THREE.ShaderMaterial({
     uniforms: look.uniforms, side: THREE.DoubleSide,
     vertexShader: /* glsl */`
-      attribute vec4 base; varying float vShade; varying float vU;
+      attribute vec3 wp; attribute vec4 base; varying float vShade; varying float vU;
       ${COMMON}
       vec3 path(float u, float s, float g) {
         float k = 9.0 + 6.0 * g, amp = 0.007 * u * (1.0 - 0.5 * g) * (1.0 - uCalm);
         return base.xyz + vec3(sin(u * 5.0 - uTime * k + s) * amp + sin(uTime * 1.3 + s) * 0.006 * u * (1.0 - uCalm), u * base.w, cos(u * 4.0 - uTime * k * 0.8 + s * 1.7) * amp);
       }
       void main() {
-        float u = position.y, s = position.z, g = gustAt(vec3(base.x, uGust.y, base.z)) ;
+        float u = wp.y, s = wp.z, g = gustAt(vec3(base.x, uGust.y, base.z)) ;
         vec3 c = path(u, s, 0.0), tan = normalize(path(u + 0.05, s, 0.0) - c);
         vec3 right = normalize(cross(tan, vec3(sin(s), 0.0, cos(s)) + vec3(0.0, 0.0, 0.3 * sin(u * 6.0 - uTime * 7.0 + s))));
         vec3 nrm = normalize(cross(right, tan));
         vShade = 0.55 + 0.45 * abs(dot(nrm, normalize(cameraPosition - c)));
         vU = u;
-        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * position.x * 0.0017, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * wp.x * 0.0017, 1.0);
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uTail; uniform float uRoom; varying float vShade; varying float vU;
