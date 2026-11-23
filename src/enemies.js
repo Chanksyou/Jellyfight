@@ -915,66 +915,9 @@ export class Enemies {
     for (let i = n; i < this.chargeMarks.length; i++) this.chargeMarks[i].visible = false;
   }
 
-  // ---------------------------------------------------------------- dragonflies (zip, evade, charge-beam)
+  // ---------------------------------------------------------------- dragonflies (zip, evade)
   zip(e) { sfx.zip(); }
   evade(e) { sfx.evade(); this.fx.puff(this.center(e), 0xcfe6f4, e.r * 0.8, 0.25); }
-  // the charge: a whine that builds for `dur` s, the only warning there is
-  beamCharge(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.beamCharge(dur); }
-  // broken off (it dodged a hit): the whine cuts out and it flies on
-  breakCharge(e) {
-    e.chargeSound?.(); e.chargeSound = null;
-    e.state = 'approach'; e.faceLock = false; e.beamCd = 1.5;
-  }
-  // the beam: instant, along the way it faced when the charge began, stopped by walls and
-  // furniture. You're hit if any of you is within `width` of it.
-  beam(e, c, { reach, width, dmg }) {
-    e.chargeSound = null;
-    const from = this.center(e).addScaledVector(e.beamDir, e.r * 0.9), dir = e.beamDir;
-    const wall = this.world.cast(from, dir, reach);
-    const len = wall ? wall.distance : reach, to = from.clone().addScaledVector(dir, len);
-    const t = THREE.MathUtils.clamp(S.away.copy((c.realPc || c.pc)).sub(from).dot(dir), 0, len);
-    const near = S.spot.copy(from).addScaledVector(dir, t).distanceTo((c.realPc || c.pc)) < (this.playerRadius || 0.03) + width;
-    const color = hostile('dragonfly');
-    if (!this.beamGeo) {
-      this.beamGeo = new THREE.CylinderGeometry(0.0025, 0.0025, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m along +z
-      this.beamGlowGeo = new THREE.CylinderGeometry(0.009, 0.009, 1, 10, 1, true).rotateX(Math.PI / 2);
-      this.beamMat = new THREE.MeshBasicMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.7), transparent: true, toneMapped: false });
-      this.beamGlowMat = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(2), transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-      this.beams = [];
-    }
-    let b = this.beams.find((x) => x.t <= 0);
-    if (!b) {
-      b = { m: new THREE.Mesh(this.beamGeo, this.beamMat.clone()), t: 0 };
-      b.m.add(new THREE.Mesh(this.beamGlowGeo, this.beamGlowMat.clone()));
-      this.scene.add(b.m);
-      this.beams.push(b);
-    }
-    b.t = b.max = 0.18;
-    b.m.position.copy(from);
-    b.m.lookAt(to);
-    b.m.translateZ(len / 2);
-    b.m.scale.set(1, 1, len);
-    b.m.visible = true;
-    sfx.beamFire();
-    this.fx.impact(from, color, 0.008, 4);
-    this.fx.impact(near ? (c.realPc || c.pc).clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
-    if (!near && wall) {                                   // where it struck: an ember dying out, and a scorch on a floor
-      this.fx.glow.emit(to, color, 0.008, 0.002, 0.6, 0.9);
-      if (wall.normal?.y > 0.5) this.fx.splat(to, SCORCH, 0.008, 'scorch');
-    }
-    if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
-  }
-  drawBeams(dt) {
-    for (const b of this.beams || []) {
-      if (b.t <= 0) continue;
-      b.t -= dt;
-      const k = Math.max(0, b.t / b.max);
-      b.m.material.opacity = k;
-      b.m.children[0].material.opacity = 0.6 * k;
-      b.m.scale.x = b.m.scale.y = 0.4 + 0.6 * k;
-      if (b.t <= 0) b.m.visible = false;
-    }
-  }
 
   // ---------------------------------------------------------------- the dragonfly's whirlwind
   // A helicopter rotor: two blades blurred into a disc as they spin, round a white-hot core (an
@@ -1684,7 +1627,6 @@ export class Enemies {
     this.drawLeaps(t);
     this.drawPokes(t);
     this.drawCharges(t);
-    this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
     this.drawBurrows(t, dt);

@@ -431,7 +431,7 @@ act3('dragonfly-comes-down-from-the-bed', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(1.05, 0, 9.6, 0); holdJelly(); spawn('dragonfly', V(0.4, 0.75, 9.7), { hp: 9999 }).shotCd = 99; },
   play() {
     const { enemies, player } = G(), e = enemies.list.find((x) => x.type === 'dragonfly'), start = e.pos.y;
-    e.beamCd = e.whirlCd = 99;
+    e.whirlCd = 99;
     let low = 9;
     step(60 * 6, () => { low = Math.min(low, e.pos.y); });
     const above = +(e.pos.y - player.position.y).toFixed(2);

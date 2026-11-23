@@ -382,7 +382,6 @@ export const ENEMY_WORDS = {
           e.dodgeLeft = wall ? Math.max(0.03, wall.distance - e.r) : p.distance;
           e.evadeCd = p.every;
           e.flyHeld = true;
-          if (e.state === 'charge') en.breakCharge(e);   // (its flyHeld is the dodge's now)
           en.evade(e);
         }
         if (e.dodgeLeft > 0) {
@@ -392,36 +391,6 @@ export const ENEMY_WORDS = {
           e.dodgeLeft -= step;
           if (e.dodgeLeft <= 1e-4) { e.dodgeLeft = 0; e.flyHeld = false; e.vel.multiplyScalar(0.2); }
         }
-      },
-    }),
-  },
-
-  'charge-beam': {
-    doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (its body shows it too: it draws back, its tail curls up over its back and its wings stop dead; nothing shows on the floor), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
-    phases: { charge: 'build', rest: 'fire' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.45, charge: 2, dmg: 3, reach: 0.8, width: 0.008, every: 3.5, rest: 0.4 },
-    make: (_, p) => ({
-      init(e) { e.beamCd = 1.5 + Math.random() * 1.5; e.beamDir = new THREE.Vector3(); },
-      tick(e, c, en) {
-        const live = c.slow > 0 ? 1 : 0;
-        e.stateT -= c.dt * live;
-        e.beamCd -= c.dt;
-        if (e.state === 'charge' && !live) { en.breakCharge(e); e.flyHeld = false; }   // frozen or stunned: the charge is lost
-        if (e.state === 'approach') {
-          if (c.dist < p.range && e.beamCd <= 0 && live && !e.flyHeld && !c.wait) {
-            e.state = 'charge'; e.stateT = e.chargeMax = p.charge; e.flyHeld = true; e.faceLock = true;
-            e.vel.set(0, 0, 0);
-            e.beamDir.copy(c.toP).normalize();                         // it aims where it faces, and doesn't turn again
-            e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
-            en.beamCharge(e, p.charge);
-          }
-        } else if (e.state === 'charge') {
-          e.vel.set(0, 0, 0);
-          if (e.stateT <= 0) { en.beam(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.2; e.whirlCd = Math.max(e.whirlCd ?? 0, 1.5); }
-        } else if (e.state === 'rest' && e.stateT <= 0) {
-          e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.beamCd = p.every;
-        }
-        if (e.firedT > 0) e.firedT -= c.dt;
       },
     }),
   },
@@ -454,7 +423,7 @@ export const ENEMY_WORDS = {
             return;
           }
           e.whirlT -= c.dt * live;
-          if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; e.beamCd = Math.max(e.beamCd || 0, 1.5); }
+          if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; }
         } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && !c.wait) {
           e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
           e.vel.set(0, 0, 0);
@@ -808,7 +777,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);
