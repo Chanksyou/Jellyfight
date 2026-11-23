@@ -1185,6 +1185,16 @@ story('engine/baked-light-is-current', {
     return ok(!stale.length, { stale });
   },
 });
+story('engine/baked-light-maps-the-big-pieces', {
+  about: 'The big pieces of furniture (piece-light.js: the kitchen, the sofa, the cabinets) each read their own light map from the bake, and every one the bake mapped still matches its piece (another triangle count would leave it on the light grid). The maps cost no draws: everything of the same material carries a light map attribute, so the furniture batches still join them.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); step(2); },
+  async play() {
+    const want = BAKED_LIGHT.meta?.pieces?.length || 0;
+    let without = 0;
+    APT.root.traverse((o) => { if (o.isMesh && !o.geometry.attributes.lightUv) without++; });
+    return ok(want > 20 && APT.lightMapped === want && without === 0, { want, mapped: APT.lightMapped, without });
+  },
+});
 story('engine/baked-light-lights-the-shell', {
   about: 'The floor shows Blender\'s baked light in place of its lamps\' diffuse: switching every lamp off barely changes it, while with the bake switched off (the dev panel\'s Baked light) the same floor darkens a lot. The jelly\'s glow stays live on the baked floor, on Medium and on Low (whose plain materials skip the lamp maths there). Switching the bake builds no shader (it is a number, not a new program).',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); step(3); },

@@ -182,6 +182,14 @@ export const LIGHT_FRAGMENT = /* glsl */`
     if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
     return vec4(L * lbGain, 1.0);
   }
+  // a big piece's own light map (piece-light.js): its texel in the same picture, read from its lightUv
+  varying vec2 vLightUv;
+  vec4 pieceLight(vec2 uv) {
+    if (lbGain <= 0.0) return vec4(0.0);
+    vec3 L = textureLod(lbAtlas, uv, 0.0).rgb;
+    if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
+    return vec4(L * lbGain, 1.0);
+  }
   // the furniture's light grid: the light arriving from the 6 directions round each point, blended by the
   // surface's normal (read half a step out from the surface, so a table top reads the air above it). w = 2:
   // the grid is coarse, so the corner shadows still darken it

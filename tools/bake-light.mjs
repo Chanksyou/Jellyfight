@@ -28,7 +28,7 @@ for (const act of acts.length ? acts : [1, 2, 3, 4]) {
   fs.writeFileSync(path.join(tmp, 'act.glb'), Buffer.from(out.glb, 'base64'));
   fs.writeFileSync(path.join(tmp, 'inside.bin'), Uint8Array.from(out.inside));
   fs.writeFileSync(path.join(tmp, 'lights.json'), JSON.stringify({ ...out.scene, atlas: out.meta.atlas, grid: { ...out.meta.grid, inside: path.join(tmp, 'inside.bin') } }));
-  console.log(`act ${act}: ${out.stats.triangles} triangles, ${out.stats.shell} shell triangles on ${out.stats.planes} planes, picture ${out.meta.atlas.join('x')}, grid ${out.meta.grid.dims.join('x')} (${out.stats.inside} points inside solids), ${out.scene.lamps.length} lamps + ${out.scene.extra.length} bake-only lights; baking…`);
+  console.log(`act ${act}: ${out.stats.triangles} triangles, ${out.stats.shell} shell triangles on ${out.stats.planes} planes, ${out.stats.pieces} pieces mapped in ${out.stats.charts} charts, picture ${out.meta.atlas.join('x')}, grid ${out.meta.grid.dims.join('x')} (${out.stats.inside} points inside solids), ${out.scene.lamps.length} lamps + ${out.scene.extra.length} bake-only lights; baking…`);
   const r = spawnSync(python, [path.join(ROOT, 'tools/bake-light.py'), path.join(tmp, 'act.glb'), path.join(tmp, 'lights.json'), tmp, ...(samples ? [samples] : [])], { encoding: 'utf8', maxBuffer: 1 << 26 });
   const done = /JELLY_BAKE_DONE (.*)/.exec(r.stdout || '');
   if (!done) { console.error(r.stdout?.slice(-3000), r.stderr?.slice(-3000)); process.exit(1); }

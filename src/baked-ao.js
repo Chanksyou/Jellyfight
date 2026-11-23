@@ -95,7 +95,7 @@ function lampLoops() {
 function patch(shader) {
   Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms);
   shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;')
+    .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;\nattribute vec2 lightUv;\nvarying vec2 vLightUv;')
     .replace('#include <project_vertex>', `#include <project_vertex>
       vec4 aoWorld = vec4(transformed, 1.0);
       vec3 aoNormal = objectNormal;
@@ -108,11 +108,12 @@ function patch(shader) {
         aoNormal = mat3(batchingMatrix) * aoNormal;
       #endif
       vAoPos = (modelMatrix * aoWorld).xyz;
+      vLightUv = lightUv;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT)
     .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
-      vec4 lb = bakedLight(vAoPos, lbN);
+      vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : bakedLight(vAoPos, lbN);
       if (lb.w <= 0.0) lb = gridLight(vAoPos, lbN);
       ${lampLoops()}`)
     .replace('#include <aomap_fragment>', `{
@@ -151,6 +152,7 @@ export function shadeWithBakedAO(root) {
     for (const m of [].concat(o.material)) {
       if (!(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial) || m.onBeforeCompile === patch) continue;
       m.onBeforeCompile = patch;
+      m.defaultAttributeValues = { ...m.defaultAttributeValues, lightUv: [0, 0] };   // a mesh without a light map reads zero (piece-light.js)
       m.needsUpdate = true;
     }
   });
