@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v639 stops a Cream Whipper balloon filling the screen when the camera is pushed in against a wall: it fades out as the lens comes near.
+
 v638 lets each vent's air show in its room's own light: the wisps, dust and ribbons take the baked light where they rise, so they glow softly by a lamp and fade in a dark corner; act 3's moonlit bedroom gets fainter, cooler air and act 4's dawn a slightly warmer one.
 
 v637 lets the Range level-up card stretch a Tentacle jelly's reach too, and Tentacle jellies are now offered it.
