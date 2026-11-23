@@ -47,7 +47,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v634';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v636';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -359,7 +359,7 @@ function trackFor(name) {
   return tracks[name];
 }
 // The run's beat source: loading or unavailable audio lets the boss (and the run) keep its own time.
-// With no recording playing, it is the synthesized song's (act 4's "Sunrise Set": the bass wave).
+// With no recording playing, it is the synthesized song's (act 4's "Sunrise Set").
 // Only a recording knows its breakdown and drop.
 const song = {
   playing: null,

@@ -23,7 +23,6 @@ import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
 import { Sunrise } from './sunrise.js';
-import { BassWave } from './bass-wave.js';
 import { ConcertDressing } from './concert-dressing.js';
 import { SONGS } from './music.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
@@ -122,7 +121,6 @@ export class Run {
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.sunrise = new Sunrise(this);   // a stage's sun (act 4's room): the line creeping across, drying you out (sunrise.js)
     this.dress = new ConcertDressing(this);   // a stage's dressing: the barrier, the cables, the lit props on the beat, the stage door moment (concert-dressing.js)
-    this.bass = new BassWave(this);     // a stage's bass wave (act 4's room): the Soundbar's wave on the bar (bass-wave.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
     this.adorn = new Adornments(ctx.scene, ctx.player, { ...ctx.cfg, height: ctx.cfg.height * drawScale() });          // what evolutions add to the jelly's look
@@ -213,6 +211,7 @@ export class Run {
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
+    bus.on('vent_ride', () => { sfx.ventGust(); juice.feel('vent'); });   // (the vent's own gust is vent-air.js's)
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     // a jump's takeoff: a pop of droplets under the bell and a bloop (no floor ring: those are for Warnings and area reach)
     this.player.onJump = () => {
@@ -433,7 +432,6 @@ export class Run {
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
     this.sunrise.start(s);
     this.bpm = SONGS[s.music]?.bpm || 120; this.beat = 0;   // the act's song's tempo, and the run's own count of its beats
-    this.bass.start(s);
     this.dress.start(s);
     if (!this.spots) {
       this.spots = [];
@@ -583,7 +581,6 @@ export class Run {
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
     this.dress.update(dt);   // the room's lit props on the beat, and the stage door's moment
-    this.bass.update(dt, this.beat);   // a stage's bass wave: on the song's bar line (put away outside the night)
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
@@ -609,6 +606,7 @@ export class Run {
     }
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
+      const riding = !!P.flight;
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
@@ -617,9 +615,12 @@ export class Run {
         slip: this.slipT > 0 ? 1 : 0,
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
+      if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
       if (this.phase === 'boss' && this.boss) this.keepInArena(P);
       if (P.grounded) this.stompChain = 0;   // stomp: a chain runs until you touch the floor or furniture
     }
+
+    sfx.ventHum(this.traversal.near(P.position));   // the air's soft hiss beside a vent
 
     // --- timers
     this.fireTrail.draw();
@@ -2231,7 +2232,7 @@ export class Run {
   }
 
   // ------------------------------------------------------------ music
-  // The beat now, for what goes off on the music (the bass wave): the song's as the
+  // The beat now, for what goes off on the music (bugs and the Encore on the beat): the song's as the
   // speakers play it (main.js song.beat), or, while no song plays (sound off, not started, a story), the
   // run's own count at the act's song's tempo
   keepTime(dt) {

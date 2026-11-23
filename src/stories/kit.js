@@ -547,12 +547,6 @@ export const EVERY_ATTACK = {
         during: () => G().run.boss.wall.w?.state === 'warn', end: () => G().run.boss.stopActs() } },
     // the room's sun (sunrise.js): a floor hazard, its Warning always showing on its line
     sun: { light: { is: 'hazard' } },
-    // the room's bass wave (bass-wave.js): a floor strip and its volume over the bar before it goes. Only
-    // in the room (scene 1): started a bar and a bit before its next bar line, on the run's own beat
-    bass: { wave: { is: 'volume', scene: 1,
-      start: () => { const { run } = G(); stub(run, 'song', null); run.beat = run.bass.next - 4.5; },
-      during: () => G().run.bass.state !== 'idle',
-      end: () => { G().run.bass.next = 1e9; } } },
     // the Singing Bowl on the lounge chair (elites.js), in the room: its rim rings' Warning (a disc and
     // the low ring wall over it), its hum's (a rectangle over the seat and the slab over it, all but a safe circle)
     bowl: { ring: { is: 'volume', scene: 1, start: () => startBowl(0) }, hum: { is: 'volume', scene: 1, start: () => startBowl(1) } },
@@ -572,7 +566,6 @@ function attacksInGame(act) {
   for (const e of run.elites.list) out[e.kind] = [...ELITE_ATTACKS[e.kind]];
   out[boss] = [...new Set([...A.calm, ...A.angry, ...(A.always || [])])];   // (`always`: not a turn, the shark's pools)
   if (STAGES[act - 1].sun) out.sun = ['light'];   // an act whose room has a sun (act 4), in either of its scenes
-  if (STAGES[act - 1].bass) out.bass = ['wave'];   // and a bass wave
   // Bugs that warn (a behaviour word with a hostile `color`; none do now) are checked in act 3, listed
   // under `bugs` in EVERY_ATTACK
   const warning = act === 3 ? Object.entries(CONTENT.enemies).filter(([, T]) => warnsWith(T).length).map(([id]) => id) : [];

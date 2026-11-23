@@ -58,11 +58,6 @@ export const MOMENTS = {
     'Singing Bowl angry': (c) => { c.K.startBowl(0, { angry: true }); immortal(c); },
     'Mushroom Pillow angry': (c) => { c.K.startPillow(0, { angry: true }); immortal(c); },
     'Headphones angry': (c) => { c.K.startHeadphones(0, { angry: true, hold: true }); immortal(c); },
-    'bass wave + sun': (c) => {
-      const { K, G } = c;
-      K.fresh({ bubbles: false, lash: false }); K.tp(3.2, 0.05, 3.0, 0); immortal(c);
-      G.run.t = 150; K.step(2); K.stub(G.run, 'song', null); G.run.beat = G.run.bass.next - 3.5;
-    },
     'stage door opens': (c) => {
       const { K, G } = c;
       K.fresh({ bubbles: false, lash: false }); immortal(c); K.stub(c.nav, 'reload', () => {}); G.run.t = G.run.duration - 1; K.tp(1.9, 0.05, 4.2, 0);
