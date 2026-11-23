@@ -1224,6 +1224,41 @@ story('engine/baked-light-lights-the-shell', {
     } finally { setBakedLight(true); glow.visible = true; gfx.setQuality(was); await gfx.ready; }
   },
 });
+story('engine/baked-light-lights-the-furniture', {
+  about: 'Furniture reads the light grid Blender baked through the rooms (the light from 6 directions at points every 10 cm): with the bake on, switching every lamp off barely changes a piece of furniture; with the bake off (the dev panel\'s Baked light) the same piece darkens a lot. --baked-light-furniture 0 hands it back to the live lamps.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.6, Math.PI * 0.85); step(3); },
+  async play() {
+    const { gfx, APT, GAME, tpc } = G(), { camera } = APT, gl = APT.renderer.getContext(), px = new Uint8Array(4);
+    if (!BAKED_LIGHT.meta?.grid) return ok(false, { grid: false });
+    tpc.pitch = 0.42; tpc.distance = 1.1; step(2);
+    // a pixel that shows a solid, lit piece of furniture: rays from the camera across the screen
+    const ray = new THREE.Raycaster(), solids = [];
+    ray.layers.enableAll();
+    APT.root.traverse((o) => { if (o.isMesh && !o.isBatchedMesh && !o.userData.structural && !o.material.transparent && o.visible) solids.push(o); });
+    let spot = null;
+    for (let y = -0.3; y <= 0.5 && !spot; y += 0.1) for (let x = -0.6; x <= 0.6 && !spot; x += 0.1) {
+      ray.setFromCamera(new THREE.Vector2(x, y), camera);
+      const hit = ray.intersectObjects(solids, false)[0], all = ray.intersectObject(APT.root, true).find((h) => !h.object.material.transparent);
+      if (hit && all && all.object === hit.object && hit.distance < 2.5 && hit.face.normal.y > 0.5) spot = new THREE.Vector2(x, y);
+    }
+    if (!spot) return ok(false, { spot: false });
+    const at = () => {
+      G().batcher.sync(); gfx.render();
+      const x = Math.round((spot.x + 1) / 2 * gl.drawingBufferWidth), y = Math.round((spot.y + 1) / 2 * gl.drawingBufferHeight);
+      let sum = 0;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { gl.readPixels(x + i, y + j, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); sum += px[0] + px[1] + px[2]; }
+      return sum / 9;
+    };
+    try {
+      setBakedLight(true);
+      const baked = at(); GAME.toggleLamps(); const bakedDark = at(); GAME.toggleLamps();
+      setBakedLight(false);
+      const live = at(); GAME.toggleLamps(); const liveDark = at(); GAME.toggleLamps();
+      return ok(bakedDark > baked * 0.8 && liveDark < live * 0.75 && baked > 20, { spot: spot.toArray(), baked, bakedDark, live, liveDark });
+    } finally { setBakedLight(true); }
+  },
+});
 story('engine/baked-ao-shades-corners', {
   about: 'Low and Medium draw the baked corner shadows instead of N8AO (one scene render a frame, not two): where a cabinet meets the floor reads darker than open floor. High keeps N8AO and turns the baked ones off, so corners don\'t darken twice.',
   setup() { fresh({ elites: false }); },

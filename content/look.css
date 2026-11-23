@@ -654,6 +654,7 @@
   --dawn-daylight: 0.15;          --dawn-daylight-late: 1;   /* how much of act 4's baked daylight picture lights the shell (baked-light.js) */
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
   --baked-light: 1;            /* how bright Blender's baked light on walls, floors and ceilings shows (baked-light.js; 0 = every lamp live, as before) */
+  --baked-light-furniture: 1;  /* the furniture's baked light grid on top of that (0 = furniture lit by live lamps) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */

@@ -4,7 +4,10 @@
 // game finds a surface's texel from its world position and the way its face looks (an index of planes,
 // assets/light-<act>.json), so the shell needs no second UV set.
 //
-// In the room's shader patch (baked-ao.js) the baked light replaces the shell's lamp diffuse. Live light
+// The furniture reads a coarser light grid baked in the same pass: at points every 10 cm through the rooms, the light
+// arriving from each of 6 directions (assets/light-<act>-grid.webp), blended by the surface's normal.
+//
+// In the room's shader patch (baked-ao.js) the baked light replaces the lamp diffuse. Live light
 // stays on top for what moves (the jelly's glow); lamp shine stays live, so do the fill, the corner shadows
 // on it and act 4's sun line. Act 4 has a second picture, its daylight, faded in with the dawn clock.
 //
@@ -17,10 +20,15 @@ import { BAKE_LIGHTS } from './bake-lights.js';
 
 const blank = new THREE.DataTexture(new Uint8Array(4), 1, 1);
 blank.needsUpdate = true;
+const blank3 = new THREE.Data3DTexture(new Uint8Array(4), 1, 1, 1);
+blank3.needsUpdate = true;
 const glowColor = new THREE.Color();
 let glow = null;
 const uniforms = {
   lbAtlas: { value: blank }, lbDay: { value: blank }, lbIndex: { value: blank },
+  lbGrid: { value: blank3 }, lbGridDay: { value: blank3 },   // the furniture's light grid (and act 4's daylight one)
+  lbGridMin: { value: new THREE.Vector3() }, lbGridDims: { value: new THREE.Vector3(1, 1, 1) }, lbGridStep: { value: 0.1 },
+  lbGridGain: { value: 0 },
   lbKmin: { value: new THREE.Vector3() },
   lbAtlasSize: { value: new THREE.Vector2(1, 1) },
   lbGain: { value: 0 },        // 0 = no bake here (live lamps), else the picture's top value times --baked-light
@@ -46,6 +54,26 @@ async function picture(url) {
   tex.flipY = false;
   tex.generateMipmaps = false;
   tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// The grid picture (tools/bake-light.py: column f * W + x, row z * H + y, each texel the square root of the
+// light from direction f) as a 3D texture: x, y, then the 6 directions' z blocks one after another.
+async function gridTexture(url, [W, H, D]) {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const bmp = await createImageBitmap(await res.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const cv = new OffscreenCanvas(bmp.width, bmp.height), cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(bmp, 0, 0);
+  const px = cx.getImageData(0, 0, bmp.width, bmp.height).data, out = new Uint8Array(W * H * D * 6 * 4);
+  for (let z = 0; z < D; z++) for (let y = 0; y < H; y++) for (let f = 0; f < 6; f++) {
+    const from = ((z * H + y) * bmp.width + f * W) * 4, to = (W * (y + H * (f * D + z))) * 4;
+    out.set(px.subarray(from, from + W * 4), to);
+  }
+  const tex = new THREE.Data3DTexture(out, W, H, D * 6);
+  tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.wrapS = tex.wrapT = tex.wrapR = THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
   return tex;
 }
@@ -78,12 +106,23 @@ export async function loadBakedLight(stageId) {
   try {
     const meta = await fetch(`assets/light-${stageId}.json`).then((r) => (r.ok ? r.json() : null));
     if (!meta) return false;
-    const [atlas, day] = await Promise.all([picture(`assets/light-${stageId}.webp`), meta.sets.includes('day') ? picture(`assets/light-${stageId}-day.webp`) : null]);
+    const day4 = meta.sets.includes('day'), g = meta.grid;
+    const [atlas, day, grid, gridDay] = await Promise.all([
+      picture(`assets/light-${stageId}.webp`), day4 ? picture(`assets/light-${stageId}-day.webp`) : null,
+      g ? gridTexture(`assets/light-${stageId}-grid.webp`, g.dims) : null, g && day4 ? gridTexture(`assets/light-${stageId}-day-grid.webp`, g.dims) : null,
+    ]);
     if (!atlas) return false;
     const { tex, kmin } = planeIndex(meta.planes);
     uniforms.lbAtlas.value = atlas;
     if (day) uniforms.lbDay.value = day;
     uniforms.lbIndex.value = tex;
+    if (grid) {
+      uniforms.lbGrid.value = grid;
+      if (gridDay) uniforms.lbGridDay.value = gridDay;
+      uniforms.lbGridMin.value.fromArray(g.min);
+      uniforms.lbGridDims.value.fromArray(g.dims);
+      uniforms.lbGridStep.value = g.step;
+    }
     uniforms.lbKmin.value.fromArray(kmin);
     uniforms.lbAtlasSize.value.fromArray(meta.atlas);
     BAKED_LIGHT.meta = meta;
@@ -97,7 +136,9 @@ export async function loadBakedLight(stageId) {
 // the dev panel's switch: the bake, or every lamp live as before
 export function setBakedLight(on) {
   BAKED_LIGHT.on = on;
-  uniforms.lbGain.value = on && BAKED_LIGHT.meta ? BAKED_LIGHT.meta.top * LOOK.num('baked-light', 1) : 0;
+  const m = BAKED_LIGHT.meta, gain = on && m ? LOOK.num('baked-light', 1) : 0;
+  uniforms.lbGain.value = m ? m.top * gain : 0;
+  uniforms.lbGridGain.value = m?.gridTop && uniforms.lbGrid.value !== blank3 ? m.gridTop * gain * LOOK.num('baked-light-furniture', 1) : 0;
   return on;
 }
 
@@ -140,6 +181,27 @@ export const LIGHT_FRAGMENT = /* glsl */`
     vec3 L = textureLod(lbAtlas, uv, 0.0).rgb;
     if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
     return vec4(L * lbGain, 1.0);
+  }
+  // the furniture's light grid: the light arriving from the 6 directions round each point, blended by the
+  // surface's normal (read half a step out from the surface, so a table top reads the air above it). w = 2:
+  // the grid is coarse, so the corner shadows still darken it
+  uniform sampler3D lbGrid, lbGridDay;
+  uniform vec3 lbGridMin, lbGridDims;
+  uniform float lbGridStep, lbGridGain;
+  vec3 lbGridDir(vec3 g, float f) {
+    vec3 uvw = vec3(g.xy / lbGridDims.xy, (clamp(g.z, 0.5, lbGridDims.z - 0.5) + f * lbGridDims.z) / (6.0 * lbGridDims.z));
+    vec3 t = textureLod(lbGrid, uvw, 0.0).rgb;
+    vec3 L = t * t;
+    if (lbDayK > 0.0) { vec3 d = textureLod(lbGridDay, uvw, 0.0).rgb; L += d * d * lbDayK; }
+    return L;
+  }
+  vec4 gridLight(vec3 pos, vec3 n) {
+    if (lbGridGain <= 0.0) return vec4(0.0);
+    vec3 g = (pos + n * lbGridStep * 0.5 - lbGridMin) / lbGridStep + 0.5;
+    if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, lbGridDims))) return vec4(0.0);
+    vec3 w = n * n;
+    vec3 L = w.x * lbGridDir(g, n.x > 0.0 ? 0.0 : 1.0) + w.y * lbGridDir(g, n.y > 0.0 ? 2.0 : 3.0) + w.z * lbGridDir(g, n.z > 0.0 ? 4.0 : 5.0);
+    return vec4(L * lbGridGain, 2.0);
   }
   // the jelly's glow as three.js draws a point light, legacy falloff (legacy-lighting.js)
   vec3 lbGlow(vec3 pos, vec3 nrm, vec3 diffuse) {
