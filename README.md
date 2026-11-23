@@ -300,7 +300,6 @@ That's act 1; act 2 is the hallway and the bathroom (below).
   The sun comes up through the night: its line creeps from the window wall to 3.3 m in over the 3 minutes, and standing on its side of it, on the floor or any furniture, costs 3 Health a second while the jelly dries out (bugs don't mind it; chests never turn up where it will reach before they fade; `sun` in `src/stage4.js`, `src/sunrise.js`).
   When time runs out no boss comes: the stage door opens on the media console, and landing there takes the run through to the concert arena for **The Encore**, carrying its Health, level, Treasures and kills.
   The act is two scenes of one act (`src/stage4.js`: the room's `stageDoor` leads to `ENCORE`, the arena), loaded by the same reload as an act change.
-  Every 16 bars of the song the Soundbar sends a **bass wave** from the TV wall to the window wall: a low wave that hurts anything of the jelly under its top, so jump it (`bass` in `src/stage4.js`, `src/bass-wave.js`).
   The Encore's set changes with its Health, not the clock: its floor waves come first, then a laser on every wave, then disco ball visits from 75% Health.
   At 50% its booth shorts out for a moment and the disco ball comes down for good, and the **duet** joins the set.
   Down for good, the disco ball hangs higher, clear of the two DJs' heads.

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
-import { knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
+import { BASE_STATS, applyCard, knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
 import { G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
 
@@ -377,6 +377,17 @@ story('progression/regen-card-reads-every-5-seconds', {
     return ok(amounts.join() === '0.1,0.2,0.3' && texts.every((t, i) => t === want[i]), { amounts, texts });
   },
 });
+story('progression/range-card-stretches-tentacle-reach', {
+  about: 'The Range card adds its percentage to Range and to Tentacle reach, and its text says so; other cards leave reach alone.',
+  setup() {},
+  play() {
+    const s = { ...BASE_STATS }, card = { stat: 'range', amount: 20 };
+    applyCard(s, card);
+    const other = { ...BASE_STATS }; applyCard(other, { stat: 'fireRate', amount: 12 });
+    const grew = Math.abs(s.reach - BASE_STATS.reach * 1.2) < 1e-9 && Math.abs(s.range - BASE_STATS.range * 1.2) < 1e-9;
+    return ok(grew && other.reach === BASE_STATS.reach && cardText(card) === '+20% Range and Tentacle reach', { reach: s.reach, text: cardText(card) });
+  },
+});
 story('progression/regen', {
   about: 'Health regen (a card or Hand Cream) refills health every second.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); G().run.stats.regen = 0.5; G().run.health = 10; },
@@ -414,11 +425,11 @@ story('progression/dodge-diminishes', {
     const gains = picks.map((p) => p.gain), top = run.S.dodge;
     const shrinking = gains.every((g, i) => g > 0 && (i === 0 || g < gains[i - 1]));
     const reads = picks.every((p) => p.text === `+${p.gain}% Dodge`);
-    run.stats.dodge = 0; give('sock');   // 15% from the Odd Sock: the first card gives 10 x 45/60
+    run.stats.dodge = 0; give('sock');   // 15% from the Odd Sock, which lifts the cap to 80: the first card gives 10 x 65/80 = 8.1
     const sock = pick();
     menus.close();
-    const atCap = rollCards(run.stats, 3, 0, 0, { ...run.S, dodge: 60 }).length;   // treasures alone at the cap: no Dodge card at all
-    return ok(gains[0] === 10 && picks[0].text === '+10% Dodge' && shrinking && reads && top < 60 && sock.gain === 7.5 && atCap === 0, { gains, top: +top.toFixed(1), sock, atCap });
+    const atCap = rollCards(run.stats, 3, 0, 0, { ...run.S, dodge: run.S.dodgeCap }).length;   // treasures alone at the (Sock's 80) cap: no Dodge card at all
+    return ok(gains[0] === 10 && picks[0].text === '+10% Dodge' && shrinking && reads && top < 60 && sock.gain === 8.1 && atCap === 0, { gains, top: +top.toFixed(1), sock, atCap });
   },
 });
 story('progression/level-curve', {

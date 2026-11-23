@@ -92,7 +92,7 @@ export class ThirdPersonCamera {
     this.holdFades = false;
     this.pull = 0;             // m the clearance has dollied the camera in by (0: the view as asked for)
     this._hold = 0;            // s left before the camera starts easing back out
-    this.fixtureHit = false;   // the last clearTo stopped at a fixture that never fades (the kitchen), not a wall
+    this.fixtureHit = false;   // the last clearTo stopped at a fixture that never fades (the kitchen) or a door leaf, not a wall
     this.lift = 0;             // 0..1: how far the view has tilted steeper to look over such a fixture
     this._rayEnd = new THREE.Vector3();
   }
@@ -120,7 +120,7 @@ export class ThirdPersonCamera {
       const h = this.world.cast(this.focus, this._ray, len, this.keep, this.fight ? true : 2);
       if (h) {
         const r = h.distance * this._ray.dot(dir);
-        if (r < room) { room = r; this.fixtureHit = !h.mesh.userData.structural; }
+        if (r < room) { room = r; this.fixtureHit = !h.mesh.userData.structural || !!h.mesh.parent?.name.startsWith('door-'); }   // an open door standing in a room is in the way like a counter: look over it
       }
     }
     if (room === Infinity) return want;
@@ -240,7 +240,7 @@ export class ThirdPersonCamera {
 
     // Smooth follow on the focus point
     this._jelly.set(target.x, target.y + c.height, target.z);
-    this.focus.lerp(this._jelly, 1 - Math.exp(-20 * dt));
+    this.focus.lerp(this._jelly, 1 - Math.exp(-20 * (1 - (this.lag || 0)) * dt));   // lag (0 to 1, run.js): a thrown jelly is followed a touch late
 
     this.dirAt(this.viewPitch, this._dir);
     // Clearance: in at once where a wall would be in the way, back out after a pause (the view's

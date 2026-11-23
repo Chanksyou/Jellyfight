@@ -110,13 +110,14 @@ export function cardText(card) {
   if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} seconds`;
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Attack' : 'Attacks'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
-  return `+${amount} ${info.name}`;
+  return `+${amount} ${info.name}${card.stat === 'range' ? ' and Tentacle reach' : ''}`;
 }
 
 export function applyCard(stats, card) {
   const v = CARD_FLAGS[card.stat] || {};
   if (v.pct) stats[card.stat] += BASE_STATS[card.stat] * card.amount / 100;
   else stats[card.stat] += card.amount;
+  if (card.stat === 'range') stats.reach += BASE_STATS.reach * card.amount / 100;   // Range stretches tentacles too
   stats.bubbles = Math.min(MAX_BUBBLES, stats.bubbles);
 }
 
@@ -129,8 +130,8 @@ function pickWeighted(list, w, rng = Math.random) {
 
 // What a card's tier amount gives you now: a `toward` stat closes the same share of the gap
 // left to its cap (10 of 60 at 0 Dodge, about 5 at 30), rounded to 0.1, never less than 0.1.
-export function cardAmount(stat, amount, now = 0) {
-  const cap = CARD_FLAGS[stat]?.toward;
+export function cardAmount(stat, amount, now = 0, top = 0) {
+  const cap = CARD_FLAGS[stat]?.toward && Math.max(CARD_FLAGS[stat].toward, top);   // top: a raised cap (dodge-cap)
   if (!cap) return amount;
   return Math.max(0.1, Math.round(amount * (1 - Math.min(cap, now) / cap) * 10) / 10);
 }
@@ -146,7 +147,7 @@ export const cardsNotFor = (attack) => (attack ? Object.keys(CONTENT.levelups.ca
 export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip = [], rng = Math.random) {
   const tiers = RARITY.map((r) => ({ ...r, weight: CONTENT.levelups.rarities[r.id] }));
   const w = luckWeights(tiers, luck);
-  const capped = (k) => CARD_FLAGS[k]?.toward <= (now[k] || 0);   // treasures alone filled it (five Odd Socks)
+  const capped = (k) => CARD_FLAGS[k]?.toward && Math.max(CARD_FLAGS[k].toward, k === 'dodge' ? now.dodgeCap || 0 : 0) <= (now[k] || 0);   // treasures alone filled it (five Odd Socks)
   const pool = Object.keys(CONTENT.levelups.cards).filter((k) => cardDef(k).weight > 0 && (k !== 'bubbles' || stats.bubbles < MAX_BUBBLES) && !capped(k) && !skip.includes(k) && !isRemoved('card', k));
   const cards = [];
   while (cards.length < n && pool.length) {
@@ -155,7 +156,7 @@ export function rollCards(stats, n = 3, bonus = 0, luck = 0, now = stats, skip =
     const rarity = pickWeighted(tiers, (r) => w[tiers.indexOf(r)], rng);
     let ri = Math.min(RARITY.length - 1, tiers.indexOf(rarity) + bonus);
     while (cardDef(stat).amounts[ri] === 0) ri++;   // a card with no lower tiers (Bubbles) rolls up to its first
-    cards.push({ stat, rarity: RARITY[ri], amount: cardAmount(stat, cardDef(stat).amounts[ri], now[stat] || 0) });
+    cards.push({ stat, rarity: RARITY[ri], amount: cardAmount(stat, cardDef(stat).amounts[ri], now[stat] || 0, now.dodgeCap) });
   }
   return cards;
 }
@@ -169,7 +170,7 @@ export function threeOfAKind(cards, now = {}, rng = Math.random) {
   if (cards.length < 3 || ri >= RARITY.length - 1 || cards.some((c) => c.rarity.id !== RARITY[ri].id)) return cards;
   const i = Math.floor(rng() * cards.length), c = cards[i];
   const out = [...cards];
-  out[i] = { ...c, rarity: RARITY[ri + 1], amount: cardAmount(c.stat, cardDef(c.stat).amounts[ri + 1], now[c.stat] || 0), upgraded: true, was: c };
+  out[i] = { ...c, rarity: RARITY[ri + 1], amount: cardAmount(c.stat, cardDef(c.stat).amounts[ri + 1], now[c.stat] || 0, now.dodgeCap), upgraded: true, was: c };
   return out;
 }
 

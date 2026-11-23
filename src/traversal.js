@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { addForceField } from './forcefield.js';
 import { VentAir } from './vent-air.js';
+import { LOOK } from './look.js';
 
 // Apartment objects are named after what they are ("Shower curtain"); three.js's loader
 // swaps spaces for underscores, so match the loaded form. Returns every mesh under them.
@@ -76,7 +77,7 @@ export class Traversal {
       const [x, y, z] = v.at;
       return { ...v, x, y, z, h: v.land[1] + 0.06 - y };
     });
-    this.air = new VentAir(this.group, this.vents);
+    this.air = new VentAir(this.group, this.vents, stage.id);
 
     this.climbs = stage.climbs.map((c) => ({
       ...c,
@@ -107,5 +108,14 @@ export class Traversal {
     return { vent, climb };
   }
 
-  update(dt, env) { this.air.update(dt, env); }
+  // How near `p` is to a vent that blows: 1 on its grille, 0 at --vent-hum-reach beyond its edge or with vents off
+  near(p) {
+    if (this.bossMode) return 0;
+    const reach = LOOK.num('vent-hum-reach', 0.3);
+    let k = 0;
+    for (const v of this.vents) k = Math.max(k, 1 - Math.max(0, Math.hypot(p.x - v.x, p.y - v.y, p.z - v.z) - v.radius) / reach);
+    return k;
+  }
+
+  update(dt, env = {}) { env.on = !this.bossMode; this.air.update(dt, env); }
 }

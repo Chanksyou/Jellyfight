@@ -29,13 +29,13 @@ function tint(geo, hex) {
 const ellipsoid = (sx, sy, sz, at, hex, seg = 16) => tint(new THREE.SphereGeometry(1, seg, Math.max(6, seg * 0.6)).scale(sx, sy, sz).translate(at.x, at.y, at.z), hex);
 const tube = (pts, r, hex, segs = 12) => tint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs, r, 5), hex);
 // a tapered rod from a to b
-function rod(a, b, r0, r1, hex) {
+function rodGeo(a, b, r0, r1, sides = 6) {
   const d = b.clone().sub(a), len = d.length();
-  const g = new THREE.CylinderGeometry(r1, r0, len, 6, 1).translate(0, len / 2, 0);
+  const g = new THREE.CylinderGeometry(r1, r0, len, sides, 1).translate(0, len / 2, 0);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize()));
-  g.translate(a.x, a.y, a.z);
-  return tint(g, hex);
+  return g.translate(a.x, a.y, a.z);
 }
+const rod = (a, b, r0, r1, hex) => tint(rodGeo(a, b, r0, r1), hex);
 const merge = (parts) => { const g = mergeGeometries(parts); g.computeVertexNormals(); g.computeBoundingSphere(); return g; };
 
 const MAT = {};
@@ -2053,48 +2053,210 @@ export function buildBeetle() {
 }
 
 // ------------------------------------------------------------------ cicada
-// The cicada (act 4): a stocky dark-green body with pale green collar and rim lines, a wide blunt
-// head with big red eyes set far apart on its sides and three red dots between them, a thick thorax,
-// a tapering banded abdomen, six short thick legs, and four clear wings veined in green that lie
-// folded like a roof over its back. Under the burrow word it digs into the floor and sinks out of
-// sight, leaving a mound of grit with a glowing rim that trails after you, shakes as it locks and
-// is left behind when it bursts up; dazed, it sways with its wings buzzing. About 2.8 radii long; feet at its origin.
+// The cicada (act 4): a periodical cicada, the kind that lives underground for years and digs its way out.
+// A stocky glossy black body (a domed thorax with a sculpted shield and the orange X at its back, a wide
+// blunt head with grooves down its face), big red-orange eyes far apart on its sides with three small red
+// eyes between, a tapering abdomen black on top and banded orange underneath, a pale ribbed tymbal on
+// each side behind the wings (where its song comes from), six orange legs, the front pair thick for
+// digging, and four clear wings with orange veins and a black W near each forewing's tip, folded like a
+// roof over its back. Its look is two painted pictures (src/critters.js `cicadaSkin`, `cicadaWing`),
+// colours in content/look.css (--cicada-*). Under the burrow word it digs into the floor and sinks out of
+// sight, leaving a mound of grit with a glowing rim that trails after you, shakes as it locks and is left
+// behind when it bursts up; dazed, it sways with its wings buzzing. About 2.8 radii long; feet at its origin.
+const CICADA = { cols: 4, rows: 2, cell: 128 };   // its skin: one picture of 4 x 2 cells, each part's UVs squeezed into one
+const CELL = { thorax: [0, 0], head: [1, 0], abdomen: [2, 0], eye: [3, 0], leg: [0, 1], tymbal: [1, 1], collar: [2, 1], plain: [3, 1] };
+// a part whose own UVs are squeezed into one cell of the skin, tinted by a vertex colour (white shows the picture as painted)
+function inCell(geo, cell, hex = '#ffffff') {
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  const [c, r] = CELL[cell], uv = geo.attributes.uv, pad = 0.05, { cols, rows } = CICADA;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (c + pad + uv.getX(i) * (1 - 2 * pad)) / cols, 1 - (r + pad + (1 - uv.getY(i)) * (1 - 2 * pad)) / rows);
+  const col = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) { a[k * 3] = col.r; a[k * 3 + 1] = col.g; a[k * 3 + 2] = col.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return geo;
+}
+// a sphere's UVs: u runs round it from its left side (0) through the front (0.25), right (0.5) and back (0.75); v from top (0) to bottom (1)
+const ovoid = (sx, sy, sz, at, cell, seg = 20, hex) => inCell(new THREE.SphereGeometry(1, seg, Math.max(8, Math.round(seg * 0.6))).scale(sx, sy, sz).translate(at.x, at.y, at.z), cell, hex);
+const limb = (a, b, r0, r1, hex, cell = 'leg') => inCell(rodGeo(a, b, r0, r1, 7), cell, hex);
+
+// the skin, painted once: glossy black plates with sculpted seams and a sheen, the orange underside bands, the eyes, the legs, the tymbals' ribs
+function cicadaSkin() {
+  const { cols, rows, cell: S } = CICADA, rnd = seeded(1717);
+  const C = (n, f) => LOOK.color(`cicada-${n}`, f);
+  const black = C('black', '#0c0b0b'), sheen = C('sheen', '#5a5c66'), orange = C('orange', '#d0581a'), deep = C('deep', '#6a2408'), eyeCol = C('eye', '#e8441a'), leg = C('leg', '#c0521c'), pale = C('tymbal', '#d8c6a0');
+  return wingTexture(cols * S, rows * S, (g) => {
+    const at = (cell, f) => { const [c, r] = CELL[cell]; g.save(); g.translate(c * S, r * S); g.beginPath(); g.rect(0, 0, S, S); g.clip(); f(); g.restore(); };
+    const fill = (col) => { g.fillStyle = col; g.fillRect(0, 0, S, S); };
+    const specks = (n, col, a0, a1, y0 = 0, y1 = 1) => { for (let i = 0; i < n; i++) { g.globalAlpha = a0 + rnd() * (a1 - a0); g.fillStyle = col; g.fillRect(rnd() * S, (y0 + rnd() * (y1 - y0)) * S, 1 + rnd() * 1.5, 1 + rnd() * 1.5); } g.globalAlpha = 1; };
+    const groove = (pts, w = 2) => {   // a sculpted seam: a dark cut with a lit edge just above it
+      for (const [col, dy, lw, a] of [[sheen, -1.2, w * 0.7, 0.55], ['#000', 0.6, w, 0.9]]) {
+        g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+        pts.forEach(([x, y], i) => (i ? g.lineTo(x * S, y * S + dy) : g.moveTo(x * S, y * S + dy))); g.stroke();
+      }
+      g.globalAlpha = 1;
+    };
+    const glow = (x, y, rx, ry, col, a) => { const gr = g.createRadialGradient(x * S, y * S, 0, x * S, y * S, rx * S); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = a; g.save(); g.scale(1, ry / rx); g.fillStyle = gr; g.fillRect(0, 0, S, S * rx / ry); g.restore(); g.globalAlpha = 1; };
+    const hairs = (n, y0, y1) => { g.strokeStyle = '#b08a50'; g.lineWidth = 0.7; for (let i = 0; i < n; i++) { const x = rnd() * S, y = (y0 + rnd() * (y1 - y0)) * S, a = rnd() * 6.28; g.globalAlpha = 0.25 + rnd() * 0.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 3, y + Math.sin(a) * 3); g.stroke(); } g.globalAlpha = 1; };
+    // the thorax: the shield over the front half with its curved grooves, the dome behind with the orange X at its back, an orange patch behind each eye, pale hairs underneath
+    at('thorax', () => {
+      fill(black); specks(260, sheen, 0.05, 0.25, 0, 0.6);
+      glow(0.25, 0.12, 0.18, 0.08, sheen, 0.5); glow(0.75, 0.15, 0.16, 0.08, sheen, 0.35);   // the sheen breaking on the ridges
+      for (const x of [0.25 - 0.09, 0.25 + 0.09]) groove([[x, 0.05], [x + (x < 0.25 ? -0.03 : 0.03), 0.2], [x, 0.36]]);   // the shield's pair of grooves
+      groove([[0.08, 0.38], [0.25, 0.42], [0.42, 0.38]], 2.5);   // where the shield meets the dome
+      groove([[0.62, 0.05], [0.66, 0.25]]); groove([[0.88, 0.05], [0.84, 0.25]]);   // the dome's two dark wedges
+      g.strokeStyle = deep; g.lineWidth = 3; g.globalAlpha = 0.9;   // the X at its back
+      g.beginPath(); g.moveTo(0.7 * S, 0.24 * S); g.lineTo(0.8 * S, 0.36 * S); g.moveTo(0.8 * S, 0.24 * S); g.lineTo(0.7 * S, 0.36 * S); g.stroke();
+      g.strokeStyle = orange; g.lineWidth = 1.2; g.stroke(); g.globalAlpha = 1;
+      for (const x of [0.05, 0.45]) glow(x, 0.5, 0.06, 0.1, deep, 0.9);   // orange behind each eye
+      hairs(90, 0.62, 1);
+    });
+    // the head: black, the face's swollen front with grooves across it, a sheen on top
+    at('head', () => {
+      fill(black); specks(160, sheen, 0.05, 0.2); glow(0.25, 0.15, 0.2, 0.08, sheen, 0.5);
+      for (let i = 0; i < 7; i++) groove([[0.17, 0.4 + i * 0.07], [0.25, 0.42 + i * 0.07], [0.33, 0.4 + i * 0.07]], 1.5);
+      hairs(40, 0.6, 1);
+    });
+    // an abdomen ring: black and glossy on top, the faint orange edge at its back, orange underneath
+    at('abdomen', () => {
+      fill(black); specks(200, sheen, 0.05, 0.2, 0, 0.55); glow(0.25, 0.1, 0.25, 0.08, sheen, 0.45);
+      const under = g.createLinearGradient(0, 0.45 * S, 0, 0.75 * S); under.addColorStop(0, black); under.addColorStop(1, orange);
+      g.fillStyle = under; g.fillRect(0.5 * S, 0.45 * S, 0.5 * S, 0.55 * S); g.fillRect(0, 0.45 * S, 0.06 * S, 0.55 * S);   // the band on its back half, underneath
+      g.globalAlpha = 0.55; g.fillStyle = deep; g.fillRect(0.72 * S, 0, 0.06 * S, S); g.globalAlpha = 1;   // the ring's hind edge
+      for (let i = 0; i < 9; i++) groove([[rnd(), 0.08 + rnd() * 0.4], [rnd(), 0.08 + rnd() * 0.4]], 0.8);   // fine wrinkles
+      hairs(50, 0.55, 1);
+    });
+    // an eye: red-orange with a fine facet grain, a dark spot looking out of each side, brighter on top
+    at('eye', () => {
+      fill(eyeCol);
+      const top = g.createLinearGradient(0, 0, 0, S); top.addColorStop(0, 'rgba(255,150,80,0.55)'); top.addColorStop(0.5, 'rgba(255,120,60,0)'); top.addColorStop(1, 'rgba(60,0,0,0.5)');
+      g.fillStyle = top; g.fillRect(0, 0, S, S);
+      for (let y = 0; y < S; y += 3) for (let x = (y / 3) % 2 ? 1.5 : 0; x < S; x += 3) { g.globalAlpha = 0.12 + rnd() * 0.12; g.fillStyle = rnd() < 0.5 ? '#ffb070' : '#7a1000'; g.fillRect(x, y, 1.4, 1.4); }
+      g.globalAlpha = 1;
+      for (const x of [0, 0.5, 1]) glow(x, 0.5, 0.09, 0.12, '#3a0600', 0.85);
+    });
+    // a leg: orange, darker toward each joint, a dark line down one side, little spines
+    at('leg', () => {
+      const lg = g.createLinearGradient(0, 0, 0, S); lg.addColorStop(0, deep); lg.addColorStop(0.18, leg); lg.addColorStop(0.8, leg); lg.addColorStop(1, deep);
+      g.fillStyle = lg; g.fillRect(0, 0, S, S);
+      g.globalAlpha = 0.5; g.fillStyle = '#2a0c04'; g.fillRect(0.6 * S, 0, 0.12 * S, S); g.globalAlpha = 1;
+      specks(120, '#ffd0a0', 0.1, 0.3); specks(80, '#2a0c04', 0.3, 0.6);
+    });
+    // a tymbal: pale, with dark ribs across it
+    at('tymbal', () => {
+      fill(pale);
+      for (let i = 0; i < 12; i++) { g.fillStyle = 'rgba(70,40,20,0.75)'; g.fillRect(0, (i + 0.5) / 12 * S, S, S / 30); g.fillStyle = 'rgba(255,250,230,0.6)'; g.fillRect(0, (i + 0.5) / 12 * S - 2, S, 1.2); }
+    });
+    // the collar behind the head: black with an orange rim along its lower edge
+    at('collar', () => {
+      fill(black); specks(120, sheen, 0.05, 0.25, 0, 0.5); glow(0.25, 0.15, 0.2, 0.1, sheen, 0.45);
+      g.globalAlpha = 0.85; g.fillStyle = deep; g.fillRect(0, 0.52 * S, S, 0.16 * S); g.fillStyle = orange; g.fillRect(0, 0.56 * S, S, 0.06 * S); g.globalAlpha = 1;
+    });
+    at('plain', () => { fill('#ffffff'); specks(60, '#a0a0a0', 0.1, 0.3); });
+  });
+}
+
+// a wing: clear, a thick orange leading edge, a real network of orange veins darkening toward the tip, and the
+// black W near a forewing's tip. Painted over the wing's own outline (`outline`, its bounding box filling the picture)
+function cicadaWing(outline) {
+  const W = 256, H = 512, P = outline.getPoints(48), rnd = seeded(17);
+  const xs = P.map((p) => p.x), x0 = Math.min(...xs), x1 = Math.max(...xs), y1 = Math.max(...P.map((p) => p.y));
+  const at = (x, y) => [(x - x0) / (x1 - x0) * W, H - y / y1 * H];   // the base at the bottom, the tip at the top
+  const C = (n, f) => LOOK.color(`cicada-${n}`, f);
+  const vein = C('vein', '#f0801c'), tip = C('vein-tip', '#9a4410'), membrane = C('membrane', '#f0d8b0'), wMark = C('w-mark', '#1a0c06');
+  return wingTexture(W, H, (g) => {
+    const pts = P.map((p) => at(p.x, p.y)), half = Math.floor(pts.length / 2);
+    const path = () => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+    const veinCol = g.createLinearGradient(0, H, 0, 0); veinCol.addColorStop(0, vein); veinCol.addColorStop(0.55, vein); veinCol.addColorStop(1, tip);
+    path(); g.save(); g.clip();
+    g.globalAlpha = 0.24; g.fillStyle = membrane; g.fillRect(0, 0, W, H);   // the clear membrane, faintly warm
+    const base = g.createLinearGradient(0, H, 0, H * 0.78); base.addColorStop(0, vein); base.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = 0.85; g.fillStyle = base; g.fillRect(0, 0, W, H);   // the root, nearly solid orange
+    g.globalAlpha = 1; g.strokeStyle = veinCol; g.lineCap = 'round'; g.lineJoin = 'round';
+    // the leading edge (the outline from the tip back to the root along the straighter side): thick, thinning toward the tip
+    for (let i = half; i < pts.length - 1; i++) { const u = (i - half) / (pts.length - half); g.lineWidth = 3 + 14 * u * u; g.beginPath(); g.moveTo(...pts[i]); g.lineTo(...pts[i + 1]); g.stroke(); }
+    // the vein round the edge
+    g.lineWidth = 5; path(); g.stroke();
+    // the vein running inside the tip, parallel to the edge, and the cells between it and the edge
+    const mid = [W * 0.5, H * 0.45], inner = [];
+    for (let i = 4; i < pts.length - 4; i++) if (pts[i][1] < H * 0.55) inner.push([pts[i][0] + (mid[0] - pts[i][0]) * 0.16, pts[i][1] + (mid[1] - pts[i][1]) * 0.16, pts[i]]);
+    g.lineWidth = 3.2; g.beginPath(); inner.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+    for (let i = 0; i < inner.length; i += 3) { g.beginPath(); g.moveTo(inner[i][0], inner[i][1]); g.lineTo(...inner[i][2]); g.stroke(); }
+    // the long veins fanning from the root out to the inner vein, and the cross veins joining them
+    const root = at(x0 + (x1 - x0) * 0.25, y1 * 0.06), ends = [0.12, 0.28, 0.42, 0.56, 0.7, 0.86].map((u) => inner[Math.floor(u * (inner.length - 1))]);
+    const along = ends.map(([x, y]) => (t) => { const cx = root[0] + (x - root[0]) * 0.35, cy = y + (root[1] - y) * 0.45, s = 1 - t; return [s * s * root[0] + 2 * s * t * cx + t * t * x, s * s * root[1] + 2 * s * t * cy + t * t * y]; });
+    g.lineWidth = 3.6;
+    for (const f of along) { g.beginPath(); for (let t = 0; t <= 1.001; t += 0.05) g.lineTo(...f(t)); g.stroke(); }
+    g.lineWidth = 2.6;
+    for (const t of [0.42, 0.62, 0.8]) for (let i = 0; i < along.length - 1; i++) { const j = t + (rnd() - 0.5) * 0.08; g.beginPath(); g.moveTo(...along[i](j)); g.lineTo(...along[i + 1](j + (rnd() - 0.5) * 0.06)); g.stroke(); }
+    // the black W near the tip, on the leading-edge side
+    const w = at(x0 + (x1 - x0) * 0.3, y1 * 0.74);
+    g.strokeStyle = wMark; g.lineWidth = 3.5; g.globalAlpha = 0.9; g.beginPath();
+    [[-14, -10], [-7, 8], [0, -4], [7, 8], [14, -10]].forEach(([dx, dy], i) => (i ? g.lineTo(w[0] + dx, w[1] + dy) : g.moveTo(w[0] + dx, w[1] + dy))); g.stroke();
+    g.restore();
+  });
+}
+
+// merged keeping each part's own smooth normals (the shared `merge` recomputes them, flat on unindexed parts: facets on a glossy body)
+const keepNormals = (parts) => { const g = mergeGeometries(parts); g.computeBoundingSphere(); return g; };
 function cicadaParts() {
-  const body = '#1a2616', thorax = '#243a1c', pale = '#9ab85a', band = '#34502a', eye = '#c4301c', leg = '#2a3a1e', dark = '#0c140a';
+  const red = LOOK.color('cicada-ocellus', '#ff3a1a'), dark = '#2a120a';
   const bodyParts = [
-    ellipsoid(0.62, 0.52, 0.78, V(0, 0.78, 0.15), thorax),                   // the thick thorax
-    ellipsoid(0.5, 0.18, 0.2, V(0, 1.05, 0.5), pale),                         // the pale collar
-    ellipsoid(0.7, 0.34, 0.26, V(0, 0.75, 0.8), body),                        // the wide blunt head
-    ellipsoid(0.26, 0.28, 0.26, V(-0.68, 0.82, 0.82), eye, 14),               // the big red eyes, far apart on its sides
-    ellipsoid(0.26, 0.28, 0.26, V(0.68, 0.82, 0.82), eye, 14),
-    ellipsoid(0.05, 0.05, 0.05, V(-0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0, 1.06, 0.92), eye, 8),   // three simple eyes
+    ovoid(0.6, 0.5, 0.62, V(0, 0.8, 0.02), 'thorax', 24),                    // the domed thorax
+    ovoid(0.64, 0.42, 0.4, V(0, 0.84, 0.46), 'thorax', 24),                  // its sculpted shield, wide over the front
+    ovoid(0.52, 0.17, 0.2, V(0, 1.04, 0.52), 'collar'),                      // the collar behind the head
+    ovoid(0.7, 0.34, 0.27, V(0, 0.75, 0.8), 'head', 24),                     // the wide blunt head
+    ovoid(0.24, 0.22, 0.14, V(0, 0.6, 1.0), 'head'),                         // the face's swollen front, grooved across
+    ovoid(0.25, 0.27, 0.25, V(-0.68, 0.82, 0.82), 'eye', 20),               // the big red-orange eyes, far apart on its sides
+    ovoid(0.25, 0.27, 0.25, V(0.68, 0.82, 0.82), 'eye', 20),
+    ...[V(-0.14, 1.0, 0.98), V(0.14, 1.0, 0.98), V(0, 1.06, 0.92)].map((p) => ovoid(0.05, 0.05, 0.05, p, 'plain', 8, red)),   // three small red eyes between
   ];
-  for (let i = 0; i < 5; i++) bodyParts.push(ellipsoid(0.5 - i * 0.045, 0.4 - i * 0.035, 0.22, V(0, 0.66, -0.35 - i * 0.3), i % 2 ? band : body));   // the tapering banded abdomen
-  for (const s of [-1, 1]) {
-    bodyParts.push(tube([V(s * 0.1, 1.2, 0.35), V(s * 0.45, 1.1, -0.2), V(s * 0.5, 0.95, -0.9)], 0.02, pale, 10));   // pale lines along its back
-    bodyParts.push(rod(V(s * 0.28, 0.52, 0.4), V(s * 0.45, 0.86, 0.65), 0.03, 0.01, dark));   // short antennae
-  }
-  // a leg: thick femur out and down, short tibia to the ground, built at the hip
-  const legGeo = (s, reach) => merge([rod(V(0, 0, 0), V(s * 0.4, 0.05, 0), 0.1, 0.07, leg), rod(V(s * 0.4, 0.05, 0), V(s * reach, -0.52, 0), 0.07, 0.02, leg), rod(V(s * 0.55, -0.12, 0), V(s * 0.6, 0.0, 0.03), 0.015, 0.002, dark)]);
-  // a wing out from its root along +z' (turned backwards when hung), clear with a green rim and veins
-  const wing = (len, wid) => {
+  for (let i = 0; i < 5; i++) bodyParts.push(ovoid(0.5 - i * 0.045, 0.4 - i * 0.035, 0.3, V(0, 0.66, -0.35 - i * 0.28), 'abdomen'));   // the tapering ringed abdomen
+  for (const s of [-1, 1]) bodyParts.push(limb(V(s * 0.28, 0.52, 0.4), V(s * 0.45, 0.86, 0.65), 0.03, 0.01, dark, 'plain'));   // short antennae
+  // a leg: thick femur out and down (thicker on the front pair: the digging legs), short tibia to the ground, a dark foot; built at the hip
+  const legGeo = (s, reach, fore) => keepNormals([
+    limb(V(0, 0, 0), V(s * 0.4, 0.05, 0), fore ? 0.13 : 0.1, fore ? 0.09 : 0.07),
+    limb(V(s * 0.4, 0.05, 0), V(s * reach, -0.52, 0), 0.07, 0.03),
+    limb(V(s * reach, -0.52, 0), V(s * (reach + 0.08), -0.55, 0.06), 0.03, 0.012, dark),
+    ...(fore ? [limb(V(s * 0.3, 0.0, 0.02), V(s * 0.36, -0.12, 0.05), 0.03, 0.004, dark)] : []),   // the spine under a digging leg's femur
+  ]);
+  // a wing out from its root along +z' (turned backwards when hung); its outline's box fills the painted picture
+  const outline = (len, wid) => {
     const sh = new THREE.Shape();
     sh.moveTo(0, 0); sh.bezierCurveTo(wid * 0.9, len * 0.1, wid * 1.1, len * 0.7, 0, len); sh.bezierCurveTo(-wid * 0.3, len * 0.7, -wid * 0.2, len * 0.15, 0, 0);
-    const veins = merge([0, 0.35, 0.7].map((u) => tube([V(0, 0.003, 0.02), V(wid * (0.1 + 0.55 * u), 0.003, len * 0.5), V(wid * (0.05 + 0.2 * u), 0.003, len * 0.9)], 0.012, pale, 8)));
-    return { sheet: new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), veins };
+    return sh;
   };
-  return { body: merge(bodyParts), legs: [[0.55, 0.85], [0.1, 0.95], [-0.35, 1.05]].map(([z, reach]) => ({ z, geo: [-1, 1].map((s) => legGeo(s, reach)) })), fore: wing(2.0, 0.6), hind: wing(1.5, 0.5) };
+  const wing = (len, wid) => {
+    const g = new THREE.ShapeGeometry(outline(len, wid), 24), uv = g.attributes.uv;
+    g.computeBoundingBox();
+    const b = g.boundingBox;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - b.min.x) / (b.max.x - b.min.x), uv.getY(i) / b.max.y);
+    return g.rotateX(Math.PI / 2);
+  };
+  // the tymbals: a pale ribbed patch on each side of the first ring, behind the wings (one mesh, so the song can show on them)
+  const tymbals = keepNormals([-1, 1].map((s) => ovoid(0.07, 0.19, 0.15, V(s * 0.44, 0.7, -0.3), 'tymbal', 12)));
+  return {
+    body: keepNormals(bodyParts), tymbals, skin: cicadaSkin(), wingSkin: cicadaWing(outline(1, 1)),
+    legs: [[0.55, 1.1], [0.1, 1.2], [-0.35, 1.3]].map(([z, reach]) => ({ z, geo: [-1, 1].map((s) => legGeo(s, reach, z > 0.3)) })), fore: wing(2.3, 0.62), hind: wing(1.6, 0.5),
+  };
 }
 export function buildCicada() {
   const G = (GEO.cicada ||= cicadaParts()), M = mats();
+  if (!M.cicada) {
+    M.cicada = new THREE.MeshStandardMaterial({ map: G.skin, vertexColors: true, roughness: LOOK.num('cicada-roughness', 0.3), metalness: 0.1 });
+    M.cicadaWing = new THREE.MeshStandardMaterial({ map: G.wingSkin, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.12, metalness: 0.1, depthWrite: false });
+    standOut(M.cicada, { base: 0.25, rim: LOOK.num('cicada-rim', 0.6) }); standOut(M.cicadaWing, { base: 0.3, rim: 0.35 });
+  }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  body.add(new THREE.Mesh(G.body, M.matte));
+  body.add(new THREE.Mesh(G.body, M.cicada));
+  const tymbals = new THREE.Mesh(G.tymbals, M.cicada);
+  tymbals.name = 'tymbals';
+  body.add(tymbals);
   const legs = [];
   for (const L of G.legs) [-1, 1].forEach((s, j) => {
     const hip = new THREE.Group();
     hip.position.set(s * 0.45, 0.48, L.z);
-    hip.add(new THREE.Mesh(L.geo[j], M.matte));
+    hip.add(new THREE.Mesh(L.geo[j], M.cicada));
     body.add(hip);
     legs.push({ hip, base: s * (L.z - 0.1) * 0.5, s, front: L.z > 0.3, phase: (L.z > 0.3) !== (s > 0) ? Math.PI : 0 });
   });
@@ -2103,9 +2265,9 @@ export function buildCicada() {
     const hinge = new THREE.Group();
     hinge.position.set(s * 0.22, 1.12, z);
     const m = new THREE.Group();   // wing lies back along -z, tilted down at its outer edge
-    m.rotation.set(0, Math.PI, 0);
+    m.rotation.set(0, Math.PI, s * LOOK.num('cicada-wing-tent', 0.35));   // sloping down its sides like a tent
     m.scale.x = -s;
-    m.add(new THREE.Mesh(geo.sheet, M.wing), new THREE.Mesh(geo.veins, M.matte));
+    m.add(new THREE.Mesh(geo, M.cicadaWing));
     hinge.add(m); body.add(hinge);
     return { hinge, s };
   }));
@@ -2117,49 +2279,93 @@ export function buildCicada() {
   const mound = new THREE.Group();
   mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
   mound.visible = false;
-  outer.add(mound);
-  let t = 0, k = 0, mt = 0;
-  // its burrow (attack-motion "pounce" tier="heavy", src/attack-motion.js): digging in, its forelegs scoop in turn
-  // and it shimmies down in three pulses; under, the mound heaves after you. On the beat it bursts up stretched,
-  // wings thrown open, and hangs there a moment, then lands squashed and heavy and sways dazed, wings drooped and
-  // buzzing. For the last 0.25 s it shakes its head and snaps its wings shut: the window to hit it is closing.
+  // the mud chimney it pushes up through the hush, and the brown shell it leaves behind (the mound's material, drawn instanced)
+  M.burrowCrater ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-crater', '#3a2a1c'), roughness: 1 });   // harmless leftovers: plain brown, no hostile glow
+  M.burrowShell ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-shell', '#9a7448'), roughness: 0.75 });
+  const chimney = new THREE.Mesh(D.dome, M.mound), shell = new THREE.Mesh(G.body, M.burrowShell), crater = new THREE.Mesh(D.dome, M.burrowCrater);
+  crater.visible = false;
+  outer.add(crater);
+  chimney.visible = shell.visible = false;
+  outer.add(mound, chimney, shell);
+  mound.name = 'mound'; chimney.name = 'chimney'; shell.name = 'shell'; crater.name = 'crater';
+  const K = (GEO.cicadaBurrow ||= Object.fromEntries(['rear', 'heave', 'hush', 'chimney', 'swell', 'still', 'rise', 'stretch', 'up', 'hang', 'fall', 'overshoot', 'back', 'crater']
+    .map((n) => [n, LOOK.num('burrow-' + n, { rear: 0.55, heave: 0.3, hush: 0.8, chimney: 1.1, swell: 2.3, still: 0.9, rise: 2, stretch: 2.1, up: 0.06, hang: 0.1, fall: 0.1, overshoot: 1.3, back: 0.47, crater: 1.8 }[n])])));
+  let t = 0, k = 0, mt = 0, shellYaw = 0;
+  // its burrow (attack-motion "pounce" tier="heavy", src/attack-motion.js), on the word's own clocks (digK, burrowBeats,
+  // burrowK, burstT: never the wall clock). Digging in it rears back first, wings flared and tymbals flashing, then its
+  // forelegs scoop in turn and it shimmies down in three pulses. Under, the mound humps after you on every beat. Locked,
+  // it sinks flat and a mud chimney pushes up (the hush), then the floor bulges wide, the chimney shaking (the swell),
+  // and for the last tenth of a second everything holds dead still. On the beat it rockets up from the floor stretched
+  // long, wings thrown wide, hangs, and drops: a hit lands heavy and squashed and sways dazed, wings drooped and buzzing;
+  // a miss overshoots and lands on its back, kicking, then rolls upright. A crater and its shed shell stay, fading.
+  // For the last 0.25 s it shakes its head and snaps its wings shut: the window to hit it is closing.
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 10) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (2 + 8 * k);
     mt += dt;
-    const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    const A = e.atk, S = THREE.MathUtils.smoothstep, calm = A ? A.quiet < 1 : false;
     const dig = e.state === 'dig' ? e.digK || 0 : 0, P = Math.PI * 6;   // (three pulses: 6π)
-    let sink = e.under ? 1 : dig - Math.sin(dig * P) / P, up = 0, len = 1, open = 0, daze = 0, shut = 0, squash = 0, shake = 0, lean = 0;
-    if (ph === 'swing') { up = 1; open = 1; len = A.smear ? knobs().smear : A.tier.stretch; }
-    else if (ph === 'recoil') {
-      const p = A.pt, left = e.state === 'dazed' ? Math.max(0, e.stateT) : 0;
-      up = 1 - S(p, 0, 0.1);                                    // down it comes
-      squash = 0.3 * heavy(Math.min(1, p / 0.6)) * S(p, 0, 0.1);
-      daze = S(left, 0, 0.1);                                   // dazed until the very end (its wings shut first)
-      open = 1 - S(p, 0, 0.15);
-      shut = left < 0.25 ? 1 - left / 0.25 : 0;
-      shake = Math.sin(A.t * 45) * 0.25 * shut * (1 - shut) * 4;
-      if (!A.hit) lean = A.side * 0.3 * daze * (1 - shut) * S(p, 0.05, 0.2);   // a burst that missed lands lopsided, tipped onto one side
+    const rear = dig > 0 ? S(dig, 0, 0.12) * (1 - S(dig, 0.28, 0.4)) : 0, d2 = Math.max(0, (dig - 0.35) / 0.65);
+    const locked = e.under && e.burrowLocked, lock = locked ? e.burrowK || 0 : 0;
+    const hush = locked ? S(lock, 0, 0.2) : 0, swell = locked ? S(lock, 0.5, 0.85) : 0, still = calm || (locked && lock >= K.still);
+    let sink = e.under ? 1 : d2 - Math.sin(d2 * P) / P, up = 0, len = 1, open = rear * 0.9, daze = 0, shut = 0, squash = 0, shake = 0, flip = 0, kick = 0, air = 0, after = -1;
+    if (e.state === 'dazed') {
+      const bt = e.burstT || 0, miss = A && !A.hit, top = K.rise * (miss ? K.overshoot : 1), land = K.up + K.hang + K.fall;
+      if (bt < K.up) { const u = bt / K.up; up = (1 - (1 - u) ** 3) * top; len = 1 + (K.stretch - 1) * u; }   // out of the floor (on the hit frame still at it)
+      else if (bt < K.up + K.hang) { up = top; len = K.stretch - (K.stretch - 1) * 0.6 * (bt - K.up) / K.hang; }   // hanging at the top
+      else if (bt < land) { const u = (bt - K.up - K.hang) / K.fall; up = top * (1 - u * u); len = 1 + (K.stretch - 1) * 0.4 * (1 - u); }   // down it drops
+      air = bt < land ? 1 : 0;
+      after = bt - land;
+      const left = Math.max(0, e.stateT);
+      open = air ? 1 : 1 - S(after, 0, 0.15);
+      if (after >= 0) {
+        squash = 0.35 * heavy(Math.min(1, after / 0.6));
+        daze = S(left, 0, 0.1) * S(after, 0, 0.1);              // dazed until the very end (its wings shut first)
+        shut = left < 0.25 ? 1 - left / 0.25 : 0;
+        shake = Math.sin(mt * 45) * 0.25 * shut * (1 - shut) * 4;
+      }
+      if (miss) { flip = S(bt, K.up, land) * (1 - S(after, K.back, K.back + 0.3)); kick = after >= 0 ? flip : 0; }   // on its back, kicking, then over
+      // the crater and the shed shell, fading over the dazed beats; the shell stays where it fell as the cicada turns
+      const fade = after >= 0 ? S(after, 0, 0.12) * (1 - S(bt, K.crater * 0.6, K.crater)) : 0;
+      if (after < 0) shellYaw = e.root.rotation.y;
+      shell.visible = fade > 0.02;
+      if (shell.visible) {
+        const a = shellYaw - e.root.rotation.y;
+        shell.position.set(-1.4 * Math.cos(a) - 0.8 * Math.sin(a), 0.1, 1.4 * Math.sin(a) - 0.8 * Math.cos(a));
+        shell.rotation.set(0.25, a + 2.4, 0.5);
+        shell.scale.setScalar(0.85 * fade);
+      }
+      mound.visible = chimney.visible = false;
+      crater.visible = fade > 0.02 && !air;
+      crater.scale.set(2.1, 0.14 * fade, 2.1);
+    } else {
+      shell.visible = crater.visible = false;
+      // the mound: swells as it digs, humps on every beat as it travels, sinks flat on the hush, bulges wide on the swell
+      const rise = Math.min(1, sink * 1.6), move = e.under && !locked ? 1 : 0, heave = move ? Math.exp(-((e.burrowBeats || 0) % 1) * 7) : 0;
+      const shiver = still ? 0 : 1, wide = 1.3 * rise * (1 + (K.swell / 1.3 - 1) * swell) * (1 + 0.08 * lock * Math.sin(mt * 40) * shiver);
+      mound.visible = rise > 0.02;
+      mound.scale.set(wide, rise * (0.55 + K.heave * heave + 0.08 * move * Math.sin(mt * 9)) * (1 - K.hush * hush + 0.9 * swell), wide);
+      mound.position.x = Math.sin(mt * 55) * 0.05 * swell * shiver;
+      const ch = locked ? S(lock, 0.05, 0.45) : 0;
+      chimney.visible = ch > 0.02;
+      chimney.scale.set(0.32, K.chimney * ch * (1 + 0.12 * swell * Math.sin(mt * 60) * shiver), 0.32);
+      chimney.position.set(Math.sin(mt * 70) * 0.04 * swell * shiver, rise * 0.3 * swell, 0);
     }
     for (const L of legs) {
-      // digging: the forelegs scoop in turn
-      const scoop = L.front && dig > 0 ? Math.max(0, Math.sin(dig * P + (L.s > 0 ? Math.PI : 0))) * 0.7 : 0;
-      L.hip.rotation.set(0, L.base + Math.sin(t + L.phase) * 0.3 * k - L.s * scoop, -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.2 * k + scoop * 0.5));
+      // digging: the forelegs scoop in turn; in the air they trail; on its back they kick
+      const scoop = L.front && d2 > 0 ? Math.max(0, Math.sin(d2 * P + (L.s > 0 ? Math.PI : 0))) * 0.7 : 0;
+      L.hip.rotation.set(0, L.base + Math.sin(t + L.phase) * 0.3 * k - L.s * scoop, -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.2 * k + scoop * 0.5 - 0.5 * air + Math.sin(mt * 26 + L.phase + L.base * 3) * 0.6 * kick));
     }
-    const buzz = Math.sin((A ? A.t : mt) * 120) * 0.08 * daze * (1 - shut);
+    const buzz = Math.sin((A ? A.t : mt) * 120) * (0.08 * daze * (1 - shut) + 0.12 * rear);
     for (const W of wings) W.hinge.rotation.set(0, 0, W.s * (-0.35 - 0.2 * daze * (1 - shut) + buzz + open * 1.2));
+    tymbals.scale.set(1 + 0.6 * rear * Math.abs(Math.sin(mt * 70)), 1, 1);   // the song's drums flashing as it rears
     body.visible = sink < 0.97;
-    body.position.y = -sink * 1.5 + up * 0.2 - squash * 0.15 + Math.abs(Math.sin(t)) * 0.015 * k;
-    body.rotation.set(0.18 * daze, shake, lean + Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) + (dig > 0 ? Math.sin(dig * P) * 0.08 : 0));
+    body.position.y = -sink * 1.5 + up - squash * 0.15 + 0.75 * (1 - Math.cos(Math.PI * flip)) + Math.abs(Math.sin(t)) * 0.015 * k;
+    body.rotation.set(0.18 * daze * (1 - flip) - rear * K.rear, shake, (A ? A.side : 1) * Math.PI * flip + Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) * (1 - flip) + (d2 > 0 ? Math.sin(d2 * P) * 0.08 : 0));
     { const y = squash ? 1 - squash : len, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); }   // stretched up, squashed down
-    // the mound: swells as it digs, heaves as it travels, shakes harder as it locks over its spot
-    const rise = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
-    mound.visible = rise > 0.02;
-    mound.scale.set(1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)), rise * (0.55 + 0.12 * move * Math.sin(mt * 9) + 0.25 * lock), 1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)));
-    mound.position.x = Math.sin(mt * 55) * 0.05 * lock;
   };
-  anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); };
+  anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = chimney.visible = shell.visible = crater.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); tymbals.scale.set(1, 1, 1); };
   return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
 }
 
@@ -2650,24 +2856,74 @@ export function buildButterfly() {
 }
 
 // ------------------------------------------------------------------ firefly
-// A firefly beetle, soft dark wing covers over a flat orange-red shield behind a tucked head, long
-// beaded antennae, six thin legs and a pair of pale gauzy wings. Its last two body segments are the
-// lantern: a glowing mesh (not a light) that blinks on every beat of the song in the hostile colour
-// (--hostile-firefly) and stays lit while it draws back to dart. Facing +z, centred on its thorax;
-// about 2.6 radii long.
+// A firefly beetle in flight, after the photo: an orange shield over a tucked black head with big
+// glossy eyes and long beaded antennae, an orange thorax, a dark banded abdomen ending in the
+// lantern (its last two segments). Its wing covers, dark with orange edges, are raised up and out on
+// hinges at their front inner corners, and under them the smoky, veined hind wings beat as a blur.
+// The lantern is a glowing mesh (not a light) that swells and fades once every --firefly-blink-beats
+// beats of the song in the hostile colour (--hostile-firefly), and stays lit while it lifts its tail
+// to throw. Facing +z, centred on its thorax; about 2.6 radii long.
 function fireflyParts() {
-  const dark = '#2a1a12', cover = '#3a2616', shield = '#d8431a', band = '#1a0e08', ink = '#120a06';
+  const dark = '#1c100c', band = '#5a2e12', orange = '#c85410', shield = '#d8621a', ink = '#140c08', eye = '#0a0e22', leg = '#b4500e';
+  const beads = (s) => Array.from({ length: 11 }, (_, i) => {
+    const u = i / 10, p = new THREE.CatmullRomCurve3([V(s * 0.07, 0.0, 1.02), V(s * 0.22, 0.16, 1.35), V(s * 0.3, 0.12, 1.75)]).getPoint(u);
+    return ellipsoid(0.034 - u * 0.01, 0.03 - u * 0.008, 0.042, p, ink, 6);
+  });
   const body = merge([
-    ellipsoid(0.4, 0.22, 0.95, V(0, 0.05, -0.35), cover),               // wing covers
-    ellipsoid(0.03, 0.04, 0.8, V(0, 0.27, -0.35), band, 8),             // the seam down them
-    ellipsoid(0.42, 0.16, 0.34, V(0, 0.1, 0.55), shield),               // the flat shield behind the head
-    ellipsoid(0.06, 0.04, 0.26, V(0, 0.26, 0.55), band, 8),             // its dark stripe
-    ellipsoid(0.18, 0.15, 0.18, V(0, 0.02, 0.9), dark),                 // head, tucked under the shield
-    ...[-1, 1].map((s) => tube([V(s * 0.08, 0.08, 1.0), V(s * 0.2, 0.3, 1.3), V(s * 0.36, 0.38, 1.6)], 0.022, ink, 6)),   // antennae
-    ...[-1, 1].flatMap((s) => [0.6, 0.15, -0.3].map((z) => rod(V(s * 0.25, -0.05, z), V(s * 0.55, -0.4, z + (z > 0.3 ? 0.15 : z < 0 ? -0.2 : 0)), 0.045, 0.02, ink))),   // legs
+    ellipsoid(0.3, 0.26, 0.38, V(0, -0.02, 0.18), orange),               // thorax
+    ellipsoid(0.4, 0.13, 0.36, V(0, 0.14, 0.62), shield),                // the shield over the head
+    ellipsoid(0.17, 0.15, 0.16, V(0, -0.04, 0.92), ink),                 // head, tucked under it
+    ...[-1, 1].map((s) => ellipsoid(0.1, 0.12, 0.1, V(s * 0.14, -0.04, 0.96), eye, 10)),   // glossy eyes
+    ...[-1, 1].flatMap(beads),                                             // beaded antennae
+    ...[0, 1, 2, 3, 4].map((i) => ellipsoid(0.29 - i * 0.025, 0.19 - i * 0.012, 0.13, V(0, -0.08 - i * 0.01, -0.22 - i * 0.15), i % 2 ? band : dark, 12)),   // the abdomen's bands
+    ...[-1, 1].flatMap((s) => [0.5, 0.22, -0.06].flatMap((z, i) => {   // legs tucked back in flight: orange thighs, dark shins
+      const hip = V(s * 0.18, -0.18, z), knee = V(s * 0.4, -0.3, z - 0.06), foot = V(s * (0.32 + i * 0.04), -0.48, z - 0.34);
+      return [rod(hip, knee, 0.045, 0.035, leg), rod(knee, foot, 0.03, 0.014, ink)];
+    })),
   ]);
-  const wing = new THREE.ShapeGeometry(new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.4, 0.22, 1.2, 0.2, 1.5, 0).bezierCurveTo(1.2, -0.14, 0.4, -0.12, 0, 0), 10).rotateX(-Math.PI / 2).rotateY(Math.PI * 0.55);
-  return { body, wing, lamp: ellipsoid(0.34, 0.19, 0.42, V(0, 0.02, -1.22), '#ffffff') };
+  // a wing cover: half an elongated dome, dark with an orange rim round its outer edge and down the seam;
+  // its inside is the same shell turned in, so it reads solid when raised
+  const EC = V(0, 0.08, -0.42), EE = V(0.34, 0.22, 0.92);
+  const cover = (s) => {
+    const out = new THREE.SphereGeometry(1, 20, 12, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.56).scale(EE.x, EE.y, EE.z).translate(EC.x, EC.y, EC.z).toNonIndexed();
+    const p = out.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), D = new THREE.Color(dark), O = new THREE.Color(orange);
+    for (let i = 0; i < p.count; i++) {
+      const y = (p.getY(i) - EC.y) / EE.y, x = Math.abs(p.getX(i)) / EE.x;
+      c.copy(D).lerp(O, Math.max(THREE.MathUtils.smoothstep(-y, -0.02, 0.12), 1 - THREE.MathUtils.smoothstep(x, 0.03, 0.09)));
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    out.deleteAttribute('uv');
+    out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const inside = tint(out.clone().translate(-EC.x, -EC.y, -EC.z).scale(0.95, 0.9, 0.97).translate(EC.x, EC.y, EC.z), '#3a2416');
+    const q = inside.attributes.position;
+    for (let i = 0; i < q.count; i += 3) { const a = [q.getX(i), q.getY(i), q.getZ(i)]; q.setXYZ(i, q.getX(i + 1), q.getY(i + 1), q.getZ(i + 1)); q.setXYZ(i + 1, ...a); }   // turned in
+    return merge([out, inside]);
+  };
+  // a hind wing: smoky see-through membrane, darker at the root and along the front, veins fanning to the edge
+  // with cross veins making cells (like the photo)
+  const membrane = wingTexture(512, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0);
+    m.addColorStop(0, 'rgba(70,50,34,.7)'); m.addColorStop(0.35, 'rgba(96,82,60,.42)'); m.addColorStop(1, 'rgba(120,110,90,.3)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(24,16,10,.9)'; g.lineCap = 'round';
+    const veins = [0.04, 0.16, 0.32, 0.5, 0.68, 0.86].map((v) => (x) => 0.03 + (v - 0.03) * Math.pow(Math.min(1, x / 0.9), 0.6));
+    veins.forEach((f, i) => { g.lineWidth = i === 0 ? 6 : i < 2 ? 3 : 2; g.beginPath(); g.moveTo(0, f(0) * h); for (let k = 1; k <= 24; k++) g.lineTo(k / 24 * w, f(k / 24) * h); g.stroke(); });
+    g.lineWidth = 1.4;
+    for (let i = 1; i < veins.length - 1; i++) for (const x of [0.3 + i * 0.05, 0.55 + i * 0.04, 0.78]) { g.beginPath(); g.moveTo(x * w, veins[i](x) * h); g.lineTo((x + 0.04) * w, veins[i + 1](x + 0.04) * h); g.stroke(); }
+    g.fillStyle = 'rgba(30,20,12,.85)'; g.beginPath(); g.ellipse(w * 0.62, h * 0.08, w * 0.05, h * 0.045, 0, 0, 7); g.fill();   // the dark spot on the front edge
+  });
+  return {
+    body, covers: [cover(-1), cover(1)], membrane, wing: wingGeometry(1.55, 0.72, 0.5, 24), hinge: V(0, EC.y + EE.y * 0.9, EC.z + EE.z * 0.92),
+    lamp: merge([ellipsoid(0.26, 0.17, 0.17, V(0, -0.1, -1.08), '#ffffff'), ellipsoid(0.21, 0.14, 0.15, V(0, -0.1, -1.29), '#ffffff')]),   // the lantern: its last two segments
+  };
+}
+
+// how lit a firefly's lantern is at `beat` of the song: a flash every `every` beats, up in a quarter beat,
+// then fading over about a beat and a half (dark the rest of the time)
+export function fireflyFlash(beat, every) {
+  const u = ((beat % every) + every) % every;
+  return u < 0.25 ? THREE.MathUtils.smoothstep(u, 0, 0.25) : Math.exp(-(u - 0.25) * 2.2);
 }
 
 export function buildFirefly() {
@@ -2675,25 +2931,41 @@ export function buildFirefly() {
   if (!M.ffLamp) {   // one shared glow, tinted per bug (batch.js perInstance); unlit, so bloom lifts it
     M.ffLamp = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
     M.ffLamp.userData.perInstance = true;
+    M.ffWing = new THREE.MeshStandardMaterial({ map: G.membrane, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.2, depthWrite: false });
   }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.matte));
   const lamp = new THREE.Mesh(G.lamp, M.ffLamp);
   lamp.userData.color = new THREE.Color();
+  lamp.name = 'firefly-lamp';
   body.add(lamp);
-  const wings = [-1, 1].map((s) => {
-    const pivot = new THREE.Group(), w = new THREE.Mesh(G.wing, M.wing);
-    pivot.position.set(s * 0.2, 0.26, 0.2);
-    w.scale.x = -s;
-    pivot.add(w);
+  // the wing covers, each on a hinge at its front inner corner
+  const covers = [-1, 1].map((s, i) => {
+    const pivot = new THREE.Group(), m = new THREE.Mesh(G.covers[i], M.matte);
+    pivot.position.set(s * 0.03, G.hinge.y, G.hinge.z);
+    m.position.set(-s * 0.03, -G.hinge.y, -G.hinge.z);
+    pivot.add(m);
     body.add(pivot);
+    pivot.name = 'firefly-cover';
     return { pivot, s };
   });
-  const face = angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 });
+  // the hind wings, from under the covers' hinges, out to the sides
+  const wings = [-1, 1].map((s) => {
+    const pivot = new THREE.Group(), flap = new THREE.Group(), w = new THREE.Mesh(G.wing, M.ffWing);
+    pivot.position.set(s * 0.1, 0.2, 0.3);
+    w.scale.x = s;
+    flap.add(w); pivot.add(flap); body.add(pivot);
+    pivot.name = 'firefly-wing';
+    return { pivot, flap, s };
+  });
+  const face = angryEyes({ y: 0.06, z: 1.0, size: 0.07, gap: 0.1 });
   body.add(face);
-  const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
+  const dim = new THREE.Color(LOOK.color('firefly-dim', '#4e4018')), hot = new THREE.Color();
+  const every = LOOK.num('firefly-blink-beats', 4), beat = 60 / 128;
   let t = 0, wind = 0, held = 0;
+  // flying: the covers held up and out, trembling with the beat of the hind wings (about 15 a second), the
+  // body hanging tail down and bobbing gently, leaning into where it's going.
   // its lob (attack-motion "throw", src/attack-motion.js): its tail lifts (nose down) with a quiver, dips a
   // little more in the last 0.1 s as it winds back, then the tail flicks up and over, stretched along the throw;
   // it tumbles nose up and corrects. The lamp is the word's own: lit and swelling as it aims, squeezed as it throws
@@ -2701,13 +2973,17 @@ export function buildFirefly() {
     t += dt;
     wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
     const kick = Math.max(0, e?.firedT || 0) / 0.3;     // the lob word: 0.3 s after the throw
-    // the lamp: a flash on every beat, held lit while it lifts its tail and throws
-    const k = Math.max(e?.beatPulse || 0, wind, kick);
-    hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 1.8));
+    // the lamp: a slow flash on the song's beat (once every `every` beats), held lit while it lifts its tail and throws
+    const k = Math.max(fireflyFlash(e?.beatAt ?? t / beat, every), wind, kick);
+    hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 2.4));
     lamp.userData.color.copy(dim).lerp(hot, k * k);
-    const flap = Math.sin(t * (50 + wind * 20));
-    for (const W of wings) { W.pivot.rotation.z = W.s * (0.3 + flap * 0.55); W.pivot.rotation.y = W.s * (0.25 + 0.15 * Math.cos(t * 50)); }
-    const A = e?.atk, ph = A ? A.phase : 'idle';
+    const A = e?.atk, ph = A ? A.phase : 'idle', still = A?.still ? 1 : 0;
+    const beatW = Math.sin(t * 95 + (e?.phase || 0));
+    for (const C of covers) C.pivot.rotation.set(0.6 + beatW * 0.03 * (1 - still), -C.s * 0.25, C.s * 0.6, 'YXZ');
+    for (const W of wings) {
+      W.pivot.rotation.set(0.1, -W.s * 1.05, 0);
+      W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 95 + (W.s > 0 ? 0 : 0.4) + (e?.phase || 0)) * 0.9);
+    }
     let lift = wind, jolt = kick * kick, tumble = kick * 0.54, len = 1, shake = 0;   // (without an attack clock: the word's own blends)
     if (A) {
       lift = jolt = tumble = 0;
@@ -2722,9 +2998,11 @@ export function buildFirefly() {
       if (ph === 'idle') lift = held *= Math.exp(-14 * dt);   // broken off (frozen, stunned): the tail comes down, not pops
       else held = lift;
     }
-    body.position.set(shake * 0.03, Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - Math.max(wind, A?.still ? 1 : 0)), jolt * 0.3);   // the throw jolts it forward, off its tail
-    body.rotation.x = 0.05 + lift * 0.55 - tumble * 0.65;        // lifting its tail (nose down) to throw; the throw flicks it up and over
-    body.rotation.z = shake * 0.06;
+    const calm = 1 - Math.max(wind, still);                  // it stops bobbing as it aims
+    const speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
+    body.position.set(shake * 0.03, (Math.sin(t * 3 + (e?.phase || 0)) * 0.1 + beatW * 0.012) * calm, jolt * 0.3);   // the throw jolts it forward, off its tail
+    body.rotation.x = -0.35 * calm + Math.min(0.25, speed * 1.2) * calm + lift * 0.55 - tumble * 0.65;   // hanging tail down, leaning in as it goes; lifting its tail (nose down) to throw; the throw flicks it up and over
+    body.rotation.z = shake * 0.06 + Math.sin(t * 1.7 + (e?.phase || 0)) * 0.06 * calm;
     stretch(body, len);
     lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
     if (A) eyes(face, A);

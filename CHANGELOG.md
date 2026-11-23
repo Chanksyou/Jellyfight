@@ -2,6 +2,32 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v647 animates the Cicada's burrow beat by beat: it rears up before it digs, the mound humps on every beat leaving cracks, then sinks flat while a mud chimney rises and the floor swells under the Warning; it rockets out stretched, throwing floor chunks, and a hit squashes the jelly in the freeze and sends it somersaulting away with the camera a touch behind; it lands heavy (or on its back after a miss) beside a crater and its shed shell.
+
+v646 adds an experiment switch for heat shimmer over the vents (index.html?shimmer=1, Medium and High only): the picture just above each vent bends a little, and stays still behind furniture that stands in front. Off unless the switch is in the link.
+
+v645 adds a line to each Treasure pick card for a treasure that changes a stat, such as "Dodge 26% → 35%", what it is now and after you take it; and the Odd Sock's Dodge now follows the same rules as the Dodge cards, each copy closing a share of the gap to the 60% cap, so five Socks give 46%, not the cap at once.
+
+v644 makes the Cicada's burrow throw the jelly about a metre across the floor: the burst's shove is three times harder, the jelly tumbles for a beat with almost no grip so the stick can't cancel the throw, and the hit gets a short freeze. The attack now runs on the song (dig-in 1 beat, trail 5, Warning 2 beats, so the burst lands two bars after the dig-in) and the Cicada stays dazed for 4 beats. Harder: a hit sends you far and loses you control for a beat. Easier: twice the Warning and a longer window to hit it. Balance bot not run.
+
+v643 remodels act 4's Cicada as a periodical cicada: a glossy black body with sculpted plates and an orange X on its back, big red-orange eyes, orange legs with thick digging forelegs, pale ribbed tymbals, and clear wings with painted orange veins and a black W, folded in a tent over its back. Looks only; it plays the same.
+
+v642 gives act 4's Firefly a real flying look: raised dark wing covers edged in orange, smoky veined hind wings beating as a blur, an orange shield and thorax, beaded antennae and a body that hangs tail down and leans into its flight. Its lantern now swells and fades once every 4 beats of the song (about every 2 s) instead of blinking on every beat, and it flies lower and a little nearer, 10 to 25 cm above the jelly instead of 30 to 50.
+
+v641 Act 2's camera now looks over the open bathroom door, tilting steeper instead of squeezing down to floor height behind it.
+
+v640 makes the apartment's plants sway a few millimetres on their own and lean away when the jelly rushes past or a big hit lands near them, and glassware shiver under those hits; all of it is in the room's existing shader, so it adds no draw, light or shader, Reduce effects holds it still, and ?ambient=0 turns it off for phone measuring.
+
+v639 stops a Cream Whipper balloon filling the screen when the camera is pushed in against a wall: it fades out as the lens comes near.
+
+v638 lets each vent's air show in its room's own light: the wisps, dust and ribbons take the baked light where they rise, so they glow softly by a lamp and fade in a dark corner; act 3's moonlit bedroom gets fainter, cooler air and act 4's dawn a slightly warmer one.
+
+v637 lets the Range level-up card stretch a Tentacle jelly's reach too, and Tentacle jellies are now offered it.
+
+v636 makes a vent answer a ride: its air gusts and its ribbons snap straight as it catches the jelly, with a whoosh of sound and a light lift of the camera, and a soft hiss plays when you stand near one. In a Boss fight, when vents are off, the air now stops and the ribbons lie limp, and it starts again after.
+
+v635 removes act 4's Soundbar bass wave, the low red wave that rolled across the living room every 16 bars: the room is easier, and the stage door's sub drop stays.
+
 v634 adds a Free roam to the dev tools (Play group): pick an act and walk its room with no bugs, no Elites, no damage and the clock stopped, to look at the lighting, vents and ambient life.
 
 v633 gives every floor vent a real grille (frame, angled louvres, a dark duct) and drops the column of light: the air now shows as soft wisps that rise from the louvres and fan out, dust motes carried up in the stream, and tell-tale ribbons that flutter on the grille, in all four acts.

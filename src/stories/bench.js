@@ -68,14 +68,14 @@ story('bench/never-sends-from-a-story', {
 
 story('bench/experiment-switches-read-once', {
   phone: true,
-  about: 'The experiment links (?lights=3|4|6, ?rt=packed, ?msaa=0|2|4, ?lite=1) are read once at boot: a good value is kept, a bad one is ignored, none given changes nothing, and the lamp slots on this phone are the --phone-lights number the page shipped with.',
+  about: 'The experiment links (?lights=3|4|6, ?rt=packed, ?msaa=0|2|4, ?lite=1, ?shimmer=1) are read once at boot: a good value is kept, a bad one is ignored, none given changes nothing, and the lamp slots on this phone are the --phone-lights number the page shipped with.',
   setup() {},
   async play() {
     const none = readExperiments('');
-    const all = readExperiments('?lights=4&rt=packed&msaa=2&lite=1');
-    const bad = readExperiments('?lights=5&rt=half&msaa=8&lite=2');
+    const all = readExperiments('?lights=4&rt=packed&msaa=2&lite=1&shimmer=1');
+    const bad = readExperiments('?lights=5&rt=half&msaa=8&lite=2&shimmer=yes');
     const absent = Object.values(none).every((v) => v === null) && experimentQuery(none) === '';
-    const kept = all.lights === 4 && all.rt === 'packed' && all.msaa === 2 && all.lite === 1 && experimentQuery(all) === '&lights=4&rt=packed&msaa=2&lite=1';
+    const kept = all.lights === 4 && all.rt === 'packed' && all.msaa === 2 && all.lite === 1 && all.shimmer === 1 && experimentQuery(all) === '&lights=4&rt=packed&msaa=2&lite=1&shimmer=1';
     const ignored = Object.values(bad).every((v) => v === null);
     const slots = G().pacing.lightSlots?.count;
     const res = await runBench({ ...SHORT, only: ['quiet room'], switches: [] });

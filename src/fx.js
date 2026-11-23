@@ -7,6 +7,7 @@ import { WindLooks } from './wind-looks.js';
 import * as THREE from 'three';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
+import { bus } from './events.js';
 import { juice } from './juice.js';
 import { DeathRemains } from './death-remains.js';
 import { MARKS, paintFloorMarks } from './floor-marks.js';
@@ -26,6 +27,7 @@ export class Fx {
     this.nums = [];
     this.numberClock = 0; this.numberSerial = 0;
     this.hitsThisFrame = 0; this.hitBudget = LOOK.num('fx-hits-per-frame', 8);
+    this.gustSize = LOOK.num('ambient-gust-min', 0.04);   // an impact this big (m) is a gust for the plants (ambient.js)
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     // The pick screen's centre card (attack-preview.js) is the only Fx made with this. An effect may read
     // it (as this.fx.showcase from Bubbles, Lash and their looks) to emit more or use a richer material
@@ -311,6 +313,7 @@ export class Fx {
   // a crowd hit at once stays readable without a spike of sparks on a phone.
   impact(pos, color, size = 0.025, sparks = 10) {
     const c = new THREE.Color(color);
+    if (size >= this.gustSize) bus.emit('impact', { pos, size });   // a big hit: the plants and glasses near it answer (ambient.js)
     this.glow.emit(pos, c, size * 2.2, size * 4, 0.16, 1.3);                     // the flash
     if (++this.hitsThisFrame > this.hitBudget) return;
     for (let k = 0; k < sparks; k++) {

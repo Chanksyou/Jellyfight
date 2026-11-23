@@ -2,7 +2,7 @@
 // Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
-import { G, fresh, ok, step, story, tp } from './kit.js';
+import { G, V, fresh, ok, record, step, story, tp } from './kit.js';
 
 const air = () => G().traversal.air;
 // the scene drawn once into a tiny target, as the frame story does; returns the draws the vents' group added
@@ -108,3 +108,79 @@ story('vents/air-rests-where-it-blows', {
     return ok(traversal.air.parts.length === 4 && !far.length, { far });
   },
 });
+
+// the heat shimmer's bend map, read back: how many of its pixels bend the picture
+function bentPixels(gfx) {
+  const m = gfx.shimmer.map, px = new Uint16Array(m.width * m.height * 4);
+  G().APT.renderer.readRenderTargetPixels(m, 0, 0, m.width, m.height, px);
+  let n = 0;
+  for (let i = 0; i < px.length; i += 4) if ((px[i] & 0x7fff) || (px[i + 1] & 0x7fff)) n++;
+  return n;
+}
+story('vents/shimmer-bends-only-when-asked', {
+  about: 'Heat shimmer is an experiment (?shimmer=1): without it the game builds no bend map; with it, on Medium or High, a vent in view bends some of the picture, nothing bends with Reduce effects, and Low has no bend map at all.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { gfx, traversal, tpc, GAME } = G(), v = traversal.vents[0], was = gfx.quality, off = !gfx.shimmer;
+    tp(v.x + 0.25, v.y, v.z + 0.25);
+    try {
+      gfx.heat = traversal.air.heatScene;
+      gfx.setTier(was === 'low' ? 'medium' : was);
+      let bent = 0;
+      for (let i = 0; i < 4 && !bent; i++) { tpc.yaw = (i * Math.PI) / 2; step(4); GAME.render(); bent = bentPixels(gfx); }
+      traversal.air.update(0, { calm: true }); GAME.render();
+      const calm = bentPixels(gfx);
+      traversal.air.update(0, {});
+      gfx.setTier('low');
+      const low = gfx.shimmer;
+      return ok(off && bent > 20 && calm === 0 && !low, { off, bent, calm, low: !!low });
+    } finally { gfx.heat = null; gfx.setTier(was); }
+  },
+});
+
+story('vents/ride-gusts-then-settles', {
+  about: 'Stepping on a vent sends one vent_ride; that vent\'s air gusts (streaks faster, ribbons pulled straight) for --vent-gust-hold s, eases back to calm after, and the jelly still lands where the vent sends it.',
+  setup() { fresh({ elites: false }); const v = G().traversal.vents[0]; tp(v.x, v.y + 0.05, v.z, 0); },
+  play() {
+    const { player, traversal } = G(), v = traversal.vents[0], U = air().look.uniforms, rides = record('vent_ride');
+    step(60, () => !!player.flight);
+    const at = [+U.uGust.value.x.toFixed(3), +U.uGust.value.y.toFixed(3)], start = U.uGust.value.w;
+    step(12);                                                   // 0.2 s: still at full
+    const held = U.uGust.value.w, clock = U.uGustClock.value;
+    step(120);                                                  // 2 s: settled, and landed
+    const after = U.uGust.value.w, p = player.position, [lx, ly, lz] = v.land;
+    const landed = Math.hypot(p.x - lx, p.z - lz) < 0.08 && Math.abs(p.y - ly) < 0.06;
+    return ok(rides.length === 1 && rides[0].vent === v && Math.abs(at[0] - v.x) < 1e-3 && Math.abs(at[1] - v.z) < 1e-3
+      && start === 1 && held === 1 && clock > 0 && after === 0 && landed, { rides: rides.length, at, start, held, clock, after, landed });
+  },
+});
+
+story('vents/air-stops-in-a-boss-fight', {
+  about: 'With vents off in a Boss fight the air stops over --vent-off-time s (streaks and dust fade, ribbons lie limp) and its hiss goes quiet; with vents back on it starts again the same way.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { traversal } = G(), U = air().look.uniforms, v = traversal.vents[0], on = V(v.x, v.y, v.z);
+    const nearOn = traversal.near(on);
+    traversal.bossMode = true;
+    step(6); const fading = U.uFlow.value;
+    step(30); const off = U.uFlow.value, nearOff = traversal.near(on);
+    traversal.bossMode = false;
+    step(36); const back = U.uFlow.value;
+    return ok(nearOn === 1 && fading > 0 && fading < 1 && off === 0 && nearOff === 0 && back === 1, { nearOn, fading, off, nearOff, back });
+  },
+});
+
+const LAMPS = {
+  about: 'No lamp\'s halo (air-light.js) sits inside a vent\'s rising air, from its grille up to where its ride lands (one story an act): a glow there would read as part of the vent.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const bad = [], lamps = [];
+    G().APT.scene.traverse((o) => { if (o.isPointLight && o.userData.lamp) lamps.push(new THREE.Vector3().setFromMatrixPosition(o.matrixWorld)); });
+    for (const v of G().traversal.vents) for (const p of lamps) {
+      if (Math.hypot(p.x - v.x, p.z - v.z) < v.radius + 0.12 && p.y > v.y && p.y < v.land[1] + 0.1) bad.push([v.name, ...p.toArray().map((n) => +n.toFixed(2))]);
+    }
+    return ok(lamps.length > 0 && !bad.length, { lamps: lamps.length, bad });
+  },
+};
+story('vents/no-lamp-halo-in-a-vents-air', LAMPS);
+for (const act of [2, 3, 4]) story(`act${act}/no-lamp-halo-in-a-vents-air`, { ...LAMPS, act });

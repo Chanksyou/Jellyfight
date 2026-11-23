@@ -9,7 +9,7 @@ const drained = (log) => log.filter((d) => d.source === 'firefly' && d.drain).re
 const settle = () => { const { run } = G(); stub(run, 'song', null); run.beat = 1.3; };
 
 night4('firefly-flies', {
-  about: 'A firefly flies: it drifts 30 to 55 cm off the floor about 25 cm from you, bobbing up and down, and now and then hangs still in the air.',
+  about: 'A firefly flies low: it drifts 8 to 28 cm above you about 22 cm from you, bobbing up and down, and now and then hangs still in the air.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.25, 0, 0.4)).lobCd = 1e9; },
   play() {
     const e = G().enemies.list[0], P = G().player.position;
@@ -22,7 +22,29 @@ night4('firefly-flies', {
       flat += Math.hypot(e.pos.x - P.x, e.pos.z - P.z); n++;
     });
     flat /= n;
-    return ok(lo > 0.3 && hi < 0.6 && hi - lo > 0.1 && still > 20 && Math.abs(flat - 0.25) < 0.06 && e.T.fly, { lo: +lo.toFixed(3), hi: +hi.toFixed(3), stillFrames: still, flat: +flat.toFixed(3) });
+    return ok(lo > 0.08 && hi < 0.28 && hi - lo > 0.06 && still > 20 && Math.abs(flat - 0.22) < 0.06 && e.T.fly, { lo: +lo.toFixed(3), hi: +hi.toFixed(3), stillFrames: still, flat: +flat.toFixed(3) });
+  },
+});
+
+night4('firefly-lamp-flashes-every-4-beats', {
+  about: 'A flying firefly\'s lamp swells and fades once every 4 beats of the song (1.875 s at 128 bpm), brightest just after the bar, dull in between; its wing covers stay raised and its hind wings beat.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); spawn('firefly', near(0.22, 0, 0.17)).lobCd = 1e9; },
+  play() {
+    const { run } = G(), e = G().enemies.list[0], lamp = e.mesh.getObjectByName('firefly-lamp'), wing = e.mesh.getObjectByName('firefly-wing').children[0];
+    const lum = () => { const c = lamp.userData.color; return c.r + c.g + c.b; };
+    step(30);
+    let was = false, low = 9, high = 0, beats0 = run.beat, flaps = new Set();
+    const flashes = [];
+    step(60 * 8, () => {
+      const L = lum(), on = L > 1.5;
+      low = Math.min(low, L); high = Math.max(high, L);
+      if (on && !was) flashes.push(+(run.beat % 4).toFixed(2));
+      was = on;
+      flaps.add(Math.round(wing.rotation.z * 10));
+    });
+    const bars = (run.beat - beats0) / 4, cover = e.mesh.getObjectByName('firefly-cover');
+    return ok(Math.abs(flashes.length - bars) <= 1 && flashes.every((b) => b < 0.3) && high > 2.5 && low < high / 4 && Math.abs(cover.rotation.x) > 0.4 && flaps.size > 8,
+      { flashes, bars: +bars.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), coverUp: +cover.rotation.x.toFixed(2), flapSpread: flaps.size });
   },
 });
 

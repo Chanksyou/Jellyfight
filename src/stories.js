@@ -80,7 +80,6 @@ import './stories/vents.js';
 import './stories/living-room.js';
 import './stories/butterfly.js';
 import './stories/firefly.js';
-import './stories/bass-wave.js';
 import './stories/night4-singing-bowl.js';
 import './stories/night4-mushroom.js';
 import './stories/night4-headphones.js';
@@ -103,6 +102,7 @@ import './stories/wind-type.js';
 import './stories/unlocks.js';
 import './stories/ui.js';
 import './stories/props.js';
+import './stories/ambient.js';
 export { STORIES, fresh, tp } from './stories/kit.js';
 
 // Headless: play one story, return { name, ok, info, ms } (errors fail the story). A story's play()

@@ -23,7 +23,6 @@ import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
 import { Sunrise } from './sunrise.js';
-import { BassWave } from './bass-wave.js';
 import { ConcertDressing } from './concert-dressing.js';
 import { SONGS } from './music.js';
 import { addFeats, unlockedAwards, nextAward, needText, needShort, requirement, feats, addPearls, bank, pearlsFor, PEARLS } from './cosmetics.js';
@@ -122,7 +121,6 @@ export class Run {
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.sunrise = new Sunrise(this);   // a stage's sun (act 4's room): the line creeping across, drying you out (sunrise.js)
     this.dress = new ConcertDressing(this);   // a stage's dressing: the barrier, the cables, the lit props on the beat, the stage door moment (concert-dressing.js)
-    this.bass = new BassWave(this);     // a stage's bass wave (act 4's room): the Soundbar's wave on the bar (bass-wave.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
     this.adorn = new Adornments(ctx.scene, ctx.player, { ...ctx.cfg, height: ctx.cfg.height * drawScale() });          // what evolutions add to the jelly's look
@@ -195,8 +193,12 @@ export class Run {
         this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.1), 'BLEED', LOOK.color('bleed', '#ff2a4a'), 13);
       }
     });
-    bus.on('knockback', ({ targetId, dir, force, launch }) => {
+    bus.on('knockback', ({ targetId, dir, force, launch, tumble }) => {
       if (targetId !== PLAYER) return;
+      if (tumble) {   // thrown: no grip for a moment, so the stick can't cancel it; squashed flat in the freeze, then it somersaults off
+        this.tumbleT = this.tumbleMax = Math.max(this.tumbleT, tumble); this.thrownAir = true;
+        this.player.avatar?.thrown?.(LOOK.num('jelly-thrown-squash', 0.45));
+      }
       this.shovedAt = this.frame; this.hitPush = null;   // an attack that shoves you itself takes the place of the hit's pushback
       const v = this.player.velocity;
       v.addScaledVector(dir, force);
@@ -213,6 +215,7 @@ export class Run {
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
+    bus.on('vent_ride', () => { sfx.ventGust(); juice.feel('vent'); });   // (the vent's own gust is vent-air.js's)
     this.player.onAirJump=()=>{this.gadgets.looks.spring(this.player.position);this.gadgets.looks.arc(this.player.position,.035);sfx.gadgetSpring();};
     // a jump's takeoff: a pop of droplets under the bell and a bloop (no floor ring: those are for Warnings and area reach)
     this.player.onJump = () => {
@@ -222,6 +225,13 @@ export class Run {
       this.dress.skip();   // a jump skips the stage door's warm-up
     };
     this.player.onLand = (drop) => {
+      if (this.thrownAir) {   // a throw comes down: a bounce, a puff and a scuff where it lands (then it skids, still tumbling)
+        this.thrownAir = false;
+        const P = this.player.position;
+        this.player.avatar?.land(1.2);
+        this.fx.puff(_drop.set(P.x, P.y + 0.01, P.z), 0xb8a890, this.cfg.radius * 2.2, 0.4, 0.5);
+        this.fx.splat(_drop, null, this.cfg.radius * 1.4, 'dust');
+      }
       // the landing: a splash mark and droplets, bigger and louder the further it fell (not a step down)
       if (drop > LOOK.num('land-splash-from', 0.04)) {
         const P = this.player.position, r = this.cfg.radius, k = Math.min(1, drop / 0.3), c = LOOK.color('jump-splash', '#cfefff');
@@ -354,7 +364,7 @@ export class Run {
     this.stompChain = 0;              // stomp (Pogo Stick): stomps in a row since the jelly last touched the ground
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
-    this.slipT = 0;
+    this.slipT = 0; this.tumbleT = 0; this.tumbleMax = 0; this.thrownAir = false;
     this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
     this.bleedDripT = 0;
     this.stillT = 0;
@@ -433,7 +443,6 @@ export class Run {
     // Only open, easy-to-reach treasure spots (the apartment is static, so check once)
     this.sunrise.start(s);
     this.bpm = SONGS[s.music]?.bpm || 120; this.beat = 0;   // the act's song's tempo, and the run's own count of its beats
-    this.bass.start(s);
     this.dress.start(s);
     if (!this.spots) {
       this.spots = [];
@@ -523,12 +532,27 @@ export class Run {
       for (const c of per) S[c.stat] += Math.min(c.most ?? Infinity, this.perSource(c.of, was) / c.every) * c.amount * (c.percent ? base[c.stat] / 100 : 1);
     }
     S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
-    S.dodge = Math.min(MAX_DODGE, Math.max(0, S.dodge));
+    // Dodge from treasures: each closes its share of the gap to the cap from 0, as a card does, so Odd Socks never stack past it;
+    // it adds to the rest (the cards, which already shrink by the total), and the cap is the end of it
+    const cap = S.dodgeCap = Math.max(MAX_DODGE, this.mods.dodgeCap);   // (dodge-cap: Odd Sock raises it to 80)
+    let left = 1;
+    for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / cap);
+    S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
     return S;
+  }
+
+  // What taking one more of treasure `t` would change in your stats: [{ stat, from, to }], for the pick card's "now → after" line
+  statChanges(t) {
+    const live = this.mods, now = { ...this.S };
+    const ids = { count: (id) => this.owned.count(id) + (id === t.id ? 1 : 0), has: (id) => id === t.id || this.owned.has(id) };
+    this._mods = compileMods(ids, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
+    const next = { ...this.S };
+    this._mods = live;
+    return Object.keys(STAT_INFO).filter((k) => Math.abs(next[k] - now[k]) > 1e-6).slice(0, 3).map((stat) => ({ stat, from: now[stat], to: next[stat] }));
   }
 
   // The stats this jelly starts with: what a % in a treasure or upgrade is a % of (Normal's)
@@ -583,7 +607,6 @@ export class Run {
     this.enemies.mods = this.mods;      // status-damage (Shatter too) is worked out where hits land
     this.keepTime(dt);
     this.dress.update(dt);   // the room's lit props on the beat, and the stage door's moment
-    this.bass.update(dt, this.beat);   // a stage's bass wave: on the song's bar line (put away outside the night)
     if (this.phase === 'dead' || this.phase === 'won' || this.phase === 'metamorph' || this.phase === 'door') { this.touchAction = null; return; }
     if (!this.startPicked && this.phase === 'explore') {
       this.startPicked = true;
@@ -609,17 +632,22 @@ export class Run {
     }
     if (this.phase !== 'intro') {
       this.world.focus(P.position, dt);
+      const riding = !!P.flight;
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
-        slip: this.slipT > 0 ? 1 : 0,
+        slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0, spin: this.thrownSpin(),
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
+      if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
+      this.tpc.lag = this.tumbleT > 0 && !this.stillScreen() ? LOOK.num('camera-thrown-lag', 0.75) : 0;   // thrown: the camera falls a touch behind, then catches up
       if (this.phase === 'boss' && this.boss) this.keepInArena(P);
       if (P.grounded) this.stompChain = 0;   // stomp: a chain runs until you touch the floor or furniture
     }
+
+    sfx.ventHum(this.traversal.near(P.position));   // the air's soft hiss beside a vent
 
     // --- timers
     this.fireTrail.draw();
@@ -636,7 +664,7 @@ export class Run {
     }
     this.stillT = P.speed < 0.02 && P.grounded ? this.stillT + dt : 0;   // standing still (rooted)
     if (this.polypT > 0 && (this.polypT -= dt) <= 0) this.bloom();       // rebirth: back from a polyp
-    this.slipT = Math.max(0, this.slipT - dt);
+    this.slipT = Math.max(0, this.slipT - dt); this.tumbleT = Math.max(0, this.tumbleT - dt);
     if (this.bleeds.length) this.bleed(dt);
     if (this.ink && this.t < this.ink.until && (this.inkT = (this.inkT || 0) - dt) <= 0) {   // the Ink Cloud drifting round you while it lasts
       this.inkT = 0.12;
@@ -1456,6 +1484,13 @@ export class Run {
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
 
+  // a throw's somersault (radians, about the jelly's middle): eases out to whole turns as the tumble ends; none under Reduce effects
+  thrownSpin() {
+    if (!(this.tumbleT > 0) || !this.tumbleMax || this.stillScreen()) return 0;
+    const u = 1 - this.tumbleT / this.tumbleMax;
+    return Math.PI * 2 * LOOK.num('jelly-thrown-turns', 1) * (1 - (1 - u) ** 2);
+  }
+  stillScreen() { return juice.calm || !!this.fx.reducedMotion?.matches; }
   // a first run's one extra line on its first spin (first-run.js); null once told, or when no spin plays
   spinHint() { return this.ui.spinOn && !document.body.classList.contains('calm') ? this.firstRun.spinHint() : null; }
 
@@ -1494,7 +1529,7 @@ export class Run {
   offer(title, sub, choices, then = () => this.resume(), spin = null) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
-    this.ui.choose(title, sub, this.markNew('treasures', choices), (t) => {
+    this.ui.choose(title, sub, this.markNew('treasures', choices).map((c) => (c.evolution ? c : { ...c, changes: this.statChanges(c) })), (t) => {
       if (t.evolution) { this.evolve(t, then); return; }   // (jelly types: an evolution in the Legendary pick)
       const before = this.S.health;
       this.owned.add(t.id);
@@ -2231,13 +2266,13 @@ export class Run {
   }
 
   // ------------------------------------------------------------ music
-  // The beat now, for what goes off on the music (the bass wave): the song's as the
+  // The beat now, for what goes off on the music (bugs and the Encore on the beat): the song's as the
   // speakers play it (main.js song.beat), or, while no song plays (sound off, not started, a story), the
   // run's own count at the act's song's tempo
   keepTime(dt) {
     const b = this.song?.beat?.();
     this.beat = Number.isFinite(b) ? b : (this.beat ?? 0) + dt * (this.bpm || 120) / 60;
-    this.enemies.beat = this.beat;   // the song's beat for bugs with on-beat
+    this.enemies.beat = this.beat; this.enemies.bpm = this.bpm || 120;   // the song's beat for bugs with on-beat, and its tempo (a word's beats turned into seconds)
   }
 
   // What the soundtrack (music.js) should play: the act's own song while you explore (its stage's

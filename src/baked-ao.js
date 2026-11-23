@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { BAKED_LIGHT, LIGHT_FRAGMENT } from './baked-light.js';
+import { AMBIENT, AMBIENT_VERTEX } from './ambient.js';
 
 const uniforms = {
   aoVolume: { value: null },
@@ -93,9 +94,9 @@ function lampLoops() {
 }
 
 function patch(shader) {
-  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms);
+  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms, AMBIENT.uniforms);
   shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;\nattribute vec2 lightUv;\nvarying vec2 vLightUv;')
+    .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;\nattribute vec2 lightUv;\nvarying vec2 vLightUv;' + AMBIENT_VERTEX)
     .replace('#include <project_vertex>', `#include <project_vertex>
       vec4 aoWorld = vec4(transformed, 1.0);
       vec3 aoNormal = objectNormal;
@@ -108,6 +109,8 @@ function patch(shader) {
         aoNormal = mat3(batchingMatrix) * aoNormal;
       #endif
       vAoPos = (modelMatrix * aoWorld).xyz;
+      vec3 ambOff = ambientOffset(vAoPos);   // a plant's sway, a glass's shiver (ambient.js); zero at rest
+      if (ambOff != vec3(0.0)) { mvPosition.xyz += mat3(viewMatrix) * ambOff; gl_Position = projectionMatrix * mvPosition; vAoPos += ambOff; }
       vLightUv = lightUv;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
   shader.fragmentShader = shader.fragmentShader
@@ -152,7 +155,7 @@ export function shadeWithBakedAO(root) {
     for (const m of [].concat(o.material)) {
       if (!(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial) || m.onBeforeCompile === patch) continue;
       m.onBeforeCompile = patch;
-      m.defaultAttributeValues = { ...m.defaultAttributeValues, lightUv: [0, 0] };   // a mesh without a light map reads zero (piece-light.js)
+      m.defaultAttributeValues = { ...m.defaultAttributeValues, lightUv: [0, 0], ambient: [0, 0] };   // a mesh without a light map reads zero (piece-light.js), one that never moves zero (ambient.js)
       m.needsUpdate = true;
     }
   });

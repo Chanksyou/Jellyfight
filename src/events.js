@@ -15,7 +15,7 @@
 //                   shields), after its Health went down; feedback only (enemies.js answers its attacker).
 //                   touch: only the bug's body brushed the jelly (run.js contactDamage), not its attack
 //   status_applied  { targetId, status, duration? }  status: 'slow' | 'mark' | 'stun' | 'pin' (a stun that stops it dead) | 'trap' (held still in a bubble, with no sparks: trap-on-hit) | 'chill' | 'freeze' | 'thaw' | 'bleed' (the jelly: `strength` Health a second for `duration` s, each one stacking)
-//   knockback       { targetId, dir, force, launch?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; collisionDamage: extra damage if the push hits scenery (never another enemy); pushHits: damage to each other bug it slides through (pushed-hits)
+//   knockback       { targetId, dir, force, launch?, tumble?, collisionDamage? } dir: unit Vector3. launch: minimum upward speed; tumble: seconds the jelly has almost no grip (the stick can't cancel the throw); collisionDamage: extra damage if the push hits scenery (never another enemy); pushHits: damage to each other bug it slides through (pushed-hits)
 //   enemy_spawned   { targetId, type }               a bug came out (enemies.js spawn; never an Elite or a boss)
 //   enemy_hit       { targetId, amount, color, pos, feedback? }  after an enemy's HP went down
 //   enemy_frozen    { targetId, pos, r }
@@ -27,7 +27,9 @@
 //   elite_defeated  { elite }                         a high-ground elite (elites.js) was beaten
 //   boss_health     { name, hp, maxHp, shielded?, exposed?, tag? }
 //   toast           { text, ms? }                    a line in the middle of the screen (hud.js)
+//   impact          { pos, size }                    a big hit landed (fx.impact at --ambient-gust-min or more); presentation only: plants near it sway (ambient.js)
 //   xp_collected    { amount, chain }                grouped pickup feedback, at most once per XP feedback gap
+//   vent_ride       { vent }                         a vent caught the jelly and a ride began (run.js): its gust, sound and lift
 export const PLAYER = 'player';
 
 const listeners = new Map();
