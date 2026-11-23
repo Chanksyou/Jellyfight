@@ -9,7 +9,7 @@ xp base=4 growth=1.35
 rarities common=65 rare=25 epic=10
 
 card "bubbles" common=0 rare=0 epic=1 weight=0
-card "range" common=15 rare=20 epic=25 not-for="tentacle"
+card "range" common=15 rare=20 epic=25
 card "bubbleDamage" common=1 rare=2 epic=3
 card "fireRate" common=12 rare=18 epic=24
 card "health" common=3 rare=5 epic=7
