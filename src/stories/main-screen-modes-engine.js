@@ -410,7 +410,7 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     G().run.start();
     const afterLock = G().run.dev;
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && sheetOpened && tools.join() === 'boss,duel,arena4,kit,tuner,layout,diag'
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && sheetOpened && tools.join() === 'boss,duel,roam,arena4,kit,tuner,layout,diag'
       && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
       { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, sheetOpened, asked, devBefore, devRun, nextRunDev, afterLock });
   },
