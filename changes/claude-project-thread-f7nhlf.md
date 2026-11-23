@@ -1,1 +1,0 @@
-replaces act 4's Moth with a Monarch butterfly: a painted monarch that flies in quick beats and glides, and lobs a spinning ball of hot rainbow light that fires bolts every way, up, down and all round, on every beat (2 each) and bursts where it lands (3).
