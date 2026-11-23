@@ -1,0 +1,1 @@
+lets each vent's air show in its room's own light: the wisps, dust and ribbons take the baked light where they rise, so they glow softly by a lamp and fade in a dark corner; act 3's moonlit bedroom gets fainter, cooler air and act 4's dawn a slightly warmer one.

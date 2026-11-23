@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { bus } from './events.js';
+import { BAKED_LIGHT, GRID_GLSL } from './baked-light.js';
 
 const SEG = 20, TAIL_SEG = 10;
 // the stream's top: the surface the ride lands on, where the air fades out
@@ -54,6 +55,22 @@ const COMMON = /* glsl */`
   uniform float uGustClock;  // that vent's extra time since its ride began, so its streaks run fast without jumping
   float inGust(vec3 p) { return step(distance(p.xz, uGust.xy), uGust.z + 0.005); }
 `;
+// The room's baked light where the air is (the furniture's light grid, baked-light.js), so the air shows in the
+// room's own light: rgb its hue (--vent-light-tint of the way to the light's colour), a how bright it is there
+// (--vent-light of the way from 1 to the light's level over --vent-light-ref, kept within --vent-light-min..max).
+// White and 1 where there is no bake. Vertex shaders only, a few reads a vertex.
+const LIT = GRID_GLSL + /* glsl */`
+  uniform float uLit, uLitRef, uLitMin, uLitMax, uLitTint;
+  vec4 airLight(vec3 p) {
+    if (lbGridGain <= 0.0) return vec4(1.0);
+    vec3 g = (p - lbGridMin) / lbGridStep + 0.5;
+    if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, lbGridDims))) return vec4(1.0);
+    vec3 L = (lbGridDir(g, 0.0) + lbGridDir(g, 1.0) + lbGridDir(g, 2.0) + lbGridDir(g, 3.0) + lbGridDir(g, 4.0) + lbGridDir(g, 5.0)) * (lbGridGain / 6.0);
+    float lum = dot(L, vec3(0.3, 0.55, 0.15));
+    vec3 hue = mix(vec3(1.0), L / max(lum, 1e-4), uLitTint);
+    return vec4(hue / max(max(hue.r, hue.g), max(hue.b, 1e-4)), mix(1.0, clamp(lum / uLitRef, uLitMin, uLitMax), uLit));
+  }
+`;
 
 // Wisps: flat ribbons that always face the camera, static; only the streak pattern and a sway move
 function wispMesh(vents, look) {
@@ -84,8 +101,9 @@ function wispMesh(vents, look) {
     uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,   // (always facing the camera: one layer, not two)
     vertexShader: /* glsl */`
       attribute vec3 wp; attribute vec4 base; attribute vec4 shape;
-      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock;
+      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock; varying vec4 vLit;
       ${COMMON}
+      ${LIT}
       vec3 path(float t, float g) {
         float spread = 1.0 + uSpread * t * t;                                    // the air fans out as it slows
         float a = shape.x + t * 2.2 + sin(uTime * 0.6 + shape.x * 3.0) * 0.35 * t;
@@ -99,11 +117,12 @@ function wispMesh(vents, look) {
         float width = mix(0.005, 0.016, t) * (shape.z > 0.5 ? 0.9 : 1.0) * (1.0 + 0.35 * g);
         vUv = vec3(wp.x, t, wp.z); vPuff = shape.z; vGust = g; vClock = uTime + m * uGustClock;
         vNear = distance(c, cameraPosition);
+        vLit = airLight(c);
         gl_Position = projectionMatrix * viewMatrix * vec4(c + right * wp.x * width, 1.0);
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uColor; uniform float uWisp;
-      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock;
+      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock; varying vec4 vLit;
       ${COMMON}
       void main() {
         float t = vUv.y, across = 1.0 - vUv.x * vUv.x;
@@ -112,7 +131,7 @@ function wispMesh(vents, look) {
         float ends = smoothstep(0.0, 0.1, t) * (1.0 - smoothstep(0.55, 1.0, t));
         float a = across * across * streak * ends * uWisp * mix(1.0, 1.5, vPuff) * (1.0 + 0.6 * vGust);
         a *= smoothstep(0.03, 0.09, vNear) * uFlow;                                   // a ride through the stream never fills the screen
-        gl_FragColor = vec4(uColor, a);
+        gl_FragColor = vec4(uColor * vLit.rgb, a * vLit.a);
       }`,
   });
   const mesh = new THREE.Mesh(g, m);
@@ -131,9 +150,10 @@ function moteMesh(vents, look) {
   const m = new THREE.ShaderMaterial({
     uniforms: look.uniforms, transparent: true, depthWrite: false,
     vertexShader: /* glsl */`
-      attribute vec4 seed; varying float vA;
+      attribute vec4 seed; varying float vA; varying vec3 vHue;
       uniform float uPx; uniform float uPr;
       ${COMMON}
+      ${LIT}
       void main() {
         float clock = uTime + inGust(position) * uGustClock;
         float life = fract(seed.z + clock * (0.16 + 0.1 * fract(seed.x * 3.7)) * 0.8 / max(seed.w, 0.3));
@@ -145,12 +165,13 @@ function moteMesh(vents, look) {
         gl_Position = projectionMatrix * mv;
         gl_PointSize = clamp(uPx * (0.6 + fract(seed.x * 7.3)) / -mv.z, uPr, 9.0 * uPr);
         vA = smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.7, 1.0, life)) * smoothstep(0.03, 0.09, -mv.z) * uFlow;   // (off: the dust stops coming)
+        vec4 lit = airLight(p); vA *= lit.a; vHue = lit.rgb;
       }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uColor; uniform float uMote; varying float vA;
+      uniform vec3 uColor; uniform float uMote; varying float vA; varying vec3 vHue;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        gl_FragColor = vec4(uColor, (1.0 - smoothstep(0.3, 1.0, d)) * vA * uMote);
+        gl_FragColor = vec4(uColor * vHue, (1.0 - smoothstep(0.3, 1.0, d)) * vA * uMote);
       }`,
   });
   const pts = new THREE.Points(g, m);
@@ -177,8 +198,9 @@ function tailMesh(vents, look) {
   const m = new THREE.ShaderMaterial({
     uniforms: look.uniforms, side: THREE.DoubleSide,
     vertexShader: /* glsl */`
-      attribute vec3 wp; attribute vec4 base; varying float vShade; varying float vU;
+      attribute vec3 wp; attribute vec4 base; varying float vShade; varying float vU; varying vec3 vLit;
       ${COMMON}
+      ${LIT}
       // up: standing in the air, fluttering (a gust pulls it straight); limp: lying across the grille when the air is off
       vec3 path(float u, float s, float g) {
         float live = uFlow * (1.0 - uCalm), amp = 0.007 * u * (1.0 - 0.85 * g) * live;
@@ -194,11 +216,12 @@ function tailMesh(vents, look) {
         vec3 nrm = normalize(cross(right, tan));
         vShade = 0.55 + 0.45 * abs(dot(nrm, normalize(cameraPosition - c)));
         vU = u;
+        vec4 lit = airLight(c); vLit = lit.rgb * mix(1.0, lit.a, 0.5);   // (a ribbon is a thing in the room, but small and bright-dyed: half the dimming)
         gl_Position = projectionMatrix * viewMatrix * vec4(c + right * wp.x * 0.0017, 1.0);
       }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uTail; uniform float uRoom; varying float vShade; varying float vU;
-      void main() { gl_FragColor = vec4(uTail * vShade * uRoom * mix(0.7, 1.0, vU), 1.0); }`,
+      uniform vec3 uTail; uniform float uRoom; varying float vShade; varying float vU; varying vec3 vLit;
+      void main() { gl_FragColor = vec4(uTail * vLit * vShade * uRoom * mix(0.7, 1.0, vU), 1.0); }`,
   });
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
@@ -206,14 +229,18 @@ function tailMesh(vents, look) {
 }
 
 export class VentAir {
-  constructor(group, vents) {
+  // act: the stage's id, for an act's own --vent-*-act<n> over --vent-* (wisp, air, mote, ribbon-glow)
+  constructor(group, vents, act = 0) {
     this.group = group;
+    const own = (name) => (LOOK.has(`${name}-act${act}`) ? `${name}-act${act}` : name);
     const U = (value) => ({ value });
     this.look = { uniforms: {
       uTime: U(0), uCalm: U(0), uFlow: U(1), uGust: U(new THREE.Vector4(0, 0, 0, 0)), uGustClock: U(0), uPx: U(2.2),
       uPr: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
-      uColor: U(new THREE.Color(LOOK.color('vent-air', '#eaf6ff'))), uWisp: U(LOOK.num('vent-wisp', 0.26)), uMote: U(LOOK.num('vent-mote', 0.75)),
-      uTail: U(new THREE.Color(LOOK.color('vent-ribbon', '#8fd6d0'))), uRoom: U(LOOK.num('vent-ribbon-glow', 0.8)),
+      uColor: U(new THREE.Color(LOOK.color(own('vent-air'), '#eaf6ff'))), uWisp: U(LOOK.num(own('vent-wisp'), 0.26)), uMote: U(LOOK.num(own('vent-mote'), 0.75)),
+      uLit: U(LOOK.num('vent-light', 1)), uLitRef: U(LOOK.num('vent-light-ref', 0.35)), uLitMin: U(LOOK.num('vent-light-min', 0.3)),
+      uLitMax: U(LOOK.num('vent-light-max', 1.2)), uLitTint: U(LOOK.num('vent-light-tint', 0.5)), ...BAKED_LIGHT.uniforms,
+      uTail: U(new THREE.Color(LOOK.color('vent-ribbon', '#8fd6d0'))), uRoom: U(LOOK.num(own('vent-ribbon-glow'), 0.8)),
     } };
     // Lambert, not Standard: no per-lamp shine maths, and one material on every graphics tier
     this.grilleMat = new THREE.MeshLambertMaterial({ vertexColors: true });

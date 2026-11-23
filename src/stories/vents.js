@@ -140,3 +140,18 @@ story('vents/air-stops-in-a-boss-fight', {
     return ok(nearOn === 1 && fading > 0 && fading < 1 && off === 0 && nearOff === 0 && back === 1, { nearOn, fading, off, nearOff, back });
   },
 });
+
+const LAMPS = {
+  about: 'No lamp\'s halo (air-light.js) sits inside a vent\'s rising air, from its grille up to where its ride lands (one story an act): a glow there would read as part of the vent.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const bad = [], lamps = [];
+    G().APT.scene.traverse((o) => { if (o.isPointLight && o.userData.lamp) lamps.push(new THREE.Vector3().setFromMatrixPosition(o.matrixWorld)); });
+    for (const v of G().traversal.vents) for (const p of lamps) {
+      if (Math.hypot(p.x - v.x, p.z - v.z) < v.radius + 0.12 && p.y > v.y && p.y < v.land[1] + 0.1) bad.push([v.name, ...p.toArray().map((n) => +n.toFixed(2))]);
+    }
+    return ok(lamps.length > 0 && !bad.length, { lamps: lamps.length, bad });
+  },
+};
+story('vents/no-lamp-halo-in-a-vents-air', LAMPS);
+for (const act of [2, 3, 4]) story(`act${act}/no-lamp-halo-in-a-vents-air`, { ...LAMPS, act });
