@@ -8,6 +8,9 @@
 //                     at a time in the order its buttons light, in low prisms: step into a spent one.
 //     Rumble:         it buzzes while a red circle fills around it, then a shockwave knocks
 //                     you back off the console if you're inside.
+//     Arrow drop:     a big pad arrow hovers by you (above, to your left or right; below if you're
+//                     in the air) while a circle and dome fill where you are; once it has gone off
+//                     the follow, it flies in and strikes there: step out of it.
 //   mug         on the standing desk.
 //     Coffee lob:     a brown circle fills where you stand; hot coffee lands there and scalds.
 //     Spill:          it tips toward you while a lane fills along the line; then it pours a wave
@@ -166,13 +169,16 @@ import { buildHeadphones } from './headphones-model.js';
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
-  controller: ['barrage', 'rumble'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
+  controller: ['barrage', 'rumble', 'arrow'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'piping'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
   bowl: ['ring', 'hum'], pillow: ['spores', 'fairy'], headphones: ['shove', 'stereo'],
 };
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+// Arrow drop: the pad arrow (a flat slab, its tip on +y) and the four it can be: the way each flies
+const ARROW_OUTLINE = [[0, 1], [0.9, 0.1], [0.35, 0.1], [0.35, -1], [-0.35, -1], [-0.35, 0.1], [-0.9, 0.1]];
+const ARROW_DIRS = ['down', 'left', 'right', 'up'];   // 'up' only once you are in the air
 
 // the Cream Whipper's Piping: how often it notes where you swam (s), and the bead's piece: a
 // star-ridged prism standing on y = 0 (2 tall, 2 wide), from z = 0 to 1; scale (R, R, length)
@@ -645,7 +651,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','pipe','fired','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','humAt','humDone','fromBeat','turn','beatWas']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','pipe','fired','arrowDir','arrowAt','arrowAir','arrowSide','arrowMesh','arrowT','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','humAt','humDone','fromBeat','turn','beatWas']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -716,6 +722,8 @@ export class Elites {
     // projectiles are glowing orbs (fx.orb) in each elite's hostile colour (vfx.js, look.css)
     this.coffeeMat = std(0x3a2214, { roughness: 0.08 });
     this.flat = new THREE.CircleGeometry(1, 36).rotateX(-Math.PI / 2);
+    this.arrowGeo = new THREE.ExtrudeGeometry(new THREE.Shape(ARROW_OUTLINE.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 0.3, bevelEnabled: false }).translate(0, 0, -0.15);
+    this.arrowMat = std(0x2a2a30, { roughness: 0.4, emissive: hostile('controller'), emissiveIntensity: 1.2 });
     this.ringGeo = new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2);
     this.stripGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
     // a 50° wedge pointing +z (Circle geometry's sector starts at +x, so rotate it round)
@@ -749,7 +757,7 @@ export class Elites {
       this.fx.splat(this._scuff.set(at.x, y, at.z), LOOK.color('bull-scuff', '#6a5048'), LOOK.num('bull-shot-scuff', 0.012), 'dust');
       sfx.bullHit();
     };
-    this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3(); this._mid2 = new THREE.Vector3();   // scratch for the Bull
+    this._camEuler = new THREE.Euler(); this._right = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3(); this._mid = new THREE.Vector3(); this._mid2 = new THREE.Vector3();   // scratch for the Bull
     // the pull on the jelly this frame (m/s, flat), or null: the Coffer's tongue. The run adds it
     // to the jelly's movement next frame, as it does a Boss's `push`
     this.pull = null;
@@ -836,7 +844,7 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.symbols].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.symbols].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.arrowGeo, this.arrowMat), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
       const soap = soapModel();
       soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
       const whip = buildWhipper(), bal = buildBalloon();
@@ -1497,6 +1505,52 @@ export class Elites {
             e.clearTele(); g.rotation.x = -LOOK.num('controller-recoil', .2);
             g.scale.y *= 1 - LOOK.num('controller-recoil-squash', .15);
             e.combo = null; e.state = 'idle'; e.cool = D.rest; e.locked = false;
+          }
+        } else if (e.attack === 2) {
+          // Arrow drop: a pad arrow hovers `reach` m off you, flying the way it points: down from above,
+          // or in from your left or right (right and left are the camera's); `up` only if you're already in
+          // the air. A circle and dome fill where you stand for `warn` s (following you until `lock` of
+          // it), then it flies in and lands as a Blast there. Step out, or jump a floor one
+          const D = SK.arrow, w = s / CONTENT.elites.pace.tempo, R = D.radius, H = cfg.height, mid = this._to;
+          const floorY = this.surfaceBelow(P), at = e.arrowAt ||= new THREE.Vector3();
+          if (!e.arrowDir) {
+            const air = P.y - floorY > D.air, pick = air ? ARROW_DIRS : ARROW_DIRS.slice(0, 3);
+            e.arrowDir = pick[Math.floor(Math.random() * pick.length)]; e.arrowAir = air; e.arrowT = 0;
+            e.arrowSide = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ).setY(0).normalize();
+            e.arrowMesh = new THREE.Mesh(this.arrowGeo, this.arrowMat); e.arrowMesh.renderOrder = 3; this.scene.add(e.arrowMesh); e.tele.push(e.arrowMesh);
+            at.copy(P);
+            e.tele.push(this.warnCircle(at, R, this.T.red), this.volume(hostile('controller'), e.arrowAir ? 'sphere' : 'dome', at, R));
+            sfx.controllerCharge(false, D.warn);
+          }
+          const [, circle, vol] = e.tele, k = Math.min(1, w / D.warn);
+          if (w < D.warn * D.lock) {                                           // still following you
+            at.set(P.x, e.arrowAir ? P.y + H / 2 : floorY, P.z);
+            if (!e.arrowAir) this.platformTarget(e, at, R);
+            circle.position.set(at.x, floorY + 0.002, at.z); vol.position.copy(at);
+          } else if (!e.locked) { e.locked = true; sfx.controllerLock(); }
+          circle.userData.fill(k); vol.material.progress = k;
+          // where the arrow is: hovering reach m out, then flying in to the Blast's centre
+          const dir = e.arrowDir, side = dir === 'left' ? -1 : 1, fly = Math.min(1, Math.max(0, (w - D.warn) / D.strike));
+          mid.set(at.x, e.arrowAir ? at.y : at.y + H / 2, at.z);
+          const out = (1 - fly * fly) * D.reach + Math.sin(e.t * 9) * 0.004 * (1 - fly);
+          if (dir === 'down' || dir === 'up') mid.y += dir === 'down' ? out : -out; else mid.addScaledVector(e.arrowSide, side * out);
+          const m = e.arrowMesh, S = D.size;
+          m.position.copy(mid); m.scale.setScalar(S);
+          m.rotation.order = 'YXZ';   // turn to the camera, lean back with its pitch (a flat slab seen from above is a sliver), then tip the way it flies
+          m.rotation.set(this._camEuler.setFromQuaternion(camQ, 'YXZ').x * 0.8, Math.atan2(-e.arrowSide.z, e.arrowSide.x), dir === 'down' ? Math.PI : dir === 'up' ? 0 : side * Math.PI / 2);
+          g.rotation.x = Math.min(1, k) * LOOK.num('controller-windup-tilt', 0.12);
+          if (w >= D.warn + D.strike) {
+            const struck = blastHits(at, R, P, cfg);
+            if (struck) hit(D.dmg, 'controller', at);
+            this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', 0.03), LOOK.num('controller-symbol-sparks', 8));
+            this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', 0.002), 0.1, floorY);
+            const pulse = this.volume(hostile('controller'), e.arrowAir ? 'sphere' : 'dome', at, R);
+            pulse.material.progress = 1;
+            this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
+            sfx.controllerFire(); sfx.controllerContact(); if (struck) sfx.controllerHit(); juice.feel('impact-big');
+            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
+            for (const key of ['arrowDir', 'arrowAt', 'arrowAir', 'arrowSide', 'arrowMesh']) delete e[key];
+            e.state = 'idle'; e.cool = D.rest; e.locked = false;
           }
         } else {
           // Rumble: buzz while a red dome fills over its circle, then a shockwave: a floor Blast

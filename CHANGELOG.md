@@ -2,6 +2,12 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v656 gives the Controller a third attack, the arrow drop: a big pad arrow hovers by you for a second while a circle and dome fill where you stand, then flies in for 3 Health. It comes down from above or in from your left or right, and only comes up from below when you're already in the air.
+
+v655 The Pogo Stick now works on bosses: a jump onto the Vacuum, the Clog, the Shark or the Encore stomps for 4x Attack damage and bounces you back up. Bosses are still never Stunned and give no moment of safety.
+
+v654 adds light that moves on its own: the wall TV in act 1 shows slow drifting colours and throws a soft pool of them on the rug (a smaller one by the monitor, and act 4 keeps its monitor pool while the concert owns the TV), act 3's night light drifts between pink and amber on the floor, and the city outside has lit windows that switch off and on and red beacons that blink. Reduce effects holds all of it still.
+
 v653 fills the gap under the front door with floor, so a low camera in the hall's corner no longer sees the night outside through it.
 
 v652 makes the curtains and shades hang and move: the shower curtain, the sheer curtains and the roller shades ripple slowly from the rail down to the hem, and billow away when the jelly brushes past or something big lands near them. It's all in the shaders, so no extra draws, and Reduce effects holds them still.
