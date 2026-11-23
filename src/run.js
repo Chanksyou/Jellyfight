@@ -195,7 +195,10 @@ export class Run {
     });
     bus.on('knockback', ({ targetId, dir, force, launch, tumble }) => {
       if (targetId !== PLAYER) return;
-      if (tumble) this.tumbleT = Math.max(this.tumbleT, tumble);   // thrown: no grip for a moment, so the stick can't cancel it
+      if (tumble) {   // thrown: no grip for a moment, so the stick can't cancel it; squashed flat in the freeze, then it somersaults off
+        this.tumbleT = this.tumbleMax = Math.max(this.tumbleT, tumble); this.thrownAir = true;
+        this.player.avatar?.thrown?.(LOOK.num('jelly-thrown-squash', 0.45));
+      }
       this.shovedAt = this.frame; this.hitPush = null;   // an attack that shoves you itself takes the place of the hit's pushback
       const v = this.player.velocity;
       v.addScaledVector(dir, force);
@@ -222,6 +225,13 @@ export class Run {
       this.dress.skip();   // a jump skips the stage door's warm-up
     };
     this.player.onLand = (drop) => {
+      if (this.thrownAir) {   // a throw comes down: a bounce, a puff and a scuff where it lands (then it skids, still tumbling)
+        this.thrownAir = false;
+        const P = this.player.position;
+        this.player.avatar?.land(1.2);
+        this.fx.puff(_drop.set(P.x, P.y + 0.01, P.z), 0xb8a890, this.cfg.radius * 2.2, 0.4, 0.5);
+        this.fx.splat(_drop, null, this.cfg.radius * 1.4, 'dust');
+      }
       // the landing: a splash mark and droplets, bigger and louder the further it fell (not a step down)
       if (drop > LOOK.num('land-splash-from', 0.04)) {
         const P = this.player.position, r = this.cfg.radius, k = Math.min(1, drop / 0.3), c = LOOK.color('jump-splash', '#cfefff');
@@ -354,7 +364,7 @@ export class Run {
     this.stompChain = 0;              // stomp (Pogo Stick): stomps in a row since the jelly last touched the ground
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
-    this.slipT = 0; this.tumbleT = 0;
+    this.slipT = 0; this.tumbleT = 0; this.tumbleMax = 0; this.thrownAir = false;
     this.bleeds = [];                 // bleeds running on the jelly (status 'bleed'): { t, dps }
     this.bleedDripT = 0;
     this.stillT = 0;
@@ -628,10 +638,11 @@ export class Run {
         airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
-        slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0,
+        slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0, spin: this.thrownSpin(),
         onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
       });
       if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
+      this.tpc.lag = this.tumbleT > 0 && !this.stillScreen() ? LOOK.num('camera-thrown-lag', 0.75) : 0;   // thrown: the camera falls a touch behind, then catches up
       if (this.phase === 'boss' && this.boss) this.keepInArena(P);
       if (P.grounded) this.stompChain = 0;   // stomp: a chain runs until you touch the floor or furniture
     }
@@ -1473,6 +1484,13 @@ export class Run {
     this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
   }
 
+  // a throw's somersault (radians, about the jelly's middle): eases out to whole turns as the tumble ends; none under Reduce effects
+  thrownSpin() {
+    if (!(this.tumbleT > 0) || !this.tumbleMax || this.stillScreen()) return 0;
+    const u = 1 - this.tumbleT / this.tumbleMax;
+    return Math.PI * 2 * LOOK.num('jelly-thrown-turns', 1) * (1 - (1 - u) ** 2);
+  }
+  stillScreen() { return juice.calm || !!this.fx.reducedMotion?.matches; }
   // a first run's one extra line on its first spin (first-run.js); null once told, or when no spin plays
   spinHint() { return this.ui.spinOn && !document.body.classList.contains('calm') ? this.firstRun.spinHint() : null; }
 

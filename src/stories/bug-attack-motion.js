@@ -355,6 +355,42 @@ story('motion/cicada-burst-lands-or-misses', {
   },
 });
 
+story('motion/cicada-burrow-beats', {
+  about: 'The Cicada\'s burrow shows every beat (plan cicada-burrow, task 3): it rears back head up before it sinks; under, the mound humps higher just after each beat; locked, it sinks flat while a mud chimney pushes up (the hush), then bulges past twice its width (the swell) and holds dead still for the last tenth; on the hit frame its body is still at the floor, then it rockets up stretched past 1.8 and lands squashed, leaving a crater and its shed shell that fade before it walks off, with no hostile glow on them.',
+  setup() {},
+  play() {
+    const read = (e, b) => { const C = ['mound', 'chimney', 'shell', 'crater'].map((n) => e.mesh.getObjectByName(n)); C.unshift(b); return { st: e.state, dig: e.digK || 0, lock: e.under && e.burrowLocked ? e.burrowK : -1, beats: e.under && !e.burrowLocked ? e.burrowBeats : -1, bt: e.state === 'dazed' ? e.burstT : -1,
+      mh: C[1].visible ? C[1].scale.y : 0, mw: C[1].scale.x, mx: C[1].position.x, ch: C[2].visible ? C[2].scale.y : 0, chx: C[2].position.x, shell: C[3].visible, crater: C[4].visible, rx: b.rotation.x, y: b.position.y, sy: b.scale.y }; };
+    const F = film('cicada', { read }).map((f) => ({ ...f.x, phase: f.phase }));
+    const rearUp = Math.min(...F.filter((f) => f.st === 'dig' && f.dig < 0.3).map((f) => f.rx)), rearHigh = Math.max(...F.filter((f) => f.st === 'dig' && f.dig < 0.3).map((f) => f.y));
+    const trail = F.filter((f) => f.beats > 1), onBeat = trail.filter((f) => f.beats % 1 < 0.06), offBeat = trail.filter((f) => f.beats % 1 > 0.4 && f.beats % 1 < 0.6);
+    const avg = (L, k) => L.reduce((a, f) => a + f[k], 0) / Math.max(1, L.length);
+    const hush = F.filter((f) => f.lock > 0.3 && f.lock < 0.45), swell = F.filter((f) => f.lock > 0.8 && f.lock < 0.89), still = F.filter((f) => f.lock >= 0.92);
+    const first = F.find((f) => f.st === 'dazed'), top = Math.max(...F.filter((f) => f.bt >= 0 && f.bt < 0.2).map((f) => f.y)), long = Math.max(...F.filter((f) => f.bt >= 0 && f.bt < 0.2).map((f) => f.sy));
+    const landed = F.filter((f) => f.bt > 0.3 && f.bt < 0.5), left = F.filter((f) => f.bt > 1.85);
+    const out = {
+      rear: +rearUp.toFixed(2), rearHigh: +rearHigh.toFixed(3), heave: [+avg(onBeat, 'mh').toFixed(2), +avg(offBeat, 'mh').toFixed(2)], hush: [+avg(hush, 'mh').toFixed(2), +avg(hush, 'ch').toFixed(2)],
+      swell: +avg(swell, 'mw').toFixed(2), still: still.length && Math.max(...still.map((f) => Math.abs(f.mx) + Math.abs(f.chx))), hitFrameY: first && +first.y.toFixed(3), top: +top.toFixed(2), long: +long.toFixed(2),
+      landSquash: +Math.min(...landed.map((f) => f.sy)).toFixed(2), leftovers: landed.some((f) => f.shell && f.crater), gone: left.length ? left.every((f) => !f.shell && !f.crater) : 'n/a',
+    };
+    const good = rearUp < -0.3 && rearHigh > -0.2 && onBeat.length && offBeat.length && out.heave[0] > out.heave[1] + 0.1 && out.hush[0] < 0.6 * avg(offBeat, 'mh') && out.hush[1] > 0.5
+      && out.swell > 2 && still.length && out.still === 0 && Math.abs(out.hitFrameY) < 0.05 && out.top > 1.5 && out.long > 1.8 && out.landSquash < 0.8 && out.leftovers && out.gone !== false;
+    return ok(good, out);
+  },
+});
+
+story('motion/cicada-miss-lands-on-its-back', {
+  about: 'A Cicada whose burst misses goes higher and lands on its back, kicking its legs for about a beat, then rolls upright before its dazed beats run out.',
+  setup() {},
+  play() {
+    const away = (S) => { const go = S.advance; let moved = false; S.advance = () => { if (!moved && S.e.burrowLocked) { G().player.position.z += 0.6; moved = true; } return go(); }; return null; };
+    const F = film('cicada', { also: away, read: (e) => (e.state === 'dazed' ? e.burstT : -1) }).filter((f) => f.x >= 0);
+    const back = F.filter((f) => f.x > 0.35 && f.x < 0.6), end = F.filter((f) => f.x > 1.3);
+    const onBack = back.length && back.every((f) => Math.abs(Math.cos(f.rz)) > 0.9 && Math.cos(f.rz) < 0), upright = end.length && end.every((f) => Math.cos(f.rz) > 0.9);
+    return ok(!F[0]?.hit && onBack && upright, { hit: F[0]?.hit, back: back.length, onBack, upright, frames: F.length });
+  },
+});
+
 // A Cicada's recoil is its dazed sway, ended by a head shake and wings snapping shut over the last quarter second:
 // that closing tell is the window closing, so it is posed to the end by design.
 const CLOSES_WITH_A_TELL = ['cicada'];

@@ -2278,49 +2278,93 @@ export function buildCicada() {
   const mound = new THREE.Group();
   mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
   mound.visible = false;
-  outer.add(mound);
-  let t = 0, k = 0, mt = 0;
-  // its burrow (attack-motion "pounce" tier="heavy", src/attack-motion.js): digging in, its forelegs scoop in turn
-  // and it shimmies down in three pulses; under, the mound heaves after you. On the beat it bursts up stretched,
-  // wings thrown open, and hangs there a moment, then lands squashed and heavy and sways dazed, wings drooped and
-  // buzzing. For the last 0.25 s it shakes its head and snaps its wings shut: the window to hit it is closing.
+  // the mud chimney it pushes up through the hush, and the brown shell it leaves behind (the mound's material, drawn instanced)
+  M.burrowCrater ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-crater', '#3a2a1c'), roughness: 1 });   // harmless leftovers: plain brown, no hostile glow
+  M.burrowShell ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-shell', '#9a7448'), roughness: 0.75 });
+  const chimney = new THREE.Mesh(D.dome, M.mound), shell = new THREE.Mesh(G.body, M.burrowShell), crater = new THREE.Mesh(D.dome, M.burrowCrater);
+  crater.visible = false;
+  outer.add(crater);
+  chimney.visible = shell.visible = false;
+  outer.add(mound, chimney, shell);
+  mound.name = 'mound'; chimney.name = 'chimney'; shell.name = 'shell'; crater.name = 'crater';
+  const K = (GEO.cicadaBurrow ||= Object.fromEntries(['rear', 'heave', 'hush', 'chimney', 'swell', 'still', 'rise', 'stretch', 'up', 'hang', 'fall', 'overshoot', 'back', 'crater']
+    .map((n) => [n, LOOK.num('burrow-' + n, { rear: 0.55, heave: 0.3, hush: 0.8, chimney: 1.1, swell: 2.3, still: 0.9, rise: 2, stretch: 2.1, up: 0.06, hang: 0.1, fall: 0.1, overshoot: 1.3, back: 0.47, crater: 1.8 }[n])])));
+  let t = 0, k = 0, mt = 0, shellYaw = 0;
+  // its burrow (attack-motion "pounce" tier="heavy", src/attack-motion.js), on the word's own clocks (digK, burrowBeats,
+  // burrowK, burstT: never the wall clock). Digging in it rears back first, wings flared and tymbals flashing, then its
+  // forelegs scoop in turn and it shimmies down in three pulses. Under, the mound humps after you on every beat. Locked,
+  // it sinks flat and a mud chimney pushes up (the hush), then the floor bulges wide, the chimney shaking (the swell),
+  // and for the last tenth of a second everything holds dead still. On the beat it rockets up from the floor stretched
+  // long, wings thrown wide, hangs, and drops: a hit lands heavy and squashed and sways dazed, wings drooped and buzzing;
+  // a miss overshoots and lands on its back, kicking, then rolls upright. A crater and its shed shell stay, fading.
+  // For the last 0.25 s it shakes its head and snaps its wings shut: the window to hit it is closing.
   const anim = (dt, e) => {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 10) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (2 + 8 * k);
     mt += dt;
-    const A = e.atk, ph = A ? A.phase : 'idle', S = THREE.MathUtils.smoothstep;
+    const A = e.atk, S = THREE.MathUtils.smoothstep, calm = A ? A.quiet < 1 : false;
     const dig = e.state === 'dig' ? e.digK || 0 : 0, P = Math.PI * 6;   // (three pulses: 6π)
-    let sink = e.under ? 1 : dig - Math.sin(dig * P) / P, up = 0, len = 1, open = 0, daze = 0, shut = 0, squash = 0, shake = 0, lean = 0;
-    if (ph === 'swing') { up = 1; open = 1; len = A.smear ? knobs().smear : A.tier.stretch; }
-    else if (ph === 'recoil') {
-      const p = A.pt, left = e.state === 'dazed' ? Math.max(0, e.stateT) : 0;
-      up = 1 - S(p, 0, 0.1);                                    // down it comes
-      squash = 0.3 * heavy(Math.min(1, p / 0.6)) * S(p, 0, 0.1);
-      daze = S(left, 0, 0.1);                                   // dazed until the very end (its wings shut first)
-      open = 1 - S(p, 0, 0.15);
-      shut = left < 0.25 ? 1 - left / 0.25 : 0;
-      shake = Math.sin(A.t * 45) * 0.25 * shut * (1 - shut) * 4;
-      if (!A.hit) lean = A.side * 0.3 * daze * (1 - shut) * S(p, 0.05, 0.2);   // a burst that missed lands lopsided, tipped onto one side
+    const rear = dig > 0 ? S(dig, 0, 0.12) * (1 - S(dig, 0.28, 0.4)) : 0, d2 = Math.max(0, (dig - 0.35) / 0.65);
+    const locked = e.under && e.burrowLocked, lock = locked ? e.burrowK || 0 : 0;
+    const hush = locked ? S(lock, 0, 0.2) : 0, swell = locked ? S(lock, 0.5, 0.85) : 0, still = calm || (locked && lock >= K.still);
+    let sink = e.under ? 1 : d2 - Math.sin(d2 * P) / P, up = 0, len = 1, open = rear * 0.9, daze = 0, shut = 0, squash = 0, shake = 0, flip = 0, kick = 0, air = 0, after = -1;
+    if (e.state === 'dazed') {
+      const bt = e.burstT || 0, miss = A && !A.hit, top = K.rise * (miss ? K.overshoot : 1), land = K.up + K.hang + K.fall;
+      if (bt < K.up) { const u = bt / K.up; up = (1 - (1 - u) ** 3) * top; len = 1 + (K.stretch - 1) * u; }   // out of the floor (on the hit frame still at it)
+      else if (bt < K.up + K.hang) { up = top; len = K.stretch - (K.stretch - 1) * 0.6 * (bt - K.up) / K.hang; }   // hanging at the top
+      else if (bt < land) { const u = (bt - K.up - K.hang) / K.fall; up = top * (1 - u * u); len = 1 + (K.stretch - 1) * 0.4 * (1 - u); }   // down it drops
+      air = bt < land ? 1 : 0;
+      after = bt - land;
+      const left = Math.max(0, e.stateT);
+      open = air ? 1 : 1 - S(after, 0, 0.15);
+      if (after >= 0) {
+        squash = 0.35 * heavy(Math.min(1, after / 0.6));
+        daze = S(left, 0, 0.1) * S(after, 0, 0.1);              // dazed until the very end (its wings shut first)
+        shut = left < 0.25 ? 1 - left / 0.25 : 0;
+        shake = Math.sin(mt * 45) * 0.25 * shut * (1 - shut) * 4;
+      }
+      if (miss) { flip = S(bt, K.up, land) * (1 - S(after, K.back, K.back + 0.3)); kick = after >= 0 ? flip : 0; }   // on its back, kicking, then over
+      // the crater and the shed shell, fading over the dazed beats; the shell stays where it fell as the cicada turns
+      const fade = after >= 0 ? S(after, 0, 0.12) * (1 - S(bt, K.crater * 0.6, K.crater)) : 0;
+      if (after < 0) shellYaw = e.root.rotation.y;
+      shell.visible = fade > 0.02;
+      if (shell.visible) {
+        const a = shellYaw - e.root.rotation.y;
+        shell.position.set(-1.4 * Math.cos(a) - 0.8 * Math.sin(a), 0.1, 1.4 * Math.sin(a) - 0.8 * Math.cos(a));
+        shell.rotation.set(0.25, a + 2.4, 0.5);
+        shell.scale.setScalar(0.85 * fade);
+      }
+      mound.visible = chimney.visible = false;
+      crater.visible = fade > 0.02 && !air;
+      crater.scale.set(2.1, 0.14 * fade, 2.1);
+    } else {
+      shell.visible = crater.visible = false;
+      // the mound: swells as it digs, humps on every beat as it travels, sinks flat on the hush, bulges wide on the swell
+      const rise = Math.min(1, sink * 1.6), move = e.under && !locked ? 1 : 0, heave = move ? Math.exp(-((e.burrowBeats || 0) % 1) * 7) : 0;
+      const shiver = still ? 0 : 1, wide = 1.3 * rise * (1 + (K.swell / 1.3 - 1) * swell) * (1 + 0.08 * lock * Math.sin(mt * 40) * shiver);
+      mound.visible = rise > 0.02;
+      mound.scale.set(wide, rise * (0.55 + K.heave * heave + 0.08 * move * Math.sin(mt * 9)) * (1 - K.hush * hush + 0.9 * swell), wide);
+      mound.position.x = Math.sin(mt * 55) * 0.05 * swell * shiver;
+      const ch = locked ? S(lock, 0.05, 0.45) : 0;
+      chimney.visible = ch > 0.02;
+      chimney.scale.set(0.32, K.chimney * ch * (1 + 0.12 * swell * Math.sin(mt * 60) * shiver), 0.32);
+      chimney.position.set(Math.sin(mt * 70) * 0.04 * swell * shiver, rise * 0.3 * swell, 0);
     }
     for (const L of legs) {
-      // digging: the forelegs scoop in turn
-      const scoop = L.front && dig > 0 ? Math.max(0, Math.sin(dig * P + (L.s > 0 ? Math.PI : 0))) * 0.7 : 0;
-      L.hip.rotation.set(0, L.base + Math.sin(t + L.phase) * 0.3 * k - L.s * scoop, -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.2 * k + scoop * 0.5));
+      // digging: the forelegs scoop in turn; in the air they trail; on its back they kick
+      const scoop = L.front && d2 > 0 ? Math.max(0, Math.sin(d2 * P + (L.s > 0 ? Math.PI : 0))) * 0.7 : 0;
+      L.hip.rotation.set(0, L.base + Math.sin(t + L.phase) * 0.3 * k - L.s * scoop, -L.s * (Math.max(0, Math.cos(t + L.phase)) * 0.2 * k + scoop * 0.5 - 0.5 * air + Math.sin(mt * 26 + L.phase + L.base * 3) * 0.6 * kick));
     }
-    const buzz = Math.sin((A ? A.t : mt) * 120) * 0.08 * daze * (1 - shut);
+    const buzz = Math.sin((A ? A.t : mt) * 120) * (0.08 * daze * (1 - shut) + 0.12 * rear);
     for (const W of wings) W.hinge.rotation.set(0, 0, W.s * (-0.35 - 0.2 * daze * (1 - shut) + buzz + open * 1.2));
+    tymbals.scale.set(1 + 0.6 * rear * Math.abs(Math.sin(mt * 70)), 1, 1);   // the song's drums flashing as it rears
     body.visible = sink < 0.97;
-    body.position.y = -sink * 1.5 + up * 0.2 - squash * 0.15 + Math.abs(Math.sin(t)) * 0.015 * k;
-    body.rotation.set(0.18 * daze, shake, lean + Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) + (dig > 0 ? Math.sin(dig * P) * 0.08 : 0));
+    body.position.y = -sink * 1.5 + up - squash * 0.15 + 0.75 * (1 - Math.cos(Math.PI * flip)) + Math.abs(Math.sin(t)) * 0.015 * k;
+    body.rotation.set(0.18 * daze * (1 - flip) - rear * K.rear, shake, (A ? A.side : 1) * Math.PI * flip + Math.sin(t) * 0.025 * k + Math.sin(mt * 5) * 0.16 * daze * (1 - shut) * (1 - flip) + (d2 > 0 ? Math.sin(d2 * P) * 0.08 : 0));
     { const y = squash ? 1 - squash : len, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); }   // stretched up, squashed down
-    // the mound: swells as it digs, heaves as it travels, shakes harder as it locks over its spot
-    const rise = Math.min(1, sink * 1.6), lock = e.under && e.burrowLocked ? e.burrowK || 0 : 0, move = e.under && !e.burrowLocked ? 1 : 0;
-    mound.visible = rise > 0.02;
-    mound.scale.set(1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)), rise * (0.55 + 0.12 * move * Math.sin(mt * 9) + 0.25 * lock), 1.3 * rise * (1 + 0.1 * lock * Math.sin(mt * 40)));
-    mound.position.x = Math.sin(mt * 55) * 0.05 * lock;
   };
-  anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); };
+  anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = chimney.visible = shell.visible = crater.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); tymbals.scale.set(1, 1, 1); };
   return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
 }
 

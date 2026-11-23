@@ -913,6 +913,28 @@
   --burrow-floor-opacity: 0.3;   /* the circle on the floor over a locked mound */
   --burrow-dome-opacity: 0.24;   /* and the dome over it */
   --burrow-dome-glow: 0.8;       /* and the dome's brightness (the normal volume's is --warning-volume-glow) */
+  /* the burrow's beats (critters.js buildCicada, enemies.js burrow*): rear up, dig, trail, hush, swell, burst, land */
+  --burrow-rear: 0.55;           /* radians it rears back (head up) on the dig's first beat, wings flared, tymbals flashing */
+  --burrow-heave: 0.3;           /* how much higher the trailing mound humps on each beat */
+  --burrow-hush: 0.8;            /* how flat the mound sinks on the Warning's first beat (share of its height) */
+  --burrow-chimney: 1.1;         /* radii: the mud chimney pushed up in the middle over the hush */
+  --burrow-swell: 2.3;           /* radii: how wide the floor bulges on the Warning's second beat */
+  --burrow-still: 0.9;           /* share of the Warning after which everything holds dead still, the last tenth of a second */
+  --burrow-rise: 2;              /* radii it rockets up on the burst */
+  --burrow-stretch: 2.1;         /* how long it is stretched at the top (1: its own shape) */
+  --burrow-up: 0.06;             /* s to the top */
+  --burrow-hang: 0.1;            /* s it hangs there */
+  --burrow-fall: 0.1;            /* s back down */
+  --burrow-overshoot: 1.3;       /* a burst that missed goes this much higher and lands on its back */
+  --burrow-back: 0.47;           /* s on its back kicking (a beat) before it rolls upright */
+  --burrow-crater: 1.8;          /* s the crater and shed shell take to fade (the dazed 4 beats) */
+  --burrow-crater: #3a2a1c;      /* the crater it leaves (plain brown: harmless) */
+  --burrow-shell: #9a7448;       /* the papery shell it leaves beside it */
+  --burrow-crack: #1a120c;       /* the cracks it leaves in the floor (trail, Warning, crater): harmless marks */
+  --burrow-chunks: 22;           /* floor chunks thrown out by the burst (Low: half) */
+  --jelly-thrown-squash: 0.45;   /* the jelly squashed flat in the freeze when a burst throws it */
+  --jelly-thrown-turns: 1;       /* somersaults while it tumbles (none under Reduce effects) */
+  --camera-thrown-lag: 0.75;     /* how far behind the camera falls while the jelly tumbles (none under Reduce effects) */
   --hostile-encore-silver: #3d6bff; /* the silver DJ's floor waves and wind-up: electric blue, his helmet's blue piping made hot (not the friendly cyan) */
   --hostile-encore-gold: #ffb01e;   /* the gold DJ's floor waves and wind-up: hot gold, his helmet's amber piping */
   --encore-record-radius: 0.055; /* m: the silver DJ's records (11 cm across), standing on edge where they land (encore-records.js) */
