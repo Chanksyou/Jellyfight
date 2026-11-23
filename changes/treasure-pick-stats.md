@@ -1,1 +1,0 @@
-adds a line to each Treasure pick card for a treasure that changes a stat, such as "Dodge 26% → 35%", what it is now and after you take it; and the Odd Sock's Dodge now follows the same rules as the Dodge cards, each copy closing a share of the gap to the 60% cap, so five Socks give 46%, not the cap at once.

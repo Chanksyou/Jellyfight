@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v645 adds a line to each Treasure pick card for a treasure that changes a stat, such as "Dodge 26% → 35%", what it is now and after you take it; and the Odd Sock's Dodge now follows the same rules as the Dodge cards, each copy closing a share of the gap to the 60% cap, so five Socks give 46%, not the cap at once.
+
 v644 makes the Cicada's burrow throw the jelly about a metre across the floor: the burst's shove is three times harder, the jelly tumbles for a beat with almost no grip so the stick can't cancel the throw, and the hit gets a short freeze. The attack now runs on the song (dig-in 1 beat, trail 5, Warning 2 beats, so the burst lands two bars after the dig-in) and the Cicada stays dazed for 4 beats. Harder: a hit sends you far and loses you control for a beat. Easier: twice the Warning and a longer window to hit it. Balance bot not run.
 
 v643 remodels act 4's Cicada as a periodical cicada: a glossy black body with sculpted plates and an orange X on its back, big red-orange eyes, orange legs with thick digging forelegs, pale ribbed tymbals, and clear wings with painted orange veins and a black W, folded in a tent over its back. Looks only; it plays the same.
