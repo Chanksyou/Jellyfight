@@ -14,6 +14,7 @@
 //   node tools/perf-phone.mjs --profile             also profile the CPU (top 30 functions, time by file)
 //   node tools/perf-phone.mjs --overdraw            instead of the timings: layers drawn per pixel (src/overdraw.js) at each moment and the heaviest stacks of see-through marks (STACKS)
 //   node tools/perf-phone.mjs --json=out.json       also write everything as JSON (counts, uploads, scene, profile)
+//   node tools/perf-phone.mjs --query=shimmer=1     open the game with an experiment switch on (src/experiments.js)
 //
 // Headless Chromium draws with SwiftShader (software WebGL): counts are real, times are not a
 // phone's. A phone's own frame times come from the phone bench (index.html?bench, src/bench.js), which
@@ -193,6 +194,7 @@ async function measure(env, pageKey, tier) {
 }
 
 const env = await start(), results = [];
+if (arg('query')) env.url += '?' + args.find((a) => a.startsWith('--query=')).slice(8);
 try {
   for (const tier of TIERS) for (const p of Object.keys(PAGES)) {
     if (ONLY.length && !ONLY.includes(p)) continue;

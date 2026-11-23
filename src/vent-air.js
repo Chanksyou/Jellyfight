@@ -99,27 +99,7 @@ function wispMesh(vents, look) {
   g.setIndex(idx);
   const m = new THREE.ShaderMaterial({
     uniforms: look.uniforms, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,   // (always facing the camera: one layer, not two)
-    vertexShader: /* glsl */`
-      attribute vec3 wp; attribute vec4 base; attribute vec4 shape;
-      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock; varying vec4 vLit;
-      ${COMMON}
-      ${LIT}
-      vec3 path(float t, float g) {
-        float spread = 1.0 + uSpread * t * t;                                    // the air fans out as it slows
-        float a = shape.x + t * 2.2 + sin(uTime * 0.6 + shape.x * 3.0) * 0.35 * t;
-        float r = shape.y * spread + sin(uTime * 1.7 * shape.w + t * 9.0 + shape.x) * 0.006 * t * (1.0 - 0.7 * g);
-        return base.xyz + vec3(cos(a) * r, t * base.w, sin(a) * r);
-      }
-      void main() {
-        float t = wp.y, m = inGust(base.xyz), g = uGust.w * m;
-        vec3 c = path(t, g), tan = normalize(path(t + 0.02, g) - c);
-        vec3 right = normalize(cross(tan, cameraPosition - c));
-        float width = mix(0.005, 0.016, t) * (shape.z > 0.5 ? 0.9 : 1.0) * (1.0 + 0.35 * g);
-        vUv = vec3(wp.x, t, wp.z); vPuff = shape.z; vGust = g; vClock = uTime + m * uGustClock;
-        vNear = distance(c, cameraPosition);
-        vLit = airLight(c);
-        gl_Position = projectionMatrix * viewMatrix * vec4(c + right * wp.x * width, 1.0);
-      }`,
+    vertexShader: WISP_VERTEX,
     fragmentShader: /* glsl */`
       uniform vec3 uColor; uniform float uWisp;
       varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock; varying vec4 vLit;
@@ -136,6 +116,62 @@ function wispMesh(vents, look) {
   });
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false; mesh.renderOrder = 2;
+  return mesh;
+}
+const WISP_VERTEX = /* glsl */`
+      attribute vec3 wp; attribute vec4 base; attribute vec4 shape;
+      varying vec3 vUv; varying float vPuff; varying float vGust; varying float vNear; varying float vClock; varying vec4 vLit; varying float vView;
+      uniform float uWide;
+      ${COMMON}
+      ${LIT}
+      vec3 path(float t, float g) {
+        float spread = 1.0 + uSpread * t * t;                                    // the air fans out as it slows
+        float a = shape.x + t * 2.2 + sin(uTime * 0.6 + shape.x * 3.0) * 0.35 * t;
+        float r = shape.y * spread + sin(uTime * 1.7 * shape.w + t * 9.0 + shape.x) * 0.006 * t * (1.0 - 0.7 * g);
+        return base.xyz + vec3(cos(a) * r, t * base.w, sin(a) * r);
+      }
+      void main() {
+        float t = wp.y, m = inGust(base.xyz), g = uGust.w * m;
+        vec3 c = path(t, g), tan = normalize(path(t + 0.02, g) - c);
+        vec3 right = normalize(cross(tan, cameraPosition - c));
+        float width = mix(0.005, 0.016, t) * (shape.z > 0.5 ? 0.9 : 1.0) * (1.0 + 0.35 * g) * uWide;
+        vUv = vec3(wp.x, t, wp.z); vPuff = shape.z; vGust = g; vClock = uTime + m * uGustClock;
+        vNear = distance(c, cameraPosition);
+        vLit = airLight(c);
+        vec4 mv = viewMatrix * vec4(c + right * wp.x * width, 1.0);
+        vView = -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`;
+
+// Heat shimmer's bend map (src/heat-shimmer.js, the ?shimmer=1 experiment): the wisps again, wider, each pixel
+// writing which way to nudge the picture behind it, and nothing where the room stands in front of the air
+function heatMesh(wisps, look) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: { ...look.uniforms, uWide: { value: LOOK.num('vent-shimmer-width', 3) }, tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) },
+      depthMode: { value: 0 }, near: { value: 0.005 }, far: { value: 560 }, logFar: { value: Math.log2(561) } },
+    vertexShader: WISP_VERTEX,
+    fragmentShader: /* glsl */`
+      uniform sampler2D tDepth; uniform vec2 uRes; uniform float depthMode, near, far, logFar;
+      varying vec3 vUv; varying float vNear; varying float vView;
+      ${COMMON}
+      float sceneDist(vec2 uv) {   // as the depth of field reads it (graphics.js)
+        float d = texture2D(tDepth, uv).x;
+        if (depthMode > 1.5) return (near * far) / (d * (far - near) + near);
+        if (depthMode > 0.5) return exp2(d * logFar) - 1.0;
+        return (near * far) / ((far - near) * d - far) * -1.0;
+      }
+      void main() {
+        float t = vUv.y, across = 1.0 - vUv.x * vUv.x;
+        float ends = smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.35, 0.9, t));   // strongest just over the grille
+        float a = across * ends * smoothstep(0.03, 0.09, vNear) * step(vView, sceneDist(gl_FragCoord.xy / uRes) + 0.01);
+        float ph = t * 38.0 - uTime * 4.5 + vUv.z * 20.0;
+        gl_FragColor = vec4(vec2(sin(ph), cos(ph * 0.73 + 1.3)) * a * (1.0 - uCalm) * uFlow, 0.0, 1.0);
+      }`,
+    transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,   // bends add up, either way
+  });
+  const mesh = new THREE.Mesh(wisps.geometry, m);
+  mesh.frustumCulled = false;
   return mesh;
 }
 
@@ -236,7 +272,7 @@ export class VentAir {
     const U = (value) => ({ value });
     this.look = { uniforms: {
       uTime: U(0), uCalm: U(0), uFlow: U(1), uGust: U(new THREE.Vector4(0, 0, 0, 0)), uGustClock: U(0), uPx: U(2.2),
-      uPr: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
+      uPr: U(1), uWide: U(1), uSpread: U(LOOK.num('vent-spread', 1.6)),
       uColor: U(new THREE.Color(LOOK.color(own('vent-air'), '#eaf6ff'))), uWisp: U(LOOK.num(own('vent-wisp'), 0.26)), uMote: U(LOOK.num(own('vent-mote'), 0.75)),
       uLit: U(LOOK.num('vent-light', 1)), uLitRef: U(LOOK.num('vent-light-ref', 0.35)), uLitMin: U(LOOK.num('vent-light-min', 0.3)),
       uLitMax: U(LOOK.num('vent-light-max', 1.2)), uLitTint: U(LOOK.num('vent-light-tint', 0.5)), ...BAKED_LIGHT.uniforms,
@@ -244,6 +280,8 @@ export class VentAir {
     } };
     // Lambert, not Standard: no per-lamp shine maths, and one material on every graphics tier
     this.grilleMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.heatScene = new THREE.Scene();   // drawn only by the heat shimmer experiment (src/heat-shimmer.js), into its own small map
+    this.heatScene.matrixWorldAutoUpdate = false;
     this.gustT = -1;     // s since the last ride began (-1: none blowing)
     this.ridden = null;
     bus.on('vent_ride', ({ vent }) => this.ride(vent));
@@ -251,6 +289,7 @@ export class VentAir {
   }
   build(vents) {
     for (const o of this.parts || []) { this.group.remove(o); o.geometry.dispose(); }
+    if (this.heat) { this.heatScene.remove(this.heat); this.heat.material.dispose(); this.heat = null; }
     this.parts = []; this.motes = null;   // (the arena has no vents)
     if (!vents.length) return;
     const boxes = [];
@@ -258,6 +297,8 @@ export class VentAir {
     this.parts = [new THREE.Mesh(merge(boxes), this.grilleMat), tailMesh(vents, this.look), wispMesh(vents, this.look), moteMesh(vents, this.look)];
     this.motes = this.parts[3];
     for (const o of this.parts) this.group.add(o);
+    this.heat = heatMesh(this.parts[2], this.look);   // shares the wisps' shape: nothing more uploaded
+    this.heatScene.add(this.heat);
   }
   // A ride starts (the vent_ride event): that vent gusts, then settles (--vent-gust-*)
   ride(v) {

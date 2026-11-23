@@ -53,6 +53,7 @@ function iceCrown() {
 }
 const GOO = LOOK.list('hurt-goo', ['#8fd8ff', '#dff8ff']);              // drops of jelly a bug's hit knocks off (they splat and fade)
 const SCUFF = LOOK.color('bug-scuff', '#4a3c30');                      // a fading dust mark where a bug slammed or struck the floor
+const BURROW = { crack: LOOK.color('burrow-crack', '#1a120c'), floor: [0x3a2a1e, 0x5a4636, 0x8a7458, 0x2a2018], chunks: LOOK.num('burrow-chunks', 22) };   // the Cicada's cracks and the floor it throws up
 const BALL_AT = { y: 0.72, z: 1.86 };                                 // where that ball sits, between its mandibles (radius units, critters.js buildBeetle)   // a missile's flame glow (glow.hold takes a THREE.Color, not a number)   // a hit glancing off armour
 
 // The apartment is dark at night, so enemies stand out from it: each lit material gets a little
@@ -1280,31 +1281,58 @@ export class Enemies {
   // ---------------------------------------------------------------- the cicada (burrow)
   // it digs in: a puff of dust and a scrape (it sinks out of sight over the dig)
   burrowDig(e) { sfx.burrowDig(); this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.6, 0.4); this.fx.burst(e.pos.clone(), [0x3a2a1e, 0x5a4636, 0x9ab85a], 6, 0.003, 0.3, e.pos.y); }
-  burrowRumble() { sfx.burrowRumble(); }
+  burrowRumble(k) { sfx.burrowRumble(k); }   // k: 0..1 along the trail, the song swelling
   // it is under: the mound shows (its model), and the floor kicks up as it goes
   burrowGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.2, 0.3); }
+  // on each beat under, the mound humps: a puff, and a crack left behind it (not on Low)
+  burrowHeave(e, k) {
+    sfx.burrowHeave(k);
+    this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.1, 0.3, 0.4);
+    if (!this.fx.low()) this.fx.splat(e.pos, BURROW.crack, e.r * 1.8, 'scorch');
+  }
+  // it locks (the hush): cracks run out to the Warning's edge
+  burrowLock(e, radius) { sfx.burrowLock(); this.fx.splat(e.burrowAt, BURROW.crack, radius, 'scorch'); }
+  // the swell: pebbles hop inside the circle (not on Low)
+  burrowSwell(e, radius, secs) {
+    sfx.burrowSwell(secs);
+    if (this.fx.low()) return;
+    for (let i = 0; i < 3; i++) { const a = e.phase + i * 2.1; this.fx.burst(S.spot.set(e.burrowAt.x + Math.cos(a) * radius * 0.6, e.burrowAt.y + 0.004, e.burrowAt.z + Math.sin(a) * radius * 0.6), BURROW.floor, 3, 0.0025, 0.12, e.burrowAt.y); }
+  }
   // it bursts up where it locked: a Blast on the floor, `radius` round. You're hurt if inside it (a jump high over the dome clears it),
   // shoved away from the middle and tossed up
-  burrowBurst(e, c, { radius, dmg, knock, launch }) {
+  burrowBurst(e, c, { radius, dmg, knock, launch, tumble }) {
     const at = e.burrowAt, col = hostile('cicada'), P = this.player, f = c.realFoot || c.foot;
     sfx.burrowBurst();
     this.fx.impact(S.o.set(at.x, at.y + 0.015, at.z).clone(), col, radius * 0.45, 16);
     this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), col, radius * 1.05, 0.4);
     this.fx.puff(S.spot.set(at.x, at.y + 0.015, at.z), 0xb8a890, radius * 0.9, 0.5);
-    this.fx.burst(at.clone().setY(at.y + 0.01), [0x3a2a1e, 0x5a4636, 0x9ab85a], 14, 0.004, 0.45, at.y);   // the floor thrown up
+    const n = this.fx.low() ? BURROW.chunks >> 1 : BURROW.chunks;
+    this.fx.burst(at.clone().setY(at.y + 0.01), BURROW.floor, n, 0.006, 0.7, at.y);   // a ring of floor chunks thrown out
+    for (let i = 0; i < 3; i++) this.fx.puff(S.spot.set(at.x, at.y + 0.02 + i * e.r * 1.4, at.z), 0x8a7458, radius * (0.4 - i * 0.08), 0.4 + i * 0.1, 0.28);   // a column of dust
     this.fx.splat(S.spot.set(at.x, at.y, at.z), SCUFF, radius * 0.6, 'dust');
+    this.fx.splat(at, BURROW.crack, radius * 1.15, 'scorch');   // the crater's cracks
+    e.burrowLandT = LOOK.num('burrow-up', 0.06) + LOOK.num('burrow-hang', 0.1) + LOOK.num('burrow-fall', 0.1);   // when it comes down (drawBurrows)
     if (P && blastHits(S.o.set(at.x, at.y, at.z), radius, P.position, P)) {
       this.fx.impact((c.realPc || c.pc).clone(), col, 0.022, 12);
+      sfx.burrowHit();
       bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
       const away = S.dir.set(f.x - at.x, 0, f.z - at.z);
       if (away.lengthSq() < 1e-8) away.set(Math.cos(e.phase), 0, Math.sin(e.phase));   // right on top of it: any way is away
-      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch });
+      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch, tumble: tumble * c.spb });   // (beats to seconds)
+      if (tumble) juice.feel('launched');   // a throw: a freeze on the squashed jelly, then it flies
     } else if (P && P.position.distanceTo(at) < radius * 2.5) juice.feel('impact');   // a near miss still rocks the screen
   }
   // the Warning over each locked mound: a floor circle and the dome over it, filling together to the beat it bursts up on
-  drawBurrows(t) {
+  drawBurrows(t, dt) {
     let n = 0;
     for (const e of this.list) {
+      if (e.burrowLandT > 0 && (e.burrowLandT -= dt) <= 0 && !e.dead) {   // it comes down heavy: a second, smaller ring, dust, chunks raining back
+        sfx.burrowLand();
+        const at = e.burrowAt;
+        this.fx.ring(S.spot.set(at.x, at.y + 0.003, at.z), 0xb8a890, e.r * 2.4, 0.35);
+        this.fx.puff(S.spot.set(at.x, at.y + 0.01, at.z), 0xb8a890, e.r * 2, 0.4, 0.45);
+        if (!this.fx.low()) this.fx.burst(S.spot.set(at.x, at.y + e.r * 3, at.z).clone(), BURROW.floor, 6, 0.004, 0.15, at.y);
+      }
       if (e.dead || !e.under || !e.burrowLocked) continue;
       const w = e.T.words.find((x) => x.burrowRadius);
       let M = this.burrowMarks[n];
@@ -1588,7 +1616,7 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
@@ -1699,7 +1727,7 @@ export class Enemies {
     this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
-    this.drawBurrows(t);
+    this.drawBurrows(t, dt);
     this.drawPlunges(t);
     this.fx.smokeMat.userData.holdout.value.set(player.position.x, player.position.y + 0.05, player.position.z, 0.07);   // the jelly shows through its own smoke
     this.updateMissiles(dt, pc, player.radius || 0.03);

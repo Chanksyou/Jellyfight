@@ -417,3 +417,27 @@ story('sound/vent-gust-and-hum', {
     return ok(gust.early > 0.01 && hum.sources === 1 && hum.early > 0.002 && hum.late < 0.0005 && far.sources === 0, { gust, hum, far });
   },
 });
+
+story('sound/burrow-builds-and-bursts', {
+  about: 'The cicada\'s burrow is heard: the inhale climbs to its end and stops there, the burst is much louder than the trail\'s thump and still has its shriek (high energy) after the thud, the jelly\'s throw and landing sound, and a hush leaves 0.4 s later silent.',
+  setup() { setupFight(); },
+  async play() {
+    const S = await freshSfx(), R = 16000;
+    const render = async (play) => {
+      const oc = new OfflineAudioContext(1, R * 3, R), { when } = S.preview(oc, oc.destination);
+      play(S.sfx, when);
+      const d = (await oc.startRendering()).getChannelData(0);
+      const loud = (a, b) => { let m = 0; for (let i = Math.floor(a * R); i < b * R; i++) m = Math.max(m, Math.abs(d[i])); return +m.toFixed(4); };
+      return { loud, peak: loud(0, 3) };
+    };
+    const heave = await render((s, when) => { when(0.05); s.burrowHeave(1); });
+    const swell = await render((s, when) => { when(0.05); s.burrowSwell(0.5); });
+    const burst = await render((s, when) => { when(0.05); s.burrowBurst(); });
+    const lock = await render((s, when) => { when(0.05); s.burrowLock(); });
+    const hit = await render((s, when) => { when(0.05); s.burrowHit(); });
+    const thrown = await render((s, when) => { when(0.05); s.thrown(1); });
+    const land = await render((s, when) => { when(0.05); s.thrownLand(); });
+    const r = { heave: heave.peak, swellEarly: swell.loud(0.05, 0.2), swellLate: swell.loud(0.4, 0.55), swellAfter: swell.loud(0.7, 1), burst: burst.peak, shriek: burst.loud(0.25, 0.6), lockAfter: lock.loud(0.4, 1), hit: hit.peak, thrown: thrown.peak, land: land.peak };
+    return ok(r.swellLate > r.swellEarly * 1.5 && r.swellAfter < 0.003 && r.burst > r.heave * 1.5 && r.shriek > 0.01 && r.lockAfter < 0.003 && r.hit > 0.05 && r.thrown > 0.01 && r.land > 0.05, r);
+  },
+});

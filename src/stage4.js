@@ -101,6 +101,7 @@ export const STAGE4 = {
   xpMult: 1.6,
 
   noCollide: [],
+  cat: STAGE1.cat,                    // the same room: Dendi still asleep in his box at dawn
   hide: STAGE1.hide,
   decor: [HALL_CLOCK],
   fade: {},

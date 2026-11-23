@@ -259,8 +259,9 @@ treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up ca
 treasure "handCream" heals=#true name="Hand Cream" icon="🧴" rarity="common" text="After 4 s without being hit, restore 0.5 Health per second." stack=5 {
     while "unhurt" "health-regen" 0.5
 }
-treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely, and a bug you dodge slips, Stunned for 0.5 s." stack=5 {
+treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely (less for each more) and your most Dodge rises from 60% to 80%, and a bug you dodge slips, Stunned for 0.5 s." stack=5 {
     stat dodge 15
+    dodge-cap 80
     dodge-slip 0.5
 }
 treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 enemies cleared, gain +1 max Health this run." stack=2 {

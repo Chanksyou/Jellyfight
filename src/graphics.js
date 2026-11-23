@@ -12,6 +12,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { N8AOPass } from 'n8ao';
 import { setBakedAOTier } from './baked-ao.js';
+import { ShimmerPass } from './heat-shimmer.js';
 
 export const QUALITY = ['low', 'medium', 'high'];
 // what the player can pick in the pause menu (a phone starts on low, a desktop on high); a stored
@@ -212,17 +213,22 @@ export class BloomOutputPass extends Pass {
     super();
     this.bloom = bloom;
     this.material = new THREE.ShaderMaterial({
-      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 }, grey: { value: 0 }, gradeGain: { value: GRADE.gain }, gradeLift: { value: GRADE.lift }, gradeSat: { value: 1 } },
+      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 }, grey: { value: 0 }, gradeGain: { value: GRADE.gain }, gradeLift: { value: GRADE.lift }, gradeSat: { value: 1 }, tShimmer: { value: null }, shimmer: { value: new THREE.Vector2() } },
       vertexShader: QUAD_VERTEX,
       fragmentShader: /* glsl */`
-        uniform sampler2D tDiffuse, tBloom;
+        uniform sampler2D tDiffuse, tBloom, tShimmer;
+        uniform vec2 shimmer;
         uniform float bloomStrength, grey, gradeSat;
         uniform vec3 gradeGain, gradeLift;
         #include <tonemapping_pars_fragment>
         varying vec2 vUv;
         ${FINITE}
         void main() {
-          vec4 c = texture2D(tDiffuse, vUv);
+          #ifdef SHIMMER
+            vec4 c = texture2D(tDiffuse, vUv + texture2D(tShimmer, vUv).xy * shimmer);   // heat over the vents (heat-shimmer.js)
+          #else
+            vec4 c = texture2D(tDiffuse, vUv);
+          #endif
           c.rgb = finite(c.rgb) + bloomStrength * texture2D(tBloom, vUv).rgb;
           #ifdef TONE
             c.rgb = TONE(c.rgb);
@@ -248,16 +254,22 @@ export class BloomOutputPass extends Pass {
     u.toneMappingExposure.value = renderer.toneMappingExposure;
     u.grey.value = juice.grey;
     u.gradeSat.value = GRADE.sat;
+    if (this.shimmer) {
+      const m = this.shimmer.map, px = LOOK.num('vent-shimmer', 2.5) * renderer.getPixelRatio();
+      u.tShimmer.value = m.texture;
+      u.shimmer.value.set(px / (m.width / this.shimmer.scale), px / (m.height / this.shimmer.scale));
+    }
     this.prepare(renderer);
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);
   }
   // its shader's defines for the renderer's tone mapping and output (also so its shader can be built ahead)
   prepare(renderer) {
-    const key = renderer.outputColorSpace + '|' + renderer.toneMapping;
+    const key = renderer.outputColorSpace + '|' + renderer.toneMapping + '|' + !!this.shimmer;
     if (key === this.key) return;
     this.key = key;
     const d = this.material.defines = {};
+    if (this.shimmer) d.SHIMMER = '';
     if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) d.SRGB_TRANSFER = '';
     if (TONE[renderer.toneMapping]) d.TONE = TONE[renderer.toneMapping];
     this.material.needsUpdate = true;
@@ -267,9 +279,11 @@ export class BloomOutputPass extends Pass {
 
 export class Graphics {
   // baked: the act has baked corner shadows (baked-ao.js), so Low and Medium don't need N8AO
-  constructor(renderer, scene, camera, defaultQuality = 'high', baked = false) {
+  // heat: the vents' heat scene, only for the ?shimmer=1 experiment (heat-shimmer.js); null draws none
+  constructor(renderer, scene, camera, defaultQuality = 'high', baked = false, heat = null) {
     this.renderer = renderer;
     this.baked = baked;
+    this.heat = heat;
     this.frameInfo = { calls: 0, triangles: 0, points: 0 };
     this.scene = scene;
     this.camera = camera;
@@ -320,6 +334,7 @@ export class Graphics {
   }
 
   build() {
+    this.shimmer = null;
     if (this.composer) {
       this.composer.passes.forEach((p) => p.dispose?.());
       this.composer.renderTarget1.dispose();
@@ -338,7 +353,8 @@ export class Graphics {
     const buffer = EXPERIMENTS.rt === 'packed' && this.canPack(msaa) ? PACKED_BUFFER : HALF_BUFFER;
     this.bufferType = buffer.type;
     this.msaa = msaa;
-    const composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, buffer));
+    // the heat shimmer reads the room's depth: the scene's own buffers keep it as a texture (N8AO's already does)
+    const composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, { ...buffer, depthTexture: this.heat ? new THREE.DepthTexture(1, 1) : null }));
 
     // N8AO renders the scene itself (it replaces RenderPass) and keeps the depth buffer we reuse for DOF.
     let ao = null;
@@ -363,6 +379,11 @@ export class Graphics {
       (ao ? ao.beautyRenderTarget : composer.readBuffer).samples = msaa;
     }
 
+    if (this.heat) {   // right after the room is drawn, while its depth is this frame's
+      this.shimmer = new ShimmerPass(this.heat, this.camera, (read) => (ao ? ao.beautyRenderTarget.depthTexture : read.depthTexture));
+      composer.addPass(this.shimmer);
+    }
+
     this.dof = null;
     if (high && ao) {   // depth of field reads N8AO's depth
       composer.addPass(new ShaderPass(FiniteShader));   // its blur would smear a NaN too
@@ -376,6 +397,7 @@ export class Graphics {
     bloom.enabled = !this.off.has('bloom');
     composer.addPass(bloom);
     const output = new BloomOutputPass(bloom);
+    output.shimmer = this.shimmer;
     if (msaa) output.needsSwap = false;   // it draws to the screen: nothing reads the buffer it would swap
     composer.addPass(output);
     this.bloom = bloom;

@@ -2,6 +2,18 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v649 adds the cicada burrow's sound: a song that swells along the trail with a thump on each beat, a hush where it cuts out, an inhale that climbs into the burst, a heavy layered burst (sub thud, crack, shriek, chunks), a smack when it hits you, the whoosh and wet thump of the throw, and the chunks clattering as it lands.
+
+v648 puts Dendi to sleep in his cardboard box by the cat scratcher in acts 1 and 4: slow breaths, an ear twitch and a tail flick now and then. He still gets up to finish the Vacuum, then goes back to sleep.
+
+v647 animates the Cicada's burrow beat by beat: it rears up before it digs, the mound humps on every beat leaving cracks, then sinks flat while a mud chimney rises and the floor swells under the Warning; it rockets out stretched, throwing floor chunks, and a hit squashes the jelly in the freeze and sends it somersaulting away with the camera a touch behind; it lands heavy (or on its back after a miss) beside a crater and its shed shell.
+
+v646 adds an experiment switch for heat shimmer over the vents (index.html?shimmer=1, Medium and High only): the picture just above each vent bends a little, and stays still behind furniture that stands in front. Off unless the switch is in the link.
+
+v645 adds a line to each Treasure pick card for a treasure that changes a stat, such as "Dodge 26% → 35%", what it is now and after you take it; and the Odd Sock's Dodge now follows the same rules as the Dodge cards, each copy closing a share of the gap to the 60% cap, so five Socks give 46%, not the cap at once.
+
+v644 makes the Cicada's burrow throw the jelly about a metre across the floor: the burst's shove is three times harder, the jelly tumbles for a beat with almost no grip so the stick can't cancel the throw, and the hit gets a short freeze. The attack now runs on the song (dig-in 1 beat, trail 5, Warning 2 beats, so the burst lands two bars after the dig-in) and the Cicada stays dazed for 4 beats. Harder: a hit sends you far and loses you control for a beat. Easier: twice the Warning and a longer window to hit it. Balance bot not run.
+
 v643 remodels act 4's Cicada as a periodical cicada: a glossy black body with sculpted plates and an orange X on its back, big red-orange eyes, orange legs with thick digging forelegs, pale ribbed tymbals, and clear wings with painted orange veins and a black W, folded in a tent over its back. Looks only; it plays the same.
 
 v642 gives act 4's Firefly a real flying look: raised dark wing covers edged in orange, smoky veined hind wings beating as a blur, an orange shield and thorax, beaded antennae and a body that hangs tail down and leans into its flight. Its lantern now swells and fades once every 4 beats of the song (about every 2 s) instead of blinking on every beat, and it flies lower and a little nearer, 10 to 25 cm above the jelly instead of 30 to 50.

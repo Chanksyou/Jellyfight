@@ -1758,6 +1758,12 @@ export function buildCharacter(look, heightMeters) {
   }
 
   function pulse(k = 1) { kick = Math.max(kick, k); }
+  // thrown by a hit (run.js): squashed flat at once, in the hit's freeze too, then the landing spring lets it go
+  function thrown(k) {
+    impact = Math.max(impact, k); impactV = 0;
+    const sy = 1 - impact, sxz = 1 / Math.sqrt(Math.max(0.5, sy));
+    squash.scale.set(sxz, sy, sxz);
+  }
 
   // The rest pose: every animated value at its rest value (no stroke, breath, sway, lean, spring or
   // tentacle ripple), so a look can be compared before and after a motion change. Motion code
@@ -1782,5 +1788,5 @@ export function buildCharacter(look, heightMeters) {
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 
-  return { root, lean, update, restPose, land, takeoff, pulse, dry, dispose, look, tentacles: rig, arms, squash, hatTop, bend: flex.value, crownH };
+  return { root, lean, update, restPose, land, takeoff, pulse, thrown, dry, dispose, look, tentacles: rig, arms, squash, hatTop, bend: flex.value, crownH };
 }

@@ -151,7 +151,9 @@ export class Player {
     wish.multiplyScalar(walk);
 
     // slipping (soap underfoot): almost no grip, so you keep sliding the way you were going
-    const accel = this.grounded ? c.groundAccel * (1 - 0.88 * (env.slip ?? 0)) : c.airAccel;
+    // (tumbling, thrown by a hit: the same loss of grip on the ground and in the air)
+    this.spin = env.spin || 0;   // a throw's somersault (syncMesh)
+    const accel = (this.grounded ? c.groundAccel * (1 - 0.88 * (env.slip ?? 0)) : c.airAccel) * (1 - 0.95 * (env.tumble ?? 0));
     const t = 1 - Math.exp(-accel * dt);
     this.velocity.x += (wish.x - this.velocity.x) * t;
     this.velocity.z += (wish.z - this.velocity.z) * t;
@@ -336,8 +338,18 @@ export class Player {
     }
   }
 
+  // spin (radians, run.js thrownSpin): a throw's somersault, turned about the jelly's middle along the way it faces
   syncMesh() {
     this.mesh.position.copy(this.position);
     this.mesh.rotation.y = this.facing;
+    const a = this.spin || 0;
+    this.mesh.rotation.x = a;
+    if (a) {
+      this.mesh.rotation.order = 'YXZ';
+      const h = this.cfg.height * 0.5;
+      this.mesh.position.y += h - h * Math.cos(a);
+      this.mesh.position.x -= Math.sin(this.facing) * h * Math.sin(a);
+      this.mesh.position.z -= Math.cos(this.facing) * h * Math.sin(a);
+    }
   }
 }
