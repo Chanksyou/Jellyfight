@@ -9,6 +9,7 @@
 // re-exporting the apartment means baking again; the story engine/baked-ao-is-current says so.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { BAKED_LIGHT, LIGHT_FRAGMENT } from './baked-light.js';
 
 const uniforms = {
   aoVolume: { value: null },
@@ -76,8 +77,23 @@ const AO_FRAGMENT = /* glsl */`
     return pow(ao, aoStrength);
   }`;
 
+// three.js's light loop, where Low's plain (Lambert) materials skip the lamps on a baked shell point: the
+// bake already holds their light, and they have no shine to draw (one texture read in place of the lamp maths)
+let loops = null;
+function lampLoops() {
+  if (loops) return loops;
+  loops = THREE.ShaderChunk.lights_fragment_begin;
+  for (const kind of ['NUM_POINT_LIGHTS', 'NUM_SPOT_LIGHTS']) {
+    const at = loops.indexOf(`#if ( ${kind} > 0 )`), a = loops.indexOf('#pragma unroll_loop_start', at), b = loops.indexOf('#pragma unroll_loop_end', a);
+    if (at < 0 || a < 0 || b < 0) continue;   // (another three.js: every lamp stays drawn, which still looks right)
+    const end = b + '#pragma unroll_loop_end'.length;
+    loops = loops.slice(0, a) + '#ifdef LAMBERT\nif ( lb.w <= 0.0 ) {\n#else\n{\n#endif\n' + loops.slice(a, end) + '\n}\n' + loops.slice(end);
+  }
+  return loops;
+}
+
 function patch(shader) {
-  Object.assign(shader.uniforms, uniforms);
+  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms);
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;')
     .replace('#include <project_vertex>', `#include <project_vertex>
@@ -94,8 +110,17 @@ function patch(shader) {
       vAoPos = (modelMatrix * aoWorld).xyz;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT)
+    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT)
+    .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
+      vec4 lb = bakedLight(vAoPos, lbN);
+      ${lampLoops()}`)
     .replace('#include <aomap_fragment>', `{
+        // the shell's baked light (baked-light.js) in place of its lamps' diffuse; the jelly's glow stays live on top
+        vec3 lbKeep = vec3(0.0);
+        if (lb.w > 0.0) {
+          lbKeep = lb.rgb * material.diffuseColor;
+          reflectedLight.directDiffuse = lbGlow(vAoPos, lbN, material.diffuseColor);
+        }
         // a stage's sun: light on the window side of the line, warming the surface's own colour, more
         // on what faces the window (wrapped, so floors and tops still read lit at a low sun), a soft
         // edge, and the hot rim on the line as glow (before the corner shadows, so they darken it too)
@@ -112,6 +137,7 @@ function patch(shader) {
         reflectedLight.directDiffuse *= baked;
         reflectedLight.indirectDiffuse *= baked;
         reflectedLight.indirectSpecular *= baked;
+        reflectedLight.directDiffuse += lbKeep;   // (the bake has its own shadows)
       }
       #include <aomap_fragment>`);
 }

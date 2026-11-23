@@ -11,6 +11,7 @@ import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
 import { BAKED_AO, fingerprint } from '../baked-ao.js';
+import { BAKED_LIGHT, bakeFingerprint, setBakedLight } from '../baked-light.js';
 import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requirementText, unlocked, bank, pearlsFor, feats } from '../cosmetics.js';
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
@@ -1169,6 +1170,58 @@ story('engine/baked-ao-is-current', {
       if (!meta || JSON.stringify(meta.made) !== JSON.stringify(now) || meta.parts.join() !== s.parts.join()) stale.push(s.id);
     }
     return ok(!stale.length, { stale });
+  },
+});
+story('engine/baked-light-is-current', {
+  about: 'Every act\'s baked light (Blender, baked-light.js) was baked from the apartment files, furniture layout, lamps and light list (bake-lights.js) it plays with now. Moved furniture, a changed lamp or a changed light list fails this until node tools/bake-light.mjs bakes again.',
+  setup() {},
+  async play() {
+    const stale = [];
+    for (const s of STAGES.filter((s) => s.parts.length)) {
+      const meta = await fetch(`assets/light-${s.id}.json`).then((r) => (r.ok ? r.json() : null));
+      const now = await bakeFingerprint(s.id, s.parts, BAKED_LAYOUT[s.id]);
+      if (!meta || JSON.stringify(meta.made) !== JSON.stringify(now) || meta.parts.join() !== s.parts.join()) stale.push(s.id);
+    }
+    return ok(!stale.length, { stale });
+  },
+});
+story('engine/baked-light-lights-the-shell', {
+  about: 'The floor shows Blender\'s baked light in place of its lamps\' diffuse: switching every lamp off barely changes it, while with the bake switched off (the dev panel\'s Baked light) the same floor darkens a lot. The jelly\'s glow stays live on the baked floor, on Medium and on Low (whose plain materials skip the lamp maths there). Switching the bake builds no shader (it is a number, not a new program).',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); step(3); },
+  async play() {
+    const { gfx, APT, GAME } = G(), { camera } = APT, gl = APT.renderer.getContext(), was = gfx.choice, px = new Uint8Array(4);
+    if (!BAKED_LIGHT.meta) return ok(false, { baked: false });
+    const glow = (() => { let g = null; APT.scene.traverse((o) => { if (o.isPointLight && !o.userData.lamp && !o.userData.slot) g = o; }); return g; })();
+    const P = G().player.position, right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+    const spot = (d) => P.clone().addScaledVector(right, d).setY(0.001);
+    const at = (p) => {   // the screen's brightness at a floor point (a 3x3 average)
+      G().batcher.sync(); gfx.render();
+      const s = p.clone().project(camera), x = Math.round((s.x + 1) / 2 * gl.drawingBufferWidth), y = Math.round((s.y + 1) / 2 * gl.drawingBufferHeight);
+      let sum = 0;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { gl.readPixels(x + i, y + j, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); sum += px[0] + px[1] + px[2]; }
+      return sum / 9;
+    };
+    const far = spot(0.5), close = spot(0.07);
+    const lamps = () => { const on = GAME.toggleLamps(); return on; };
+    const measure = async (tier) => {
+      gfx.setQuality(tier); await gfx.ready;
+      setBakedLight(false); at(far); setBakedLight(true); at(far);
+      const programs = APT.renderer.info.programs.length;
+      setBakedLight(false); at(far); setBakedLight(true); at(far);
+      const built = APT.renderer.info.programs.length - programs;   // (switching lamps or the glow off changes the light count, which does build: measured before that)
+      const baked = at(far); lamps(); const bakedDark = at(far); lamps();
+      const withGlow = at(close); glow.visible = false; const noGlow = at(close); glow.visible = true;
+      setBakedLight(false);
+      const live = at(far); lamps(); const liveDark = at(far); lamps();
+      setBakedLight(true);
+      return { baked, bakedDark, live, liveDark, withGlow, noGlow, built };
+    };
+    try {
+      const medium = await measure('medium'), low = await measure('low');
+      const good = (m) => m.bakedDark > m.baked * 0.8 && m.liveDark < m.live * 0.6 && m.withGlow > m.noGlow + 3 && m.built === 0;
+      return ok(good(medium) && good(low), { medium, low });
+    } finally { setBakedLight(true); glow.visible = true; gfx.setQuality(was); await gfx.ready; }
   },
 });
 story('engine/baked-ao-shades-corners', {

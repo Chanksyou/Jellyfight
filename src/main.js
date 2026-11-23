@@ -37,6 +37,7 @@ import { AuraPainter } from './pick-auras/painter.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
 import { shadeWithBakedAO } from './baked-ao.js';
+import { BAKED_LIGHT, followGlow, setBakedLight } from './baked-light.js';
 import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
 import { StaticBatches, freeze } from './static-batch.js';
@@ -266,6 +267,7 @@ function skyNow(t) {
   const mix = (n, d) => LOOK.num(`${SKY}-${n}`, d) + (LOOK.num(`${SKY}-${n}-late`, d) - LOOK.num(`${SKY}-${n}`, d)) * t;
   const tint = (out, n) => out.set(LOOK.color(`${SKY}-${n}`, '#000000')).lerp(new THREE.Color(LOOK.color(`${SKY}-${n}-late`, '#000000')), t);
   SKY_STEP.fill = mix('fill', 0.12); SKY_STEP.haze = mix('haze', 0.14);
+  BAKED_LIGHT.uniforms.lbDayK.value = mix('daylight', 0);   // act 4's baked daylight picture (baked-light.js)
   tint(SKY_STEP.sky, 'sky'); tint(SKY_STEP.hazeColor, 'haze-color');
   scene.environmentIntensity = SKY_STEP.fill;
   scene.background.copy(SKY_STEP.sky);
@@ -290,7 +292,7 @@ const dendi = addDendi(scene, new THREE.Vector3(), 0, { hidden: true });   // hi
 if (!ARENA) addSurfaceDetail(world.colliders, {
   inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
 });
-if (APT.bakedAO || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun
+if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
 const statics = new StaticBatches(scene, camera);   // the furniture drawn a material at a time (static-batch.js)
 if (!ARENA) { statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas);
@@ -495,6 +497,8 @@ const systems = {
   debug: new DebugSystem({ state, hud, player, run, enemies, xpDrops, gfx, extra: () => pacingReadout() }),
   render: new RenderSystem({ gfx, statics }),
 };
+
+followGlow(systems.shadow.glow);   // the jelly's glow stays live on the baked shell (baked-light.js)
 
 // Dev layout editor: move the furniture around (layout.js)
 let layoutChanged = false;
@@ -881,8 +885,8 @@ const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
   overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
-  passOn: (pass) => (pass === 'lamps' ? lampsOn : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
-  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
+  passOn: (pass) => (pass === 'lamps' ? lampsOn : pass === 'bake' ? BAKED_LIGHT.on : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
+  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : pass === 'bake' ? setBakedLight(!BAKED_LIGHT.on) : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
 });
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;

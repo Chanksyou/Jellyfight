@@ -1,5 +1,5 @@
 // Bake a layout editor export into src/layout-baked.js in one command, then re-bake the corner
-// shadows for the acts it changed.
+// shadows and the light (tools/bake-light.mjs, Blender) for the acts it changed.
 //   node tools/bake-layout.mjs <file|->  [--check]
 // The code is what the editor's Export gives: { act, edits }, or a map of acts { "1": edits, ... }.
 // Each edit is merged over the act's baked entry (moves, deleted, hidden, copy:, prop:, vent:).
@@ -74,4 +74,7 @@ if (changed.includes('1') && !changed.includes('4')) changed.push('4');   // act
 fs.writeFileSync(FILE, out.join('\n'));
 console.log(`wrote src/layout-baked.js; baking shadows for act ${changed.join(', ')}`);
 const r = spawnSync('node', ['tools/bake-ao.mjs', ...changed], { cwd: ROOT, stdio: 'inherit' });
-process.exit(r.status ?? 1);
+if (r.status) process.exit(r.status);
+console.log(`baking the light for act ${changed.join(', ')} (Blender: about 5 to 20 minutes an act)`);
+const light = spawnSync('node', ['tools/bake-light.mjs', ...changed], { cwd: ROOT, stdio: 'inherit' });
+process.exit(light.status ?? 1);
