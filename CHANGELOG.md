@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v628 gives the big pieces of furniture (the kitchen, the sofa, cabinets, shelves, desks, posters, plants) their own baked light maps from Blender, so shelf shadows and lamp pools on them come out sharp instead of soft; smaller pieces keep the light grid. No extra draws.
+
 v627 lights the furniture in every act with Blender's baked light too: each piece now sits in the same soft lamp light, shadow and bounce as the walls and floor around it, with the jelly's glow still live on top. Low graphics skips the lamp maths on furniture as well.
 
 v626 lights the walls, floors and ceilings of every act with light baked in Blender: soft lamp shadows under the furniture, light bouncing off the room, a cool glow from the city through the living room's windows, moonlight through the bedroom window in act 3, cool bulbs in act 2's bathroom and closet, and in act 4 morning daylight that fades in with the dawn. The jelly's own glow still lights the floor live; Low graphics skips the lamp maths on baked surfaces.

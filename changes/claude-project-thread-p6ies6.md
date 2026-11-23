@@ -1,1 +1,0 @@
-gives the big pieces of furniture (the kitchen, the sofa, cabinets, shelves, desks, posters, plants) their own baked light maps from Blender, so shelf shadows and lamp pools on them come out sharp instead of soft; smaller pieces keep the light grid. No extra draws.
