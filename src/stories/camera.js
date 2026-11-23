@@ -257,6 +257,22 @@ story('camera/shell-never-fades', {
   },
 });
 
+story('camera/front-doorway-has-a-floor', {
+  about: 'The front doorway is floored across the wall\'s thickness, under the door, with a piece that seals the rooms: a camera low in the hall\'s corner sees floor there, never the night outside.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const shell = structuralMeshes(), ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), hits = [], missing = [];
+    ray.far = 0.1;
+    for (let x = 3.6; x <= 3.72; x += 0.03) for (let z = 8.1; z <= 8.92; z += 0.1) {
+      ray.set(new THREE.Vector3(x, 0.05, z), down);
+      hits.length = 0;
+      for (const m of shell) THREE.Mesh.prototype.raycast.call(m, ray, hits);   // the triangles themselves, facing up
+      if (!hits.length) missing.push([+x.toFixed(2), +z.toFixed(2)]);
+    }
+    return ok(!missing.length, { missing: missing.slice(0, 6) });
+  },
+});
+
 story('camera/stays-inside-the-shell', {
   about: 'Hugging every wall of the living room and hallway at every heading (the jelly 4 and 10 cm off it), the camera keeps the yaw and tilt asked for and comes in along that view just far enough that, with 4 cm for the near plane and combat shake, no wall, floor or ceiling is between it and the jelly; only when that would be closer than 16 cm does it stop there (a lens that close sits at most 4 cm into a 14 cm wall, looking away from it). Out in the room it sits at full distance.',
   setup() { fresh({ elites: false }); },

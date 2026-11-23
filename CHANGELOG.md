@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v653 fills the gap under the front door with floor, so a low camera in the hall's corner no longer sees the night outside through it.
+
 v652 makes the curtains and shades hang and move: the shower curtain, the sheer curtains and the roller shades ripple slowly from the rail down to the hem, and billow away when the jelly brushes past or something big lands near them. It's all in the shaders, so no extra draws, and Reduce effects holds them still.
 
 v651 brings rain to act 1: drops sit on the living room windows, a few run down the glass, the city behind goes soft and hazy, and the room tone adds rain on the glass with far thunder now and then. Act 4 is the same room at dawn and stays dry.
