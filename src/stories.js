@@ -76,6 +76,7 @@ import './stories/act3-bull.js';
 import './stories/act3-coffer.js';
 import './stories/act4.js';
 import './stories/night4.js';
+import './stories/vents.js';
 import './stories/living-room.js';
 import './stories/moth.js';
 import './stories/firefly.js';
