@@ -803,8 +803,9 @@
   --hostile-mosquito: #ff2a4a;   /* the mosquito's bite: the flash where its mouth meets the jelly (act 1's old laser red) */
   --hostile-wasp: #ffe600;       /* the wasp's sting as it lands: hot yellow */
   --hostile-firefly: #e6ff00;    /* the firefly's lamp as it blinks, its lobbed glow, the Warning and the pool it leaves: hot acid yellow */
-  --firefly-dim: #3a2208;        /* its lamp between blinks */
-  --firefly-glow: 1.8;           /* how far past white its lamp burns at a blink (bloom lifts it) */
+  --firefly-dim: #4e4018;        /* its lamp between flashes: a dull pale yellow, like the real one's lantern unlit */
+  --firefly-blink-beats: 4;      /* beats from one lamp flash to the next (128 bpm: 4 beats = 1.875 s); a whole number */
+  --firefly-glow: 2.4;           /* how far past white its lamp burns at a flash (bloom lifts it) */
   --firefly-lob-size: 0.007;     /* m: the glowing blob it lobs (its core; the halo is about 9x) */
   --firefly-warning-opacity: 0.32;   /* the circle filling where a lob will land */
   --firefly-dome-opacity: 0.26;      /* the dome over it (the Blast's space) */

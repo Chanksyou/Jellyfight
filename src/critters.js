@@ -2579,24 +2579,74 @@ export function buildMoth() {
 }
 
 // ------------------------------------------------------------------ firefly
-// A firefly beetle, soft dark wing covers over a flat orange-red shield behind a tucked head, long
-// beaded antennae, six thin legs and a pair of pale gauzy wings. Its last two body segments are the
-// lantern: a glowing mesh (not a light) that blinks on every beat of the song in the hostile colour
-// (--hostile-firefly) and stays lit while it draws back to dart. Facing +z, centred on its thorax;
-// about 2.6 radii long.
+// A firefly beetle in flight, after the photo: an orange shield over a tucked black head with big
+// glossy eyes and long beaded antennae, an orange thorax, a dark banded abdomen ending in the
+// lantern (its last two segments). Its wing covers, dark with orange edges, are raised up and out on
+// hinges at their front inner corners, and under them the smoky, veined hind wings beat as a blur.
+// The lantern is a glowing mesh (not a light) that swells and fades once every --firefly-blink-beats
+// beats of the song in the hostile colour (--hostile-firefly), and stays lit while it lifts its tail
+// to throw. Facing +z, centred on its thorax; about 2.6 radii long.
 function fireflyParts() {
-  const dark = '#2a1a12', cover = '#3a2616', shield = '#d8431a', band = '#1a0e08', ink = '#120a06';
+  const dark = '#1c100c', band = '#5a2e12', orange = '#c85410', shield = '#d8621a', ink = '#140c08', eye = '#0a0e22', leg = '#b4500e';
+  const beads = (s) => Array.from({ length: 11 }, (_, i) => {
+    const u = i / 10, p = new THREE.CatmullRomCurve3([V(s * 0.07, 0.0, 1.02), V(s * 0.22, 0.16, 1.35), V(s * 0.3, 0.12, 1.75)]).getPoint(u);
+    return ellipsoid(0.034 - u * 0.01, 0.03 - u * 0.008, 0.042, p, ink, 6);
+  });
   const body = merge([
-    ellipsoid(0.4, 0.22, 0.95, V(0, 0.05, -0.35), cover),               // wing covers
-    ellipsoid(0.03, 0.04, 0.8, V(0, 0.27, -0.35), band, 8),             // the seam down them
-    ellipsoid(0.42, 0.16, 0.34, V(0, 0.1, 0.55), shield),               // the flat shield behind the head
-    ellipsoid(0.06, 0.04, 0.26, V(0, 0.26, 0.55), band, 8),             // its dark stripe
-    ellipsoid(0.18, 0.15, 0.18, V(0, 0.02, 0.9), dark),                 // head, tucked under the shield
-    ...[-1, 1].map((s) => tube([V(s * 0.08, 0.08, 1.0), V(s * 0.2, 0.3, 1.3), V(s * 0.36, 0.38, 1.6)], 0.022, ink, 6)),   // antennae
-    ...[-1, 1].flatMap((s) => [0.6, 0.15, -0.3].map((z) => rod(V(s * 0.25, -0.05, z), V(s * 0.55, -0.4, z + (z > 0.3 ? 0.15 : z < 0 ? -0.2 : 0)), 0.045, 0.02, ink))),   // legs
+    ellipsoid(0.3, 0.26, 0.38, V(0, -0.02, 0.18), orange),               // thorax
+    ellipsoid(0.4, 0.13, 0.36, V(0, 0.14, 0.62), shield),                // the shield over the head
+    ellipsoid(0.17, 0.15, 0.16, V(0, -0.04, 0.92), ink),                 // head, tucked under it
+    ...[-1, 1].map((s) => ellipsoid(0.1, 0.12, 0.1, V(s * 0.14, -0.04, 0.96), eye, 10)),   // glossy eyes
+    ...[-1, 1].flatMap(beads),                                             // beaded antennae
+    ...[0, 1, 2, 3, 4].map((i) => ellipsoid(0.29 - i * 0.025, 0.19 - i * 0.012, 0.13, V(0, -0.08 - i * 0.01, -0.22 - i * 0.15), i % 2 ? band : dark, 12)),   // the abdomen's bands
+    ...[-1, 1].flatMap((s) => [0.5, 0.22, -0.06].flatMap((z, i) => {   // legs tucked back in flight: orange thighs, dark shins
+      const hip = V(s * 0.18, -0.18, z), knee = V(s * 0.4, -0.3, z - 0.06), foot = V(s * (0.32 + i * 0.04), -0.48, z - 0.34);
+      return [rod(hip, knee, 0.045, 0.035, leg), rod(knee, foot, 0.03, 0.014, ink)];
+    })),
   ]);
-  const wing = new THREE.ShapeGeometry(new THREE.Shape().moveTo(0, 0).bezierCurveTo(0.4, 0.22, 1.2, 0.2, 1.5, 0).bezierCurveTo(1.2, -0.14, 0.4, -0.12, 0, 0), 10).rotateX(-Math.PI / 2).rotateY(Math.PI * 0.55);
-  return { body, wing, lamp: ellipsoid(0.34, 0.19, 0.42, V(0, 0.02, -1.22), '#ffffff') };
+  // a wing cover: half an elongated dome, dark with an orange rim round its outer edge and down the seam;
+  // its inside is the same shell turned in, so it reads solid when raised
+  const EC = V(0, 0.08, -0.42), EE = V(0.34, 0.22, 0.92);
+  const cover = (s) => {
+    const out = new THREE.SphereGeometry(1, 20, 12, s > 0 ? Math.PI / 2 : -Math.PI / 2, Math.PI, 0, Math.PI * 0.56).scale(EE.x, EE.y, EE.z).translate(EC.x, EC.y, EC.z).toNonIndexed();
+    const p = out.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), D = new THREE.Color(dark), O = new THREE.Color(orange);
+    for (let i = 0; i < p.count; i++) {
+      const y = (p.getY(i) - EC.y) / EE.y, x = Math.abs(p.getX(i)) / EE.x;
+      c.copy(D).lerp(O, Math.max(THREE.MathUtils.smoothstep(-y, -0.02, 0.12), 1 - THREE.MathUtils.smoothstep(x, 0.03, 0.09)));
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    out.deleteAttribute('uv');
+    out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const inside = tint(out.clone().translate(-EC.x, -EC.y, -EC.z).scale(0.95, 0.9, 0.97).translate(EC.x, EC.y, EC.z), '#3a2416');
+    const q = inside.attributes.position;
+    for (let i = 0; i < q.count; i += 3) { const a = [q.getX(i), q.getY(i), q.getZ(i)]; q.setXYZ(i, q.getX(i + 1), q.getY(i + 1), q.getZ(i + 1)); q.setXYZ(i + 1, ...a); }   // turned in
+    return merge([out, inside]);
+  };
+  // a hind wing: smoky see-through membrane, darker at the root and along the front, veins fanning to the edge
+  // with cross veins making cells (like the photo)
+  const membrane = wingTexture(512, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const m = g.createLinearGradient(0, 0, w, 0);
+    m.addColorStop(0, 'rgba(70,50,34,.7)'); m.addColorStop(0.35, 'rgba(96,82,60,.42)'); m.addColorStop(1, 'rgba(120,110,90,.3)');
+    g.fillStyle = m; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(24,16,10,.9)'; g.lineCap = 'round';
+    const veins = [0.04, 0.16, 0.32, 0.5, 0.68, 0.86].map((v) => (x) => 0.03 + (v - 0.03) * Math.pow(Math.min(1, x / 0.9), 0.6));
+    veins.forEach((f, i) => { g.lineWidth = i === 0 ? 6 : i < 2 ? 3 : 2; g.beginPath(); g.moveTo(0, f(0) * h); for (let k = 1; k <= 24; k++) g.lineTo(k / 24 * w, f(k / 24) * h); g.stroke(); });
+    g.lineWidth = 1.4;
+    for (let i = 1; i < veins.length - 1; i++) for (const x of [0.3 + i * 0.05, 0.55 + i * 0.04, 0.78]) { g.beginPath(); g.moveTo(x * w, veins[i](x) * h); g.lineTo((x + 0.04) * w, veins[i + 1](x + 0.04) * h); g.stroke(); }
+    g.fillStyle = 'rgba(30,20,12,.85)'; g.beginPath(); g.ellipse(w * 0.62, h * 0.08, w * 0.05, h * 0.045, 0, 0, 7); g.fill();   // the dark spot on the front edge
+  });
+  return {
+    body, covers: [cover(-1), cover(1)], membrane, wing: wingGeometry(1.55, 0.72, 0.5, 24), hinge: V(0, EC.y + EE.y * 0.9, EC.z + EE.z * 0.92),
+    lamp: merge([ellipsoid(0.26, 0.17, 0.17, V(0, -0.1, -1.08), '#ffffff'), ellipsoid(0.21, 0.14, 0.15, V(0, -0.1, -1.29), '#ffffff')]),   // the lantern: its last two segments
+  };
+}
+
+// how lit a firefly's lantern is at `beat` of the song: a flash every `every` beats, up in a quarter beat,
+// then fading over about a beat and a half (dark the rest of the time)
+export function fireflyFlash(beat, every) {
+  const u = ((beat % every) + every) % every;
+  return u < 0.25 ? THREE.MathUtils.smoothstep(u, 0, 0.25) : Math.exp(-(u - 0.25) * 2.2);
 }
 
 export function buildFirefly() {
@@ -2604,25 +2654,41 @@ export function buildFirefly() {
   if (!M.ffLamp) {   // one shared glow, tinted per bug (batch.js perInstance); unlit, so bloom lifts it
     M.ffLamp = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
     M.ffLamp.userData.perInstance = true;
+    M.ffWing = new THREE.MeshStandardMaterial({ map: G.membrane, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.2, depthWrite: false });
   }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.matte));
   const lamp = new THREE.Mesh(G.lamp, M.ffLamp);
   lamp.userData.color = new THREE.Color();
+  lamp.name = 'firefly-lamp';
   body.add(lamp);
-  const wings = [-1, 1].map((s) => {
-    const pivot = new THREE.Group(), w = new THREE.Mesh(G.wing, M.wing);
-    pivot.position.set(s * 0.2, 0.26, 0.2);
-    w.scale.x = -s;
-    pivot.add(w);
+  // the wing covers, each on a hinge at its front inner corner
+  const covers = [-1, 1].map((s, i) => {
+    const pivot = new THREE.Group(), m = new THREE.Mesh(G.covers[i], M.matte);
+    pivot.position.set(s * 0.03, G.hinge.y, G.hinge.z);
+    m.position.set(-s * 0.03, -G.hinge.y, -G.hinge.z);
+    pivot.add(m);
     body.add(pivot);
+    pivot.name = 'firefly-cover';
     return { pivot, s };
   });
-  const face = angryEyes({ y: 0.1, z: 0.98, size: 0.07, gap: 0.1 });
+  // the hind wings, from under the covers' hinges, out to the sides
+  const wings = [-1, 1].map((s) => {
+    const pivot = new THREE.Group(), flap = new THREE.Group(), w = new THREE.Mesh(G.wing, M.ffWing);
+    pivot.position.set(s * 0.1, 0.2, 0.3);
+    w.scale.x = s;
+    flap.add(w); pivot.add(flap); body.add(pivot);
+    pivot.name = 'firefly-wing';
+    return { pivot, flap, s };
+  });
+  const face = angryEyes({ y: 0.06, z: 1.0, size: 0.07, gap: 0.1 });
   body.add(face);
-  const dim = new THREE.Color(LOOK.color('firefly-dim', '#3a2208')), hot = new THREE.Color();
+  const dim = new THREE.Color(LOOK.color('firefly-dim', '#4e4018')), hot = new THREE.Color();
+  const every = LOOK.num('firefly-blink-beats', 4), beat = 60 / 128;
   let t = 0, wind = 0, held = 0;
+  // flying: the covers held up and out, trembling with the beat of the hind wings (about 15 a second), the
+  // body hanging tail down and bobbing gently, leaning into where it's going.
   // its lob (attack-motion "throw", src/attack-motion.js): its tail lifts (nose down) with a quiver, dips a
   // little more in the last 0.1 s as it winds back, then the tail flicks up and over, stretched along the throw;
   // it tumbles nose up and corrects. The lamp is the word's own: lit and swelling as it aims, squeezed as it throws
@@ -2630,13 +2696,17 @@ export function buildFirefly() {
     t += dt;
     wind += (((e?.state === 'windup') ? 1 : 0) - wind) * (1 - Math.exp(-14 * dt));
     const kick = Math.max(0, e?.firedT || 0) / 0.3;     // the lob word: 0.3 s after the throw
-    // the lamp: a flash on every beat, held lit while it lifts its tail and throws
-    const k = Math.max(e?.beatPulse || 0, wind, kick);
-    hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 1.8));
+    // the lamp: a slow flash on the song's beat (once every `every` beats), held lit while it lifts its tail and throws
+    const k = Math.max(fireflyFlash(e?.beatAt ?? t / beat, every), wind, kick);
+    hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 2.4));
     lamp.userData.color.copy(dim).lerp(hot, k * k);
-    const flap = Math.sin(t * (50 + wind * 20));
-    for (const W of wings) { W.pivot.rotation.z = W.s * (0.3 + flap * 0.55); W.pivot.rotation.y = W.s * (0.25 + 0.15 * Math.cos(t * 50)); }
-    const A = e?.atk, ph = A ? A.phase : 'idle';
+    const A = e?.atk, ph = A ? A.phase : 'idle', still = A?.still ? 1 : 0;
+    const beatW = Math.sin(t * 95 + (e?.phase || 0));
+    for (const C of covers) C.pivot.rotation.set(0.6 + beatW * 0.03 * (1 - still), -C.s * 0.25, C.s * 0.6, 'YXZ');
+    for (const W of wings) {
+      W.pivot.rotation.set(0.1, -W.s * 1.05, 0);
+      W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 95 + (W.s > 0 ? 0 : 0.4) + (e?.phase || 0)) * 0.9);
+    }
     let lift = wind, jolt = kick * kick, tumble = kick * 0.54, len = 1, shake = 0;   // (without an attack clock: the word's own blends)
     if (A) {
       lift = jolt = tumble = 0;
@@ -2651,9 +2721,11 @@ export function buildFirefly() {
       if (ph === 'idle') lift = held *= Math.exp(-14 * dt);   // broken off (frozen, stunned): the tail comes down, not pops
       else held = lift;
     }
-    body.position.set(shake * 0.03, Math.sin(t * 3 + (e?.phase || 0)) * 0.1 * (1 - Math.max(wind, A?.still ? 1 : 0)), jolt * 0.3);   // the throw jolts it forward, off its tail
-    body.rotation.x = 0.05 + lift * 0.55 - tumble * 0.65;        // lifting its tail (nose down) to throw; the throw flicks it up and over
-    body.rotation.z = shake * 0.06;
+    const calm = 1 - Math.max(wind, still);                  // it stops bobbing as it aims
+    const speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
+    body.position.set(shake * 0.03, (Math.sin(t * 3 + (e?.phase || 0)) * 0.1 + beatW * 0.012) * calm, jolt * 0.3);   // the throw jolts it forward, off its tail
+    body.rotation.x = -0.35 * calm + Math.min(0.25, speed * 1.2) * calm + lift * 0.55 - tumble * 0.65;   // hanging tail down, leaning in as it goes; lifting its tail (nose down) to throw; the throw flicks it up and over
+    body.rotation.z = shake * 0.06 + Math.sin(t * 1.7 + (e?.phase || 0)) * 0.06 * calm;
     stretch(body, len);
     lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
     if (A) eyes(face, A);
