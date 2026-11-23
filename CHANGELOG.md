@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v652 makes the curtains and shades hang and move: the shower curtain, the sheer curtains and the roller shades ripple slowly from the rail down to the hem, and billow away when the jelly brushes past or something big lands near them. It's all in the shaders, so no extra draws, and Reduce effects holds them still.
+
 v651 brings rain to act 1: drops sit on the living room windows, a few run down the glass, the city behind goes soft and hazy, and the room tone adds rain on the glass with far thunder now and then. Act 4 is the same room at dawn and stays dry.
 
 v650 replaces act 4's Moth with a Monarch butterfly: a painted monarch that flies in quick beats and glides, and lobs a spinning ball of hot rainbow light that fires bolts every way, up, down and all round, on every beat (2 each) and bursts where it lands (3).
