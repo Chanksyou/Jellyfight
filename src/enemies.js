@@ -1285,7 +1285,7 @@ export class Enemies {
   burrowGo(e) { this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.01), 0xb8a890, e.r * 1.2, 0.3); }
   // it bursts up where it locked: a Blast on the floor, `radius` round. You're hurt if inside it (a jump high over the dome clears it),
   // shoved away from the middle and tossed up
-  burrowBurst(e, c, { radius, dmg, knock, launch }) {
+  burrowBurst(e, c, { radius, dmg, knock, launch, tumble }) {
     const at = e.burrowAt, col = hostile('cicada'), P = this.player, f = c.realFoot || c.foot;
     sfx.burrowBurst();
     this.fx.impact(S.o.set(at.x, at.y + 0.015, at.z).clone(), col, radius * 0.45, 16);
@@ -1298,7 +1298,8 @@ export class Enemies {
       bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id, at });
       const away = S.dir.set(f.x - at.x, 0, f.z - at.z);
       if (away.lengthSq() < 1e-8) away.set(Math.cos(e.phase), 0, Math.sin(e.phase));   // right on top of it: any way is away
-      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch });
+      bus.emit('knockback', { targetId: PLAYER, dir: away.normalize().clone(), force: knock, launch, tumble: tumble * c.spb });   // (beats to seconds)
+      if (tumble) juice.feel('launched');   // a throw: a freeze on the squashed jelly, then it flies
     } else if (P && P.position.distanceTo(at) < radius * 2.5) juice.feel('impact');   // a near miss still rocks the screen
   }
   // the Warning over each locked mound: a floor circle and the dome over it, filling together to the beat it bursts up on
@@ -1588,7 +1589,7 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();

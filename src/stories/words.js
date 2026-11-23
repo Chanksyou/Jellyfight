@@ -9,12 +9,13 @@ import { TREASURES, STAT_INFO, EVOLUTIONS } from '../stats.js';
 import { parse } from '../kdl.js';
 import { LOOK } from '../look.js';
 import { sfx, unlock as unlockAudio, audio } from '../sfx.js';
+import { juice } from '../juice.js';
 import { SPECIES, buildCharacter, normalizeLook, bellFront, bellHalfWidth } from '../character.js';
 import { bellFlex } from '../bell-flex.js';
 import { TeleMaterial } from '../vfx.js';
 import { buildNest, buildWasp, NEST } from '../critters.js';
 import { applyState } from '../cat.js';
-import { G, STORIES, V, offs, fresh, holdJelly, near, ok, record, shownWarnings, sim, spawn, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
+import { G, STORIES, V, offs, fresh, holdJelly, near, ok, record, shownWarnings, sim, spawn, spy, step, story, stub, tp, volumePairs, warningsAt } from './kit.js';
 
 // --- the vocabulary: one story per behaviour word (src/words.js), proving what it does
 story('words/chase', {
@@ -1264,7 +1265,7 @@ story('words/leap-subtle-warning', {
 // it starts at once (its cooldown is spent) and, with on-beat, on the next bar line
 const cicadaAt = (d = 0.3) => { stub(G().run, 'song', null); const e = spawn('cicada', near(d, 0)); e.burrowCd = 0; return e; };   // (the run's own beat count: a song the speakers play, as an earlier story may have started one, keeps its own time)
 story('words/burrow', {
-  about: 'Within reach on the bar the cicada digs in (0.45 s, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for 5 beats of the song, then locks and a circle and dome over the spot fill together for 1 beat; on that beat it bursts up as a Blast under the jelly that stood still (5 Health) and the Warning is gone.',
+  about: 'Within reach on the bar the cicada digs in (1 beat, still hittable) and goes under: it can\'t be hit or touched, a mound trails after you for 5 beats of the song, then locks and a circle and dome over the spot fill together for 2 beats; on that beat it bursts up as a Blast under the jelly that stood still (5 Health) and the Warning is gone.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
   play() {
     const { enemies, run } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
@@ -1278,7 +1279,7 @@ story('words/burrow', {
     const trails = d1 < d0 - 0.05 && !e.burrowLocked && !enemies.burrowMarks.some((M) => M.floor.visible);
     step(60 * 8, () => e.burrowLocked);
     const lockedAt = e.pos.clone(), beatsAtLock = e.burrowBeats;
-    step(8);   // (the circle fills for only 1 beat now)
+    step(8);
     const stays = e.pos.distanceTo(lockedAt) < 1e-4 && e.burrowAt.distanceTo(lockedAt) < 1e-4;
     let both = true, grew = true, last = 0, shown = 0;
     step(60 * 8, () => {
@@ -1292,7 +1293,8 @@ story('words/burrow', {
     const bursts = log.filter((d) => d.source === 'cicada' && d.amount === 5);
     const gone = !enemies.burrowMarks.some((M) => M.floor.visible || M.vol.visible);
     step(2);
-    return ok(dig > 20 && dig < 40 && under && trails && beatsAtLock >= 5 && beatsAtLock < 5.6 && stays && both && grew && shown > 12 && e.state === 'dazed' && !e.under && bursts.length === 1 && gone,
+    const beatF = 3600 / G().run.bpm;   // one beat in frames
+    return ok(Math.abs(dig - beatF) < 3 && under && trails && beatsAtLock >= 5 && beatsAtLock < 5.6 && stays && both && grew && shown > 12 && e.state === 'dazed' && !e.under && bursts.length === 1 && gone,
       { dig, under, trails, beatsAtLock: +beatsAtLock.toFixed(2), stays, drift: [e.pos.distanceTo(lockedAt), e.burrowAt.distanceTo(lockedAt)], both, grew, shown, state: e.state, gone });
   },
 });
@@ -1303,7 +1305,53 @@ story('words/burrow-hits', {
     const { enemies } = G(), e = enemies.list[0], log = record('damage_taken'), shoves = record('knockback');
     step(60 * 25, () => e.state === 'dazed');
     const hit = log.find((d) => d.source === 'cicada' && d.amount === 5), shove = shoves.find((k) => k.targetId === PLAYER && k.launch);
-    return ok(!!hit && !!shove && shove.force === 0.5 && shove.launch === 0.5 && Math.abs(shove.dir.length() - 1) < 1e-6 && shove.dir.y === 0, { hit: hit?.amount, shove: shove && { force: shove.force, launch: shove.launch } });
+    return ok(!!hit && !!shove && shove.force === 1.5 && shove.launch === 0.5 && shove.tumble > 0 && Math.abs(shove.dir.length() - 1) < 1e-6 && shove.dir.y === 0, { hit: hit?.amount, shove: shove && { force: shove.force, launch: shove.launch } });
+  },
+});
+story('words/burrow-throws-the-jelly-far', {
+  about: 'A hit from the burst throws the jelly a long way: it flies and lands 0.8 to 1.6 m from the middle of the circle, with a freeze on the hit (the launched step), where it used to barely leave it.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies, player } = G(), e = enemies.list[0], feels = spy(juice, 'feel');
+    step(60 * 25, () => e.state === 'dazed');
+    const at = e.burrowAt.clone(), launched = feels.some((a) => a[0] === 'launched');
+    step(10);
+    const up = !player.grounded;
+    step(60 * 5, () => player.grounded && Math.hypot(player.velocity.x, player.velocity.z) < 0.02);
+    const far = Math.hypot(player.position.x - at.x, player.position.z - at.z);
+    return ok(launched && up && far >= 0.8 && far <= 1.6, { launched, up, far: +far.toFixed(2) });
+  },
+});
+story('words/burrow-tumble-cant-be-steered', {
+  about: 'Thrown by the burst, the jelly tumbles for 1 beat with almost no grip: the stick held against the throw barely slows it, and once the tumble is over the same stick takes the speed away.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
+  play() {
+    const { enemies, player, run, input } = G(), e = enemies.list[0], shoves = record('knockback');
+    step(60 * 25, () => e.state === 'dazed');
+    const shove = shoves.find((k) => k.targetId === PLAYER && k.launch);
+    if (!shove) return ok(false, { shove: null });
+    const d = shove.dir, key = Math.abs(d.x) > Math.abs(d.z) ? (d.x > 0 ? 'KeyA' : 'KeyD') : (d.z > 0 ? 'KeyW' : 'KeyS');   // the stick, held against the throw (yaw 0: W is -z, D is +x)
+    const speed = () => d.x * player.velocity.x + d.z * player.velocity.z;   // along the throw
+    const v0 = speed(), tumbling = run.tumbleT > 0, beat = 60 / run.bpm;
+    input.keys = new Set([key]);
+    step(Math.floor(60 * beat * 0.8));   // most of the tumble
+    const vTumble = speed();
+    step(Math.ceil(60 * beat * 0.4));    // past it
+    const v1 = speed(); step(30); const vFree = speed();
+    input.keys = new Set();
+    return ok(Math.abs(shove.tumble - beat) < 1e-6 && tumbling && v0 > 0.9 && vTumble > 0.8 * v0 && vFree < 0.8 * v1, { tumble: shove.tumble, tumbling, v0: +v0.toFixed(2), vTumble: +vTumble.toFixed(2), v1: +v1.toFixed(2), vFree: +vFree.toFixed(2) });
+  },
+});
+story('words/burrow-bursts-on-the-downbeat', {
+  about: 'Dig 1 beat, trail 5, Warning 2: the burst lands 8 beats after the dig starts (two bars), on a beat of the song.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.4); },
+  play() {
+    const { enemies, run } = G(), e = enemies.list[0];
+    step(60 * 8, () => e.state === 'dig');
+    const b0 = run.beat;
+    step(60 * 25, () => e.state === 'dazed');
+    const span = run.beat - b0, frac = Math.abs(run.beat - Math.round(run.beat));
+    return ok(e.state === 'dazed' && Math.abs(span - 8) < 0.3, { span: +span.toFixed(2), frac: +frac.toFixed(2) });
   },
 });
 story('words/burrow-dodge', {
@@ -1332,7 +1380,7 @@ story('words/burrow-jump', {
   },
 });
 story('words/burrow-untouchable', {
-  about: 'Under the floor the cicada can\'t be hurt, frozen, stunned, shot or touched: a hit does nothing, your own attack passes over its mound and standing on it costs nothing; once it bursts up and stands dazed (1.6 s) it can be hit again, then it walks.',
+  about: 'Under the floor the cicada can\'t be hurt, frozen, stunned, shot or touched: a hit does nothing, your own attack passes over its mound and standing on it costs nothing; once it bursts up and stands dazed (4 beats) it can be hit again, then it walks.',
   setup() { fresh({ hurt: true, elites: false, bubbles: true, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies, run } = G(), e = enemies.list[0], log = record('damage_taken');
@@ -1353,7 +1401,7 @@ story('words/burrow-untouchable', {
   },
 });
 story('words/burrow-dazed', {
-  about: 'After it bursts up the cicada stands still for 1.6 s, dazed, then walks again and can dig in once its 4 s are up.',
+  about: 'After it bursts up the cicada stands still for 4 beats, dazed, then walks again and can dig in once its 4 s are up.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); cicadaAt(0.1); },
   play() {
     const { enemies } = G(), e = enemies.list[0];
@@ -1361,7 +1409,8 @@ story('words/burrow-dazed', {
     const at = e.pos.clone();
     let frames = 0; step(60 * 4, () => { if (e.state === 'dazed') frames++; return e.state === 'approach'; });
     const moved = e.pos.distanceTo(at);
-    return ok(frames > 90 && frames < 102 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 3, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
+    const beatF = 3600 / G().run.bpm;
+    return ok(Math.abs(frames - 4 * beatF) < 4 && moved < 0.01 && e.state === 'approach' && e.burrowCd > 3, { secs: +(frames / 60).toFixed(2), moved: +moved.toFixed(4), cd: +e.burrowCd.toFixed(2) });
   },
 });
 story('words/burrow-mound-is-dimmer-than-the-warning', {

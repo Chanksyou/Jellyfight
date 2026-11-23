@@ -1286,6 +1286,7 @@
   --feel-kill-big: 0.3 0.06;   /* a bigger bug finished off */
   --feel-impact-big: 0.4 0;    /* a heavy Elite or bug attack landing */
   --feel-hurt: 0.55 0;         /* the jelly takes a hit */
+  --feel-launched: 0.6 0.06;   /* the jelly is thrown (the Cicada's burst): a short freeze on the hit, then the shake */
   --feel-save: 0.8 0.3;        /* Snooze Button saving you from your last hit */
   --feel-elite-kill: 0.7 0.15;
   --feel-boss-kill: 1 0.25;
