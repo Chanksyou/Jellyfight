@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v635 removes act 4's Soundbar bass wave, the low red wave that rolled across the living room every 16 bars: the room is easier, and the stage door's sub drop stays.
+
 v634 adds a Free roam to the dev tools (Play group): pick an act and walk its room with no bugs, no Elites, no damage and the clock stopped, to look at the lighting, vents and ambient life.
 
 v633 gives every floor vent a real grille (frame, angled louvres, a dark duct) and drops the column of light: the air now shows as soft wisps that rise from the louvres and fan out, dust motes carried up in the stream, and tell-tale ribbons that flutter on the grille, in all four acts.
