@@ -734,7 +734,7 @@
   --vent-mote-size: 2.2;       /* a mote's size in pixels at 1 m away (the game multiplies it by the screen's pixel ratio) */
   --vent-ribbon: #8fd6d0;      /* the tell-tale ribbons: cool, never hot (hot is for hostile things) */
   --vent-ribbon-glow: 0.8;
-  --vent-ribbons: 3;           /* ribbons a vent */
+  --vent-ribbons: 1;           /* ribbons a vent (one, tied to the middle of the grille) */
   --vent-grille: #5c5f64;      /* the frame, and the louvres' slats */
   --vent-grille-slat: #45484d;
   --vent-calm-speed: 0.3;      /* Reduce effects: the streaks' speed, the ribbons hang still */
