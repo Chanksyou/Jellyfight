@@ -1555,6 +1555,20 @@ export const sfx = {
     if (hit) tone('sine', 140 * j, 60, 0.15, 0.12);
     patter(4, 0.08, 0.3, 0.03);
   },
+  // a butterfly's prism ball: a glassy shimmer rising as it grows (the warning), a bright toss, a
+  // chime as each ring of bolts goes out (a different note each time), and a sparkling burst where it lands
+  prismWind(dur = 0.6) { if (!ready() || !gap('prismWind', 120)) return; const j = jitter(0.1); tone('triangle', 520 * j, 1040 * j, dur, 0.035); tone('sine', 1560 * j, 2600 * j, dur, 0.012); tone('sine', 783 * j, 1566 * j, dur, 0.01); },
+  prismThrow() { if (!ready() || !gap('prismThrow', 90)) return; const j = jitter(0.12); noise(1400 * j, 2, 0.08, 0.09, 'bandpass', 0, 3400 * j); tone('triangle', 1300 * j, 620 * j, 0.12, 0.05); },
+  prismRing() {
+    if (!ready() || !gap('prismRing', 60)) return; const j = jitter(0.04), n = [1, 1.25, 1.5, 2][(Math.random() * 4) | 0];
+    tone('sine', 1320 * j * n, 1320 * j * n, 0.16, 0.03); tone('triangle', 2640 * j * n, 2400 * j * n, 0.1, 0.012); noise(6000 * j, 1, 0.06, 0.03, 'highpass');
+  },
+  prismBurst(hit = false) {
+    if (!ready() || !gap('prismBurst', 70)) return; const j = jitter(0.12);
+    noise(2600 * j, 1.5, 0.14, 0.14, 'bandpass', 0, 900 * j); tone('triangle', 1760 * j, 880 * j, 0.25, 0.03);
+    if (hit) tone('sine', 150 * j, 60, 0.15, 0.12);
+    patter(5, 0.07, 0.25, 0.025);
+  },
   glowSizzle() { if (!ready() || !gap('glowSizzle', 220)) return; const j = jitter(0.15); noise(7000 * j, 1, 0.14, 0.04, 'highpass'); tone('sine', 900 * j, 1300 * j, 0.08, 0.01); },
   // a mosquito's bite: its thin whine climbing as it draws back (the warning), a zip as it darts in,
   // and a sharp prick as it bites

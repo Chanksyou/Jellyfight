@@ -993,7 +993,6 @@ async function warmUp() {
   fx.ring(P.clone(), 0xffffff, 0.05, 1);
   fx.burst(P.clone().setY(P.y + 0.02), ['#ffffff'], 2);
   fx.splat(P.clone(), 0xffffff, 0.01, 'ink');   // the floor marks' painted sheet (every shape shares its shader)
-  fx.smoke(P.clone().setY(P.y + 0.02));          // a moth's black smoke (its own shader: the jelly shows through it)
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
@@ -1003,6 +1002,7 @@ async function warmUp() {
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
   enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
+  enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));   // a butterfly's bolt and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -1044,6 +1044,7 @@ async function warmUp() {
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
   enemies.glowPools.warm(false);
+  enemies.prismBalls.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);

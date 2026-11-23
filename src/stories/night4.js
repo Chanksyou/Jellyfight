@@ -53,7 +53,7 @@ night4('the-act-opens-in-the-living-room-at-dawn', {
 });
 
 night4('bug-health-is-constant-all-night', {
-  about: 'Act 4\'s regular bugs have the same Health however late in the night they spawn: Firefly 700, Moth 1000, Cicada 1200, exactly.',
+  about: 'Act 4\'s regular bugs have the same Health however late in the night they spawn: Firefly 700, Monarch butterfly 1000, Cicada 1200, exactly.',
   setup() { fresh({ waves: true }); },
   play() {
     const { run, enemies } = G(), seen = {};
@@ -64,7 +64,7 @@ night4('bug-health-is-constant-all-night', {
       for (const e of enemies.list) if (!before.has(e) && e.T.id !== 'nest') (seen[e.T.id] ||= new Set()).add(e.maxHp);
       enemies.list.filter((e) => !e.dead && !before.has(e)).forEach((e) => { e.dead = true; });
     }
-    const want = { firefly: 700, moth: 1000, cicada: 1200 };
+    const want = { firefly: 700, butterfly: 1000, cicada: 1200 };
     const flat = Object.keys(want).every((id) => seen[id]?.size === 1 && seen[id].has(want[id]));
     return ok(flat, { seen: Object.fromEntries(Object.entries(seen).map(([k, v]) => [k, [...v]])) });
   },
