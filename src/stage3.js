@@ -16,6 +16,7 @@
 //   closet doors in the east wall (x 1.56, z 9.46 to 10.27); a dresser with a changing pad on top
 //     (the changing table: x -1.01 to -0.25, z 8.13 to 8.6, top 1.146) and a diaper pail along the north wall
 export const STAGE3 = {
+  floorLight: [{ at: [-1.25, 8.7], r: 0.5, kind: 'night' }],   // the night light's pool (floor-light.js), drifting pink to amber
   id: 3,
   name: 'Medusa',
   subtitle: 'Bedroom',

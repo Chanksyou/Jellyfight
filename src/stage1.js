@@ -27,6 +27,9 @@ export const STAGE1 = {
 
   // Dendi asleep in his box by the cat scratcher all night (cat.js addDendi; he gets up only to finish the boss)
   cat: { at: [4.155, 0.006, 4.53], yaw: Math.PI + 0.06 },
+  // Light on the floor (floor-light.js): the TV's colours on the rug in front of the media console, the monitor's by the desk
+  floorLight: [{ at: [1.62, 3.8], r: 0.7, kind: 'screen' }, { at: [1.0, 3.2], r: 0.55, kind: 'screen' }],
+  tvScreensaver: true,                // the wall TV shows its idle colours (set-dressing.js); act 4's concert dressing owns it there
   rain: true,                         // rain on the windows (rain.js) and in the room tone (ambience.js); act 4 is the same room, dry
 
   noCollide: [],

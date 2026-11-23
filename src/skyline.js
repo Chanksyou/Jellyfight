@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
+import { AMBIENT } from './ambient.js';
 
 export async function loadSkylineAtlas() {
   try {
@@ -94,11 +95,15 @@ export function addSkyline(scene, centre, map, { haze = 0 } = {}) {   // haze: r
     shader.uniforms.citySun = sky.sun;
     shader.uniforms.citySunAt = sky.sunAt;
     shader.uniforms.cityHaze = { value: haze };
+    shader.uniforms.ambientOn = AMBIENT.uniforms.ambientOn;   // the room's one clock (ambient.js): windows switch, beacons blink
+    shader.uniforms.ambientTime = AMBIENT.uniforms.ambientTime;
+    shader.uniforms.cityLife = { value: new THREE.Vector3(LOOK.num('city-windows', 0.12), LOOK.num('city-window-dim', 0.12), LOOK.num('city-beacon-dim', 0.2)) };
     shader.uniforms.cityHazeColor = { value: new THREE.Color(LOOK.color('rain-haze-color', '#2a3442')) };
     shader.fragmentShader = `
       uniform float cityDaylight, cityNightGain, cityDayGain, citySkyMix, citySunUp;
       uniform vec3 citySky, cityHorizon, citySun, cityHazeColor;
-      uniform float cityHaze;
+      uniform float cityHaze, ambientOn, ambientTime;
+      uniform vec3 cityLife;
       uniform vec2 citySunAt;
     ` + shader.fragmentShader.replace('#include <map_fragment>', `
       #include <map_fragment>
@@ -106,6 +111,18 @@ export function addSkyline(scene, centre, map, { haze = 0 } = {}) {   // haze: r
       float luma = dot(art, vec3(0.2126, 0.7152, 0.0722));
       float light = smoothstep(0.14, 0.65, luma);
       vec3 night = art * mix(cityNightGain, 1.05, light);
+      if (ambientOn > 0.5) {
+        // a living city at night: some lit windows switch off and on (a cell is a window, each on its own slow beat; the beat
+        // is a whole number of turns per 600 s, the clock's wrap), the red beacons on the tall roofs blink every two seconds
+        vec2 cell = floor(vMapUv * vec2(2048.0, 512.0) / 3.0);
+        float h = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453), h2 = fract(h * 91.7);
+        float beat = ambientTime * 0.010471976 * (3.0 + floor(h2 * 6.0)) + h * 6.2831853;   // 0.010471976 = 2 pi / 600
+        float flick = step(h, cityLife.x) * smoothstep(0.35, 0.65, 0.5 + 0.5 * sin(beat));
+        float redLamp = step(0.55, art.r) * step(art.g, 0.38) * step(art.b, 0.38);
+        float blink = smoothstep(0.35, 0.65, 0.5 + 0.5 * sin(ambientTime * 3.14159265 + h * 0.5));   // period 2 s (600 / 2 is whole)
+        night *= mix(1.0, cityLife.y, flick * light * (1.0 - redLamp));
+        night *= mix(1.0, mix(cityLife.z, 1.0, blink), redLamp);
+      }
       float warmLamp = light * smoothstep(0.05, 0.42, art.r - art.b);
       vec3 day = art * mix(cityDayGain, 0.95, light) + citySky * (0.14 * (1.0 - light));
       day = mix(day, vec3(luma * 0.66), warmLamp * 0.7);

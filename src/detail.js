@@ -104,6 +104,7 @@ export function addSurfaceDetail(meshes, { inside } = {}) {
       tex.needsUpdate = true;
       tex.repeat.set(rx, ry);
       out = mat.clone();
+      out.onBeforeCompile = mat.onBeforeCompile;   // clone() leaves it out: a piece with its own shader (the TV's idle screen) keeps it
       out.normalMap = tex;
       const k = floor ? grainScale : paintScale;
       out.normalScale = new THREE.Vector2(k, k);

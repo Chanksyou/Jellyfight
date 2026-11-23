@@ -1,6 +1,7 @@
 // Ambient life (src/ambient.js): plants sway and glasses shiver in the room's shared shader patch.
 import * as THREE from 'three';
 import { G, V, fresh, tp, step, ok, stub, story } from './kit.js';
+import { GLOW_KIND } from '../treasure-glow.js';
 import { juice } from '../juice.js';
 
 // the plants every act-1 room has (act 4 is the same room: the same list)
@@ -256,5 +257,88 @@ story('ambient/rain-adds-no-draws', {
     const dry = calls();
     if (u) u.rainTint.value.w = was;
     return ok(panes.length > 0 && wet === dry, { wet, dry });
+  },
+});
+
+// ---- light on the floor, the idle screen and a living city (A3)
+const pools = () => G().APT.root.children.filter((o) => o.name.startsWith('Floor light'));
+const tvScreen = () => { let m; G().APT.scene.traverse((o) => { if (o.name === 'TV screen') m = o; }); return m; };
+
+story('ambient/floor-pools-are-one-soft-draw-each', {
+  about: "Act 1's TV and monitor pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
+  setup() { fresh({ elites: false }); tp(1.6, 0.05, 3.4, Math.PI); step(2); },
+  play() {
+    const { ambient, floorLight } = G(), found = pools(), was = found.map((p) => p.visible);
+    if (found.length !== 2 || !floorLight) return ok(false, { pools: found.length });
+    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= 0.4);
+    const calm = ambient.calm, colour = (t) => { ambient.uniforms.ambientTime.value = t; floorLight.update(); return found[0].material.uniforms.uColor.value.getHex(); };
+    let moves, still;
+    try {
+      moves = colour(0) !== colour(9);
+      ambient.calm = () => true;
+      still = colour(0) === colour(9);
+    } finally { ambient.calm = calm; }
+    found.forEach((p) => (p.visible = false));
+    drawn(2);
+    const without = calls();
+    found.forEach((p, i) => (p.visible = was[i]));
+    const delta = calls() - without;
+    return ok(soft && moves && still && delta <= found.length * 2, { soft, moves, still, delta });
+  },
+});
+
+story('ambient/act4-keeps-the-tv-for-the-concert', {
+  about: "Act 4 has only the monitor's pool and a TV with no screensaver (the concert dressing owns it); act 1's TV has one.",
+  act: 4,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const tv = tvScreen();
+    return ok(pools().length === 1 && tv && tv.material.onBeforeCompile === THREE.Material.prototype.onBeforeCompile, { pools: pools().length, tv: !!tv });
+  },
+});
+
+story('ambient/tv-shows-a-screensaver', {
+  about: "Act 1's wall TV is no longer a black panel: it draws slow drifting colours of its own (and the same draw as before).",
+  setup() { fresh({ elites: false }); },
+  play() {
+    const tv = tvScreen();
+    return ok(tv && tv.material.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile && tv.material.type === 'MeshStandardMaterial', { tv: !!tv });
+  },
+});
+
+story('ambient/night-light-pool-in-act-3', {
+  about: "Act 3's night light has its own soft pool on the floor that drifts between pink and amber; act 3 has no TV pools.",
+  act: 3,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { floorLight, ambient } = G(), found = pools();
+    if (found.length !== 1 || found[0].name !== 'Floor light night') return ok(false, { names: found.map((p) => p.name) });
+    const colour = (t) => { ambient.uniforms.ambientTime.value = t; floorLight.update(); return found[0].material.uniforms.uColor.value.getHex(); };
+    return ok(colour(0) !== colour(40), { a: colour(0), b: colour(40) });
+  },
+});
+
+// the city alone (its mesh in a scene of its own), seen from the middle of the room toward the street
+function cityShot(time, calm) {
+  const { APT, ambient } = G(), R = APT.renderer, sky = APT.scene.getObjectByName('Skyline');
+  const scene = new THREE.Scene(); scene.background = APT.scene.background; scene.add(sky.clone());
+  const cam = new THREE.PerspectiveCamera(70, 1, 0.1, 400);
+  cam.position.set(1.5, 1.5, 5.5); cam.lookAt(1.5, 1.2, -50); cam.updateMatrixWorld();
+  ambient.calm = () => calm; ambient.update(0, V(99, 0, 99), 0);
+  ambient.uniforms.ambientTime.value = time;
+  const rt = (cityShot.rt ||= new THREE.WebGLRenderTarget(160, 160)), px = new Uint8Array(160 * 160 * 4), was = R.getRenderTarget();
+  try { R.setRenderTarget(rt); R.render(scene, cam); R.readRenderTargetPixels(rt, 0, 0, 160, 160, px); } finally { R.setRenderTarget(was); }
+  return px;
+}
+story('ambient/city-twinkles-at-night', {
+  about: 'At night some of the city\'s lit windows switch off and on and its red beacons blink; with Reduce effects the city holds the picture it was painted with.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { ambient } = G(), calm = ambient.calm;
+    try {
+      const a = cityShot(1, false), moves = moved(a, cityShot(7.3, false));
+      const still = moved(cityShot(1, true), cityShot(7.3, true));
+      return ok(moves > 0 && still === 0, { moves, still });
+    } finally { ambient.calm = calm; }
   },
 });
