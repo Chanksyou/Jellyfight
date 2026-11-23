@@ -77,7 +77,7 @@ export class Traversal {
       const [x, y, z] = v.at;
       return { ...v, x, y, z, h: v.land[1] + 0.06 - y };
     });
-    this.air = new VentAir(this.group, this.vents);
+    this.air = new VentAir(this.group, this.vents, stage.id);
 
     this.climbs = stage.climbs.map((c) => ({
       ...c,

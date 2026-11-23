@@ -1058,7 +1058,7 @@ export class Elites {
   balloon(color) {
     let b = this.balloonPool.find(b => !b.group.parent);
     if (!b) { b = buildBalloon(color); this.balloonPool.push(b); }
-    b.mat.color.set(color); b.mat.emissive.set(color); b.mat.emissiveIntensity = 0.25;
+    b.mat.color.set(color); b.mat.emissive.set(color); b.mat.emissiveIntensity = 0.25; b.mat.opacity = 0.9; b.ribbon.visible = true;
     b.group.visible = true; b.group.position.set(0,0,0); b.group.rotation.set(0,0,0); b.group.scale.setScalar(1);
     return b;
   }
@@ -2807,6 +2807,10 @@ export class Elites {
       b.m.scale.setScalar(b.size * (1 + late * 0.15 + Math.sin(b.t * (6 + late * 40)) * 0.02 * (1 + late * 3)));
       b.m.rotation.set(Math.sin(b.t * 2.2) * 0.15 - b.vel.z * 1.5, 0, Math.cos(b.t * 1.7) * 0.15 + b.vel.x * 1.5);
       b.b.mat.emissiveIntensity = 0.25 + late * 0.8;
+      // it sits between a close camera (the jelly's back to a wall) and the jelly: fade it out as the lens comes near, so it never fills the view
+      const lens = b.m.position.distanceTo(this.camera.position), near = LOOK.num('balloon-fade-near', 0.1), far = LOOK.num('balloon-fade-far', 0.25);
+      b.b.mat.opacity = 0.9 * THREE.MathUtils.smoothstep(lens, near, far);
+      b.b.ribbon.visible = b.b.mat.opacity > 0.15;
       // the burst circle on the floor under it
       if ((b.floorT = (b.floorT || 0) - dt) <= 0) { b.floorT = 0.1; b.floor = this.surfaceBelow(b.m.position); }
       b.warn.position.set(b.m.position.x, (b.floor ?? 0) + 0.003, b.m.position.z);

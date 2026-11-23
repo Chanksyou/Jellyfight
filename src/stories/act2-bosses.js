@@ -33,6 +33,22 @@ act2('whipper-balloon-warning-is-a-floor-circle', {
     return ok(filling && noVolume && moved > 0.01 && gone, { p1, p2, noVolume, moved: +moved.toFixed(3), gone });
   },
 });
+act2('whipper-balloon-fades-near-the-lens', {
+  about: "A balloon that drifts between the jelly and a camera dollied in against a wall (the corner by the front door) fades out instead of filling the view; at normal distance it is solid.",
+  setup() { startBalloon(); },
+  play() {
+    const B = balloonLoose();
+    if (!B) return ok(false, { loose: false });
+    const E = G().run.elites, cam = E.camera;
+    step(2);
+    const far = B.b.mat.opacity, lensFar = B.m.position.distanceTo(cam.position);
+    E.camera = { position: B.m.position.clone().setY(B.m.position.y + 0.1), quaternion: cam.quaternion };
+    step(1);
+    const close = B.b.mat.opacity, ribbonHidden = !B.b.ribbon.visible;
+    E.camera = cam;
+    return ok(far > 0.85 && close < 0.05 && ribbonHidden, { far, close, ribbonHidden, lensFar });
+  },
+});
 act2('whipper-balloon-blast-is-a-sphere', {
   about: "A jelly level with the balloon or below it, inside its 20 cm sphere, is caught when it bursts (4, and the sound goes deep); one off to the side and below, outside the sphere, isn't.",
   setup() { fresh({ bubbles: false, lash: false }); byDoor(); },

@@ -129,6 +129,8 @@
   --camera-clear-ease: 0.05;     /* m it has already come in by when the lens reaches the wall */
   --camera-clear-hold: 0.1;      /* s it stays in after the wall clears */
   --camera-clear-recover: 9;     /* per s: how fast it eases back out (about 0.25 s to settle) */
+  --balloon-fade-near: 0.1;      /* m: a Cream Whipper balloon this close to the lens is fully see-through */
+  --balloon-fade-far: 0.25;      /* m: and at this distance it is fully solid again */
   --camera-fixture-lift: 0.22;   /* rad: how much steeper the view tilts while the kitchen (opaque fixtures) is in the way; the dolly above then keeps the lens in front of it */
   --camera-fixture-rate: 6;      /* per s: how fast it tilts there and back (about 0.4 s) */
   --encore-leather-grain: 0.00012;
@@ -737,6 +739,13 @@
   --vent-ribbons: 1;           /* ribbons a vent (one, tied to the middle of the grille) */
   --vent-grille: #5c5f64;      /* the frame, and the louvres' slats */
   --vent-grille-slat: #45484d;
+  --vent-wisp-act3: 0.2;       --vent-air-act3: #d2e2ff;   /* act 3's moonlit bedroom: fainter, cooler air */
+  --vent-air-act4: #fff2e4;    /* act 4's dawn: a touch warmer */
+  --vent-light: 1;             /* how much the room's baked light at the air sets its brightness (0: the same everywhere) */
+  --vent-light-ref: 0.35;      /* the light level at which the air shows at its own strength; darker is fainter, brighter is stronger */
+  --vent-light-min: 0.3;       /* never fainter than this share, nor stronger than --vent-light-max, of its own strength */
+  --vent-light-max: 1.2;
+  --vent-light-tint: 0.5;      /* how far the air and ribbons take on the colour of the light where they are */
   --vent-calm-speed: 0.3;      /* Reduce effects: the streaks' speed, the ribbons hang still */
   --vent-gust-hold: 0.4;       /* a ride: the vent gusts (streaks faster and brighter, ribbons pulled straight) for this long (s) */
   --vent-gust-ease: 0.8;       /* then eases back over this long (s) */
