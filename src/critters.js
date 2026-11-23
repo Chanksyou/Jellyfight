@@ -28,13 +28,13 @@ function tint(geo, hex) {
 const ellipsoid = (sx, sy, sz, at, hex, seg = 16) => tint(new THREE.SphereGeometry(1, seg, Math.max(6, seg * 0.6)).scale(sx, sy, sz).translate(at.x, at.y, at.z), hex);
 const tube = (pts, r, hex, segs = 12) => tint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs, r, 5), hex);
 // a tapered rod from a to b
-function rod(a, b, r0, r1, hex) {
+function rodGeo(a, b, r0, r1, sides = 6) {
   const d = b.clone().sub(a), len = d.length();
-  const g = new THREE.CylinderGeometry(r1, r0, len, 6, 1).translate(0, len / 2, 0);
+  const g = new THREE.CylinderGeometry(r1, r0, len, sides, 1).translate(0, len / 2, 0);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize()));
-  g.translate(a.x, a.y, a.z);
-  return tint(g, hex);
+  return g.translate(a.x, a.y, a.z);
 }
+const rod = (a, b, r0, r1, hex) => tint(rodGeo(a, b, r0, r1), hex);
 const merge = (parts) => { const g = mergeGeometries(parts); g.computeVertexNormals(); g.computeBoundingSphere(); return g; };
 
 const MAT = {};
@@ -2052,48 +2052,210 @@ export function buildBeetle() {
 }
 
 // ------------------------------------------------------------------ cicada
-// The cicada (act 4): a stocky dark-green body with pale green collar and rim lines, a wide blunt
-// head with big red eyes set far apart on its sides and three red dots between them, a thick thorax,
-// a tapering banded abdomen, six short thick legs, and four clear wings veined in green that lie
-// folded like a roof over its back. Under the burrow word it digs into the floor and sinks out of
-// sight, leaving a mound of grit with a glowing rim that trails after you, shakes as it locks and
-// is left behind when it bursts up; dazed, it sways with its wings buzzing. About 2.8 radii long; feet at its origin.
+// The cicada (act 4): a periodical cicada, the kind that lives underground for years and digs its way out.
+// A stocky glossy black body (a domed thorax with a sculpted shield and the orange X at its back, a wide
+// blunt head with grooves down its face), big red-orange eyes far apart on its sides with three small red
+// eyes between, a tapering abdomen black on top and banded orange underneath, a pale ribbed tymbal on
+// each side behind the wings (where its song comes from), six orange legs, the front pair thick for
+// digging, and four clear wings with orange veins and a black W near each forewing's tip, folded like a
+// roof over its back. Its look is two painted pictures (src/critters.js `cicadaSkin`, `cicadaWing`),
+// colours in content/look.css (--cicada-*). Under the burrow word it digs into the floor and sinks out of
+// sight, leaving a mound of grit with a glowing rim that trails after you, shakes as it locks and is left
+// behind when it bursts up; dazed, it sways with its wings buzzing. About 2.8 radii long; feet at its origin.
+const CICADA = { cols: 4, rows: 2, cell: 128 };   // its skin: one picture of 4 x 2 cells, each part's UVs squeezed into one
+const CELL = { thorax: [0, 0], head: [1, 0], abdomen: [2, 0], eye: [3, 0], leg: [0, 1], tymbal: [1, 1], collar: [2, 1], plain: [3, 1] };
+// a part whose own UVs are squeezed into one cell of the skin, tinted by a vertex colour (white shows the picture as painted)
+function inCell(geo, cell, hex = '#ffffff') {
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  const [c, r] = CELL[cell], uv = geo.attributes.uv, pad = 0.05, { cols, rows } = CICADA;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (c + pad + uv.getX(i) * (1 - 2 * pad)) / cols, 1 - (r + pad + (1 - uv.getY(i)) * (1 - 2 * pad)) / rows);
+  const col = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) { a[k * 3] = col.r; a[k * 3 + 1] = col.g; a[k * 3 + 2] = col.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return geo;
+}
+// a sphere's UVs: u runs round it from its left side (0) through the front (0.25), right (0.5) and back (0.75); v from top (0) to bottom (1)
+const ovoid = (sx, sy, sz, at, cell, seg = 20, hex) => inCell(new THREE.SphereGeometry(1, seg, Math.max(8, Math.round(seg * 0.6))).scale(sx, sy, sz).translate(at.x, at.y, at.z), cell, hex);
+const limb = (a, b, r0, r1, hex, cell = 'leg') => inCell(rodGeo(a, b, r0, r1, 7), cell, hex);
+
+// the skin, painted once: glossy black plates with sculpted seams and a sheen, the orange underside bands, the eyes, the legs, the tymbals' ribs
+function cicadaSkin() {
+  const { cols, rows, cell: S } = CICADA, rnd = seeded(1717);
+  const C = (n, f) => LOOK.color(`cicada-${n}`, f);
+  const black = C('black', '#0c0b0b'), sheen = C('sheen', '#5a5c66'), orange = C('orange', '#d0581a'), deep = C('deep', '#6a2408'), eyeCol = C('eye', '#e8441a'), leg = C('leg', '#c0521c'), pale = C('tymbal', '#d8c6a0');
+  return wingTexture(cols * S, rows * S, (g) => {
+    const at = (cell, f) => { const [c, r] = CELL[cell]; g.save(); g.translate(c * S, r * S); g.beginPath(); g.rect(0, 0, S, S); g.clip(); f(); g.restore(); };
+    const fill = (col) => { g.fillStyle = col; g.fillRect(0, 0, S, S); };
+    const specks = (n, col, a0, a1, y0 = 0, y1 = 1) => { for (let i = 0; i < n; i++) { g.globalAlpha = a0 + rnd() * (a1 - a0); g.fillStyle = col; g.fillRect(rnd() * S, (y0 + rnd() * (y1 - y0)) * S, 1 + rnd() * 1.5, 1 + rnd() * 1.5); } g.globalAlpha = 1; };
+    const groove = (pts, w = 2) => {   // a sculpted seam: a dark cut with a lit edge just above it
+      for (const [col, dy, lw, a] of [[sheen, -1.2, w * 0.7, 0.55], ['#000', 0.6, w, 0.9]]) {
+        g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+        pts.forEach(([x, y], i) => (i ? g.lineTo(x * S, y * S + dy) : g.moveTo(x * S, y * S + dy))); g.stroke();
+      }
+      g.globalAlpha = 1;
+    };
+    const glow = (x, y, rx, ry, col, a) => { const gr = g.createRadialGradient(x * S, y * S, 0, x * S, y * S, rx * S); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = a; g.save(); g.scale(1, ry / rx); g.fillStyle = gr; g.fillRect(0, 0, S, S * rx / ry); g.restore(); g.globalAlpha = 1; };
+    const hairs = (n, y0, y1) => { g.strokeStyle = '#b08a50'; g.lineWidth = 0.7; for (let i = 0; i < n; i++) { const x = rnd() * S, y = (y0 + rnd() * (y1 - y0)) * S, a = rnd() * 6.28; g.globalAlpha = 0.25 + rnd() * 0.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 3, y + Math.sin(a) * 3); g.stroke(); } g.globalAlpha = 1; };
+    // the thorax: the shield over the front half with its curved grooves, the dome behind with the orange X at its back, an orange patch behind each eye, pale hairs underneath
+    at('thorax', () => {
+      fill(black); specks(260, sheen, 0.05, 0.25, 0, 0.6);
+      glow(0.25, 0.12, 0.18, 0.08, sheen, 0.5); glow(0.75, 0.15, 0.16, 0.08, sheen, 0.35);   // the sheen breaking on the ridges
+      for (const x of [0.25 - 0.09, 0.25 + 0.09]) groove([[x, 0.05], [x + (x < 0.25 ? -0.03 : 0.03), 0.2], [x, 0.36]]);   // the shield's pair of grooves
+      groove([[0.08, 0.38], [0.25, 0.42], [0.42, 0.38]], 2.5);   // where the shield meets the dome
+      groove([[0.62, 0.05], [0.66, 0.25]]); groove([[0.88, 0.05], [0.84, 0.25]]);   // the dome's two dark wedges
+      g.strokeStyle = deep; g.lineWidth = 3; g.globalAlpha = 0.9;   // the X at its back
+      g.beginPath(); g.moveTo(0.7 * S, 0.24 * S); g.lineTo(0.8 * S, 0.36 * S); g.moveTo(0.8 * S, 0.24 * S); g.lineTo(0.7 * S, 0.36 * S); g.stroke();
+      g.strokeStyle = orange; g.lineWidth = 1.2; g.stroke(); g.globalAlpha = 1;
+      for (const x of [0.05, 0.45]) glow(x, 0.5, 0.06, 0.1, deep, 0.9);   // orange behind each eye
+      hairs(90, 0.62, 1);
+    });
+    // the head: black, the face's swollen front with grooves across it, a sheen on top
+    at('head', () => {
+      fill(black); specks(160, sheen, 0.05, 0.2); glow(0.25, 0.15, 0.2, 0.08, sheen, 0.5);
+      for (let i = 0; i < 7; i++) groove([[0.17, 0.4 + i * 0.07], [0.25, 0.42 + i * 0.07], [0.33, 0.4 + i * 0.07]], 1.5);
+      hairs(40, 0.6, 1);
+    });
+    // an abdomen ring: black and glossy on top, the faint orange edge at its back, orange underneath
+    at('abdomen', () => {
+      fill(black); specks(200, sheen, 0.05, 0.2, 0, 0.55); glow(0.25, 0.1, 0.25, 0.08, sheen, 0.45);
+      const under = g.createLinearGradient(0, 0.45 * S, 0, 0.75 * S); under.addColorStop(0, black); under.addColorStop(1, orange);
+      g.fillStyle = under; g.fillRect(0.5 * S, 0.45 * S, 0.5 * S, 0.55 * S); g.fillRect(0, 0.45 * S, 0.06 * S, 0.55 * S);   // the band on its back half, underneath
+      g.globalAlpha = 0.55; g.fillStyle = deep; g.fillRect(0.72 * S, 0, 0.06 * S, S); g.globalAlpha = 1;   // the ring's hind edge
+      for (let i = 0; i < 9; i++) groove([[rnd(), 0.08 + rnd() * 0.4], [rnd(), 0.08 + rnd() * 0.4]], 0.8);   // fine wrinkles
+      hairs(50, 0.55, 1);
+    });
+    // an eye: red-orange with a fine facet grain, a dark spot looking out of each side, brighter on top
+    at('eye', () => {
+      fill(eyeCol);
+      const top = g.createLinearGradient(0, 0, 0, S); top.addColorStop(0, 'rgba(255,150,80,0.55)'); top.addColorStop(0.5, 'rgba(255,120,60,0)'); top.addColorStop(1, 'rgba(60,0,0,0.5)');
+      g.fillStyle = top; g.fillRect(0, 0, S, S);
+      for (let y = 0; y < S; y += 3) for (let x = (y / 3) % 2 ? 1.5 : 0; x < S; x += 3) { g.globalAlpha = 0.12 + rnd() * 0.12; g.fillStyle = rnd() < 0.5 ? '#ffb070' : '#7a1000'; g.fillRect(x, y, 1.4, 1.4); }
+      g.globalAlpha = 1;
+      for (const x of [0, 0.5, 1]) glow(x, 0.5, 0.09, 0.12, '#3a0600', 0.85);
+    });
+    // a leg: orange, darker toward each joint, a dark line down one side, little spines
+    at('leg', () => {
+      const lg = g.createLinearGradient(0, 0, 0, S); lg.addColorStop(0, deep); lg.addColorStop(0.18, leg); lg.addColorStop(0.8, leg); lg.addColorStop(1, deep);
+      g.fillStyle = lg; g.fillRect(0, 0, S, S);
+      g.globalAlpha = 0.5; g.fillStyle = '#2a0c04'; g.fillRect(0.6 * S, 0, 0.12 * S, S); g.globalAlpha = 1;
+      specks(120, '#ffd0a0', 0.1, 0.3); specks(80, '#2a0c04', 0.3, 0.6);
+    });
+    // a tymbal: pale, with dark ribs across it
+    at('tymbal', () => {
+      fill(pale);
+      for (let i = 0; i < 12; i++) { g.fillStyle = 'rgba(70,40,20,0.75)'; g.fillRect(0, (i + 0.5) / 12 * S, S, S / 30); g.fillStyle = 'rgba(255,250,230,0.6)'; g.fillRect(0, (i + 0.5) / 12 * S - 2, S, 1.2); }
+    });
+    // the collar behind the head: black with an orange rim along its lower edge
+    at('collar', () => {
+      fill(black); specks(120, sheen, 0.05, 0.25, 0, 0.5); glow(0.25, 0.15, 0.2, 0.1, sheen, 0.45);
+      g.globalAlpha = 0.85; g.fillStyle = deep; g.fillRect(0, 0.52 * S, S, 0.16 * S); g.fillStyle = orange; g.fillRect(0, 0.56 * S, S, 0.06 * S); g.globalAlpha = 1;
+    });
+    at('plain', () => { fill('#ffffff'); specks(60, '#a0a0a0', 0.1, 0.3); });
+  });
+}
+
+// a wing: clear, a thick orange leading edge, a real network of orange veins darkening toward the tip, and the
+// black W near a forewing's tip. Painted over the wing's own outline (`outline`, its bounding box filling the picture)
+function cicadaWing(outline) {
+  const W = 256, H = 512, P = outline.getPoints(48), rnd = seeded(17);
+  const xs = P.map((p) => p.x), x0 = Math.min(...xs), x1 = Math.max(...xs), y1 = Math.max(...P.map((p) => p.y));
+  const at = (x, y) => [(x - x0) / (x1 - x0) * W, H - y / y1 * H];   // the base at the bottom, the tip at the top
+  const C = (n, f) => LOOK.color(`cicada-${n}`, f);
+  const vein = C('vein', '#f0801c'), tip = C('vein-tip', '#9a4410'), membrane = C('membrane', '#f0d8b0'), wMark = C('w-mark', '#1a0c06');
+  return wingTexture(W, H, (g) => {
+    const pts = P.map((p) => at(p.x, p.y)), half = Math.floor(pts.length / 2);
+    const path = () => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+    const veinCol = g.createLinearGradient(0, H, 0, 0); veinCol.addColorStop(0, vein); veinCol.addColorStop(0.55, vein); veinCol.addColorStop(1, tip);
+    path(); g.save(); g.clip();
+    g.globalAlpha = 0.24; g.fillStyle = membrane; g.fillRect(0, 0, W, H);   // the clear membrane, faintly warm
+    const base = g.createLinearGradient(0, H, 0, H * 0.78); base.addColorStop(0, vein); base.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = 0.85; g.fillStyle = base; g.fillRect(0, 0, W, H);   // the root, nearly solid orange
+    g.globalAlpha = 1; g.strokeStyle = veinCol; g.lineCap = 'round'; g.lineJoin = 'round';
+    // the leading edge (the outline from the tip back to the root along the straighter side): thick, thinning toward the tip
+    for (let i = half; i < pts.length - 1; i++) { const u = (i - half) / (pts.length - half); g.lineWidth = 3 + 14 * u * u; g.beginPath(); g.moveTo(...pts[i]); g.lineTo(...pts[i + 1]); g.stroke(); }
+    // the vein round the edge
+    g.lineWidth = 5; path(); g.stroke();
+    // the vein running inside the tip, parallel to the edge, and the cells between it and the edge
+    const mid = [W * 0.5, H * 0.45], inner = [];
+    for (let i = 4; i < pts.length - 4; i++) if (pts[i][1] < H * 0.55) inner.push([pts[i][0] + (mid[0] - pts[i][0]) * 0.16, pts[i][1] + (mid[1] - pts[i][1]) * 0.16, pts[i]]);
+    g.lineWidth = 3.2; g.beginPath(); inner.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+    for (let i = 0; i < inner.length; i += 3) { g.beginPath(); g.moveTo(inner[i][0], inner[i][1]); g.lineTo(...inner[i][2]); g.stroke(); }
+    // the long veins fanning from the root out to the inner vein, and the cross veins joining them
+    const root = at(x0 + (x1 - x0) * 0.25, y1 * 0.06), ends = [0.12, 0.28, 0.42, 0.56, 0.7, 0.86].map((u) => inner[Math.floor(u * (inner.length - 1))]);
+    const along = ends.map(([x, y]) => (t) => { const cx = root[0] + (x - root[0]) * 0.35, cy = y + (root[1] - y) * 0.45, s = 1 - t; return [s * s * root[0] + 2 * s * t * cx + t * t * x, s * s * root[1] + 2 * s * t * cy + t * t * y]; });
+    g.lineWidth = 3.6;
+    for (const f of along) { g.beginPath(); for (let t = 0; t <= 1.001; t += 0.05) g.lineTo(...f(t)); g.stroke(); }
+    g.lineWidth = 2.6;
+    for (const t of [0.42, 0.62, 0.8]) for (let i = 0; i < along.length - 1; i++) { const j = t + (rnd() - 0.5) * 0.08; g.beginPath(); g.moveTo(...along[i](j)); g.lineTo(...along[i + 1](j + (rnd() - 0.5) * 0.06)); g.stroke(); }
+    // the black W near the tip, on the leading-edge side
+    const w = at(x0 + (x1 - x0) * 0.3, y1 * 0.74);
+    g.strokeStyle = wMark; g.lineWidth = 3.5; g.globalAlpha = 0.9; g.beginPath();
+    [[-14, -10], [-7, 8], [0, -4], [7, 8], [14, -10]].forEach(([dx, dy], i) => (i ? g.lineTo(w[0] + dx, w[1] + dy) : g.moveTo(w[0] + dx, w[1] + dy))); g.stroke();
+    g.restore();
+  });
+}
+
+// merged keeping each part's own smooth normals (the shared `merge` recomputes them, flat on unindexed parts: facets on a glossy body)
+const keepNormals = (parts) => { const g = mergeGeometries(parts); g.computeBoundingSphere(); return g; };
 function cicadaParts() {
-  const body = '#1a2616', thorax = '#243a1c', pale = '#9ab85a', band = '#34502a', eye = '#c4301c', leg = '#2a3a1e', dark = '#0c140a';
+  const red = LOOK.color('cicada-ocellus', '#ff3a1a'), dark = '#2a120a';
   const bodyParts = [
-    ellipsoid(0.62, 0.52, 0.78, V(0, 0.78, 0.15), thorax),                   // the thick thorax
-    ellipsoid(0.5, 0.18, 0.2, V(0, 1.05, 0.5), pale),                         // the pale collar
-    ellipsoid(0.7, 0.34, 0.26, V(0, 0.75, 0.8), body),                        // the wide blunt head
-    ellipsoid(0.26, 0.28, 0.26, V(-0.68, 0.82, 0.82), eye, 14),               // the big red eyes, far apart on its sides
-    ellipsoid(0.26, 0.28, 0.26, V(0.68, 0.82, 0.82), eye, 14),
-    ellipsoid(0.05, 0.05, 0.05, V(-0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0.14, 1.0, 0.98), eye, 8), ellipsoid(0.05, 0.05, 0.05, V(0, 1.06, 0.92), eye, 8),   // three simple eyes
+    ovoid(0.6, 0.5, 0.62, V(0, 0.8, 0.02), 'thorax', 24),                    // the domed thorax
+    ovoid(0.64, 0.42, 0.4, V(0, 0.84, 0.46), 'thorax', 24),                  // its sculpted shield, wide over the front
+    ovoid(0.52, 0.17, 0.2, V(0, 1.04, 0.52), 'collar'),                      // the collar behind the head
+    ovoid(0.7, 0.34, 0.27, V(0, 0.75, 0.8), 'head', 24),                     // the wide blunt head
+    ovoid(0.24, 0.22, 0.14, V(0, 0.6, 1.0), 'head'),                         // the face's swollen front, grooved across
+    ovoid(0.25, 0.27, 0.25, V(-0.68, 0.82, 0.82), 'eye', 20),               // the big red-orange eyes, far apart on its sides
+    ovoid(0.25, 0.27, 0.25, V(0.68, 0.82, 0.82), 'eye', 20),
+    ...[V(-0.14, 1.0, 0.98), V(0.14, 1.0, 0.98), V(0, 1.06, 0.92)].map((p) => ovoid(0.05, 0.05, 0.05, p, 'plain', 8, red)),   // three small red eyes between
   ];
-  for (let i = 0; i < 5; i++) bodyParts.push(ellipsoid(0.5 - i * 0.045, 0.4 - i * 0.035, 0.22, V(0, 0.66, -0.35 - i * 0.3), i % 2 ? band : body));   // the tapering banded abdomen
-  for (const s of [-1, 1]) {
-    bodyParts.push(tube([V(s * 0.1, 1.2, 0.35), V(s * 0.45, 1.1, -0.2), V(s * 0.5, 0.95, -0.9)], 0.02, pale, 10));   // pale lines along its back
-    bodyParts.push(rod(V(s * 0.28, 0.52, 0.4), V(s * 0.45, 0.86, 0.65), 0.03, 0.01, dark));   // short antennae
-  }
-  // a leg: thick femur out and down, short tibia to the ground, built at the hip
-  const legGeo = (s, reach) => merge([rod(V(0, 0, 0), V(s * 0.4, 0.05, 0), 0.1, 0.07, leg), rod(V(s * 0.4, 0.05, 0), V(s * reach, -0.52, 0), 0.07, 0.02, leg), rod(V(s * 0.55, -0.12, 0), V(s * 0.6, 0.0, 0.03), 0.015, 0.002, dark)]);
-  // a wing out from its root along +z' (turned backwards when hung), clear with a green rim and veins
-  const wing = (len, wid) => {
+  for (let i = 0; i < 5; i++) bodyParts.push(ovoid(0.5 - i * 0.045, 0.4 - i * 0.035, 0.3, V(0, 0.66, -0.35 - i * 0.28), 'abdomen'));   // the tapering ringed abdomen
+  for (const s of [-1, 1]) bodyParts.push(limb(V(s * 0.28, 0.52, 0.4), V(s * 0.45, 0.86, 0.65), 0.03, 0.01, dark, 'plain'));   // short antennae
+  // a leg: thick femur out and down (thicker on the front pair: the digging legs), short tibia to the ground, a dark foot; built at the hip
+  const legGeo = (s, reach, fore) => keepNormals([
+    limb(V(0, 0, 0), V(s * 0.4, 0.05, 0), fore ? 0.13 : 0.1, fore ? 0.09 : 0.07),
+    limb(V(s * 0.4, 0.05, 0), V(s * reach, -0.52, 0), 0.07, 0.03),
+    limb(V(s * reach, -0.52, 0), V(s * (reach + 0.08), -0.55, 0.06), 0.03, 0.012, dark),
+    ...(fore ? [limb(V(s * 0.3, 0.0, 0.02), V(s * 0.36, -0.12, 0.05), 0.03, 0.004, dark)] : []),   // the spine under a digging leg's femur
+  ]);
+  // a wing out from its root along +z' (turned backwards when hung); its outline's box fills the painted picture
+  const outline = (len, wid) => {
     const sh = new THREE.Shape();
     sh.moveTo(0, 0); sh.bezierCurveTo(wid * 0.9, len * 0.1, wid * 1.1, len * 0.7, 0, len); sh.bezierCurveTo(-wid * 0.3, len * 0.7, -wid * 0.2, len * 0.15, 0, 0);
-    const veins = merge([0, 0.35, 0.7].map((u) => tube([V(0, 0.003, 0.02), V(wid * (0.1 + 0.55 * u), 0.003, len * 0.5), V(wid * (0.05 + 0.2 * u), 0.003, len * 0.9)], 0.012, pale, 8)));
-    return { sheet: new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), veins };
+    return sh;
   };
-  return { body: merge(bodyParts), legs: [[0.55, 0.85], [0.1, 0.95], [-0.35, 1.05]].map(([z, reach]) => ({ z, geo: [-1, 1].map((s) => legGeo(s, reach)) })), fore: wing(2.0, 0.6), hind: wing(1.5, 0.5) };
+  const wing = (len, wid) => {
+    const g = new THREE.ShapeGeometry(outline(len, wid), 24), uv = g.attributes.uv;
+    g.computeBoundingBox();
+    const b = g.boundingBox;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - b.min.x) / (b.max.x - b.min.x), uv.getY(i) / b.max.y);
+    return g.rotateX(Math.PI / 2);
+  };
+  // the tymbals: a pale ribbed patch on each side of the first ring, behind the wings (one mesh, so the song can show on them)
+  const tymbals = keepNormals([-1, 1].map((s) => ovoid(0.07, 0.19, 0.15, V(s * 0.44, 0.7, -0.3), 'tymbal', 12)));
+  return {
+    body: keepNormals(bodyParts), tymbals, skin: cicadaSkin(), wingSkin: cicadaWing(outline(1, 1)),
+    legs: [[0.55, 1.1], [0.1, 1.2], [-0.35, 1.3]].map(([z, reach]) => ({ z, geo: [-1, 1].map((s) => legGeo(s, reach, z > 0.3)) })), fore: wing(2.3, 0.62), hind: wing(1.6, 0.5),
+  };
 }
 export function buildCicada() {
   const G = (GEO.cicada ||= cicadaParts()), M = mats();
+  if (!M.cicada) {
+    M.cicada = new THREE.MeshStandardMaterial({ map: G.skin, vertexColors: true, roughness: LOOK.num('cicada-roughness', 0.3), metalness: 0.1 });
+    M.cicadaWing = new THREE.MeshStandardMaterial({ map: G.wingSkin, transparent: true, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.12, metalness: 0.1, depthWrite: false });
+    standOut(M.cicada, { base: 0.25, rim: LOOK.num('cicada-rim', 0.6) }); standOut(M.cicadaWing, { base: 0.3, rim: 0.35 });
+  }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  body.add(new THREE.Mesh(G.body, M.matte));
+  body.add(new THREE.Mesh(G.body, M.cicada));
+  const tymbals = new THREE.Mesh(G.tymbals, M.cicada);
+  tymbals.name = 'tymbals';
+  body.add(tymbals);
   const legs = [];
   for (const L of G.legs) [-1, 1].forEach((s, j) => {
     const hip = new THREE.Group();
     hip.position.set(s * 0.45, 0.48, L.z);
-    hip.add(new THREE.Mesh(L.geo[j], M.matte));
+    hip.add(new THREE.Mesh(L.geo[j], M.cicada));
     body.add(hip);
     legs.push({ hip, base: s * (L.z - 0.1) * 0.5, s, front: L.z > 0.3, phase: (L.z > 0.3) !== (s > 0) ? Math.PI : 0 });
   });
@@ -2102,9 +2264,9 @@ export function buildCicada() {
     const hinge = new THREE.Group();
     hinge.position.set(s * 0.22, 1.12, z);
     const m = new THREE.Group();   // wing lies back along -z, tilted down at its outer edge
-    m.rotation.set(0, Math.PI, 0);
+    m.rotation.set(0, Math.PI, s * LOOK.num('cicada-wing-tent', 0.35));   // sloping down its sides like a tent
     m.scale.x = -s;
-    m.add(new THREE.Mesh(geo.sheet, M.wing), new THREE.Mesh(geo.veins, M.matte));
+    m.add(new THREE.Mesh(geo, M.cicadaWing));
     hinge.add(m); body.add(hinge);
     return { hinge, s };
   }));

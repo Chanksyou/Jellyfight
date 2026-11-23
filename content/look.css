@@ -889,6 +889,21 @@
   --headphones-shove-flash: 0.02; /* the white flash on the jelly a wave shoves (m), */
   --headphones-scuff: #6c6680;   /* and the fading scuff it leaves (under a jelly it hit; the half itself, a bigger one), muted: harmless leftovers never wear a hostile hue */
   --headphones-scuff-size: 0.014;
+  --cicada-black: #0c0b0b;       /* the Cicada (a periodical cicada, src/critters.js cicadaSkin): its glossy black plates, */
+  --cicada-sheen: #5a5c66;       /* the sheen breaking on their ridges and the lit edge of each groove, */
+  --cicada-orange: #d0581a;      /* the orange bands under its abdomen and the X on its back, */
+  --cicada-deep: #6a2408;        /* the darker orange round its joints and behind its eyes, */
+  --cicada-eye: #e8441a;         /* its big red-orange eyes, */
+  --cicada-ocellus: #ff3a1a;     /* the three small red eyes between them, */
+  --cicada-leg: #c0521c;         /* its legs, */
+  --cicada-tymbal: #d8c6a0;      /* the pale ribbed tymbals behind its wings, */
+  --cicada-vein: #f0801c;        /* its wings' veins and root (src/critters.js cicadaWing), */
+  --cicada-vein-tip: #9a4410;    /* darkening toward the tip, */
+  --cicada-membrane: #f0d8b0;    /* the faint warm tint of the clear wing, */
+  --cicada-w-mark: #1a0c06;      /* the black W near each forewing's tip, */
+  --cicada-roughness: 0.3;       /* how glossy its body is (lower: shinier), */
+  --cicada-rim: 0.6;             /* the warm rim that keeps its black body readable in the dark room, */
+  --cicada-wing-tent: 0.35;      /* and how steeply its folded wings slope down its sides (radians) */
   --hostile-cicada: #9dff00;     /* the cicada's burrow: acid green, hot and saturated, apart from act 4's dawn oranges and pinks and from the Clog's paler lime (act 2): its mound's rim, the circle and dome over the spot it will burst up from, and the burst */
   --burrow-mound-rim: 0.25;      /* the trailing mound's rim: dimmer than the locked circle, so the moment it locks stands out */
   --burrow-floor-opacity: 0.3;   /* the circle on the floor over a locked mound */

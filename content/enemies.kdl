@@ -163,7 +163,8 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
     charge-shot range=0.6 charge=2 lock=0.5 speed=0.6 dmg=5 size=0.08 blast=0.3 knock=0.6 life=2 rest=0.7 every=3.5
 }
 
-// Act 4 (from 1:30): the cicada, a stocky tank with big red eyes and clear wings. It trudges after
+// Act 4 (from 1:30): the cicada, a periodical cicada (the kind that digs its way out of the ground): a stocky
+// glossy black tank with big red-orange eyes, orange legs and clear orange-veined wings. It trudges after
 // you; within reach, on a beat, it digs into the floor and goes under, where it can't be hit. A
 // mound trails after you for 5 beats of the song (fast: 3 m/s), then locks, and a circle and dome fill over the spot
 // for one beat; on the beat it bursts up there (a Blast: it hurts and tosses you). Step off the circle,
