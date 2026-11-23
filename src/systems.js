@@ -125,15 +125,42 @@ export class CameraSystem {
   }
 }
 
-// Soft blob shadow under the player. The game draws no real shadows (no shadow maps: too costly
-// on phones with this many lamps), so this blob is what grounds the jelly.
+// a soft round shadow: dark in the middle, gone at the edge (one small picture, shared)
+let softDisc = null;
+function softShadow() {
+  if (softDisc) return softDisc;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, '#fff'); r.addColorStop(0.45, '#bbb'); r.addColorStop(1, '#000');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  softDisc = new THREE.CanvasTexture(c);
+  return softDisc;
+}
+
+// Soft blob shadows under the player and the bugs. The game draws no real shadows (no shadow maps: too costly
+// on phones with this many lamps), so these blobs are what ground them on the baked floor. The bugs' are one
+// instanced draw (--bug-shadow-*), each on the surface the bug stands on; a bug in the air has none.
 export class ShadowSystem {
-  constructor({ state, scene, world, player, cfg }) {
-    Object.assign(this, { state, world, player, cfg });
+  constructor({ state, scene, world, player, cfg, enemies }) {
+    Object.assign(this, { state, world, player, cfg, enemies });
     this.blob = new THREE.Mesh(
-      new THREE.CircleGeometry(cfg.radius * 1.1, 24).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+      new THREE.CircleGeometry(cfg.radius * 1.3, 16).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('jelly-shadow', 0.5), depthWrite: false }),
     );
+    this.blobOpacity = this.blob.material.opacity;
+    const MAX = 160;
+    this.bugs = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2),   // round, not square: no see-through pixels past the shadow's edge
+      new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('bug-shadow', 0.45), depthWrite: false }),
+      MAX,
+    );
+    this.bugs.count = 0;
+    this.bugs.frustumCulled = false;   // its instances are everywhere; it is one draw either way
+    this.bugs.renderOrder = 1;
+    this.bugSize = LOOK.num('bug-shadow-size', 1.3);
+    this.bugReach = LOOK.num('bug-shadow-reach', 0.8) ** 2;   // only round the jelly, where the eye is: a far crowd's shadows would be layers for little
+    this._m = new THREE.Matrix4();
+    scene.add(this.bugs);
     this.blob.renderOrder = 1;
     scene.add(this.blob);
     this.down = new THREE.Vector3(0, -1, 0);
@@ -155,7 +182,23 @@ export class ShadowSystem {
     const h = P.y - hit.point.y;
     blob.position.set(P.x, hit.point.y + 0.0008, P.z);
     blob.scale.setScalar(this.state.look.size * (1 + h * 4));
-    blob.material.opacity = 0.35 / (1 + h * 20);
+    blob.material.opacity = this.blobOpacity / (1 + h * 20);
+    this.bugShadows();
+  }
+  bugShadows() {
+    const list = this.enemies?.list || [], m = this._m, inst = this.bugs, max = inst.instanceMatrix.count, P = this.player.position;
+    let n = 0;
+    for (const e of list) {
+      if (n >= max) break;
+      if (e.dead || e.proxy || e.under || !e.grounded || !e.root.visible) continue;
+      const dx = e.pos.x - P.x, dz = e.pos.z - P.z;
+      if (dx * dx + dz * dz > this.bugReach) continue;
+      const s = e.r * this.bugSize * Math.min(1, e.mesh.scale.x / (e.baseScale || 1));   // grows in with the bug
+      m.makeScale(s, 1, s).setPosition(e.pos.x, e.pos.y + 0.0015, e.pos.z);
+      inst.setMatrixAt(n++, m);
+    }
+    inst.count = n;
+    if (n) inst.instanceMatrix.needsUpdate = true;
   }
 }
 

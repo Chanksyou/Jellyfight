@@ -204,16 +204,20 @@ const TONE = {
   [THREE.CineonToneMapping]: 'CineonToneMapping', [THREE.ACESFilmicToneMapping]: 'ACESFilmicToneMapping',
   [THREE.AgXToneMapping]: 'AgXToneMapping', [THREE.NeutralToneMapping]: 'NeutralToneMapping',
 };
+// The act's colour grade (main.js sets it from look.css --grade-*-act<n>): a gain and a lift on the tone-mapped
+// picture, and a saturation. Numbers only: one shader for every act. Low (no output pass) has none.
+export const GRADE = { gain: new THREE.Color(1, 1, 1), lift: new THREE.Color(0, 0, 0), sat: 1 };
 export class BloomOutputPass extends Pass {
   constructor(bloom) {
     super();
     this.bloom = bloom;
     this.material = new THREE.ShaderMaterial({
-      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 }, grey: { value: 0 } },
+      uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloomStrength: { value: 0 }, toneMappingExposure: { value: 1 }, grey: { value: 0 }, gradeGain: { value: GRADE.gain }, gradeLift: { value: GRADE.lift }, gradeSat: { value: 1 } },
       vertexShader: QUAD_VERTEX,
       fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse, tBloom;
-        uniform float bloomStrength, grey;
+        uniform float bloomStrength, grey, gradeSat;
+        uniform vec3 gradeGain, gradeLift;
         #include <tonemapping_pars_fragment>
         varying vec2 vUv;
         ${FINITE}
@@ -223,6 +227,8 @@ export class BloomOutputPass extends Pass {
           #ifdef TONE
             c.rgb = TONE(c.rgb);
           #endif
+          c.rgb = clamp(c.rgb, 0.0, 1.0) * gradeGain + gradeLift * (1.0 - clamp(c.rgb, 0.0, 1.0));   // the act's grade
+          c.rgb = mix(vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), c.rgb, gradeSat);
           c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), grey);   // the colour draining (juice.grey: Snooze Button's save)
           #ifdef SRGB_TRANSFER
             c = sRGBTransferOETF(c);
@@ -241,6 +247,7 @@ export class BloomOutputPass extends Pass {
     u.bloomStrength.value = b.enabled ? b.strength : 0;
     u.toneMappingExposure.value = renderer.toneMappingExposure;
     u.grey.value = juice.grey;
+    u.gradeSat.value = GRADE.sat;
     this.prepare(renderer);
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);

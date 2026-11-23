@@ -1,0 +1,1 @@
+gives each act its own mood: a cool moonlit haze and grade in act 3, a stronger moon through the bedroom curtains, brighter morning sun and sky in act 4's dawn, a stronger cool city glow at act 1's windows and a cooler bathroom light in act 2, all baked in Blender. Every bug now has a soft shadow under it, and the jelly's shadow is soft too.
