@@ -50,6 +50,8 @@ export const CONFIG = {
     clearEase: LOOK.num('camera-clear-ease', 0.05),         // m it has already come in by when the lens reaches the wall
     clearHold: LOOK.num('camera-clear-hold', 0.1),          // s it stays in after the wall clears
     clearRecover: LOOK.num('camera-clear-recover', 9),      // per s: how fast it eases back out (about 0.25 s to settle)
+    fixtureLift: LOOK.num('camera-fixture-lift', 0.22),     // rad steeper the view tilts while a fixture that never fades (the kitchen) is in the way
+    fixtureRate: LOOK.num('camera-fixture-rate', 6),        // per s: how fast it tilts there and back
     far: 60,
   },
 };

@@ -92,6 +92,8 @@ export class ThirdPersonCamera {
     this.holdFades = false;
     this.pull = 0;             // m the clearance has dollied the camera in by (0: the view as asked for)
     this._hold = 0;            // s left before the camera starts easing back out
+    this.fixtureHit = false;   // the last clearTo stopped at a fixture that never fades (the kitchen), not a wall
+    this.lift = 0;             // 0..1: how far the view has tilted steeper to look over such a fixture
     this._rayEnd = new THREE.Vector3();
   }
 
@@ -108,13 +110,18 @@ export class ThirdPersonCamera {
     this._up.crossVectors(this._side, dir).normalize();
     const reach = want + c.clearBand + m;
     let room = Infinity;
+    this.fixtureHit = false;
     for (let i = 0; i < 5; i++) {
       const end = this._rayEnd.copy(this.focus).addScaledVector(dir, reach);
       if (i) end.addScaledVector(this._side, i & 1 ? m : -m).addScaledVector(this._up, i & 2 ? m : -m);
       const len = this._ray.subVectors(end, this.focus).length();
       this._ray.multiplyScalar(1 / len);
-      const h = this.world.cast(this.focus, this._ray, len, null, true);
-      if (h) room = Math.min(room, h.distance * this._ray.dot(dir));
+      // fixtures that never fade (the kitchen) stop the lens too, except what a boss fight keeps faint
+      const h = this.world.cast(this.focus, this._ray, len, this.keep, this.fight ? true : 2);
+      if (h) {
+        const r = h.distance * this._ray.dot(dir);
+        if (r < room) { room = r; this.fixtureHit = !h.mesh.userData.structural; }
+      }
     }
     if (room === Infinity) return want;
     const spare = room - m - want, k = THREE.MathUtils.clamp(spare / c.clearBand, 0, 1);
@@ -238,7 +245,19 @@ export class ThirdPersonCamera {
     this.dirAt(this.viewPitch, this._dir);
     // Clearance: in at once where a wall would be in the way, back out after a pause (the view's
     // yaw and tilt are never touched: only how far along them the camera sits)
-    const need = this.currentDistance - this.clearTo(this._dir, this.currentDistance);
+    // Where the kitchen is in the way the view also tilts steeper (it looks over the counter more than
+    // through it), then the dolly keeps the lens in front of it. What's in the way is judged at the
+    // player's own tilt, so the tilt eases back as the jelly leaves, never chasing itself.
+    let need = this.currentDistance - this.clearTo(this._dir, this.currentDistance);
+    this.lift += ((this.fixtureHit && !this.fight ? 1 : 0) - this.lift) * (1 - Math.exp(-c.fixtureRate * dt));
+    if (this.lift < 5e-3) this.lift = 0;
+    if (this.lift) {
+      this.viewPitch = Math.min(c.maxPitch, this.viewPitch + c.fixtureLift * this.lift);
+      this.dirAt(this.viewPitch, this._dir);
+      const hit = this.fixtureHit;
+      need = this.currentDistance - this.clearTo(this._dir, this.currentDistance);
+      this.fixtureHit = hit;
+    }
     if (need >= this.pull) { this.pull = need; this._hold = c.clearHold; }
     else if ((this._hold -= dt) <= 0) this.pull = need + (this.pull - need) * Math.exp(-c.clearRecover * dt);
     const dist = Math.max(this.currentDistance - this.pull, Math.min(this.currentDistance, c.clearMin));

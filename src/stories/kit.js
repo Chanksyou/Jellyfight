@@ -179,8 +179,8 @@ export function cameraTour(spots) {
       // build the shaders this view needs (see-through copies included) without drawing it: in a
       // software GPU, 240 queued draws became a minutes-long stall a story or two later (#7)
       tp(...p, (k * Math.PI) / 8); step(30); G().batcher.sync(); G().GAME.compile(); views++;
-      // moved: anything but a wall's clearance (tpc.pull) changed the view (a fight view: eased in)
-      if (Math.abs(cam.distanceTo(tpc.focus) - want[1] + tpc.pull) > 1e-3 || Math.abs(tpc.viewPitch - want[0]) > 1e-3) moved++;
+      // moved: anything but a wall's clearance (tpc.pull) or the kitchen's steeper tilt (tpc.lift) changed the view (a fight view: eased in)
+      if (Math.abs(cam.distanceTo(tpc.focus) - want[1] + tpc.pull) > 1e-3 || Math.abs(tpc.viewPitch - Math.min(tpc.cfg.maxPitch, want[0] + tpc.cfg.fixtureLift * tpc.lift)) > 1e-3) moved++;
       if (tpc.pull > 1e-3) pulled++;
       for (const m of tpc.over) seen.add(m.name);
       const len = toCam.subVectors(cam, tpc.focus).length();

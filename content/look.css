@@ -129,6 +129,8 @@
   --camera-clear-ease: 0.05;     /* m it has already come in by when the lens reaches the wall */
   --camera-clear-hold: 0.1;      /* s it stays in after the wall clears */
   --camera-clear-recover: 9;     /* per s: how fast it eases back out (about 0.25 s to settle) */
+  --camera-fixture-lift: 0.22;   /* rad: how much steeper the view tilts while the kitchen (opaque fixtures) is in the way; the dolly above then keeps the lens in front of it */
+  --camera-fixture-rate: 6;      /* per s: how fast it tilts there and back (about 0.4 s) */
   --encore-leather-grain: 0.00012;
   --encore-contact: #ffb52e;
   --encore-contact-life: 0.32;
