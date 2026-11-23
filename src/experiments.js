@@ -1,7 +1,8 @@
-// Experiment switches for measuring on a phone: index.html?lights=4, ?rt=packed, ?msaa=4, ?lite=1.
+// Experiment switches for measuring on a phone: index.html?lights=4, ?rt=packed, ?msaa=4, ?lite=1, ?ambient=0.
 // Read once at boot like a dev option: never saved, never in a run, and absent means the game as shipped.
 // The bench (src/bench.js) shows them in its results. Each is a load-time choice, so none builds a shader in play.
 // lights: lamp slots on a phone (overrides --phone-lights); lite: Low's plain materials on any tier (lite-materials.js);
+// ambient: 0 = nothing in the room moves by itself (ambient.js);
 // rt: packed picture buffers (graphics.js); msaa: smooth edges on Medium, at --msaa-pixel-ratio on a phone (graphics.js, main.js).
 export function readExperiments(search) {
   const q = new URLSearchParams(search);
@@ -11,6 +12,7 @@ export function readExperiments(search) {
     rt: pick('rt', ['packed']),
     msaa: pick('msaa', ['0', '2', '4']) && +q.get('msaa'),
     lite: q.get('lite') === '1' ? 1 : null,
+    ambient: q.get('ambient') === '0' ? 0 : null,
   };
 }
 export const EXPERIMENTS = readExperiments(location.search);
