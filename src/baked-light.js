@@ -140,7 +140,7 @@ export function setBakedLight(on) {
   const m = BAKED_LIGHT.meta, gain = on && m ? LOOK.num('baked-light', 1) : 0;
   uniforms.lbGain.value = m ? m.top * gain : 0;
   uniforms.lbGridGain.value = m?.gridTop && uniforms.lbGrid.value !== blank3 ? m.gridTop * gain * LOOK.num('baked-light-furniture', 1) : 0;
-  uniforms.lbTint.value = uniforms.lbGridGain.value > 0 ? LOOK.num('baked-tint', 0.35) : 0;
+  uniforms.lbTint.value = uniforms.lbGridGain.value > 0 ? LOOK.num('baked-tint', 0.8) : 0;
   return on;
 }
 

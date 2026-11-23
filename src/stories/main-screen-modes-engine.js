@@ -1214,6 +1214,7 @@ story('engine/bugs-and-jelly-take-the-baked-light', {
     step(10);
     const U = BAKED_LIGHT.uniforms.lbTint, was = U.value, lit = [];
     G().player.avatar.root.traverse((o) => { if (o.isMesh) [].concat(o.material).forEach((m) => { if (m.isMeshStandardMaterial) lit.push(!!m.userData.tinted); }); });
+    G().batcher.sync(); G().gfx.render();   // (the new bugs' first draw builds their shaders)
     const programs = G().APT.renderer.info.programs.length;
     const changed = changedPixels(() => { U.value = 20; }, () => { U.value = was; });
     const built = G().APT.renderer.info.programs.length - programs;
