@@ -129,6 +129,8 @@
   --camera-clear-ease: 0.05;     /* m it has already come in by when the lens reaches the wall */
   --camera-clear-hold: 0.1;      /* s it stays in after the wall clears */
   --camera-clear-recover: 9;     /* per s: how fast it eases back out (about 0.25 s to settle) */
+  --camera-fixture-lift: 0.22;   /* rad: how much steeper the view tilts while the kitchen (opaque fixtures) is in the way; the dolly above then keeps the lens in front of it */
+  --camera-fixture-rate: 6;      /* per s: how fast it tilts there and back (about 0.4 s) */
   --encore-leather-grain: 0.00012;
   --encore-contact: #ffb52e;
   --encore-contact-life: 0.32;
@@ -662,6 +664,14 @@
   --bloom: 0.22;               /* glow around bright things (medium/high graphics only) */
   --baked-light: 1;            /* how bright Blender's baked light on walls, floors and ceilings shows (baked-light.js; 0 = every lamp live, as before) */
   --baked-light-furniture: 1;  /* the furniture's baked light grid on top of that (0 = furniture lit by live lamps) */
+  --baked-tint: 0.8;           /* how much of the baked light where they stand the jelly and the bugs take, on top of the live lamps (baked-light.js tintShader) */
+  --lamp-halo: 0.3;            /* the soft glow round each lit lamp's bulb (air-light.js): brightness per unit of the lamp's intensity */
+  --lamp-halo-size: 0.4;       /* its size (m) */
+  --motes: 1.1;                /* dust drifting in act 3's moonlight and act 4's sun (air-light.js; a stage's `motes`): brightness */
+  --motes-count: 480;          /* how many, in the stage's box (one draw; Low draws none) */
+  --motes-size: 0.007;         /* each one's size (m) */
+  --motes-from: 0.12;          /* the baked light (the grid's, from the beam's side) where a mote starts to show */
+  --motes-full: 0.45;          /* and where it shows fully */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
 
   /* --- the jelly ------------------------------------------------------------- */
@@ -1027,6 +1037,13 @@
   --sun-fill: 1.8;               /* how strong the sunlight is on what it covers (x the surface's colour: red stays red, just lit) */
   --sun-soft: 0.03;              /* m: its soft edge at the line */
   --sun-warm: 0.5;               /* how much more of the room's soft light a sunlit surface gets (bounce) */
+  /* Room tone (src/ambience.js): the sound a room makes by itself, under the music */
+  --ambience-level: 1;           /* the whole bed's loudness, 1 = as written in ambience.js (the Sound setting still scales it) */
+  --ambience-once: 1;            /* the one-shots (a clock's tick, a chime, a drip) */
+  --ambience-fade: 1.5;          /* s: to fade in or out */
+  --ambience-duck: 0.45;         /* how much of the bed is left with bugs all round you */
+  --ambience-boss: 0.25;         /* ... and during a Boss fight */
+  --ambience-hold: 0.6;          /* ... and while the game is paused */
   --sun-dir: 0.3 0.55 -1;        /* toward the sun: low, in through the window wall (z 0); surfaces facing it get the most */
   --sun-rim: 0.035;              /* m: the hot band along its line */
   --sun-rim-glow: 0.85;          /* how bright that band is */

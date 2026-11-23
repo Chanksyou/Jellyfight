@@ -29,6 +29,7 @@ const uniforms = {
   lbGrid: { value: blank3 }, lbGridDay: { value: blank3 },   // the furniture's light grid (and act 4's daylight one)
   lbGridMin: { value: new THREE.Vector3() }, lbGridDims: { value: new THREE.Vector3(1, 1, 1) }, lbGridStep: { value: 0.1 },
   lbGridGain: { value: 0 },
+  lbTint: { value: 0 },        // how much of the grid's light the jelly and the bugs take (tintShader, --baked-tint)
   lbKmin: { value: new THREE.Vector3() },
   lbAtlasSize: { value: new THREE.Vector2(1, 1) },
   lbGain: { value: 0 },        // 0 = no bake here (live lamps), else the picture's top value times --baked-light
@@ -139,6 +140,7 @@ export function setBakedLight(on) {
   const m = BAKED_LIGHT.meta, gain = on && m ? LOOK.num('baked-light', 1) : 0;
   uniforms.lbGain.value = m ? m.top * gain : 0;
   uniforms.lbGridGain.value = m?.gridTop && uniforms.lbGrid.value !== blank3 ? m.gridTop * gain * LOOK.num('baked-light-furniture', 1) : 0;
+  uniforms.lbTint.value = uniforms.lbGridGain.value > 0 ? LOOK.num('baked-tint', 0.8) : 0;
   return on;
 }
 
@@ -155,11 +157,36 @@ export async function bakeFingerprint(stageId, parts, layout) {
 // Read by the room's shader patch (baked-ao.js). bakedLight: the light reaching a shell point per unit of
 // albedo, w = 1 where the bake covers it. The face's own direction comes from the screen derivatives of
 // its position (exact on a flat face), so smoothed normals at a wall's corner never pick the wrong plane.
-export const LIGHT_FRAGMENT = /* glsl */`
+// The light grid alone (also read by the jelly and the bugs, tintShader, and the dust in the light, air-light.js)
+export const GRID_GLSL = /* glsl */`
+  // the furniture's light grid: the light arriving from the 6 directions round each point, blended by the
+  // surface's normal (read half a step out from the surface, so a table top reads the air above it). w = 2:
+  // the grid is coarse, so the corner shadows still darken it
+  uniform sampler3D lbGrid, lbGridDay;
+  uniform vec3 lbGridMin, lbGridDims;
+  uniform float lbGridStep, lbGridGain, lbDayK;
+  vec3 lbGridDir(vec3 g, float f) {
+    vec3 uvw = vec3(g.xy / lbGridDims.xy, (clamp(g.z, 0.5, lbGridDims.z - 0.5) + f * lbGridDims.z) / (6.0 * lbGridDims.z));
+    vec3 t = textureLod(lbGrid, uvw, 0.0).rgb;
+    vec3 L = t * t;
+    if (lbDayK > 0.0) { vec3 d = textureLod(lbGridDay, uvw, 0.0).rgb; L += d * d * lbDayK; }
+    return L;
+  }
+  vec4 gridLight(vec3 pos, vec3 n) {
+    if (lbGridGain <= 0.0) return vec4(0.0);
+    vec3 g = (pos + n * lbGridStep * 0.5 - lbGridMin) / lbGridStep + 0.5;
+    if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, lbGridDims))) return vec4(0.0);
+    vec3 w = n * n;
+    vec3 L = w.x * lbGridDir(g, n.x > 0.0 ? 0.0 : 1.0) + w.y * lbGridDir(g, n.y > 0.0 ? 2.0 : 3.0) + w.z * lbGridDir(g, n.z > 0.0 ? 4.0 : 5.0);
+    return vec4(L * lbGridGain, 2.0);
+  }
+`;
+
+export const LIGHT_FRAGMENT = GRID_GLSL + /* glsl */`
   uniform sampler2D lbAtlas, lbDay, lbIndex;
   uniform vec3 lbKmin, lbGlowPos, lbGlowColor;
   uniform vec2 lbAtlasSize;
-  uniform float lbGain, lbDayK, lbGlowDist, lbGlowDecay;
+  uniform float lbGain, lbGlowDist, lbGlowDecay;
   vec4 bakedLight(vec3 pos, vec3 nrm) {
     vec3 g = cross(dFdx(pos), dFdy(pos));
     if (lbGain <= 0.0) return vec4(0.0);
@@ -190,27 +217,6 @@ export const LIGHT_FRAGMENT = /* glsl */`
     if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
     return vec4(L * lbGain, 1.0);
   }
-  // the furniture's light grid: the light arriving from the 6 directions round each point, blended by the
-  // surface's normal (read half a step out from the surface, so a table top reads the air above it). w = 2:
-  // the grid is coarse, so the corner shadows still darken it
-  uniform sampler3D lbGrid, lbGridDay;
-  uniform vec3 lbGridMin, lbGridDims;
-  uniform float lbGridStep, lbGridGain;
-  vec3 lbGridDir(vec3 g, float f) {
-    vec3 uvw = vec3(g.xy / lbGridDims.xy, (clamp(g.z, 0.5, lbGridDims.z - 0.5) + f * lbGridDims.z) / (6.0 * lbGridDims.z));
-    vec3 t = textureLod(lbGrid, uvw, 0.0).rgb;
-    vec3 L = t * t;
-    if (lbDayK > 0.0) { vec3 d = textureLod(lbGridDay, uvw, 0.0).rgb; L += d * d * lbDayK; }
-    return L;
-  }
-  vec4 gridLight(vec3 pos, vec3 n) {
-    if (lbGridGain <= 0.0) return vec4(0.0);
-    vec3 g = (pos + n * lbGridStep * 0.5 - lbGridMin) / lbGridStep + 0.5;
-    if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, lbGridDims))) return vec4(0.0);
-    vec3 w = n * n;
-    vec3 L = w.x * lbGridDir(g, n.x > 0.0 ? 0.0 : 1.0) + w.y * lbGridDir(g, n.y > 0.0 ? 2.0 : 3.0) + w.z * lbGridDir(g, n.z > 0.0 ? 4.0 : 5.0);
-    return vec4(L * lbGridGain, 2.0);
-  }
   // the jelly's glow as three.js draws a point light, legacy falloff (legacy-lighting.js)
   vec3 lbGlow(vec3 pos, vec3 nrm, vec3 diffuse) {
     vec3 l = lbGlowPos - pos;
@@ -218,3 +224,38 @@ export const LIGHT_FRAGMENT = /* glsl */`
     float att = (lbGlowDist > 0.0 && lbGlowDecay > 0.0) ? pow(saturate(1.0 - d / lbGlowDist), lbGlowDecay) : 1.0;
     return lbGlowColor * att * saturate(dot(nrm, l / max(d, 1e-4))) * BRDF_Lambert(diffuse);
   }`;
+
+// What moves (the jelly, the bugs) takes a little of the baked light where it stands, from the furniture's light grid:
+// blue in act 3's moonlight, warm in act 4's sun, dim in a dark corner. The live lamps still light it; this adds
+// --baked-tint of the bake's light on top (indirect, so the corner of a dark room stays dark). Reads the fragment's
+// world position and normal back from view space, so it works on instanced and bent (bell-flex.js) meshes alike.
+export function tintShader(sh) {
+  Object.assign(sh.uniforms, uniforms);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\n' + GRID_GLSL + '\nuniform float lbTint;')
+    .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+      if (lbTint > 0.0) {
+        mat3 tView = transpose(mat3(viewMatrix));
+        vec4 tL = gridLight(tView * (-vViewPosition - viewMatrix[3].xyz), normalize(tView * normal));
+        reflectedLight.indirectDiffuse += tL.rgb * diffuseColor.rgb * lbTint;
+      }`);
+}
+
+// every lit material under root takes the tint, once, on top of whatever patch it has (the jelly: player.js)
+export function tintWithBake(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) {
+      if (!m || m.userData.tinted || !(m.isMeshStandardMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial)) continue;
+      const base = m.onBeforeCompile, key = m.customProgramCacheKey;
+      const own = key === THREE.Material.prototype.customProgramCacheKey ? base.toString() : null;   // (the default key is the patch's source: the wrapper's is the same for all)
+      m.userData.tinted = true;
+      TINT_BASE.set(m, base);
+      m.onBeforeCompile = function (sh, r) { base.call(this, sh, r); tintShader(sh); };
+      m.customProgramCacheKey = function () { return (own ?? key.call(this)) + '+tint'; };
+      m.needsUpdate = true;
+    }
+  });
+  return root;
+}
+export const TINT_BASE = new WeakMap();   // a tinted material's own patch (bell-flex.js freezeBell looks under the tint)

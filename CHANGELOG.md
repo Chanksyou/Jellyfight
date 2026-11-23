@@ -2,6 +2,12 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v632 adds light you can see in the air: each lamp has a soft glow round its bulb, dust drifts in act 3's moonlight and in act 4's sun (not on Low graphics), and the jelly and the bugs pick up a little of the baked light where they stand, cool in the moonlight and warm in the sun.
+
+v631 adds a quiet room tone under each act: a fridge hum and the city far below in the living room, tile-room air and a slow tub drip in the bathroom, a humidifier's hiss and an air purifier's fan in the bedroom, and birds arriving as the sun rises in act 4. A wall clock ticks, a wind chime rings and a far siren passes now and then, each heard from where it is in the room. It steps back when bugs close in, more under a Boss, and is silent in the Encore.
+
+v630 tilts the camera steeper and keeps its lens in front of the kitchen counters when they would block the view of the jelly (they still never fade).
+
 v629 gives each act its own mood: a cool moonlit haze and grade in act 3, a stronger moon through the bedroom curtains, brighter morning sun and sky in act 4's dawn, a stronger cool city glow at act 1's windows and a cooler bathroom light in act 2, all baked in Blender. Every bug now has a soft shadow under it, and the jelly's shadow is soft too.
 
 v628 gives the big pieces of furniture (the kitchen, the sofa, cabinets, shelves, desks, posters, plants) their own baked light maps from Blender, so shelf shadows and lamp pools on them come out sharp instead of soft; smaller pieces keep the light grid. No extra draws.

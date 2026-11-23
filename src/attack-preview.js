@@ -76,7 +76,7 @@ function onBug(P, type, p) {
 let SHELL = null;
 function stageShell() {
   SHELL ||= standOut(new THREE.MeshStandardMaterial({ vertexColors: true, color: new THREE.Color(LOOK.color('preview-bug-tone', '#a07a60')), roughness: LOOK.num('preview-bug-roughness', 0.5), metalness: 0.1,
-    envMapIntensity: LOOK.num('preview-bug-sheen', 0.35) }), { base: LOOK.num('preview-bug-glow', 0.08), rim: LOOK.num('preview-bug-rim', 0.3) });
+    envMapIntensity: LOOK.num('preview-bug-sheen', 0.35) }), { base: LOOK.num('preview-bug-glow', 0.08), rim: LOOK.num('preview-bug-rim', 0.3), tint: false });
   return SHELL;
 }
 

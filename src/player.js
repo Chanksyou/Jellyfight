@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { strokeRate } from './swim.js';
 import { hitSpot } from './collision.js';
+import { tintWithBake } from './baked-light.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const DOWN = new THREE.Vector3(0, -1, 0);
@@ -51,6 +52,7 @@ export class Player {
       this.avatar.dispose();
     }
     this.avatar = avatar;
+    tintWithBake(avatar.root);   // a little of the baked light where it swims (baked-light.js)
     this.mesh.add(avatar.root);
   }
 

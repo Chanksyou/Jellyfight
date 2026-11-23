@@ -31,6 +31,7 @@ import { addSkyline } from './skyline.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
+import { Ambience } from './ambience.js';
 import { SongTrack, TRACKS, fetchTrack } from './song-track.js';
 import { jellyPortrait } from './jelly-portrait.js';
 import { AuraPainter } from './pick-auras/painter.js';
@@ -43,9 +44,10 @@ import { wireFeedback } from './feedback.js';
 import { batcher, HIDDEN } from './batch.js';
 import { StaticBatches, freeze } from './static-batch.js';
 import { LOOK } from './look.js';
+import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v629';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v632';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -323,6 +325,8 @@ picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick scr
 const slotCount = ARENA ? 0 : IS_TOUCH ? (EXPERIMENTS.lights ?? LOOK.num('phone-lights', 6)) : LOOK.num('desktop-lights', 0);   // the arena has no lamps
 const lightSlots = slotCount > 0 ? new LightSlots(scene, slotCount, { fade: LOOK.num('light-fade', 0.5), reach: LOOK.num('light-reach', 1.5) }) : null;
 if (lightSlots) APT.lights.rescan();
+const air = ARENA ? null : new AirLight(scene, stage, { low: () => gfx.quality === 'low', calm: () => juice.calm });   // lamp halos and dust in the light (air-light.js)
+window.air = air;
 const enemies = new Enemies(scene, world, fx);
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
@@ -573,6 +577,7 @@ async function loadRooms(parts, onProgress) {
   const added = await APT.load(parts, onProgress);
   if (!added.length) return added;
   lightSlots?.rescan();               // the new rooms' lamps share the same slots
+  air?.rescan();                      // and glow
   const made = await applyLayout(APT.root, stage.id);   // (and copies of the new rooms' furniture)
   APT.lightMapped += mapPieces(APT.root, APT.bakedLight && BAKED_LIGHT.meta);
   world.addObjects([...added, ...made]);
@@ -616,6 +621,17 @@ function updateMusic(dt) {
   music.duck(menuOpen() || run.paused);
   music.suck(!!st.suck);              // the Vacuum sucking drags the music through a dub filter
   music.update(dt, st.intensity);
+}
+
+// The room tone (ambience.js): the act's bed and a few one-shots near their pieces, under the music. It plays through
+// the master like every effect, so the Sound setting is its volume, and it stops in the Encore's arena.
+let ambience = null;
+const ambListener = { x: 0, z: 0, rx: 1, rz: 0 };
+function updateAmbience(dt) {
+  if (!ambience) { const A = audio(); if (!A) return; ambience = new Ambience(A.ctx, A.master); window.ambience = ambience; }
+  ambListener.x = player.position.x; ambListener.z = player.position.z;
+  ambListener.rx = Math.cos(tpc.yaw); ambListener.rz = -Math.sin(tpc.yaw);   // the camera's right, along the floor
+  ambience.update(dt, run.ambienceState(), ambListener, isMuted());
 }
 
 // --- The boss finish --------------------------------------------------------
@@ -774,6 +790,7 @@ const GAME = {
   loadRooms,
   step(dt) {
     updateMusic(dt);
+    updateAmbience(dt);
     systems.traversal.update(dt, { pixelRatio: renderer.getPixelRatio(), low: gfx.quality === 'low', calm: juice.calm });
     systems.fx.update(dt);
     run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));
@@ -797,6 +814,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     systems.shadow.update(dt);
+    air?.update(dt, renderer, camera);
     systems.hud.update(dt);
     systems.debug.update(dt);
   },
@@ -886,6 +904,7 @@ let lampsOn = true;
 function toggleLamps() {
   lampsOn = !lampsOn;
   scene.traverse((o) => { if (o.isPointLight && (lightSlots ? o.userData.slot : o.userData.lamp)) o.visible = lampsOn; });
+  if (air) air.on = lampsOn;
   return lampsOn;
 }
 GAME.toggleLamps = toggleLamps;   // the phone bench's lamps-off replay (bench.js)

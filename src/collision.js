@@ -199,7 +199,7 @@ export class World {
   // sorted hit objects for every mesh a ray touched) or the BVH's shapecast (which wraps its
   // node buffer in three new typed arrays per call). A miss allocates nothing; a hit, the result.
   // skip: a Set of meshes to see straight through (the camera, looking out from under a table)
-  // structural: look only at the pieces that seal the rooms (walls, floors, ceilings, window glass: userData.structural)
+  // structural: look only at the pieces that seal the rooms (walls, floors, ceilings, window glass: userData.structural); 2: and the fixtures that never fade (userData.noCameraFade)
   // out: { distance, point, normal, mesh } with its two vectors made once by the caller (`hitSpot()`): a hit is
   // written into it and it is returned, so a ray cast every frame (a floor under a bug, the jelly's feet) allocates nothing
   cast(origin, dir, far, skip = null, structural = false, out = null) {
@@ -209,7 +209,7 @@ export class World {
     let mesh = null;
     for (let i = 0; i < this.nearby.length; i++) {
       const m = this.nearby[i], sp = this.nearbySpheres[i];
-      if (structural && !m.userData.structural) continue;
+      if (structural && !m.userData.structural && !(structural === 2 && m.userData.noCameraFade)) continue;   // 2: the walls and the fixtures that never fade too (the kitchen)
       if (ray.distanceSqToPoint(sp.center) > sp.radius * sp.radius) continue;
       if (sp.center.distanceTo(origin) - sp.radius > this._best) continue;   // entirely beyond the best hit
       if (!visibleChain(m)) continue;                                          // hidden since we collected it

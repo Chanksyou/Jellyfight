@@ -20,6 +20,8 @@ export const STAGE3 = {
   name: 'Medusa',
   subtitle: 'Bedroom',
   rooms: ['Bedroom'],
+  // dust drifting in the moonlight from the west window (air-light.js): the box it drifts in, and the grid direction the moon comes from (1: from -x)
+  motes: { min: [-1.9, 0.05, 8.1], max: [1.6, 1.9, 11.2], face: 1 },
   parts: ['act1', 'act3'],           // apartment files to load (apartment.js): act 3 adds the bedroom
   evolve: 'Your ephyra grows into a full-grown <b>Medusa</b>.',
   start: [1.0, 0, 8.85],             // open floor between the foot of the bed and the dresser

@@ -121,6 +121,8 @@ export const STAGE4 = {
   // second before the act's `power` (1.5 x 2 = 3; the Clog's acid is 2.667 x 1.5 = 4). Bugs and
   // Elites aren't hurt. It never reaches the stage door (z 4.35 up). `across`: the room's x span.
   sun: { from: 0.3, to: 3.3, drain: 1.5, across: [0, 5] },
+  // dust in the sun (air-light.js): the room on the window side of its line; the sun comes in from -z (the grid's direction 5)
+  motes: { min: [0, 0.05, -0.1], max: [5, 1.7, 3.3], face: 5, sun: true },
 
   // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
   // painted flat, never a collider or a light.

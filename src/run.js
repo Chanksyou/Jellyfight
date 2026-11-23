@@ -2236,6 +2236,19 @@ export class Run {
     return { song: null, intensity: 0 };
   }
 
+  // What the room tone (ambience.js) should do: which act's bed, how far the sun is up (act 4's birds), and
+  // whether to step back (a Boss, bugs close in, paused) or fall silent (the Encore's arena plays only its recording)
+  ambienceState() {
+    const S = this._amb ||= { act: 1, dawn: 0, off: false, boss: false, intensity: 0, paused: false };
+    S.act = this.stage.id;
+    S.off = !!this.stage.arena || this.phase === 'dead' || this.phase === 'won';
+    S.boss = this.phase === 'boss' || this.phase === 'intro';
+    S.intensity = this.phase === 'explore' ? this.musicState().intensity : 0;
+    S.dawn = this.stage.sun ? this.night : 0;
+    S.paused = !!this.paused;
+    return S;
+  }
+
   // ------------------------------------------------------------ HUD
   // How far along each timed treasure or evolution is, by its id: { left, spent }, where left is the
   // share of its wait still to go (0 = ready or going off now, 1 = just went off) and spent is a
