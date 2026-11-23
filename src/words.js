@@ -698,9 +698,9 @@ export const ENEMY_WORDS = {
   },
 
   prism: {
-    doc: 'Within `range` m every `every` s or so, stops, faces you and winds up for `windup` s (a ball of hot rainbow light grows between its forelegs), then lobs it in a slow arc (rising `peak` m over the straight line) at the floor under where you are, landing `beats` beats later; while it flies, a Warning circle and dome `radius` m round fill there. The ball spins as it goes: on every beat it fires a flat ring of `count` bolts out all round (`speed` m/s, gone after `life` s, `dmg` each; each ring turned half a gap from the last, so the gaps spiral), the bolts settling to your height so a jump clears a ring. It lands as a Blast (`burst`) with a last ring. At most `most` balls fly at once. List it after on-beat so it throws on a beat.',
+    doc: 'Within `range` m every `every` s or so, stops, faces you and winds up for `windup` s (a ball of hot rainbow light grows between its forelegs), then lobs it in a slow arc (rising `peak` m over the straight line) at the floor under where you are, landing `beats` beats later; while it flies, a Warning circle and dome `radius` m round fill there. The ball spins as it goes: on every beat it fires a burst of bolts out every way, up, down and all round (`rows` rows between the two poles, `count` round its middle and fewer toward the poles; `speed` m/s, gone after `life` s or at the floor, a wall or furniture, `dmg` each; each burst turned half a gap from the last, so the gaps spiral). It lands as a Blast (`burst`) with a last burst. At most `most` balls fly at once. List it after on-beat so it throws on a beat.',
     phases: { windup: 'build', rest: 'fire' }, thrown: true,   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.6, every: 6, windup: 0.6, beats: 4, peak: 0.18, radius: 0.12, count: 12, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3, rest: 0.6 },
+    props: { range: 0.6, every: 6, windup: 0.6, beats: 4, peak: 0.18, radius: 0.12, count: 12, rows: 5, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3, rest: 0.6 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.beats) && p.beats >= 1)) throw new Error(`${where}: prism beats= must be a whole number of beats, 1 or more`);
       return {

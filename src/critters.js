@@ -13,6 +13,7 @@ import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
 import { coil, eyes, heavy, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
+import { prismFacets } from './prism-balls.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -2578,7 +2579,7 @@ function butterflyParts() {
     ...[-1, 1].flatMap((s) => [0.3, 0.12, -0.08].map((z) => rod(V(s * 0.08, -0.1, z), V(s * 0.18, -0.34, z + 0.12), 0.018, 0.008, black))),   // legs, tucked
   ]);
   const fore = monarchWing(FOREWING), hind = monarchWing(HINDWING);
-  return { body, fore, hind, foreMap: paintMonarch(FOREWING, true), hindMap: paintMonarch(HINDWING, false), ball: new THREE.IcosahedronGeometry(1, 2) };
+  return { body, fore, hind, foreMap: paintMonarch(FOREWING, true), hindMap: paintMonarch(HINDWING, false), ball: prismFacets(LOOK.list('prism-colors', ['#ff2a2a', '#ff7a1a', '#ffcc1a', '#ff4fa0', '#ff2ad4']).map((c) => new THREE.Color(c))) };
 }
 
 export function buildButterfly() {
@@ -2586,7 +2587,7 @@ export function buildButterfly() {
   if (!M.bfFore) {
     const wing = (map) => { const m = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.7 }); standOut(m, { base: 0.3, rim: 0.15 }); return m; };   // (little rim: seen edge-on a wing would wash out white)
     M.bfFore = wing(G.foreMap); M.bfHind = wing(G.hindMap);
-    M.bfBall = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });   // the ball it holds, tinted per bug (batch.js perInstance); unlit, bloom lifts it
+    M.bfBall = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, toneMapped: false });   // the ball it holds: the thrown ball's faceted rainbow shell (batch.js perInstance); unlit, bloom lifts it
     M.bfBall.userData.perInstance = true;
   }
   const outer = new THREE.Group(), body = new THREE.Group();
@@ -2608,7 +2609,6 @@ export function buildButterfly() {
     body.add(hinge);
     wings.push({ s, hind, hinge });
   }
-  const colors = LOOK.list('prism-colors', ['#ff2a2a', '#ff7a1a', '#ffcc1a', '#ff4fa0', '#ff2ad4']).map((c) => new THREE.Color(c));
   const beatT = LOOK.num('butterfly-beat', 0.17), glideT = LOOK.num('butterfly-glide', 0.45), V0 = LOOK.num('butterfly-glide-v', 0.3);
   let t = 0, held = 0;
   const anim = (dt, e) => {
@@ -2638,11 +2638,11 @@ export function buildButterfly() {
     body.position.set(shake * 0.02, -0.08 * flap * (1 - still) - 0.05 * (c >= n * beatT ? (c - n * beatT) / glideT : 0) + 0.12 * lift, 0);
     body.rotation.set(0.12 * (c < n * beatT ? 1 : 0.3) - lift * 0.5 + down * 0.45, 0, shake * 0.05);
     stretch(body, len);
-    // the ball between its forelegs: grows as it winds up, its colours turning; gone as it's thrown
+    // the ball between its forelegs: grows and spins as it winds up; gone as it's thrown
     const b = ph === 'build' ? 0.06 + 0.16 * glow : 0.001;
     ball.scale.setScalar(b);
-    const q = (t * 6) % colors.length;
-    ball.userData.color.copy(colors[q | 0]).lerp(colors[((q | 0) + 1) % colors.length], q % 1).multiplyScalar(LOOK.num('prism-glow', 1.8));
+    ball.rotation.set(t * 3, t * 10, 0);
+    ball.userData.color.setScalar(LOOK.num('prism-glow', 1));
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); ball.scale.setScalar(0.001); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };

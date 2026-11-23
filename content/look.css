@@ -812,10 +812,11 @@
   --firefly-pool-glow: 1.4;          /* how far past white the pool burns (bloom lifts it; no lights) */
   --hostile-butterfly: #ffb300;  /* the butterfly's prism: its Warning and burst (the ball and bolts run round --prism-colors) */
   --prism-colors: #ff2a2a #ff7a1a #ffcc1a #ff4fa0 #ff2ad4;   /* the hot rainbow (never blue or green: those are the jelly's) */
-  --prism-glow: 1;               /* how far over white the bolts and the held ball are pushed, for bloom */
+  --prism-glow: 1;               /* how far over white the bolts and the ball's shell are pushed, for bloom */
   --prism-ball-size: 0.015;      /* the ball in flight (m) */
   --prism-bolt-size: 0.007;      /* each bolt's radius (m); drawn 2.6x as long along its flight */
-  --prism-bolts-max: 120;        /* bolts alive at once (the oldest goes) */
+  --prism-bolts-max: 240;        /* bolts alive at once (the oldest goes) */
+  --prism-spin: 4.7;             /* how fast the ball in flight turns (radians a beat) */
   --prism-warning-opacity: 0.32; /* the circle where the ball will land */
   --prism-dome-opacity: 0.26;    /* and the dome over it */
   --butterfly-beat: 0.17;        /* one wingbeat (s): a monarch beats about 6 times a second */

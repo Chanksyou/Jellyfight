@@ -1,9 +1,10 @@
 // The butterfly's prism ball (the prism word): a Shot of hot rainbow light lobbed in a slow arc at the
 // floor under the jelly; while it flies, a Warning (floor circle + dome) fills where it will land. It
-// spins as it goes, and on every beat of the song it fires a flat ring of bolts out all round, each
-// ring turned half a gap from the last so the gaps spiral. The bolts settle to the floor volley height
-// (vfx.js SHOT_HEIGHT.floor: the jelly's middle on the floor), so a jump clears a ring. It lands as a
-// Blast with a last ring. Bolts are one instanced draw (batch.js perInstance), lit by bloom alone (no
+// spins as it goes (a faceted shell of the hot rainbow turning round its core), and on every beat of
+// the song it fires a burst of bolts out every way: rows of bolts from straight down to straight up,
+// `count` round its middle and fewer toward the top and bottom, each burst turned half a gap from the
+// last so the gaps spiral. Bolts fly straight and stop at the floor, walls and furniture. It lands as
+// a Blast with a last burst. Bolts are one instanced draw (batch.js perInstance), lit by bloom alone (no
 // lights), at most `prism-bolts-max` alive (the oldest goes). Nothing allocates per frame.
 import * as THREE from 'three';
 import { bus, PLAYER } from './events.js';
@@ -15,6 +16,30 @@ import { hostile, TeleMaterial, blastHits, SHOT_HEIGHT } from './vfx.js';
 
 const _v = new THREE.Vector3(), _p = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Color();
 const Z = new THREE.Vector3(0, 0, 1);
+
+// the ball's shell (and the one the butterfly holds): a 20-faced ball, each face one colour of the hot
+// rainbow, so it reads as spinning (drawn unlit with vertex colours; batch.js perInstance tints it)
+export function prismFacets(colors) {
+  const g = new THREE.IcosahedronGeometry(1, 0), n = g.attributes.position.count, col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) colors[((i / 3) | 0) % colors.length].toArray(col, i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
+// the directions of one burst: `rows` rows between straight down and straight up (not counting the two
+// poles), `count` bolts round the middle and fewer toward the poles, the same spacing all over
+const SPREADS = new Map();
+function spread(count, rows) {
+  const key = count * 100 + rows;
+  if (SPREADS.has(key)) return SPREADS.get(key);
+  const out = [{ lat: -Math.PI / 2, n: 1, row: -1 }, { lat: Math.PI / 2, n: 1, row: -1 }];
+  for (let i = 0; i < rows; i++) {
+    const lat = -Math.PI / 2 + Math.PI * (i + 1) / (rows + 1);
+    out.push({ lat, n: Math.max(1, Math.round(count * Math.cos(lat))), row: i - (rows - 1) / 2 });
+  }
+  SPREADS.set(key, out);
+  return out;
+}
 
 export class PrismBalls {
   constructor(scene, fx, world) {
@@ -30,6 +55,10 @@ export class PrismBalls {
     this.mat.userData.perInstance = true;
     this.circle = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
     this.colors = LOOK.list('prism-colors', ['#ff2a2a', '#ff7a1a', '#ffcc1a', '#ff4fa0', '#ff2ad4']).map((c) => new THREE.Color(c));
+    this.facets = prismFacets(this.colors);
+    this.shellMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, toneMapped: false });
+    this.shellMat.userData.perInstance = true;
+    this.shells = [];   // pooled shells, one per ball in flight
   }
 
   // the hot rainbow at `k` (any number: it wraps round the colours)
@@ -61,33 +90,46 @@ export class PrismBalls {
     mark.floor.material.progress = mark.vol.material.progress = 0;
     const m = this.fx.orb(hostile(source), LOOK.num('prism-ball-size', 0.015));
     m.position.copy(from);
-    this.lobs.push({ m, from: from.clone(), to: to.clone(), b0: beat, last: Math.floor(beat), beats: p.beats, peak: p.peak, r: p.radius, p, ring: 0, mark, id, source });
+    const shell = this.shells.pop() || new THREE.Mesh(this.facets, this.shellMat);
+    shell.userData.color ||= new THREE.Color();
+    shell.userData.color.setScalar(LOOK.num('prism-glow', 1));
+    shell.userData.opacity = 1;
+    shell.scale.setScalar(LOOK.num('prism-ball-size', 0.015) * 1.35);
+    shell.position.copy(from);
+    this.scene.add(shell); batcher.track(shell);
+    this.lobs.push({ m, shell, from: from.clone(), to: to.clone(), b0: beat, last: Math.floor(beat), beats: p.beats, peak: p.peak, r: p.radius, p, ring: 0, mark, id, source });
     this.fx.impact(from, this.rainbow(Math.random() * 5, _c), 0.014, 8);    // the release: a flash between its forelegs
     sfx.prismThrow();
   }
 
-  // a ring of `count` bolts out flat from `at`, turned `turn` radians
+  // a burst of bolts out every way from `at`, turned `turn` radians; returns how many it fired
   ring(L, at, turn) {
-    const { count, speed, life, dmg } = L.p, max = LOOK.num('prism-bolts-max', 120), size = LOOK.num('prism-bolt-size', 0.007);
-    const y = L.to.y + SHOT_HEIGHT.floor, glow = LOOK.num('prism-glow', 1.8);
-    for (let i = 0; i < count; i++) {
-      if (this.bolts.length >= max) this.retire(this.bolts.shift());           // the oldest goes
-      const a = turn + (i / count) * Math.PI * 2;
-      const B = this.spare.pop() || { m: new THREE.Mesh(this.geo, this.mat), v: new THREE.Vector3() }, m = B.m;
-      m.userData.color ||= new THREE.Color();
-      this.rainbow(L.ring + i * 5 / count, m.userData.color).multiplyScalar(glow);   // the ring runs round the rainbow
-      m.userData.opacity = 1;
-      m.position.copy(at);
-      m.scale.set(size, size, size * 2.6);                                     // stretched along its flight: it reads as moving
-      B.v.set(Math.sin(a), 0, Math.cos(a)).multiplyScalar(speed);
-      m.quaternion.setFromUnitVectors(Z, _d.copy(B.v).normalize());
-      this.scene.add(m);
-      batcher.track(m);
-      Object.assign(B, { y, t: life, dmg, id: L.id, source: L.source, done: false });
-      this.bolts.push(B);
+    const { count, rows = 5, speed, life, dmg } = L.p, max = LOOK.num('prism-bolts-max', 240), size = LOOK.num('prism-bolt-size', 0.007);
+    const floor = L.to.y, glow = LOOK.num('prism-glow', 1);
+    let fired = 0;
+    for (const R of spread(count, rows)) {
+      const cl = Math.cos(R.lat), sl = Math.sin(R.lat);
+      for (let i = 0; i < R.n; i++) {
+        if (this.bolts.length >= max) this.retire(this.bolts.shift());           // the oldest goes
+        const a = turn + (i + (R.row % 2 ? 0.5 : 0)) / R.n * Math.PI * 2;       // neighbouring rows staggered
+        const B = this.spare.pop() || { m: new THREE.Mesh(this.geo, this.mat), v: new THREE.Vector3() }, m = B.m;
+        m.userData.color ||= new THREE.Color();
+        this.rainbow(L.ring + (i / R.n + R.lat) * 5, m.userData.color).multiplyScalar(glow);   // each row runs round the rainbow
+        m.userData.opacity = 1;
+        m.position.copy(at);
+        m.scale.set(size, size, size * 2.6);                                   // stretched along its flight: it reads as moving
+        B.v.set(Math.sin(a) * cl, sl, Math.cos(a) * cl).multiplyScalar(speed);
+        m.quaternion.setFromUnitVectors(Z, _d.copy(B.v).normalize());
+        this.scene.add(m);
+        batcher.track(m);
+        Object.assign(B, { floor, row: R.row, t: life, dmg, id: L.id, source: L.source, done: false });
+        this.bolts.push(B);
+        fired++;
+      }
     }
     L.ring++;
     sfx.prismRing();
+    return fired;
   }
   retire(B) { this.scene.remove(B.m); this.spare.push(B); }
 
@@ -99,8 +141,10 @@ export class PrismBalls {
       L.m.position.lerpVectors(L.from, L.to, f);
       L.m.position.y += 4 * L.peak * f * (1 - f);
       const O = L.m.userData.orb;
-      this.rainbow(beat * 2.5, O.c); L.m.userData.color.copy(O.c).lerp(_c.setRGB(1, 1, 1), 0.35);   // its colours turn as it spins
+      this.rainbow(beat * 2.5, O.c); L.m.userData.color.copy(O.c).lerp(_c.setRGB(1, 1, 1), 0.35);   // its glow's colour turns as it spins
       this.fx.orbTick(L.m, dt, 1.2);
+      L.shell.position.copy(L.m.position);
+      L.shell.rotation.set(beat * 1.3, beat * LOOK.num('prism-spin', 4.7), 0);   // spins (turns a beat) and tumbles a little
       L.mark.floor.material.progress = L.mark.vol.material.progress = f;
       const k = 0.85 + 0.15 * Math.abs(Math.sin(beat * Math.PI * (f > 0.7 ? 4 : 2)));
       L.mark.floor.material.opacity = k * LOOK.num('prism-warning-opacity', 0.32);
@@ -111,18 +155,18 @@ export class PrismBalls {
     }
     if (this.lobs.some((L) => L.done)) this.lobs = this.lobs.filter((L) => !L.done);
 
-    // the bolts: out flat, settling to their height; stopped by a wall or furniture; a hit on the jelly's body
+    // the bolts: straight out; stopped by the floor, a wall or furniture; a hit on the jelly's body
     for (const B of this.bolts) {
       const P = B.m.position, step = B.v.length() * dt;
       B.t -= dt;
-      P.y += (B.y - P.y) * (1 - Math.exp(-18 * dt));                          // settles within a few cm of leaving the ball
       const wall = this.world.cast(P, _d.copy(B.v).normalize(), step + 0.003);
       P.addScaledVector(B.v, dt);
       if (blastHits(P, B.m.scale.x, player.position, player)) {
         B.done = true;
         this.fx.impact(P, B.m.userData.color, 0.016, 6);
         bus.emit('damage_taken', { targetId: PLAYER, amount: B.dmg, source: B.source, from: B.id, at: P.clone() });
-      } else if (wall) { B.done = true; this.fx.impact(P, B.m.userData.color, 0.008, 3); }
+      } else if (wall || P.y < B.floor) {
+        if (P.y < B.floor) P.y = B.floor + 0.002; B.done = true; this.fx.impact(P, B.m.userData.color, 0.008, 3); }
       else if (B.t <= 0) B.done = true;
       else B.m.userData.opacity = Math.min(1, B.t / 0.15);                      // fades in its last moment
       if (B.done) this.retire(B);
@@ -134,6 +178,7 @@ export class PrismBalls {
   land(L, player) {
     L.done = true;
     this.fx.free(L.m);
+    this.unshell(L);
     this.unmark(L.mark);
     const at = L.to, R = L.r, col = hostile(L.source), hurt = blastHits(at, R, player.position, player);
     this.ring(L, _p.copy(at).setY(at.y + SHOT_HEIGHT.floor), L.ring * Math.PI / L.p.count);
@@ -149,6 +194,8 @@ export class PrismBalls {
     if (hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: L.p.burst, source: L.source, from: L.id, at: at.clone() });
   }
 
+  unshell(L) { this.scene.remove(L.shell); this.shells.push(L.shell); }
+
   // shown once while the game builds its shaders (main.js warmUp), so the first throw doesn't stall a phone
   warm(on, at) {
     if (!on) { this.clear(); return; }
@@ -158,11 +205,16 @@ export class PrismBalls {
     m.userData.color = new THREE.Color(1, 1, 1); m.userData.opacity = 1;
     m.position.copy(at); m.scale.setScalar(0.005);
     this.scene.add(m); batcher.track(m);
-    this.bolts.push({ m, v: new THREE.Vector3(), y: at.y, t: 0, dmg: 0, id: -1, source: 'butterfly' });
+    const shell = new THREE.Mesh(this.facets, this.shellMat);
+    shell.userData.color = new THREE.Color(1, 1, 1); shell.userData.opacity = 1;
+    shell.position.copy(at); shell.scale.setScalar(0.005);
+    this.scene.add(shell); batcher.track(shell); this.shells.push(shell);   // (left in the scene until clear)
+    this.bolts.push({ m, v: new THREE.Vector3(), floor: -1e9, t: 0, dmg: 0, id: -1, source: 'butterfly' });
   }
 
   clear() {
-    for (const L of this.lobs) { this.fx.free(L.m); this.unmark(L.mark); }
+    for (const L of this.lobs) { this.fx.free(L.m); this.unshell(L); this.unmark(L.mark); }
+    for (const S of this.shells) this.scene.remove(S);
     for (const M of this.marks) if (M.busy) this.unmark(M);
     for (const B of this.bolts) this.retire(B);
     this.lobs = []; this.bolts = [];

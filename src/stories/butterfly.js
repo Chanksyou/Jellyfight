@@ -2,7 +2,7 @@
 import { G, JUMP_FEET, V, fresh, holdJelly, near, night4, ok, record, spawn, step, stub, tp, story } from './kit.js';
 
 // the butterfly's prism, as content/enemies.kdl gives it (for rings fired straight in, below)
-const PRISM = { beats: 4, peak: 0.18, radius: 0.12, count: 12, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3 };
+const PRISM = { beats: 4, peak: 0.18, radius: 0.12, count: 12, rows: 5, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3 };
 const balls = () => G().enemies.prismBalls;
 const settle = () => { const { run } = G(); stub(run, 'song', null); run.beat = 1.3; };
 // one ring of bolts fired from `at` (the floor under it is `floorY`), turned `turn` radians
@@ -33,15 +33,15 @@ night4('butterfly-flies', {
 });
 
 story('words/prism', {
-  about: 'prism: on a beat a butterfly stops, faces you and winds up, then lobs a ball of rainbow light in an arc at the floor where you stood; a Warning circle and dome fill together and are full as it lands 4 beats later as a Blast that hits you for 3. On each beat in the air (4) it fires a ring of 12 bolts, and one more as it lands: 60 in all.',
+  about: 'prism: on a beat a butterfly stops, faces you and winds up, then lobs a ball of rainbow light in an arc at the floor where you stood; a Warning circle and dome fill together and are full as it lands 4 beats later as a Blast that hits you for 3. On each beat in the air (4) it fires a burst of 46 bolts every way, and one more as it lands: 230 in all. The ball\'s shell spins as it flies.',
   act: 4,
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); const b = spawn('butterfly', near(0.35, 0, 0.3)); b.prismCd = 0; },
   play() {
     const { run } = G(), e = G().enemies.list[0], P = G().player.position, log = record('damage_taken');
     holdJelly();
-    let wound = null, L = null, facing = null, at = null, peak = 0, fill = [], landK = null, b0 = 0, landBeat = null, bolts = 0;
+    let wound = null, L = null, facing = null, at = null, peak = 0, fill = [], landK = null, b0 = 0, landBeat = null, bolts = 0, spun = 0, lastYaw = null;
     const realRing = balls().ring.bind(balls());
-    stub(balls(), 'ring', (...a) => { bolts += a[0].p.count; return realRing(...a); });
+    stub(balls(), 'ring', (...a) => { const n = realRing(...a); bolts += n; return n; });
     step(60 * 8, () => {
       if (e.state === 'windup' && wound == null) wound = +run.beat.toFixed(3);
       if (!L && balls().lobs.length) {
@@ -55,59 +55,61 @@ story('words/prism', {
         peak = Math.max(peak, L.m.position.y - (L.from.y + (L.to.y - L.from.y) * f));   // over the straight line
         fill.push(+(L.mark.floor.material.progress - L.mark.vol.material.progress).toFixed(6));
         landK = L.mark.floor.material.progress;
+        if (lastYaw !== null) spun += Math.abs(L.shell.rotation.y - lastYaw);
+        lastYaw = L.shell.rotation.y;
         if (!L.mark.floor.parent || !L.mark.vol.parent) fill.push(9);
       }
       if (L?.done && landBeat === null) landBeat = run.beat - b0;
       return L?.done;
     });
     const burst = hits(log).find((d) => d.amount === 3);
-    return ok(wound != null && wound % 1 < 0.1 && facing < 0.3 && at < 0.01 && peak > 0.15 && fill.every((x) => x === 0) && landK > 0.97 && Math.abs(landBeat - 4) < 0.1 && burst && bolts === 60,
-      { wound, facing: facing && +facing.toFixed(2), at: at && +at.toFixed(4), peak: +peak.toFixed(3), landK, landBeat: landBeat && +landBeat.toFixed(2), burst: burst?.amount, bolts });
+    return ok(wound != null && wound % 1 < 0.1 && facing < 0.3 && at < 0.01 && peak > 0.15 && fill.every((x) => x === 0) && landK > 0.97 && Math.abs(landBeat - 4) < 0.1 && burst && bolts === 230 && spun > Math.PI * 4,
+      { wound, facing: facing && +facing.toFixed(2), at: at && +at.toFixed(4), peak: +peak.toFixed(3), landK, landBeat: landBeat && +landBeat.toFixed(2), burst: burst?.amount, bolts, spun: +spun.toFixed(1) });
   },
 });
 
 story('words/prism-rings-spiral', {
-  about: 'Each ring of a prism ball\'s bolts is turned half a gap from the last, so the gaps spiral: 12 bolts 30 degrees apart, the next ring 15 degrees round.',
+  about: 'Each burst of a prism ball\'s bolts is turned half a gap from the last, so the gaps spiral: 12 bolts 30 degrees apart round its middle, the next burst 15 degrees round. A burst goes every way: straight up, straight down, and rows between.',
   act: 4,
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); },
   play() {
     const { run } = G(), P = G().player.position;
     balls().throw(near(0.3, 0, 0.3), near(1.2, 0), PRISM, -1, 'butterfly', Math.floor(run.beat) + 0.01);
     const angles = [];
-    let seen = 0;
+    let seen = 0, up = 0, down = 0;
     step(60 * 3, () => {
       const L = balls().lobs[0];
-      if (L && L.ring > seen) { seen = L.ring; const B = balls().bolts.slice(-12); angles.push(B.map((b) => Math.atan2(b.v.x, b.v.z))); }
+      if (L && L.ring > seen) { seen = L.ring; const B = balls().bolts.filter((b) => b.row === 0).slice(-12); angles.push(B.map((b) => Math.atan2(b.v.x, b.v.z))); if (seen === 1) { const ys = balls().bolts.map((b) => b.v.y / b.v.length()); up = Math.max(...ys); down = Math.min(...ys); } }
       return seen >= 2;
     });
     const deg = (a) => ((a * 180 / Math.PI) % 360 + 360) % 360, first = angles[0]?.map(deg).sort((a, b) => a - b), second = angles[1]?.map(deg).sort((a, b) => a - b);
     const apart = first && first.every((a, i) => i === 0 || Math.abs(a - first[i - 1] - 30) < 0.01);
     const shift = first && second && Math.abs(((second[0] - first[0]) % 30 + 30) % 30 - 15) < 0.01;
-    return ok(angles.length >= 2 && apart && shift, { first: first?.map((a) => +a.toFixed(1)), second: second?.map((a) => +a.toFixed(1)) });
+    return ok(angles.length >= 2 && apart && shift && up > 0.99 && down < -0.99, { up: +up.toFixed(2), down: +down.toFixed(2), first: first?.map((a) => +a.toFixed(1)), second: second?.map((a) => +a.toFixed(1)) });
   },
 });
 
 story('words/prism-bolts', {
-  about: 'A prism bolt flies out flat at the jelly\'s middle and hits for 2; a jump clears the ring; a jelly standing in a gap between bolts is not hit.',
+  about: 'A prism bolt flies straight and hits for 2: one round the ball\'s middle hits a jelly level with it, one straight down hits a jelly under the ball (a jump doesn\'t clear a burst); a jelly standing in a gap between bolts is not hit.',
   act: 4,
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); },
   play() {
     const { run, player } = G(), P = player.position;
     holdJelly();
-    const floor = P.y, from = V(P.x, floor + 0.2, P.z - 0.25);   // 25 cm in front, up in the air: the bolts settle to the jelly's height
-    const fire = (turn) => { const log = record('damage_taken'); run.iFrames = 0; ringAt(from, floor, turn); step(60 * 1.4); return hits(log); };
-    const straight = fire(0);                                   // a bolt heads straight at it (angle 0 is +z)
+    const floor = P.y, mid = floor + 0.045;
+    const fire = (from, turn) => { const log = record('damage_taken'); run.iFrames = 0; ringAt(from, floor, turn); step(60 * 1.4); return hits(log); };
+    const straight = fire(V(P.x, mid, P.z - 0.25), 0);          // 25 cm in front, level with its middle: a bolt heads straight at it (angle 0 is +z)
     P.y = floor + JUMP_FEET;                                    // feet 12 cm up, near the top of a jump
-    const jumped = fire(0);
+    const above = fire(V(P.x, P.y + 0.3, P.z), 0);              // the ball 30 cm over it: the bolt straight down
     P.y = floor;
-    const gap = fire(Math.PI / 12);                             // half a gap round: the jelly stands in the gap
-    return ok(straight.length === 1 && straight[0].amount === 2 && !jumped.length && !gap.length && !balls().bolts.length,
-      { straight: straight.map((d) => d.amount), jumped: jumped.length, gap: gap.length, left: balls().bolts.length });
+    const gap = fire(V(P.x, mid, P.z - 0.25), Math.PI / 12);    // half a gap round: the jelly stands in the gap
+    return ok(straight.length === 1 && straight[0].amount === 2 && above.length === 1 && above[0].amount === 2 && !gap.length && !balls().bolts.length,
+      { straight: straight.map((d) => d.amount), above: above.map((d) => d.amount), gap: gap.length, left: balls().bolts.length });
   },
 });
 
 story('words/prism-bolts-stop', {
-  about: 'Prism bolts stop at walls and furniture, and there are never more than 120 alive at once (the oldest go first).',
+  about: 'Prism bolts stop at walls, furniture and the floor, and there are never more than 240 alive at once (the oldest go first).',
   act: 4,
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); },
   play() {
@@ -119,13 +121,13 @@ story('words/prism-bolts-stop', {
     tp(C.x + side.x * 0.2, floor, C.z + side.z * 0.2); holdJelly(); step(20);
     const aJ = Math.atan2(side.x, side.z), wall = world.cast(C, best.d, 1)?.distance;
     ringAt(C, floor, aJ + Math.PI / 12);
-    let far = 0, hitJelly = false;
+    let far = 0, hitJelly = false, low = 0;
     const log = record('damage_taken');
-    step(60 * 1.5, () => { for (const B of balls().bolts) if (B.v.clone().normalize().dot(best.d) > 0.95) far = Math.max(far, Math.hypot(B.m.position.x - C.x, B.m.position.z - C.z)); });
+    step(60 * 1.5, () => { for (const B of balls().bolts) { if (B.m.position.y < floor - 0.001) low++; } for (const B of balls().bolts) if (B.v.clone().normalize().dot(best.d) > 0.95) far = Math.max(far, Math.hypot(B.m.position.x - C.x, B.m.position.z - C.z)); });
     hitJelly = hits(log).length > 0;
-    for (let i = 0; i < 13; i++) ringAt(V(C.x + 2, C.y, C.z), floor);
+    for (let i = 0; i < 6; i++) ringAt(V(C.x + 2, C.y, C.z), floor);
     const most = balls().bolts.length;
-    return ok(wall > 0.2 && wall < 0.3 && far > 0.15 && far <= wall + 0.01 && !hitJelly && most === 120, { wall: wall && +wall.toFixed(3), far: +far.toFixed(3), hitJelly, most });
+    return ok(wall > 0.2 && wall < 0.3 && far > 0.15 && far <= wall + 0.01 && !hitJelly && !low && most === 240, { low, wall: wall && +wall.toFixed(3), far: +far.toFixed(3), hitJelly, most });
   },
 });
 

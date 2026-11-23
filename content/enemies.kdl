@@ -112,7 +112,7 @@ enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="bu
     attack-motion "throw" tier="mid"
     hover 0.35 above=0.3 speed=0.45 circle=0.9 bob=0.08
     on-beat every=1
-    prism range=0.6 every=6 windup=0.6 beats=4 peak=0.18 radius=0.12 count=12 speed=0.35 life=1.2 dmg=2 burst=3 most=3 rest=0.6
+    prism range=0.6 every=6 windup=0.6 beats=4 peak=0.18 radius=0.12 count=12 rows=5 speed=0.35 life=1.2 dmg=2 burst=3 most=3 rest=0.6
 }
 
 // Act 4 (from the start): the firefly, a small beetle with a lantern for a tail. It flies, drifting
