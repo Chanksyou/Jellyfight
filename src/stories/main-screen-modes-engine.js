@@ -1279,7 +1279,8 @@ story('engine/baked-light-maps-the-big-pieces', {
   async play() {
     const want = BAKED_LIGHT.meta?.pieces?.length || 0;
     let without = 0;
-    APT.root.traverse((o) => { if (o.isMesh && !o.geometry.attributes.lightUv) without++; });
+    // (a piece drawn by its own shader, like the floor light or the smoke (ambient A3/A4), never reads a light map)
+    APT.root.traverse((o) => { if (o.isMesh && !o.material?.isShaderMaterial && !o.geometry.attributes.lightUv) without++; });
     return ok(want > 20 && APT.lightMapped === want && without === 0, { want, mapped: APT.lightMapped, without });
   },
 });
