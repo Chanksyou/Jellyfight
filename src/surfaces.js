@@ -25,7 +25,36 @@ export const SURFACES = [
   // 11 boards (18 cm); the photo has 8 boards, so it tiles every 1.5 m for 19 cm boards.
   { name: 'floor', file: 'floor-laminate.webp', repeat: 1.3, detail: 'wood',
     match: (mesh, m) => mesh.parent?.name === 'Shell' && m.map?.image?.width === 512 && m.map.image.height === 512 && m.map.repeat.x === 0.5 },
+
+  // The corduroy sofa (act 1 and 4): ridges drawn in code (tools/textures.py corduroy; no CC0 fabric
+  // set was reachable), the same 16 per tile as the drawn one, so the repeat is unchanged.
+  { name: 'sofa', file: 'sofa-corduroy.webp', detail: 'cloth',
+    match: (mesh, m) => mesh.parent?.name === 'Corduroy_sofa' && m.map?.image?.width === 128 },
+  // Wood veneers (Poly Haven oak_veneer_03, oak_veneer_01, natural_walnut_veneer), each colour-matched
+  // to the drawn wood it replaces. The kitchen's and the Media console's are one picture.
+  { name: 'veneer-kitchen', file: 'veneer-kitchen.webp', detail: 'wood',
+    match: (mesh, m) => isWood(m) && (['Kitchen', 'Refrigerator'].includes(mesh.parent?.name) || (mesh.parent?.name === 'Media_console' && m.map.repeat.x === 1)) },
+  { name: 'veneer-oak', file: 'veneer-oak.webp', detail: 'wood',
+    match: (mesh, m) => isWood(m) && ['Standing_desk', 'Cat_window_perches'].includes(mesh.parent?.name) },
+  { name: 'veneer-walnut', file: 'veneer-walnut.webp', detail: 'wood',
+    match: (mesh, m) => isWood(m) && ['Fluted_sideboard', 'Glass_coffee_table', 'Cubby_bench'].includes(mesh.parent?.name) },
+  // Act 2's bathroom: white wall tile (Poly Haven long_white_tiles; 0.5 makes its tiles 5 by 7.5 cm like
+  // the drawn ones) and the dark floor tile (granite_tile).
+  { name: 'tile-white', file: 'tile-white.webp', repeat: 0.5,
+    match: (mesh, m) => mesh.parent?.name === 'Shell' && isTexture(m, 256) && Math.abs(m.map.repeat.y - 4.58) < 0.01 },
+  { name: 'tile-dark', file: 'tile-dark.webp',
+    match: (mesh, m) => mesh.parent?.name === 'Shell' && isTexture(m, 256) && m.map.repeat.x === 3.5 },
+  // The kitchen's counter (granite_tile_03, cropped and mirrored to tile) and glazed backsplash
+  // (rounded_square_tiled_wall).
+  { name: 'counter', file: 'counter-stone.webp', detail: 'stone',
+    match: (mesh, m) => mesh.parent?.name === 'Kitchen' && isTexture(m, 256) && m.map.repeat.x === 6 },
+  { name: 'backsplash', file: 'backsplash.webp', repeat: 0.4,
+    match: (mesh, m) => mesh.parent?.name === 'Kitchen' && isTexture(m, 256) && m.map.repeat.x === 9 },
 ];
+
+function isTexture(m, size) { return m.map?.image?.width === size && m.map.image.height === size; }
+// a drawn wood: the bump-tagged 256 px texture (the Media console's is the same picture, tinted)
+function isWood(m) { return isTexture(m, 256) && (/bump:/.test(m.name) || m.map.repeat.x === 1); }
 
 const KINDS = ['wood', 'cloth', 'paint', 'stone'];
 const uniforms = { detailTile: { value: null }, detailSize: { value: 0.25 } };
