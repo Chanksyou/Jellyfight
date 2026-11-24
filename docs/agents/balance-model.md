@@ -95,7 +95,8 @@ A knob is a suggestion; nothing changes until the owner picks it.
 - S0: the yardstick (units, moments, the reference jelly).
 - A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
 - B1: chests and rarity odds. B2: stat Treasures. B3: gadget Treasures. B4: growing and economy Treasures. B5: Attack upgrades. B6: Legendary Treasures and evolutions. B7: status effects.
-- C1: bugs. C2: waves and act knobs.
+- C1: bugs. C2: waves and act knobs. C3: Elites. C4: Bosses. C5: moving and dodging.
+- D3: the spread of builds (the dice-only roller).
 
 ## What you pick up (Wave B)
 
@@ -120,3 +121,22 @@ Budgets from the balance plan (points a pick should be worth): Common 15 a copy,
 
 A bug's attack is read from its words in `content/enemies.kdl`: damage a hit, seconds between hits (its `every`, or wind-up plus rest), and the wind-up as its warning; a bug with no attack word touches about once a second (`ASSUME.contact`).
 The night's pressure (C2) is Health arriving a second against the reference jelly's Offence, with the jelly levelling on the XP that arrives; it reproduces the run log's end-of-act levels to within a level.
+
+## Elites, Bosses and dodging (C3 to C5)
+
+Elite and Boss timings live in code as well as content, so the sheets read each one from its line (`num` in the tool) and a moved timing fails loudly.
+An Elite's attack is priced by its Warning (to the first hit), its dodge time (from the moment it locks on you to the hit), its length and its rest, all in real seconds: tempo-timed parts are divided by `pace tempo` in `content/elites.kdl`, act 4's are beats of its 128 bpm song.
+An attack lands at most one hit a second, the jelly's i-frames after a hit (`run.js` `hit`).
+"Sent if never dodged" is a ceiling; the run log's Health lost by source (#529), per Elite beaten and per Boss fight, is what players really took.
+A Boss's fight is its Health over the Offence at the door, plus the time it can't be hurt (the Vacuum's fly shields, the Clog's acid floods, the shark under the quilt, the Encore's force fields); what Treasures add is solved so the Normal jelly matches the run log's mean fight, so a type's paper time differs from Normal's by its cards only.
+C5 divides the distance to get clear (half the Warning's width plus the jelly's radius) by the dodge time, as a share of swim speed (`config.js` `walkSpeed` x Move speed), and steps a held jump as `src/player.js` does to find how long it keeps the jelly over each wall.
+`ASSUME.near` (how far the jelly stands when an attack starts) sets the flight time of walls and Shots.
+
+## The spread of builds (D3)
+
+`rollRun(type, seed)` rolls a whole run with the game's own dice: `rollCards` and `threeOfAKind` for level-ups, `rollTreasures` and `threeOfAKindTreasures` for chests (with `takeable`'s rules), and the Legendary and Attack upgrade picks shuffled as `src/run.js` does, on a seeded generator.
+The run follows the run log: its levels per act, its room chests opened at the share that gives the run log's Treasures held, every Elite beaten, a Legendary pick and an Attack upgrade after each of the first three Bosses.
+The player's part is fixed (the pick the sheets price highest, or one at random), so the spread is the dice.
+Each build is priced at each Boss door as its Offence and Defence over the reference jelly's at the same level; gadgets count at `ASSUME.gadgetHit` of their paper damage a second.
+`node tools/balance-sheet.mjs` rolls 10,000 (under two minutes); the test rolls 160.
+To see what a change does to the gap, make it and run the script again.

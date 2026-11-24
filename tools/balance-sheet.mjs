@@ -27,7 +27,7 @@ const { CONTENT, loadContent, compileMods } = await game('src/content.js');
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (f) => ({ ok: true, text: async () => fs.readFileSync(f, 'utf8') });   // loadContent reads with fetch
 try { await loadContent(path.join(ROOT, 'content') + '/'); } finally { globalThis.fetch = realFetch; }
-const { BASE_STATS, MAX_DODGE, SHIELD_WAIT, SHIELD_FILL, applyCard, bubbleShare, cardAmount, xpToNext, luckWeights, RARITY, MAX_BUBBLES, rollTreasures, CHEST_WEIGHTS, TREASURE_RARITY, treasureTier } = await game('src/stats.js');
+const { BASE_STATS, MAX_DODGE, SHIELD_WAIT, SHIELD_FILL, applyCard, bubbleShare, cardAmount, xpToNext, luckWeights, RARITY, MAX_BUBBLES, rollTreasures, CHEST_WEIGHTS, TREASURE_RARITY, treasureTier, rollCards, threeOfAKind, threeOfAKindTreasures, cardsNotFor } = await game('src/stats.js');
 const { ELEMENT_BASE, TREASURE_WORDS, STAT_NAMES } = await game('src/words.js');
 const { STAGE1 } = await game('src/stage1.js'), { STAGE2 } = await game('src/stage2.js'), { STAGE3 } = await game('src/stage3.js'), { STAGE4, ENCORE } = await game('src/stage4.js');
 const KDL = await game('src/kdl.js');
@@ -61,6 +61,18 @@ export const RUN_LOG = {
   bossSeconds: [74, 71, 62, 114],         // Boss fight length
   healthLost: [60, 156, 190, 226],        // Health the act's hits took, before Shield
   cleared: [0.93, 0.79, 0.74, 0.53],      // share of bugs cleared
+  // Wave C3 to D3, from the run log's damage by source (#529): 155 finished acts, 20 to 24 Nov 2026
+  source2: 'run log, finished acts 20 to 24 Nov 2026 (damage by source, #529)',
+  // Health lost to each Elite (all its sources) per one beaten
+  eliteLost: { controller: 1.9, mug: 1.9, kettle: 2.3, soap: 5.3, clock: 5.1, whipper: 2.0, croc: 4.5, bull: 5.2, coffer: 8.2, bowl: 6.7, pillow: 3.7, headphones: 1.4 },
+  bossLost: [8.8, 14, 12.7, 23.8],        // Health lost to the Boss in a beaten fight, not on Easy
+  // Boss fight seconds by jelly type: [mean s, fights], beaten fights, not on Easy
+  bossByType: [
+    { fire: [112, 9], glitter: [49, 4], ice: [77, 5], lightning: [57, 6], normal: [76, 7], poison: [72, 5], tentacle: [33, 4], wind: [74, 6] },
+    { fire: [126, 4], glitter: [60, 4], ice: [69, 4], lightning: [57, 4], normal: [59, 3], poison: [69, 4], tentacle: [50, 3], wind: [73, 4] },
+    { fire: [47, 3], glitter: [78, 4], ice: [84, 4], lightning: [50, 2], normal: [24, 2], poison: [96, 4], tentacle: [26, 2], wind: [40, 3] },
+    { fire: [64, 2], glitter: [119, 4], ice: [303, 2], lightning: [75, 1], normal: [62, 2], poison: [134, 3], tentacle: [48, 2], wind: [70, 2] },
+  ],
 };
 // How often the Shield refills in an act: a careful player is out of trouble often, a brawler rarely
 // (assumptions, not measured; the Shield needs SHIELD_WAIT + SHIELD_FILL s clear to refill)
@@ -1090,6 +1102,563 @@ load = arriving Health a second / Offence: above 1 the jelly cannot keep up and 
   };
 }
 
+// ================================================================== Wave C: C3 to C5 (Elites, Bosses, moving and dodging)
+// Elite and Boss timings live in code (src/elites.js, src/vacuum.js, src/clog.js, src/shark.js, src/encore.js), not only in
+// content: each one here is read from its line (num), so a moved or changed timing fails loudly or redraws.
+const num = (f, re) => { const m = read(f).match(re); if (!m) throw new Error(`balance-sheet: ${f} has no match for ${re}`); return +m[1]; };
+const IFRAMES = num('src/run.js', /this\.phase === 'dead'\) return;\n\s*this\.iFrames = ([\d.]+);/);             // after a hit, nothing else lands for this long (run.js hit)
+const TEMPO = CONTENT.elites.pace.tempo, RECOVER = CONTENT.elites.pace.recover;
+const BPM4 = num('src/music.js', /name: 'Sunrise Set', bpm: (\d+)/), BEAT = 60 / BPM4;   // act 4's song: its Elites keep its beat
+const SWIM = num('src/config.js', /walkSpeed: ([\d.]+)/), JUMP_H = num('src/config.js', /jumpHeight: ([\d.]+)/);
+ASSUME.near = 0.3;    // m between the jelly and an Elite or Boss when an attack starts (aggro ranges are 0.75 to 1.8 m; the jelly shoots from range)
+ASSUME.lane = 0.6;
+ASSUME.gadgetHit = 0.3;   // D3: the share of a gadget's paper damage a second that lands in play (B3's figures are every swing on ASSUME.area bugs; the clear test measures it)    // m of table the Bull's rush runs before its edge
+// hits that can land from parts landing at these times (s), one per IFRAMES
+export function landed(times) {
+  let n = 0, last = -Infinity;
+  for (const t of [...times].sort((p, q) => p - q)) if (t - last >= IFRAMES) { n++; last = t; }
+  return n;
+}
+const span = (n, gap, t0 = 0) => Array.from({ length: n }, (_, k) => t0 + k * gap);
+const E_AT = (re) => at('src/elites.js', re);
+// Each Elite's attacks, in the order it takes them, calm and angry. Per attack, in real s: warn (its Warning shows to the first hit),
+// dodge (from the moment it locks on you to the hit: the time you really have), len (start to idle), rest (cool, run down at pace recover),
+// hits (parts that can land, through the i-frames), dmg (a hit, before the act's power), move (m you must cover to get clear, for C5).
+export function eliteAttacks(kind, angry = false) {
+  const K = CONTENT.elites[kind], S = K.skills, t = (x) => x / TEMPO, A = (calm, mad) => (angry && mad != null ? mad : calm), R = JELLY_R;
+  const L = {
+    controller: () => {
+      const B = S.barrage, wind = num('src/elites.js', /const R = 0\.22, wind = ([\d.]+);/), Rr = 0.22, W = S.arrow;
+      return [
+        { id: 'barrage', dmg: B.dmg, warn: t(B.windup), dodge: t(B.windup), len: t(B.windup + 3 * B.gap), rest: B.rest, times: [t(B.windup)], move: B.radius + R, how: 'step out of the symbol about to go off', src: E_AT(/Button combo: four fixed floor symbols/) },
+        { id: 'rumble', dmg: S.rumble.dmg, warn: t(wind), dodge: t(wind), len: t(wind), rest: num('src/elites.js', /knock\(e\.base, 0\.9\); \}\n\s*e\.state = 'idle'; e\.cool = ([\d.]+);/), times: [t(wind)], move: Rr + R - 0.05, how: 'get out of the circle (too tall to jump)', src: E_AT(/const R = 0\.22, wind = /) },
+        { id: 'arrow', dmg: W.dmg, warn: W.warn + W.strike, dodge: W.warn * (1 - W.lock) + W.strike, len: W.warn + W.strike, rest: W.rest, times: [W.warn + W.strike], move: W.radius + R, how: 'step aside after it locks', src: E_AT(/Arrow drop: a pad arrow/) },
+      ];
+    },
+    mug: () => {
+      const C = S.coffee, P = S.spill, gap = num('src/elites.js', /s >= e\.thrown \* ([\d.]+)\) \{ e\.thrown\+\+/), flight = num('src/elites.js', /this\.lob\(muzzle, target, ([\d.]+), hostile\('mug'\)/);
+      const wind = num('src/elites.js', /const W = SK\.spill, wind = ([\d.]+)/), pour = Math.max(0.5, P.puddles * 0.12 + 0.02);
+      return [
+        { id: 'coffee', dmg: C.dmg, warn: flight, dodge: flight, len: t(C.lobs * gap), rest: num('src/elites.js', /e\.state = 'idle'; e\.cool = ([\d.]+); e\.thrown = 0;/), times: span(C.lobs, t(gap), flight), move: 0.045 + R, how: 'keep moving: each lob lands where you were', src: E_AT(/Coffee lob: lobs a beat apart/) },
+        { id: 'spill', dmg: P.dmg, warn: t(wind), dodge: t(wind), len: t(wind + pour), rest: 1.8, times: [t(wind + 0.12)], move: P.width / 2 + R, how: 'step out of the lane, or jump it', src: E_AT(/Spill: tips toward you while a lane Warning/) },
+      ];
+    },
+    kettle: () => {
+      const B = S.ball, D = S.boil, burst = span(B.shots, B.every, t(B.charge) + B.flight).flatMap((x) => span(B.gusts, B.gap, x));
+      return [
+        { id: 'steam-ball', dmg: B.dmg, warn: B.flight, dodge: B.flight, len: t(B.charge) + (B.shots - 1) * B.every + B.flight + (B.gusts - 1) * B.gap, rest: 1.6, times: burst, move: B.radius + R, how: 'change direction: each ball leads you', src: E_AT(/Steam balls: it boils up a ball/) },
+        { id: 'boil-dry', dmg: D.dmg, warn: t(D.flight + D.fill), dodge: t(D.fill), len: t(D.flight + D.fill + 0.5), rest: 1.8, times: [t(D.flight + D.fill)], move: D.away - D.safe, how: 'reach the lid\'s safe circle', src: E_AT(/Boil dry: the lid pops off/) },
+      ];
+    },
+    soap: () => {
+      const T = S.trap, G = S.ring, n = A(T.count, T.angryCount), rings = A(G.rings, G.angryRings), blow = 1.0, ringSpeed = 0.26;
+      return [
+        { id: 'bubble-trap', dmg: T.dmg, warn: t(blow) + ASSUME.near / T.speed, dodge: ASSUME.near / T.speed, len: t(n * (blow + 0.2)), rest: A(1.8, 1.3), times: span(n, t(blow + 0.2), t(blow) + ASSUME.near / T.speed), move: 0, how: `outswim it (${T.speed} m/s) or pop it (${T.hp} Health)`, src: E_AT(/Bubble trap: it pumps up a big soap bubble/) },
+        { id: 'bubble-ring', dmg: G.dmg, warn: t(1.0) + ASSUME.near / ringSpeed, dodge: ASSUME.near / ringSpeed, len: t(1.0 + (rings - 1) * 0.55 + 0.35), rest: A(1.8, 1.3), times: span(rings, t(0.55), t(1.0) + ASSUME.near / ringSpeed), move: 0.06, how: 'find the gap, or jump the low ones', src: E_AT(/Bubble ring: foams up/) },
+      ];
+    },
+    clock: () => {
+      const wind = A(1.0, 0.8), dur = 0.55, wr = num('src/elites.js', /wreathFlight: ([\d.]+)/), H = S.hour, out = [
+        { id: 'sweep', dmg: S.sweep.dmg, warn: t(wind), dodge: t(wind), len: t(wind + dur), rest: A(1.7, 1.2), times: [t(wind + dur / 2)], move: 0, how: 'jump the hand (2 cm) or leave its half circle', src: E_AT(/Sweeping hands: a half circle fills/) },
+        { id: 'wreath', dmg: S.wreath.dmg, warn: t(0.8), dodge: t(0.8 * 0.5), len: t(0.8) + 2 * wr, rest: A(1.7, 1.2), times: [t(0.8) + wr, t(0.8) + 2 * wr], move: 0.04 + R, how: 'step off its line after it locks, twice (out and back)', src: E_AT(/Victory's wreath: a line on the bench/) }];
+      if (angry) out.push({ id: 'hour', dmg: H.dmg, warn: t(H.warn), dodge: t(H.warn), len: t(H.warn * H.rounds + 0.3), rest: 1.6, times: span(H.rounds, t(H.warn), t(H.warn)), move: 0.1, how: 'stand between the hands', src: E_AT(/Telling the time \(angry only\)/) });
+      return out;
+    },
+    whipper: () => {
+      const B = S.balloon, P = S.piping, n = A(B.count, B.angryCount), fill = 1.0;
+      return [
+        { id: 'balloon', dmg: B.dmg, warn: B.fuse, dodge: B.fuse, len: t(n * (fill + 0.25)), rest: A(2.2, 1.6), times: span(n, t(fill + 0.25), t(fill) + B.fuse), move: 0.2 + R, how: 'get 20 cm from the balloon as it bursts', src: E_AT(/Balloon: blow one up on the nozzle/) },
+        { id: 'piping', dmg: P.dmg, warn: P.wake, dodge: P.wake, len: A(P.pipe, P.angryPipe) + P.wake, rest: 1.8, times: [P.wake], move: P.height * 1.25 / 2 + R, how: 'keep moving, never double back', src: E_AT(/Piping: the nozzle follows you/) },
+      ];
+    },
+    croc: () => {
+      const V = S.volley, T = S.tail, Q = S.pounce, n = A(V.count, V.angryCount), wind = t(A(V.windup, V.angryWindup));
+      const slams = (A(T.slams, T.angrySlams) + A(T.maxSlams, T.angryMaxSlams)) / 2, gap = (T.gapMin + T.gapMax) / 2, ringAt = ASSUME.near / T.speed;
+      const qw = A(Q.windup, Q.angryWindup);
+      return [
+        { id: 'volley', dmg: V.dmg, warn: wind + V.flight, dodge: wind + V.flight, len: wind + V.flight + 0.35 + V.stagger * (n - 1), rest: A(V.rest, V.angryRest), times: span(n, V.stagger, wind + V.flight), move: V.radius + R, how: 'outpace the fan', src: E_AT(/Frost volley: the mouth opens/) },
+        { id: 'tail-slam', dmg: T.dmg, warn: t(gap) + ringAt, dodge: ringAt, len: t(T.turn + slams * gap + 0.45), rest: A(T.rest, T.angryRest), times: span(Math.round(slams), t(gap), t(T.turn + gap) + ringAt), move: 0, how: 'jump each ring wall', src: E_AT(/Tail slam: it turns its back to you/) },
+        { id: 'pounce', dmg: Q.dmg, warn: t(qw + Q.air), dodge: t(qw * (1 - Q.lock) + Q.air), len: t(qw + Q.air + 0.4), rest: A(Q.rest, Q.angryRest), times: [t(qw + Q.air)], move: Q.radius + R, how: 'leave its circle after it locks', src: E_AT(/Pounce: it crouches while a Warning/) },
+      ];
+    },
+    bull: () => {
+      const Q = S.rush, P = S.spiral, N = S.minis, qw = t(A(Q.windup, Q.angryWindup)), sp = A(Q.speed, Q.angrySpeed), arms = A(P.arms, P.angryArms);
+      return [
+        { id: 'rush', dmg: Q.dmg, warn: qw + ASSUME.near / sp, dodge: qw + ASSUME.near / sp, len: qw + ASSUME.lane / sp + Q.dizzy, rest: A(Q.rest, Q.angryRest), times: [qw + ASSUME.near / sp], move: Q.width / 2 + R, how: 'step out of the lane (too tall to jump)', src: E_AT(/Bull rush: its horns swell/) },
+        { id: 'spiral', dmg: P.dmg, warn: t(P.warn) + ASSUME.near / P.speed, dodge: ASSUME.near / P.speed, len: t(P.warn + P.time + 0.2), rest: A(P.rest, P.angryRest), times: span(Math.floor(P.time / P.every) * arms, t(P.every) / arms, t(P.warn) + ASSUME.near / P.speed).filter((x) => x <= t(P.warn + P.time) + ASSUME.near / P.speed), move: 0, how: 'jump the low arms, stay down for the high', src: E_AT(/Spiral: a Warning circle fills round it/) },
+        { id: 'minis', dmg: N.dmg, warn: t(N.warn) + N.side / A(N.speed, N.angrySpeed), dodge: t(N.warn) + N.side / A(N.speed, N.angrySpeed), len: t(N.warn) + N.reach / A(N.speed, N.angrySpeed), rest: A(N.rest, N.angryRest), times: [t(N.warn) + N.side / A(N.speed, N.angrySpeed)], move: N.width / 2 + R, how: 'step out of both lanes', src: E_AT(/Little bulls: two pop up beside you/) },
+      ];
+    },
+    coffer: () => {
+      const Ac = S.accordion, T = S.tongue, J = S.jewels, un = A(Ac.unfold, Ac.angryUnfold), pull = A(T.pull, T.angryPull);
+      const reel = Math.max(0, ASSUME.near - T.bite) / Math.max(0.01, pull - SWIM);   // swimming straight away at base Move speed
+      return [
+        { id: 'accordion', dmg: Ac.dmg, warn: t(un), dodge: t(un * (1 - Ac.track)), len: t(Ac.strikes * un), rest: A(Ac.rest, Ac.angryRest), times: span(Ac.strikes, t(un), t(un)), move: Ac.radius + R, how: 'step off after each strike locks', src: E_AT(/Accordion: strikes in a row/) },
+        { id: 'tongue', dmg: T.dmg, warn: t(T.open), dodge: Math.min(T.hold, reel), len: t(T.open + T.shoot) + Math.min(T.hold, reel) + T.chews * T.chew + 0.3, rest: A(T.rest, T.angryRest), times: [t(T.open + T.shoot) + Math.min(T.hold, reel)], move: Infinity, pull, how: `swim away faster than ${pull} m/s for ${T.hold} s (it can't miss)`, src: E_AT(/Tongue: its mouth opens, then the tongue shoots/) },
+        { id: 'jewels', dmg: J.dmg, warn: t(J.rain), dodge: t(J.rain), len: t(J.rain + 0.4), rest: A(J.rest, J.angryRest), times: [t(J.rain)], move: J.radius + R, how: 'leave each marked spot', src: E_AT(/Jewels: amber jewels shoot up/) },
+      ];
+    },
+    bowl: () => {
+      const G = S.ring, H = S.hum, n = A(G.rings, G.angryRings), every = angry ? 2 : 4, first = G.windup + G.snap / 2, out = ASSUME.near / A(G.speed, G.angrySpeed);
+      const hits = span(n, every, first).flatMap((b) => [b * BEAT + out, (b + G.echo) * BEAT + out]), hw = H.windup + H.snap / 2;
+      return [
+        { id: 'ring', dmg: G.dmg, warn: first * BEAT + out, dodge: out, len: (first + (n - 1) * every + G.echo + 1) * BEAT, rest: A(G.rest, G.angryRest), times: hits, move: 0, how: 'jump each ring, out and back', src: E_AT(/Rim ring: the striker lifts/) },
+        { id: 'hum', dmg: H.dmg, warn: hw * BEAT, dodge: hw * BEAT, len: (hw + 1) * BEAT, rest: A(H.rest, H.angryRest), times: [hw * BEAT], move: Math.max(0, ASSUME.near - H.safe), how: 'swim into the safe circle by the bowl', src: E_AT(/Hum: the striker runs round the rim/) },
+      ];
+    },
+    pillow: () => {
+      const P = S.spores, F = S.fairy, drift = A(P.drift, P.angryDrift), lead = P.windup + drift + 1 + P.snap / 2, fl = F.windup + F.grow + 1 + F.snap / 2;
+      return [
+        { id: 'spores', dmg: P.dmg, warn: (drift + 1) * BEAT, dodge: BEAT, len: lead * BEAT, rest: A(P.rest, P.angryRest), times: [lead * BEAT], move: P.radius + R, how: 'step off the spot before the bar', src: E_AT(/Spores: the cap breathes in, its spots glowing; on a beat/) },
+        { id: 'fairy', dmg: F.dmg, warn: (F.grow + 1) * BEAT, dodge: (F.grow + 1) * BEAT, len: (fl + (angry ? F.grow + 2 : 0)) * BEAT, rest: A(F.rest, F.angryRest), times: angry ? [fl * BEAT, (fl + F.grow + 2) * BEAT] : [fl * BEAT], move: 0, how: 'hold still in the ring', src: E_AT(/Fairy ring: the cap breathes in while a circle follows you/) },
+      ];
+    },
+    headphones: () => {
+      const W = S.shove, St = S.stereo, n = A(St.bursts, St.angryBursts), first = St.windup + St.snap / 2;
+      return [
+        { id: 'shove', dmg: 0, warn: (W.windup + W.snap / 2) * BEAT, dodge: W.lock * BEAT, len: (W.windup + W.snap / 2 + (W.waves - 1) * W.every + 1) * BEAT, rest: A(W.rest, W.angryRest), times: [], move: 0, how: `jump each wave or be shoved ${W.push} m (off the counter is the punishment)`, src: E_AT(/Shove waves: the cups take turns/) },
+        { id: 'stereo', dmg: St.dmg, warn: first * BEAT, dodge: St.every * BEAT, len: (first + (n - 1) * St.every + 1) * BEAT, rest: A(St.rest, St.angryRest), times: span(n, St.every * BEAT, first * BEAT), move: 0.1 + R, how: 'cross the line on each beat', src: E_AT(/Stereo: a dividing line down the counter/) },
+      ];
+    },
+  };
+  return L[kind]().map((x) => ({ ...x, hits: landed(x.times) }));
+}
+const JELLY_R = num('src/config.js', /radius: ([\d.]+)/);
+// One Elite's fight: its loop (attacks then rests), Health sent a second if every part lands, seconds to beat
+export function eliteFight(kind, A) {
+  const K = CONTENT.elites[kind], hp = K.hp * (A.stage.eliteHp || 1), M = MOMENTS[A.n], prev = A.n > 1 ? RUN_LOG.level[A.n - 2] : 1;
+  const level = (prev + RUN_LOG.level[A.n - 1]) / 2, paper = offence('normal', refStats('normal', level)), real = paper * (M.real / offence('normal', refStats('normal', M.level)));
+  const loop = (angry) => { const L = eliteAttacks(kind, angry), sec = L.reduce((s, x) => s + x.len + x.rest / RECOVER, 0), hp = L.reduce((s, x) => s + x.hits * x.dmg * A.power, 0); return { L, sec, dps: hp / sec }; };
+  const calm = loop(false), mad = K.angry ? loop(true) : calm, share = K.angry ?? 0;
+  const secs = (off) => hp / off, sent = (off) => secs(off) * ((1 - share) * calm.dps + share * mad.dps);
+  return { kind, name: K.name, hp, level, paper, real, calm, mad, secs: { paper: secs(paper), real: secs(real) }, sent: sent(real), lost: RUN_LOG.eliteLost[kind] };
+}
+export const ELITE_ACTS = () => ACTS.map((A) => ({ A, kinds: A.stage.elites.map((e) => e.kind) }));
+function sheetC3() {
+  const flags = [], fights = ELITE_ACTS().flatMap(({ A, kinds }) => kinds.map((k) => ({ A, ...eliteFight(k, A) })));
+  const chest = pickWorth('elite');
+  const rows = fights.map((f) => [f.name, f.A.n, r(f.hp), r(f.secs.paper), r(f.secs.real), r(f.calm.dps, 2), r(f.mad.dps, 2), r(f.sent), f.lost != null ? r(f.lost, 1) : '', f.lost != null ? pct(1 - f.lost / f.sent).slice(1) : '']);
+  const atk = fights.flatMap((f) => [...new Map([...f.calm.L, ...f.mad.L].map((x) => [x.id, x])).values()].map((x) => ({ f, x, hit: x.dmg * f.A.power })));
+  const atkRows = atk.map(({ f, x, hit }) => [`${f.name}: ${x.id}`, r(hit, 1), x.hits, r(x.warn, 2), r(x.dodge, 2), hit ? r(x.dodge / hit, 3) : '', x.how]);
+  // the least time to react for the most damage: under C1's 0.4 s with a hit worth 6 or more
+  for (const { f, x, hit } of atk) if (hit >= 6 && x.dodge < 0.4) {
+    const kdlLine = `content/elites.kdl:${nodeOf('elites', f.kind).children.find((c) => c.name === (x.id === 'wreath' ? 'wreath' : x.id))?.line ?? nodeOf('elites', f.kind).line}`;
+    const fix = { accordion: ['track', CONTENT.elites.coffer.skills.accordion.track, +(1 - 0.4 * TEMPO / CONTENT.elites.coffer.skills.accordion.unfold).toFixed(2), kdlLine],
+      wreath: ['the lock at half the 0.8 s wind-up (wind * 0.5)', 0.5, +(1 - 0.4 * TEMPO / 0.8).toFixed(2), E_AT(/if \(s < wind \* 0\.5 \|\| !e\.aim\)/)] }[x.id];
+    flags.push({ text: `${f.name}'s ${x.id} hits for ${r(hit, 1)} (act ${f.A.n}'s power) with ${r(x.dodge, 2)} s between locking on and landing: under the 0.4 s a phone thumb needs (sheet C1's line).${x.hits > 1 ? ` It can land ${x.hits} times an attack.` : ''}`,
+      knob: fix ? { at: fix[3], change: `${fix[0]} ${fix[1]} → ${fix[2]}`, does: 'it locks 0.4 s before it lands' } : { at: kdlLine, change: 'its wind-up up by ' + r(0.4 - x.dodge, 2) + ' s', does: '0.4 s to react' } });
+  }
+  // is each Elite worth its chest? Health it really costs (run log), as a share of what the reference jelly can spend in the act
+  const costPts = (f) => (f.lost == null ? null : 100 * f.lost / defence(refStats('normal', f.level), f.A));
+  for (const f of fights) {
+    const c = costPts(f);
+    if (c != null && c > 1.5 * chest) flags.push({ text: `${f.name} costs ${r(f.lost, 1)} Health a fight in the run log, ${r(c)}% of what the act's reference jelly can spend, for a chest worth about ${r(chest)} points (${r(chest)}% of the jelly).`,
+      knob: { at: kdl('content/elites.kdl', 'elite', f.kind), change: `its worst attack's dmg down by a third (${[...f.calm.L].sort((p, q) => q.hits * q.dmg - p.hits * p.dmg)[0].id})`, does: 'about a chest\'s worth of Health a fight' } });
+  }
+  // act by act: seconds to beat with what Treasures add, the same chest each time
+  const actSecs = ACTS.map((A) => median(fights.filter((f) => f.A === A).map((f) => f.secs.real)));
+  ACTS.forEach((A, i) => { if (i && (actSecs[i] < actSecs[0] / 2 || actSecs[i] > actSecs[0] * 2)) flags.push({ text: `Act ${A.n}'s Elites take ${r(actSecs[i])} s to beat with what Treasures add at its door, against act 1's ${r(actSecs[0])} s, for the same chest.`,
+    knob: { at: knob(A, 'eliteHp'), change: `eliteHp: ${A.stage.eliteHp} → ${r(A.stage.eliteHp * actSecs[0] / actSecs[i] * (actSecs[i] < actSecs[0] ? 1.5 : 1), 2)}`, does: actSecs[i] < actSecs[0] ? 'about 1.5x act 1\'s fight, a step up each act' : 'act 1\'s fight length' } }); });
+  // within an act, the Elite that sends the most if never dodged
+  for (const A of ACTS) {
+    const mine = fights.filter((f) => f.A === A), med = median(mine.map((f) => f.calm.dps)), top = mine.reduce((p, q) => (q.calm.dps > p.calm.dps ? q : p));
+    if (top.calm.dps > 1.75 * med) {
+      const worst = [...top.calm.L].sort((p, q) => q.hits * q.dmg / (q.len + q.rest) - p.hits * p.dmg / (p.len + p.rest))[0];
+      flags.push({ text: `${top.name} sends ${r(top.calm.dps, 2)} Health a second if nothing is dodged, ${r(top.calm.dps / med, 1)}x act ${A.n}'s middle Elite; its ${worst.id} lands up to ${worst.hits} hits of ${r(worst.dmg * A.power, 1)}.`,
+        knob: { at: `content/elites.kdl:${nodeOf('elites', top.kind).children.find((c) => c.name === worst.id || worst.id.startsWith(c.name))?.line ?? nodeOf('elites', top.kind).line}`, change: `${worst.id} rest up so the loop sends ${r(1.5 * med, 2)} a second`, does: 'its pressure in line with the act\'s others' } });
+    }
+  }
+  return {
+    id: 'C3', title: 'Elites',
+    lede: 'Each Elite\'s loop of attacks: how long it takes to beat, the Health it sends if nothing is dodged, how long you have to react, and what its chest is worth against what it costs.',
+    numbers: [
+      ['Pace: rest runs down x, attacks play x', `${RECOVER}, ${TEMPO}`, at('content/elites.kdl', /^pace /)],
+      ['After a hit nothing lands for (s)', IFRAMES, at('src/run.js', /this\.iFrames = 1/)],
+      ['Act 4\'s Elites keep the song\'s beat: bpm', BPM4, at('src/music.js', /name: 'Sunrise Set'/)],
+      ...ACTS.map((A) => [`Act ${A.n}: eliteHp, power`, `${A.stage.eliteHp || 1}, ${A.power}`, A.n === 1 ? A.file : knob(A, 'eliteHp')]),
+      ...fights.map((f) => [`${f.name}: Health, angry at`, `${CONTENT.elites[f.kind].hp}, ${CONTENT.elites[f.kind].angry ?? 'never'}`, kdl('content/elites.kdl', 'elite', f.kind)]),
+      ...atk.map(({ f, x }) => [`${f.name}: ${x.id} (dmg, warn s, dodge s, len s, rest s)`, `${x.dmg}, ${r(x.warn, 2)}, ${r(x.dodge, 2)}, ${r(x.len, 2)}, ${r(x.rest, 2)}`, x.src]),
+      ['Elite chest worth (points)', r(chest), at('src/stats.js', /^ {2}elite: /)],
+      ['Health lost to each Elite, per one beaten', RUN_LOG.source2, 'tools/balance-sheet.mjs RUN_LOG'],
+      ['How far the jelly stands when an attack starts (m)', ASSUME.near, 'tools/balance-sheet.mjs ASSUME'],
+    ],
+    model: `an Elite's loop = each attack in turn: its length + its rest / pace recover (${RECOVER}); tempo-timed parts / pace tempo (${TEMPO}); act 4's in beats of ${r(BEAT, 3)} s
+hits an attack can land = its parts' landing times, one per ${IFRAMES} s (the jelly's i-frames after a hit)
+Health sent a second = Σ hits x dmg x act power / loop seconds; calm until its angry= share of Health is gone, then angry
+seconds to beat = Health x eliteHp / the reference Normal jelly's Offence midway through the act (cards only), or that times what Treasures add at the act's door
+dodge = from the moment it locks on you (or its Warning shows, if it never follows you) to the hit; a Shot or wall that has to travel adds ${ASSUME.near} m of flight
+worth its chest: the run log's Health lost a fight, as a share of what the act's reference jelly can spend, against the chest's ${r(chest)} points (each a percent of that jelly)`,
+    tables: [{ head: ['Elite', 'Act', 'Health', 'Seconds to beat, cards', 'With Treasures', 'Sent a second, calm', 'Angry', 'Sent a fight, never dodged', 'Run log: lost a fight', 'Dodged or never hit'], rows },
+      { head: ['Attack', 'A hit (with power)', 'Hits it can land', 'Warning (s)', 'Dodge (s)', 'Dodge s per Health', 'How to beat it'], rows: atkRows }],
+    charts: [bars('Health lost a fight (run log) as % of what the act\'s jelly can spend; the chest is worth the dashed line', fights.filter((f) => f.lost != null).map((f) => [f.name.replace(/^The /, ''), costPts(f), f.A.n % 2 ? '' : 'b']), { fmt: (v) => r(v, 1) + '%', ref: chest, left: 170 }),
+      bars('Seconds between locking on and landing, attacks that hurt (0.4 s dashed)', atk.filter(({ hit }) => hit).map(({ f, x }) => [`${f.name.replace(/^The /, '')} ${x.id}`, Math.min(x.dodge, 3), f.A.n % 2 ? '' : 'b']), { fmt: (v) => r(v, 2), ref: 0.4, left: 190 })],
+    flags,
+    notes: ['Never dodged is a ceiling: every part landing, one per i-frame. The run log\'s Health lost is what real players took; the gap is how much each attack is dodged.', 'Act 4\'s attacks snap to the song\'s bars, so a Warning lasts between windup= and windup= + snap= beats; the sheet takes the middle.', 'Puddles, beads and slicks that hurt over time (the Mug\'s coffee, the Whipper\'s cream) are left out of hits; the run log counts them (coffee, cream).'],
+  };
+}
+
+// ------------------------------------------------------------------ C4: Bosses
+// Each Boss's loop, read from content/bosses.kdl and its controller: attacks in order, the gap between them (chase or rest),
+// the time it can't be hurt, and what speeds it up when angry. Times are real s; drains (suction, acid, pools) hurt a second, past i-frames.
+const B_AT = (f, re) => at(f, re);
+export function bossLoop(id, angry = false) {
+  const S = CONTENT.bosses[id].skills, R = JELLY_R, near = ASSUME.near;
+  if (id === 'vacuum') {
+    const k = angry ? S.enrage.pace : 1, sweeps = [S.brushes.time - 0.9, S.brushes.time - 0.35];
+    const A = {
+      charge: { dmg: S.charge.dmg, warn: S.charge.windup, dodge: S.charge.windup, len: S.charge.windup + Math.min(S.charge.time, 1), times: [S.charge.windup + near / S.charge.speed], how: 'step out of its lane or jump it (8 cm)' },
+      suction: { dmg: 0, drain: S.suction.dmg, drainS: S.suction.time, warn: 0, dodge: 0, len: S.suction.time, times: [], how: `swim away: it pulls at up to ${r(S.suction.pull * 1.2, 2)} m/s close in, you swim ${SWIM}` },
+      brushes: { dmg: S.brushes.dmg, warn: sweeps[0], dodge: sweeps[0], len: S.brushes.time, times: sweeps, how: 'jump each sweep (2 cm)' },
+      dump: { dmg: 0, warn: 0, dodge: 0, len: S.dump.time, times: [], how: `${S.dump.roaches}${angry ? ' + 1' : ''} Cockroaches` },
+      flies: { dmg: 0, warn: S.flies.windup, dodge: S.flies.windup, len: S.flies.windup, times: [], how: `${S.flies.count} Spotted lanternflies; it can't be hurt till they're dead (${S.flies.shield} s at most, ${S.flies.max} a fight)` },
+      spin: { dmg: S.spin.dmg, warn: 0, dodge: near / S.spin.speed, len: S.spin.time, times: span(Math.floor(S.spin.time / S.spin.every), S.spin.every, near / S.spin.speed), how: 'jump the low clumps, stay down for the high' },
+    };
+    const order = (angry ? ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] : ['charge', 'suction', 'flies', 'brushes', 'dump']);
+    return { order, A, gap: S.chase.time, k, src: B_AT('src/vacuum.js', /^export const ATTACKS = /) };
+  }
+  if (id === 'clog') {
+    const k = 1, lw = angry ? S.lash.angryWindup : S.lash.windup, P = S.pinball, cw = (x) => x * (angry ? 0.8 : 1);
+    const leaps = span(P.count, 0, 0).map((_, i) => P.windup * (i ? 0.7 : 1) + P.air), pin = leaps.map((_, i) => leaps.slice(0, i + 1).reduce((a, b) => a + b, 0));
+    const A = {
+      lash: { dmg: S.lash.dmg, warn: lw, dodge: lw, len: lw + 0.3, times: [lw], how: `step out of reach (slowed ${S.lash.slow} s if caught)` },
+      pinball: { dmg: P.dmg, warn: P.windup + P.air, dodge: P.lock, len: pin.at(-1) + P.ring / P.ringSpeed, times: [...pin, pin.at(-1) + near / P.ringSpeed], how: 'leave each landing circle after it locks, then jump the ring' },
+      snare: { dmg: S.snare.dmg, warn: S.snare.windup, dodge: S.snare.windup, len: S.snare.windup, times: [S.snare.windup], how: 'step out of the snare' },
+      roll: { dmg: S.roll.dmg, warn: S.roll.windup, dodge: S.roll.windup, len: S.roll.windup + S.roll.time, times: [S.roll.windup + near / (angry ? S.roll.angrySpeed : S.roll.speed)], how: 'step out of its line' },
+      comb: { dmg: S.comb.dmg, warn: cw(S.comb.windup), dodge: cw(S.comb.next), len: cw(S.comb.windup + (S.comb.waves - 1) * S.comb.next), times: span(Math.ceil(S.comb.waves / 2), cw(2 * S.comb.next), cw(S.comb.windup)), how: 'switch lanes each curtain (too tall to jump)' },
+      shed: { dmg: 0, warn: 0, dodge: 0, len: S.shed.time, times: [], how: `${S.shed.count}${angry ? ' + 1' : ''} hair tangles` },
+      spray: { dmg: S.spray.dmg, warn: 0, dodge: near / S.spray.speed, len: S.spray.time, times: span(Math.floor(S.spray.time / S.spray.every), S.spray.every, near / S.spray.speed), how: 'keep moving across the spray' },
+    };
+    const order = angry ? ['pinball', 'lash', 'spray', 'comb', 'roll', 'snare', 'lash', 'shed'] : ['lash', 'pinball', 'snare', 'roll', 'comb', 'shed'];
+    return { order, A, gap: angry ? S.chase.angryTime : S.chase.time, k, src: B_AT('src/clog.js', /^export const ATTACKS = /) };
+  }
+  if (id === 'shark') {
+    const A = {}, M = S.motion;
+    for (const n of ['bite', 'rear', 'combo', 'spin', 'leap', 'dive', 'burrowBite', 'maelstrom', 'tornado']) {
+      const x = S[n], under = x.track != null, count = x.count ?? 1, beat = (x.windup ?? 0) + (x.track ?? 0);
+      A[n] = { dmg: x.dmg, warn: x.windup + (x.track ?? 0), dodge: under ? x.tell ?? x.windup : x.windup, len: count * beat + x.active, under: under ? count * (x.track ?? 0) : 0, times: span(count, beat, beat), how: under ? 'leave its circle as it tells where it surfaces' : x.height < JUMP_H ? `jump it (${r(x.height * 100)} cm) or step out` : 'step out of reach' };
+    }
+    const order = angry ? ['bite', 'combo', 'dive', 'tornado', 'leap', 'spin', 'maelstrom', 'burrowBite', 'rear'] : ['bite', 'leap', 'combo', 'spin', 'rear', 'dive', 'burrowBite', 'maelstrom'];
+    return { order, A, gap: M.rest, k: angry ? 1 : 1, src: B_AT('src/shark.js', /^export const ATTACKS=/) };
+  }
+  // the Encore: a 16-bar slot (set solo=) of floor waves every `wave` bars, one solo (4 bars: records, pyro or the wall) and its bow
+  const b = 4 * BEAT_ENC, solo = S.solo, slot = S.set.solo * b, Rr = S.records, Py = S.pyro, W = S.wall;
+  const A = {
+    floor: { dmg: ENC_FLOOR_DMG, warn: 2 * BEAT_ENC, dodge: 2 * BEAT_ENC, len: 0, times: [0], per: (S.set.solo - solo.bars - solo.bow) / S.set.wave + (solo.bars + solo.bow) / (2 * S.set.wave), how: 'step off its line (never a ring)' },
+    records: { dmg: Rr.dmg, warn: (Rr.windup + Rr.flight) * BEAT_ENC, dodge: (Rr.lock + Rr.flight) * BEAT_ENC, len: solo.bars * b, times: span(solo.bars, b, (Rr.windup + Rr.flight) * BEAT_ENC), how: 'step out of the lane before he throws (too tall to jump)' },
+    pyro: { dmg: Py.dmg, warn: Py.warn * BEAT_ENC, dodge: Py.warn * BEAT_ENC, len: (solo.bars - 1) * b, times: span((solo.bars - 1) * 4, BEAT_ENC, Py.warn * BEAT_ENC), how: 'stand in the lane that isn\'t burning' },
+    wall: { dmg: W.dmg, warn: 2 * b, dodge: W.roll * BEAT_ENC, len: solo.bars * b, times: [solo.bars * b], how: `get in a strip behind a record (${W.safe} m wide)` },
+  };
+  return { order: ['records', 'pyro', 'wall'], A, gap: slot - solo.bars * b, k: 1, slot, src: B_AT('src/encore.js', /SOLO_ATTACKS/) };
+}
+const BEAT_ENC = 60 / +read('src/song-track.js').match(/encore: \{[^}]*bpm: (\d+)/)[1];
+const ENC_FLOOR_DMG = num('src/encore-floor.js', /export const FLOOR_DMG = ([\d.]+)/);
+// Health sent a second if every part lands, and the boss's own share of the loop it can't be hurt
+export function bossFight(A, type = 'normal', off = null) {
+  const id = A.bossId, D = CONTENT.bosses[id], S = D.skills, M = MOMENTS[A.n];
+  const send = (angry) => {
+    const L = bossLoop(id, angry);
+    let sec = 0, hp = 0, under = 0;
+    if (id === 'encore') {
+      for (const n of L.order) { const x = L.A[n]; hp += landed(x.times) * x.dmg; }
+      hp = hp / L.order.length + L.A.floor.per * L.A.floor.dmg; sec = L.slot;
+    } else for (const n of L.order) { const x = L.A[n]; sec += (x.len + L.gap) / L.k; hp += landed(x.times) * x.dmg + (x.drain ?? 0) * (x.drainS ?? 0) * 0.5; under += (x.under ?? 0) / L.k; }
+    return { L, sec, dps: hp * A.power / sec, under: under / sec };
+  };
+  const angryAt = { vacuum: S.enrage?.at, clog: S.enrage?.at, shark: S.tornado?.at, encore: CONTENT.bosses.encore.skills.stages.set3 }[id] ?? 0;
+  const calm = send(false), mad = send(true);
+  // time it can't be hurt, a fight: the Vacuum's fly shields (4 lanternflies to clear, twice), the Clog's two acid floods,
+  // the Encore's opening and reboot force fields, the shark's share of each loop under the quilt
+  const fly = CONTENT.enemies.lanternfly.hp * S.flies?.count;
+  const flood = S.acid ? S.acid.rise + S.acid.rounds * S.acid.every + S.acid.drain : 0;
+  const fixedOf = (o) => ({ vacuum: S.flies ? S.flies.max * Math.min(S.flies.shield, fly / o + 1) : 0, clog: 2 * flood, encore: (S.start?.guard ?? 0) + (S.meltdown?.guard ?? 0), shark: 0 })[id];
+  const loopUnder = (1 - angryAt) * calm.under + angryAt * mad.under, exposed = id === 'encore' ? 1 + (S.solo.exposed - 1) * S.solo.bow / S.set.solo : 1;
+  // what Treasures add at this door, from the run log's mean fight with the waiting taken out (S0's figure leaves it in)
+  const logSecs = RUN_LOG.bossSeconds[A.n - 1];
+  let o = M.real;
+  for (let i = 0; i < 40; i++) o = A.bossHp / (exposed * (1 - loopUnder) * Math.max(5, logSecs - fixedOf(o)));
+  const paper = offence(type, refStats(type, M.level)), k = o / offence('normal', refStats('normal', M.level)), real = off ?? paper * k, fixed = fixedOf(real);
+  const secs = (A.bossHp / real / exposed) / (1 - loopUnder) + fixed;
+  return { id, A, paper, real, k, fixed, loopUnder, exposed, secs, calm, mad, angryAt, sent: secs * ((1 - angryAt) * calm.dps + angryAt * mad.dps), flood, fly };
+}
+function sheetC4() {
+  const flags = [], F = ACTS.map((A) => bossFight(A));
+  const rows = F.map((f, i) => [f.A.boss, r(f.A.bossHp), r(f.A.bossHp / f.real), r(f.fixed + f.loopUnder * f.secs), r(f.secs), r(RUN_LOG.bossSeconds[i]), r(f.calm.dps * 60), r(f.mad.dps * 60), r(f.sent), r(RUN_LOG.bossLost[i], 1)]);
+  const atk = F.flatMap((f) => { const L = { ...f.calm.L.A, ...f.mad.L.A }; return Object.entries(L).map(([n, x]) => ({ f, n, x, hit: x.dmg * f.A.power, hits: landed(x.times) })); });
+  const atkRows = atk.map(({ f, n, x, hit, hits }) => [`${f.A.boss}: ${n}`, x.drain ? `${r(x.drain * f.A.power, 1)} a second` : hit ? r(hit, 1) : '', hits || '', r(x.warn, 2), r(x.dodge, 2), x.how]);
+  // by jelly type: paper fight length (the type's cards-only Offence x what Treasures add at the door) against the run log
+  const typeRows = [], slow = [];
+  F.forEach((f, i) => {
+    const real = RUN_LOG.bossByType[i], times = TYPES.map((t) => [t, bossFight(f.A, t).secs, real[t]]);
+    const known = times.filter((x) => x[2] && x[2][1] >= 3), med = median(known.map((x) => x[2][0]));
+    for (const [t, p, x] of times) {
+      typeRows.push([f.A.boss, name(t), r(p), x ? `${x[0]} (${x[1]})` : '']);
+      if (x && x[1] >= 3 && x[0] > 1.75 * med) slow.push({ f, t, secs: x[0], n: x[1], med, paper: p });
+    }
+  });
+  for (const s of slow) flags.push({ text: `${name(s.t)} took ${s.secs} s on the ${s.f.A.boss} in the run log (${s.n} fights), ${r(s.secs / s.med, 1)}x the middle type's ${r(s.med)} s; the paper says ${r(s.paper)} s. ${['ice', 'poison'].includes(CONTENT.jellies[s.t].attack) ? `A Boss takes no control status and has no crowd round it, so ${CONTENT.jellies[s.t].attack === 'ice' ? 'Chill and Freeze' : 'the Poison burst\'s spread'} buys nothing here.` : 'The paper can\'t see why: a clear test on this Boss (tests/clear.mjs) would.'}`,
+    knob: { at: kdl('content/jellies.kdl', 'jelly', s.t), change: `hit=${CONTENT.jellies[s.t].hit} → ${r(CONTENT.jellies[s.t].hit * Math.sqrt(s.secs / s.med), 2)}`, does: `halves the gap on the ${s.f.A.boss} (and lifts its bug fights too: check A1's budget)` } });
+  // time it can't be hurt, as a share of the real fight
+  F.forEach((f, i) => { const u = f.fixed + f.loopUnder * f.secs, sh = u / RUN_LOG.bossSeconds[i]; if (sh > 0.3) flags.push({ text: `The ${f.A.boss} can't be hurt for about ${r(u)} s of a fight (${id2why(f)}): ${pct(sh).slice(1)} of the run log's ${RUN_LOG.bossSeconds[i]} s fight is waiting with nothing to hit.`,
+    knob: f.id === 'clog' ? { at: `content/bosses.kdl:${nodeOf('bosses', 'clog').children.find((c) => c.name === 'acid').line}`, change: `rounds=${CONTENT.bosses.clog.skills.acid.rounds} → ${Math.max(3, Math.round(CONTENT.bosses.clog.skills.acid.rounds * 0.6))}`, does: `each flood ${r(f.flood)} s → ${r(f.flood - (CONTENT.bosses.clog.skills.acid.rounds - Math.max(3, Math.round(CONTENT.bosses.clog.skills.acid.rounds * 0.6))) * CONTENT.bosses.clog.skills.acid.every)} s` }
+      : f.id === 'encore' ? { at: `content/bosses.kdl:${nodeOf('bosses', 'encore').children.find((c) => c.name === 'start').line}`, change: `guard=${CONTENT.bosses.encore.skills.start.guard} → 8`, does: `${CONTENT.bosses.encore.skills.start.guard - 8} s less waiting at the start` }
+      : f.id === 'vacuum' ? { at: `content/bosses.kdl:${nodeOf('bosses', 'vacuum').children.find((c) => c.name === 'flies').line}`, change: `max=${CONTENT.bosses.vacuum.skills.flies.max} → 1`, does: `one fly shield a fight, about ${r(f.fixed / CONTENT.bosses.vacuum.skills.flies.max)} s less waiting` }
+      : { at: kdl('content/bosses.kdl', 'boss', f.id), change: 'shorter cover', does: 'less waiting' } }); });
+  // least time for the most damage, as C3
+  for (const { f, n, x, hit, hits } of atk) if (hit >= 6 && x.dodge < 0.4 && hits) flags.push({ text: `The ${f.A.boss}'s ${n} hits for ${r(hit, 1)} with ${r(x.dodge, 2)} s between locking on and landing.`,
+    knob: { at: `content/bosses.kdl:${nodeOf('bosses', f.id).children.find((c) => c.name === n).line}`, change: n === 'pinball' ? `lock=${CONTENT.bosses.clog.skills.pinball.lock} → 0.4` : 'its wind-up up', does: '0.4 s to react' } });
+  return {
+    id: 'C4', title: 'Bosses',
+    lede: 'Each Boss\'s fight on paper: how long at the reference Offence, the time it can\'t be hurt, the Health it sends if nothing is dodged, and the run log\'s real times by jelly type.',
+    numbers: [
+      ...F.map((f) => [`${f.A.boss}: Health (with the act's bossHp), contact`, `${r(f.A.bossHp)}, ${CONTENT.bosses[f.id].contact}`, kdl('content/bosses.kdl', 'boss', f.id)]),
+      ...F.map((f) => [`${f.A.boss}: attack order`, `${f.calm.L.order.join(', ')}; angry ${f.mad.L.order.join(', ')}`, f.calm.L.src]),
+      ['Vacuum: between attacks it chases (s); angry pace', `${CONTENT.bosses.vacuum.skills.chase.time}; x${CONTENT.bosses.vacuum.skills.enrage.pace}`, at('src/vacuum.js', /get pace\(\)/)],
+      ['Clog: acid floods at, each (s)', `${CONTENT.bosses.clog.skills.acid.first}, ${CONTENT.bosses.clog.skills.acid.second}; ${r(F[1].flood)}`, at('src/clog.js', /this\.state = 'acid'/)],
+      ['Shark: rest between attacks (s); illusion at', `${CONTENT.bosses.shark.skills.motion.rest}; ${CONTENT.bosses.shark.skills.illusion.at}`, at('src/shark.js', /get shielded\(\)/)],
+      ['Encore: guards (s), solo slot (bars), bow (bars) at x', `${CONTENT.bosses.encore.skills.start.guard} + ${CONTENT.bosses.encore.skills.meltdown.guard}; ${CONTENT.bosses.encore.skills.set.solo}; ${CONTENT.bosses.encore.skills.solo.bow} at x${CONTENT.bosses.encore.skills.solo.exposed}`, at('src/encore.js', /get exposed\(\)/)],
+      ['Encore floor wave damage; song bpm', `${ENC_FLOOR_DMG}; ${r(60 / BEAT_ENC)}`, at('src/encore-floor.js', /export const FLOOR_DMG/)],
+      ['Fight length and Health lost to the Boss, by act and by type', RUN_LOG.source2, 'tools/balance-sheet.mjs RUN_LOG'],
+    ],
+    model: `fight seconds = (Boss Health / Offence) / (1 - the loop's share under cover) / bows' exposed bonus + the time it can't be hurt
+Offence = the reference jelly at the door (cards only, by type) x what Treasures add at that door: the run log's mean fight with the waiting taken out
+can't be hurt: the Vacuum's fly shields (4 lanternflies to clear, ${CONTENT.bosses.vacuum.skills.flies.max} a fight, ${CONTENT.bosses.vacuum.skills.flies.shield} s at most), the Clog's two acid floods (rise + rounds x every + drain), the shark under the quilt (track), the Encore's two force fields
+Health sent a second = Σ hits that can land (one per ${IFRAMES} s) x dmg x act power / (attacks + gaps); drains (suction) count half their time; angry once Health falls below its line
+the Encore is a ${CONTENT.bosses.encore.skills.set.solo}-bar slot: floor waves every ${CONTENT.bosses.encore.skills.set.wave} bars and one solo (records, pyro or the wall in turn); lasers, the disco ball and stage-edge shocks are not priced`,
+    tables: [{ head: ['Boss', 'Health', 'Hurting s at reference Offence', 'Can\'t be hurt (s)', 'Paper fight (s)', 'Run log (s)', 'Sent a minute, calm', 'Angry', 'Sent a fight, never dodged', 'Run log: lost to it'], rows },
+      { head: ['Boss', 'Type', 'Paper fight (s)', 'Run log s (fights)'], rows: typeRows },
+      { head: ['Attack', 'A hit (with power)', 'Hits it can land', 'Warning (s)', 'Dodge (s)', 'How to beat it'], rows: atkRows }],
+    charts: [grouped('Fight length: paper and the run log (s)', F.map((f) => f.A.boss), [['Paper', F.map((f) => f.secs)], ['Run log', RUN_LOG.bossSeconds]], (v) => r(v)),
+      bars('Encore fight by type in the run log (s)', TYPES.filter((t) => RUN_LOG.bossByType[3][t]).map((t) => [name(t), RUN_LOG.bossByType[3][t][0]]), { fmt: (v) => r(v), ref: median(TYPES.filter((t) => RUN_LOG.bossByType[3][t]).map((t) => RUN_LOG.bossByType[3][t][0])) })],
+    flags,
+    notes: ['Paper fight times are set so the Normal jelly matches the run log\'s mean (what Treasures add is solved from it), so a type\'s paper time differs from Normal\'s by its cards only.', 'The Vacuum for a first run: the run log\'s players lost 8.8 Health to it a fight, so on its own it isn\'t the wall; sheet D2 looks at first runs.', 'Type rows with one or two fights are anecdotes (Ice\'s 303 s on the Encore is two fights); the flag needs three or more and 1.75x the middle type.', 'The shark\'s illusion (from half its Health) attacks with the same moves at its own rest, so its angry figure is a floor.', 'The Encore\'s lasers, disco ball and stage-edge shock are in look.css and not priced here.'],
+  };
+}
+const id2why = (f) => ({ vacuum: 'its lanternfly shields', clog: 'two acid floods from the head of the tub', shark: 'under the quilt', encore: 'its opening and reboot force fields' })[f.id];
+
+// ------------------------------------------------------------------ C5: moving and dodging
+// A held jump, stepped as src/player.js steps it: rise at gravity (apexHang near the top), fall at fallGravity, capped at maxFall.
+const PC = (k) => num('src/config.js', new RegExp(`${k}: ([\\d.]+)`));
+export function jumpArc(dt = 1 / 240) {
+  const g = PC('gravity'), hang = PC('apexHang'), band = PC('apexBand'), fall = PC('fallGravity'), maxFall = PC('maxFall');
+  let y = 0, vy = Math.sqrt(2 * g * JUMP_H), t = 0;
+  const pts = [];
+  while (y >= 0 && t < 5) { pts.push([t, y]); const k = vy < -band ? fall : Math.abs(vy) <= band ? hang : 1; vy = Math.max(-maxFall, vy - g * k * dt); y += vy * dt; t += dt; }
+  const above = (h) => { const up = pts.filter(([, z]) => z > h); return up.length ? { from: up[0][0], to: up.at(-1)[0], long: up.at(-1)[0] - up[0][0] } : { from: 0, to: 0, long: 0 }; };
+  return { air: t, top: Math.max(...pts.map((p) => p[1])), above };
+}
+// The walls you jump: each passes under you for (band + the jelly's width) / its speed; a jump clears it when the feet stay above its height that long
+const WALLS = () => {
+  const C = CONTENT.elites, B = CONTENT.bosses, R2 = 2 * JELLY_R;
+  return [
+    { name: 'Alligator tail-slam ring', h: C.croc.skills.tail.height, pass: (C.croc.skills.tail.band + R2) / C.croc.skills.tail.speed, src: kdl('content/elites.kdl', 'elite', 'croc') },
+    { name: 'Singing Bowl ring', h: C.bowl.skills.ring.height, pass: (C.bowl.skills.ring.band + R2) / C.bowl.skills.ring.speed, src: kdl('content/elites.kdl', 'elite', 'bowl') },
+    { name: 'Singing Bowl ring, angry', h: C.bowl.skills.ring.height, pass: (C.bowl.skills.ring.band + R2) / C.bowl.skills.ring.angrySpeed, src: kdl('content/elites.kdl', 'elite', 'bowl') },
+    { name: 'Headphones shove wave', h: C.headphones.skills.shove.height, pass: R2 / C.headphones.skills.shove.speed, src: kdl('content/elites.kdl', 'elite', 'headphones') },
+    { name: 'Clog pinball ring', h: B.clog.skills.pinball.ringH, pass: R2 / B.clog.skills.pinball.ringSpeed, src: kdl('content/bosses.kdl', 'boss', 'clog') },
+    { name: 'Vacuum charge lane', h: num('src/vacuum.js', /this\.h = ([\d.]+);/), pass: (2 * 0.17 + R2) / B.vacuum.skills.charge.speed, src: at('src/vacuum.js', /this\.h = /) },
+    { name: 'Wall Clock sweeping hand', h: num('src/elites.js', /sweepH: ([\d.]+)/), pass: 0.03 / (Math.PI * 0.42 / (0.55 / TEMPO)) + R2 / (Math.PI * 0.42 / (0.55 / TEMPO)), src: at('src/elites.js', /const CLOCK_HITS = /) },
+  ];
+};
+// What each attack asks of the jelly's swimming: metres to get clear over the seconds it gives
+export function dodgeNeeds() {
+  const out = [];
+  for (const A of ACTS) {
+    const ms = refStats('normal', RUN_LOG.level[A.n - 1]).moveSpeed;
+    for (const kind of A.stage.elites.map((e) => e.kind)) for (const angry of [false, true]) for (const x of eliteAttacks(kind, angry)) {
+      if (angry && !CONTENT.elites[kind].angry) continue;
+      if (angry && out.some((o) => o.kind === kind && o.id === x.id && Math.abs(o.need - (x.pull ?? x.move / x.dodge)) < 1e-9)) continue;
+      out.push({ A, kind, who: CONTENT.elites[kind].name, id: x.id, angry, dmg: x.dmg * A.power, move: x.move, dodge: x.dodge, need: x.pull ?? x.move / x.dodge, pull: x.pull, ms, line: nodeOf('elites', kind).children.find((c) => c.name === x.id || x.id.startsWith(c.name))?.line ?? nodeOf('elites', kind).line, file: 'content/elites.kdl' });
+    }
+  }
+  return out.filter((o) => o.dmg > 0 && (o.pull || (o.move > 0 && Number.isFinite(o.need))));
+}
+function sheetC5() {
+  const flags = [], J = jumpArc(), N = dodgeNeeds(), base = SWIM;
+  const rows = N.map((o) => [`${o.who}: ${o.id}${o.angry ? ' (angry)' : ''}`, o.A.n, r(o.dmg, 1), o.pull ? 'held by a pull' : r(o.move * 100, 1) + ' cm', o.pull ? '' : r(o.dodge, 2), r(o.need, 2), pct(o.need / base).slice(1), pct(o.need / (base * o.ms)).slice(1)]);
+  const over = N.filter((o) => o.need > base * o.ms && !(o.angry && N.some((p) => !p.angry && p.kind === o.kind && p.id === o.id && p.need > base * p.ms)));
+  for (const o of over) {
+    const ok = o.pull ? `pull ${o.pull} → ${r(base * 0.85, 2)}` : `its dodge time ${r(o.dodge, 2)} s → ${r(o.move / (base * o.ms * 0.85), 2)} s`;
+    flags.push({ text: o.pull ? `${o.who}'s ${o.id}${o.angry ? ' (angry)' : ''} pulls at ${o.pull} m/s: getting away takes ${pct(o.need / base).slice(1)} Move speed, and the act ${o.A.n} reference jelly has ${pct(o.ms).slice(1)}.${(() => { const m = N.find((p) => p.angry && p.kind === o.kind && p.id === o.id); return m ? ` Angry it pulls at ${m.pull} m/s (${pct(m.need / base).slice(1)}).` : ''; })()} It can't miss, so for most players it is ${r(o.dmg, 1)} Health every time.` : `${o.who}'s ${o.id}${o.angry ? ' (angry)' : ''} asks for ${r(o.need, 2)} m/s (${r(o.move * 100, 1)} cm in ${r(o.dodge, 2)} s), ${pct(o.need / (base * o.ms)).slice(1)} of the act ${o.A.n} reference jelly's swim: stepping out isn't enough, only a jump or luck.`,
+      knob: { at: `${o.file}:${o.line}`, change: ok, does: 'a reference jelly can get away at 85% of its speed' } });
+  }
+  // walls you jump: is the hang long enough?
+  const walls = WALLS().map((w) => ({ ...w, win: J.above(w.h) }));
+  for (const w of walls) if (w.win.long < w.pass * 1.5) flags.push({ text: `The ${w.name} is ${r(w.h * 100, 1)} cm tall and passes under you in ${r(w.pass, 2)} s; a full jump keeps the jelly over it for ${r(w.win.long, 2)} s, ${w.win.long < w.pass ? 'too short: it can\'t be cleared' : 'under 1.5x: the timing is tight'}.`,
+    knob: { at: w.src, change: `height ${w.h} → ${r(J.top * 0.6, 3)}`, does: `a jump clears it for ${r(J.above(J.top * 0.6).long, 2)} s` } });
+  // what Move speed buys: the share of dodge-able Health (step-out attacks) the reference jelly can step out of, by Move speed
+  const steps = [1, 1.1, 1.2, 1.3, 1.5, 1.75, 2], sh = (m) => { const all = N.filter((o) => !o.pull), tot = all.reduce((s, o) => s + o.dmg, 0); return all.filter((o) => o.need <= base * m).reduce((s, o) => s + o.dmg, 0) / tot; };
+  return {
+    id: 'C5', title: 'Moving and dodging',
+    lede: 'What each Elite attack asks of your swimming: the distance to get clear over the time it gives, as a share of your speed. And how long a jump keeps you over the walls you are meant to jump.',
+    numbers: [
+      ['Swim speed (m/s at Move speed 100%)', SWIM, at('src/config.js', /walkSpeed: /)],
+      ['Jump height (m), gravity, fall x, apex hang x', `${JUMP_H}, ${PC('gravity')}, ${PC('fallGravity')}, ${PC('apexHang')}`, at('src/config.js', /jumpHeight: /)],
+      ['Jelly radius (m)', JELLY_R, at('src/config.js', /radius: 0\.0306/)],
+      ['Move speed card: Common / Rare / Epic', LV.cards.moveSpeed.amounts.join(' / '), cardLine('moveSpeed')],
+      ['A full jump: in the air (s), top (m)', `${r(J.air, 2)}, ${r(J.top, 3)}`, at('src/player.js', /a heavier fall than rise/)],
+      ...walls.map((w) => [`${w.name}: height (m), passes under you (s)`, `${w.h}, ${r(w.pass, 2)}`, w.src]),
+      ...ACTS.map((A, i) => [`Act ${A.n} door: reference Move speed`, pct(refStats('normal', RUN_LOG.level[i]).moveSpeed).slice(1), 'tools/balance-sheet.mjs refStats']),
+    ],
+    model: `need (m/s) = metres to get clear (half the Warning's width + the jelly's ${r(JELLY_R * 100, 1)} cm) / dodge seconds (from C3: from the lock to the hit)
+share = need / (${SWIM} m/s x Move speed); over 100% the attack can't be stepped out of in time
+a pull (the Coffer's tongue) asks for its own speed, whatever the time
+a wall passes under you for (its thickness + the jelly's width) / its speed; a held jump keeps the feet above h for the time the arc spends there (src/player.js, stepped at 240 a second)`,
+    tables: [{ head: ['Attack', 'Act', 'A hit (with power)', 'To get clear', 'In (s)', 'Needs (m/s)', 'Of base swim', 'Of the act\'s reference jelly'], rows },
+      { head: ['Wall', 'Height (cm)', 'Passes under you (s)', 'A jump keeps you over it (s)', 'From (s after the jump)'], rows: walls.map((w) => [w.name, r(w.h * 100, 1), r(w.pass, 2), r(w.win.long, 2), r(w.win.from, 2)]) },
+      { head: ['Move speed', ...steps.map((m) => pct(m).slice(1))], rows: [['Share of step-out Health you can outrun', ...steps.map((m) => pct(sh(m)).slice(1))]] }],
+    charts: [bars('Speed each attack asks, as a share of base swim (100% dashed)', N.map((o) => [`${o.who.replace(/^The /, '')} ${o.id}${o.angry ? '!' : ''}`, Math.min(4, o.need / base) * 100, o.A.n % 2 ? '' : 'b']), { fmt: (v) => r(v) + '%', ref: 100, left: 200 }),
+      bars('Share of step-out Health you can outrun, by Move speed', steps.map((m) => [pct(m).slice(1), sh(m) * 100]), { fmt: (v) => r(v) + '%', cls: 'b' })],
+    flags,
+    notes: ['Bosses and bugs are in C4 and C1 (their dodge times); the speed table here is the Elites\' attacks, where the files give a radius for every Warning.', 'A jump that lands just as a wall arrives is a second chance the table doesn\'t count; the jump window is from a standing start, not a running one.', 'Move speed also stretches a step into a dodge for every Shot; what it is worth in Health saved needs play (the run log\'s damage by source, before and after).'],
+  };
+}
+
+// ================================================================== Wave D3: the spread of builds
+// The dice-only roller: whole runs rolled with the game's own dice (rollCards, threeOfAKind, rollTreasures, threeOfAKindTreasures from
+// src/stats.js, and the Legendary and Attack upgrade picks as src/run.js shuffles them), on a seeded generator. The player's part is
+// fixed: either the pick that's best on paper (the sheets' prices) or one at random, so all the spread is the dice. Each build is priced at
+// each Boss door with the game's own compileMods, against the reference jelly (cards by their odds, no Treasures) at the same level.
+const TAKE = (S, mods, owned, attack) => (t) => (owned[t.id] || 0) < t.stack && (!t.needs || owned[t.needs]) && (!t.needsStat || S[t.needsStat] > 0) && (!t.needsChance || mods.chancy)
+  && !(t.notFor?.includes(attack) || t.retired) && !(t.heals && mods.shield.fromHealth);
+const shuffled = (xs, rng) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// a pick's price on paper at a moment: what the B sheets would say for the next copy, its rarity's budget where nothing is priced
+const PRICE = new Map();
+function pickPrice(kind, item, type, M, n) {
+  const key = `${kind}:${item.id}:${type}:${M.key}:${n}`;
+  if (PRICE.has(key)) return PRICE.get(key);
+  let p;
+  if (kind === 'treasure') {
+    const node = nodeOf('treasures', item.id), w = worth(type, M, { t: { [item.id]: n + 1 } }, { fx: fxOf(item, node, n + 1) / (n ? fxOf(item, node, n) : 1), base: n ? { t: { [item.id]: n } } : {} });
+    p = unpricedOf(item).length || w.left.length ? Math.max(total(w), PICK[item.rarity] ?? 0) : total(w);
+  } else if (kind === 'evolution') { const w = legendWorth({ item, kind, file: 'evolutions', spec: { e: [item.id] } }, type, M); p = unpricedOf(item).length ? Math.max(w.pts - w.cost, PICK.legendary) : w.pts - w.cost; }
+  else { const w = upgradeWorth(item, M); p = unpricedOf(item).length ? Math.max(w.pts, PICK.upgrade) : w.pts; }
+  PRICE.set(key, p);
+  return p;
+}
+// one run: { doors: [points at each Boss door], items: ids held at the Encore door }
+// each kind of roll has its own dice (DICE), so one kind can be held still (fix) to see how much of the spread is its doing
+export const DICE = ['cards', 'chests', 'legendary', 'upgrades', 'finds'];
+export function rollRun(type, seed, { policy = 'best', weights = CHEST_WEIGHTS, more = null, fix = null } = {}) {
+  const n3 = (k) => (more === k ? 4 : 3);   // more: one kind of offer shows a fourth option
+  const R = Object.fromEntries(DICE.map((d, i) => [d, seeded((d === fix ? 1 : seed) * 7919 + i)])), J = CONTENT.jellies[type], attack = J.attack, S = baseOf(type), owned = {}, evos = [], ups = [], doors = [];
+  const spec = () => ({ t: owned, e: evos, u: ups });
+  let mods = modsOf(type, spec()), level = 1;
+  const pickRng = seeded(seed * 31 + 5), choose = (opts, price) => (policy === 'best' ? opts.reduce((p, q) => (price(q) > price(p) ? q : p)) : opts[Math.floor(pickRng() * opts.length)]);
+  const live = (M) => withMods(type, S, mods, Infinity);
+  const upgrade = (M) => { const pool = CONTENT.upgrades.filter((u) => u.jelly === type && !ups.includes(u.id) && (!u.needs || ups.includes(u.needs))), left = shuffled(pool, R.upgrades).slice(0, n3('upgrades')); if (left.length) { ups.push(choose(left, (u) => pickPrice('upgrade', u, type, M, 0)).id); mods = modsOf(type, spec()); } };
+  const chest = (source, M) => {
+    const now = live(M), take = TAKE(now, mods, owned, attack), favor = (t) => weights[source][t.rarity] / treasureTier(t).weight;
+    const offer = threeOfAKindTreasures(rollTreasures(CONTENT.treasures.filter((t) => weights[source][t.rarity] > 0 && take(t)), n3('chests'), now.luck, favor, R.chests), CONTENT.treasures.filter(take), R.chests);
+    if (!offer.length) return;
+    const t = choose(offer, (x) => pickPrice('treasure', x, type, M, owned[x.id] || 0));
+    owned[t.id] = (owned[t.id] || 0) + 1; mods = modsOf(type, spec());
+  };
+  const card = (M) => {
+    const now = live(M), skip = [...(mods.shield.fromHealth ? ['health', 'regen'] : []), ...cardsNotFor(attack)];
+    const cards = threeOfAKind(rollCards(S, n3('cards') + mods.cardChoices, mods.cardRarity, now.luck, now, skip, R.cards), now, R.cards);
+    if (!cards.length) return;
+    const gain = (c) => { const T = { ...S }; applyCard(T, c); const a = withMods(type, T, mods), b = now; return offence(type, a) / offence(type, b) + defence(a, M.A, 'careful', a.taken) / defence(b, M.A, 'careful', b.taken); };
+    applyCard(S, choose(cards, gain));
+  };
+  const legend = (M) => {
+    const can = (t) => t.rarity === 'legendary' && (owned[t.id] || 0) < t.stack && (!t.needs || owned[t.needs]) && !(t.notFor?.includes(attack) || t.retired) && (!t.needsStat || live(M)[t.needsStat] > 0) && (!t.needsChance || mods.chancy);
+    const left = shuffled([...CONTENT.treasures.filter(can).map((t) => ['treasure', t]), ...CONTENT.evolutions.filter((e) => !evos.includes(e.id) && !e.notFor?.includes(attack)).map((e) => ['evolution', e])], R.legendary).slice(0, n3('legendary'));
+    if (!left.length) return;
+    const [k, x] = choose(left, ([k2, y]) => pickPrice(k2, y, type, M, owned[y.id] || 0));
+    if (k === 'evolution') evos.push(x.id); else owned[x.id] = (owned[x.id] || 0) + 1;
+    mods = modsOf(type, spec());
+  };
+  upgrade(MOMENTS[0]);   // a returning player's run opens with one
+  ACTS.forEach((A, i) => {
+    const M = MOMENTS[i + 1], prevT = i ? RUN_LOG.treasures[i - 1] : 0, gainT = RUN_LOG.treasures[i] - prevT - (i ? 1 : 0), rooms = A.stage.treasures.at.length, elites = A.stage.elites.length;
+    const find = Math.max(0, Math.min(1, (gainT - elites) / rooms));   // room chests opened, so a run's Treasures match the run log's
+    const ev = [];
+    const ups2 = Math.floor(RUN_LOG.level[i]) - level; for (let k = 0; k < ups2; k++) ev.push([A.night * (k + 0.5) / ups2, 'card']);
+    A.stage.treasures.at.forEach((t) => ev.push([t, 'room']));
+    for (let k = 0; k < elites; k++) ev.push([A.night * (k + 1) / (elites + 1), 'elite']);
+    for (const [, what] of ev.sort((p, q) => p[0] - q[0])) {
+      if (what === 'card') { card(M); level++; } else if (what === 'room') { if (R.finds() < find) chest('room', M); } else chest('elite', M);
+    }
+    // priced at the door: Offence and Defence of this build against the reference jelly at the same level
+    const ref = refStats(type, M.level), refOff = offence(type, ref), refDef = defence(ref, A);
+    const now = live(M), fx = Object.entries(owned).reduce((p, [id, n]) => { const t = CONTENT.treasures.find((x) => x.id === id); return p * fxOf(t, nodeOf('treasures', id), n); }, 1)
+      * evos.reduce((p, id) => p * fxOf(CONTENT.evolutions.find((x) => x.id === id), nodeOf('evolutions', id), 1), 1) * ups.reduce((p, id) => p * fxOf(CONTENT.upgrades.find((x) => x.id === id), nodeOf('upgrades', id), 1), 1);
+    const off = offence(type, now) * fx + ASSUME.gadgetHit * gadgets(mods, now).dps, def = defence(now, A, 'careful', now.taken);
+    doors.push({ off: off / refOff, def: def / refDef });
+    if (i < 3) { legend(M); upgrade(M); }
+  });
+  return { doors, items: [...Object.keys(owned), ...evos, ...ups] };
+}
+const pctile = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+export function rollMany(n = 10000, opts = {}, types = TYPES) {
+  const runs = [];
+  for (let k = 0; k < n; k++) { const type = types[k % types.length]; runs.push({ type, ...rollRun(type, 1000 + k, opts) }); }
+  return runs;
+}
+// the lucky tenth over the unlucky tenth within each type, the middle type's figure
+const within = (runs, d) => median(TYPES.map((t) => { const s = spreadOf(runs.filter((x) => x.type === t), d); return s.p90 / s.p10; }));
+const spreadOf = (runs, d, k = 'off') => { const v = runs.map((x) => x.doors[d][k]); return { p10: pctile(v, 0.1), p50: pctile(v, 0.5), p90: pctile(v, 0.9) }; };
+export const D3_RUNS = 10000;
+function sheetD3(runs = D3_RUNS) {
+  const few = Math.max(TYPES.length, Math.round(runs / 5)), flags = [], best = rollMany(runs), blind = rollMany(few, { policy: 'blind' });
+  const doors = ACTS.map((A, d) => ({ A, best: spreadOf(best, d), blind: spreadOf(blind, d), within: within(best, d) }));
+  const x2 = (v) => `x${r(v, 2)}`, real = (i) => bossFight(ACTS[i]).k;
+  const rows = doors.map((x, i) => [x.A.boss, x2(x.best.p10), x2(x.best.p50), x2(x.best.p90), x2(x.within), x2(x.blind.p50), x2(real(i)), x2(spreadOf(best, i, 'def').p50)]);
+  const typeRows = TYPES.map((t) => { const mine = best.filter((x) => x.type === t); const s = spreadOf(mine, 3); return [name(t), x2(s.p10), x2(s.p50), x2(s.p90), x2(s.p90 / s.p10)]; });
+  const E = doors[3];
+  // how much is the roll (lucky tenth over unlucky tenth, within a type), against how much is the picking
+  const luck = E.within, skill = E.best.p50 / E.blind.p50;
+  // which dice it is: hold one kind still (the same roll in every run) and see how much the gap closes
+  const some = Math.max(TYPES.length * 2, Math.round(runs / 10)), base = within(best.slice(0, some), 3);
+  const held = DICE.map((d) => [d, within(rollMany(some, { fix: d }), 3)]), most = held.reduce((p, q) => (q[1] < p[1] ? q : p));
+  // which items the lucky tenth hold far more often than everyone
+  // (within each type, so a type's own Attack upgrades don't ride on the type being strong)
+  const cut = Object.fromEntries(TYPES.map((t) => [t, spreadOf(best.filter((x) => x.type === t), 3).p90])), top = best.filter((x) => x.doors[3].off >= cut[x.type]);
+  const freq = (set, id) => set.filter((x) => x.items.includes(id)).length / Math.max(1, set.length), mine = (set, id) => set.filter((x) => TYPES.some((t) => t === x.type && (CONTENT.upgrades.find((u) => u.id === id)?.jelly ?? t) === t));
+  const ids = [...new Set(best.flatMap((x) => x.items))];
+  const lift = ids.map((id) => ({ id, all: freq(mine(best, id), id), top: freq(mine(top, id), id) })).filter((x) => x.all > 0.05).map((x) => ({ ...x, k: x.top / x.all })).sort((p, q) => q.k - p.k);
+  // a proposed change and what it does to the gap: a fourth option in the offers whose dice matter most
+  const kind = most[0] === 'finds' ? 'chests' : most[0], four = within(rollMany(some, { more: kind }), 3);
+  const where = { chests: [at('src/run.js', /^ {2}rollChest\(source = 'room', n = 3/), 'n = 3 → 4 (a fourth Treasure in every chest)'], legendary: [at('src/run.js', /const left = shuffle\(\[\.\.\.TREASURES\.filter\(can\), \.\.\.evos\]\)\.slice\(0, 3\)/), 'slice(0, 3) → slice(0, 4) (a fourth Legendary or evolution after each Boss)'],
+    upgrades: [at('src/run.js', /const left = shuffle\(pool\)\.slice\(0, 3\)/), 'slice(0, 3) → slice(0, 4) (a fourth Attack upgrade)'], cards: [at('src/run.js', /rollLevelUp\(n = 3 \+ this\.mods\.cardChoices/), 'n = 3 → 4 (a fourth level-up card)'] }[kind];
+  if (luck > 1.5) {
+    flags.push({ text: `At the Encore door the lucky tenth of rolled builds of a type (the best pick on paper taken every time) have ${r(luck, 1)}x the Offence of its unlucky tenth; picking the best rather than at random is worth ${r(skill, 2)}x. Holding one kind of dice still shows whose doing it is: the ${most[0]} close it most, from x${r(base, 2)} to x${r(most[1], 2)}.`,
+      knob: { at: where[0], change: where[1], does: `the ratio goes from x${r(base, 2)} to x${r(four, 2)} on ${some.toLocaleString('en-US')} rolls${four > 0.9 * base ? ': more choice barely narrows it, as the luck is spread over every roll' : ''}` } });
+  }
+  for (const x of lift.slice(0, 3)) if (x.k > 2.5) {
+    const item = CONTENT.treasures.find((t) => t.id === x.id) || CONTENT.evolutions.find((t) => t.id === x.id) || CONTENT.upgrades.find((t) => t.id === x.id);
+    const file = CONTENT.treasures.includes(item) ? 'treasures' : CONTENT.evolutions.includes(item) ? 'evolutions' : 'upgrades', node = nodeOf(file, x.id), t = turn(node);
+    flags.push({ text: `${item.name} is in ${pct(x.top).slice(1)} of the luckiest tenth of builds (of each type) and ${pct(x.all).slice(1)} of all that could hold it: finding it is ${r(x.k, 1)}x likelier in a lucky run than in any run, so whether it's offered decides the build.`,
+      knob: t ? { at: `content/${file}.kdl:${t.line}`, change: `${t.write(t.v)} → ${t.write(+(t.v * 0.7).toPrecision(2))}`, does: 'a third less, so missing it costs less' } : { at: kdl(`content/${file}.kdl`, file === 'treasures' ? 'treasure' : file === 'evolutions' ? 'evolution' : 'upgrade', x.id), change: 'its main number down a third', does: 'missing it costs less' } });
+  }
+  return {
+    id: 'D3', title: 'The spread of builds',
+    lede: `${runs.toLocaleString('en-US')} runs rolled with the game's own dice, ${Math.round(runs / TYPES.length)} of each type, the best pick on paper taken every time: how far apart an unlucky and a lucky build are at each Boss door.`,
+    numbers: [
+      ['Level-up roll and three of a kind', 'rollCards, threeOfAKind', at('src/stats.js', /^export function rollCards/)],
+      ['Chest roll and three of a kind', 'rollTreasures, threeOfAKindTreasures', at('src/stats.js', /^export function rollTreasures/)],
+      ['Chest weights: room, Elite', `${Object.values(CHEST_WEIGHTS.room).join('/')}, ${Object.values(CHEST_WEIGHTS.elite).join('/')}`, at('src/stats.js', /^export const CHEST_WEIGHTS/)],
+      ['Who can be offered what (takeable)', 'stack, needs, needs-stat, needs-chance, not-for, heals', at('src/run.js', /^ {2}takeable\(t\)/)],
+      ['Boss rewards: 3 from Legendaries and evolutions, then 1 of 3 Attack upgrades', 'pickLegendary, pickUpgrade', at('src/run.js', /^ {2}pickLegendary\(/)],
+      ['A returning player starts with 1 of 3 Attack upgrades', 'pickUpgrade', at('src/run.js', /a returning player's run opens with 1 of 3 Attack upgrades/)],
+      ['Levels and Treasures held at each door', `${RUN_LOG.level.join(', ')}; ${RUN_LOG.treasures.join(', ')}`, 'tools/balance-sheet.mjs RUN_LOG'],
+    ],
+    model: `a run: 1 of 3 Attack upgrades, then each act's level-ups (the run log's levels), its room chests and Elite chests in time order, and after acts 1 to 3 the Legendary pick and an Attack upgrade
+room chests are opened at the share that gives the run log's Treasures held (every Elite is beaten); level-up rerolls and the reward spin's look are left out (the spin never changes the roll)
+dice: the game's own functions on a seeded generator (run k uses seed 1000 + k), so the page is the same every time
+the player's part is fixed: "best" takes the option the sheets price highest (a card by what it adds now, a pick by its B-sheet price for the next copy, its rarity's budget where nothing is priced); "blind" takes one at random
+a build at a door = its Offence (and Defence) / the reference jelly's at the same level (average cards, no Treasures), priced with compileMods as in sheets B2 to B6\nOffence = the attack with its stats and its Crit, mark, status and conditional lines (A4) + gadgets at ${ASSUME.gadgetHit} of their paper damage a second (B3's figures assume every swing lands)\nthe run log's 'Treasures add' (sheet S0) is the real thing to set the middle against: paper builds run high where gadgets and lines hold all the time`,
+    tables: [{ head: ['Door', 'Offence: unlucky tenth', 'Middle', 'Lucky tenth', 'Lucky / unlucky, within a type', 'Middle, picking blind', 'Run log: what Treasures add (C4)', 'Defence, middle'], rows },
+      { head: ['Type', 'Encore door Offence: unlucky tenth', 'Middle', 'Lucky tenth', 'Lucky / unlucky'], rows: typeRows },
+      { head: ['Held still', 'Nothing', ...DICE], rows: [['Lucky / unlucky at the Encore door', x2(base), ...held.map(([, v]) => x2(v))]] },
+      { head: ['Item', 'In builds that could hold it', 'In the lucky tenth of its type', 'x'], rows: lift.slice(0, 12).map((x) => [(CONTENT.treasures.find((t) => t.id === x.id) || CONTENT.evolutions.find((t) => t.id === x.id) || CONTENT.upgrades.find((t) => t.id === x.id)).name, pct(x.all).slice(1), pct(x.top).slice(1), r(x.k, 1)]) }],
+    charts: [grouped('Offence at each door, x the reference jelly: unlucky tenth, middle, lucky tenth', doors.map((x) => x.A.boss), [['Unlucky', doors.map((x) => x.best.p10)], ['Middle', doors.map((x) => x.best.p50)], ['Lucky', doors.map((x) => x.best.p90)]], x2),
+      bars('Encore door, middle build by type (x the reference jelly\'s Offence)', TYPES.map((t) => [name(t), spreadOf(best.filter((x) => x.type === t), 3).p50]), { fmt: x2 })],
+    flags,
+    notes: ['Points are on paper: behaviour words that the sheets don\'t price count at their rarity\'s budget when picking and nothing in the build\'s price, so a build of behaviour Treasures reads low.', 'Change a number, run the script, and this table shows what the change does to the gap: that is the question this sheet answers.'],
+  };
+}
+
 // ------------------------------------------------------------------ charts (inline SVG, no libraries)
 const W = 460, ROW = 22;
 const xmlesc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -1109,7 +1678,7 @@ function grouped(title, groups, series, fmt = String) {
 }
 
 // ------------------------------------------------------------------ the page
-export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7(), sheetC1(), sheetC2()];
+export const buildSheets = ({ runs = D3_RUNS } = {}) => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7(), sheetC1(), sheetC2(), sheetC3(), sheetC4(), sheetC5(), sheetD3(runs)];
 function page(sheets) {
   const rev = (() => { try { return fs.readFileSync(path.join(ROOT, '.git/HEAD'), 'utf8').trim(); } catch { return ''; } })();
   const table = (t) => `<div class="scroll"><table><tr>${t.head.map((h) => `<th>${xmlesc(h)}</th>`).join('')}</tr>${t.rows.map((row) => `<tr>${row.map((c) => `<td>${xmlesc(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
