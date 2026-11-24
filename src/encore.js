@@ -115,6 +115,8 @@ const ROOM = 0.15, _spot = [0, 0], _try = [0, 0];
 const FLOOR_BACK = (ENCORE.tiles * ENCORE.tileSize) / 2;   // the back of the floor (z): where the wall rolls to
 // where your attacks find it: in front of the booth, so a bubble reaches it before the stage's collider
 const TARGET = [0, 0.13, -0.17], BOOTH_R = 0.14;
+// how far back the song's beat must go to count as a rewind (a new set); less than this, the beat holds
+const REWIND = 1;
 const _hit = new THREE.Vector3(), _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
 
 export class Encore {
@@ -521,14 +523,16 @@ export class Encore {
     this.player = player;
     this.t += dt;
     this.shove.x = this.shove.z = 0;
-    const A = this.arenaView, beat = this.dead ? null : this.beatNow(dt), M = A.boss;
+    const A = this.arenaView, M = A.boss;
+    let beat = this.dead ? null : this.beatNow(dt);
     if (this.falling) { /* its fall: fallDown, after the model's update */ }
     else if (this.cut) this.shortOut(dt, beat);
     else if (!this.dead && beat !== null) {
       // A restarted track needs a new set, with fresh warnings rather than old scheduled beats.
-      if (this.beat !== null && beat < this.beat) {
+      // (a beat a hair behind the last is the speakers' latency moving, not a rewind: it holds)
+      if (this.beat !== null && beat < this.beat - REWIND) {
         this.floor.reset(); this.lasers.reset(); this.disco.reset(beat); this.set = null; this.flinched = null; this.stopActs();
-      }
+      } else if (this.beat !== null && beat < this.beat) beat = this.clock = this.beat;
       this.beat = beat;
       const S = this.def.skills.set || {};
       this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],

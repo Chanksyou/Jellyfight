@@ -592,6 +592,47 @@ fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
 });
 
 
+fight('fight-a-beat-a-hair-back-is-no-rewind', {
+  about: 'A phone\'s speaker latency moves while the song plays, so its beat can read a hair behind the last frame. That is not a rewind: the set, its booked waves and lasers stay and the beat holds, instead of the whole set being thrown away and started again (attacks vanishing mid-Warning and starting late). A real rewind (over a beat back) still starts a new set.',
+  setup() {},
+  play() {
+    const B = encoreFight({ hurt: false });
+    let beat = 100;
+    stub(B, 'song', { beat: () => beat, quiet: () => false, drop: () => false });
+    step(60 * 3, () => { beat += 128 / 3600; });
+    const set = B.set, booked = B.floor.casts.length + B.lasers.casts.length, was = B.beat;
+    beat -= 0.4; step(1);                                            // the latency jumps 0.19 s
+    const held = B.set === set && B.floor.casts.length + B.lasers.casts.length >= booked && B.beat === was;
+    beat += 0.4 + 128 / 3600; step(1);
+    const on = B.set === set && B.beat > was;
+    beat -= 8; step(1);                                              // a real rewind
+    const rewound = B.set !== set;
+    return ok(booked > 0 && held && on && rewound, { booked, held, on, rewound });
+  },
+});
+
+story('encore/a-late-song-picks-up-the-boss-beat', {
+  about: 'While the Encore\'s 5 minute track decodes (seconds on a phone) the fight keeps its own beat; when the track is ready it starts at that beat, not at 0, so the beat carries on (no rewind, no set thrown away) and the song\'s bars (its breakdown, its drop) still line up with the file where it plays.',
+  setup() {},
+  play() {
+    const ctx = { currentTime: 12.5, outputLatency: 0.06, baseLatency: 0.01, src: null,
+      createGain: () => ({ gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, setTargetAtTime() {} }, connect() {} }),
+      createBufferSource: () => (ctx.src = { connect() {}, start(when, offset) { this.when = when; this.offset = offset; }, stop() {} }) };
+    const T = new SongTrack(ctx, {}, TRACKS.encore), p = 60 / BPM;
+    T.buffer = {};
+    T.play(37.25);
+    const now = T.beatNow();
+    ctx.currentTime += 1; const later = T.beatNow();
+    // where the file is when the speakers play beat b: its first beat, `start` beats in, then b round the loop
+    const heard = ctx.src.when + 0.07, beatThen = T.from, fileBeat = (ctx.src.offset - TRACKS.encore.offset) / p;
+    const lined = Math.abs(fileBeat - (TRACKS.encore.start + (beatThen % T.loopBeats))) < 1e-6 && Math.abs((heard - ctx.src.when) - 0.07) < 1e-9;
+    // and a beat far past the loop starts it round again, on the same bar
+    const U = new SongTrack(ctx, {}, TRACKS.encore); U.buffer = {}; U.play(37.25 + T.loopBeats);
+    const wrapped = Math.abs(ctx.src.offset - (TRACKS.encore.offset + (TRACKS.encore.start + (U.from % U.loopBeats)) * p)) < 1e-6 && T.bar(T.from) === U.bar(U.from);
+    return ok(Math.abs(now - 37.25) < 1e-6 && Math.abs(later - now - BPM / 60) < 1e-6 && lined && wrapped, { now, later, lined, wrapped });
+  },
+});
+
 // ---- the DJ rig (encore-model.js): parts, moves on the beat
 const rigBeat = (fps) => TRACKS.encore.bpm / 60 / fps;
 // each move's pose space: how far along its swing (wind-up to accent) the pose is now

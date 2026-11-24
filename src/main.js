@@ -621,7 +621,7 @@ function updateMusic(dt) {
   const rec = st.song ? trackFor(st.song) : null;
   for (const name in tracks) if (tracks[name] !== rec) tracks[name].track.stop();
   song.playing = rec;
-  if (rec?.state === 'ready') rec.track.play();
+  if (rec?.state === 'ready') rec.track.play(run.boss?.music === st.song ? run.boss.clock : 0);   // (a boss that kept its own beat while it loaded: the song picks up there)
   rec?.track.duck(menuOpen() || run.paused);
   music.play(TRACKS[st.song] ? null : st.song);   // a recorded song is never swapped for a synthesized one
   music.duck(menuOpen() || run.paused);

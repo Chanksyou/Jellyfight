@@ -1,0 +1,1 @@
+keeps the Encore's attacks steady: a phone's speaker latency moving no longer throws its whole set away (attacks vanishing mid-Warning and starting late), and a track that finishes loading mid-fight picks up at the fight's beat instead of restarting the set.
