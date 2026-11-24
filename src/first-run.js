@@ -33,7 +33,7 @@ export const DEATH_HINTS = [
   'Watch the Warnings. Step out of the shape before it fills, or jump over a low Blast.',
   'Shield refills after 5 s without damage, Health does not. Back off for a moment instead of trading hits.',
   'Each Dodge card gives less the more Dodge you have, up to 60%. After a few, take Health or Shield.',
-  'Mosquito bites Bleed 1 Health a second for 3 s, and each bite stacks. Kill them first.',
+  'Mosquito bites Bleed 1 Health a second for 2 s, and each bite stacks. Kill them first.',
 ];
 export const deathHint = (types = false) => {
   const list = types ? [...DEATH_HINTS, ...TYPE_HINTS] : DEATH_HINTS;

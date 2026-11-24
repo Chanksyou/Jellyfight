@@ -59,7 +59,7 @@ test('growth reads kills, levels and picks from the night model and the run log'
 
 test('Wave C reads the bugs and the night', () => {
   const fly = B.attackOf('housefly');
-  assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.3);
+  assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.5);
   assert.equal(B.attackOf('roach').hits[0].word, 'touch');
   B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [11.7, 16.2, 19.3, 20.6][i]) < 1, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the run log's levels
 });

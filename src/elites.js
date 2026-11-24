@@ -1854,7 +1854,7 @@ export class Elites {
           // included), locking halfway; then the wreath is a Shot out along it and back
           const wind = 0.8;
           if (s < wind) {
-            if (s < wind * 0.5 || !e.aim) e.aim = shotTarget(P, cfg, null, P.y, e.aim || new THREE.Vector3());
+            if (s < wind * 0.3 || !e.aim) e.aim = shotTarget(P, cfg, null, P.y, e.aim || new THREE.Vector3());
             const from = this.wreathWorld(e), dx = e.aim.x - e.base.x, dz = e.aim.z - e.base.z, len = Math.max(0.05, Math.hypot(dx, dz));
             if (!e.tele.length) {
               this.mark(e, this.stripGeo, this.T.wreath, surf, new THREE.Vector3(0.05, 1, len), Math.atan2(dx, dz));

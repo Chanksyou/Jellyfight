@@ -44,7 +44,7 @@
   "aim": null
  },
  "housefly": {
-  "frames": 24,
+  "frames": 36,
   "pos": [
    3254,
    52,
@@ -106,7 +106,7 @@
   ]
  },
  "mantis": {
-  "frames": 19,
+  "frames": 31,
   "pos": [
    3197,
    0,
