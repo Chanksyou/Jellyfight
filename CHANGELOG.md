@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v690 Act 3's wasp nests send out at most six wasps at a time, down from nine, so the swarm is smaller and easier to clear.
+
 v689 makes Clean play last longer in later acts: it now pays down to nothing at 100, 250, 300 and 350 Health taken in acts 1 to 4, so a hard-fought clear in act 2 to 4 still earns part of it.
 
 v688 Chests are easier to grab: a golden chest now opens from about 8 cm away, instead of 4 cm, so a swim past or a rush through Warnings takes it. The Goodie Bag's second chest can no longer turn up inside a wall: it always lands on open floor beside the first, or on the same spot.
