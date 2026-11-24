@@ -873,3 +873,28 @@ act2('feel-clog-shed', {
     return ok(tangles >= 3 && out.splats >= tangles && out.feels.includes('hit') && out.sounds.includes('clogShed') && spy.impacts.length >= 1, out);
   },
 });
+act2('clog-living-motion', {
+  about: 'The Clog moves all its parts: its hair/core shader clock and bristle advance, its 4 braided ropes flow smoothly with stepChain (4 meshes instead of 32), caught debris bobbles on springs, eyes/teeth/drips react, and Reduce effects stills ambient writhing and drag.',
+  setup() {},
+  play() {
+    const B = clogFight(), M = B.model, wasCalm = juice.calm;
+    juice.calm = false;
+    const t0 = M.uniforms.uClogTime.value;
+    const ropeTip0 = M.ropes[0].sim.at(-1).clone();
+    const drip0 = M.drips[0].m.scale.y;
+    B.damage(40);
+    const winced = B.winceT > 0 && B.bristle > 0.5 && Math.abs(B.squashV) > 1;
+    step(45);
+    const shaderLive = M.uniforms.uClogTime.value > t0 + 0.3 && M.uniforms.uClogFX.value.y > 0.1;
+    const ropeMoved = M.ropes.length === 4 && M.ropes[0].sim.at(-1).distanceTo(ropeTip0) > 0.002;
+    const propsAlive = M.props.length >= 12 && M.props.some((pr) => Math.abs(pr.ax) > 0.005 || Math.abs(pr.az) > 0.005);
+    const dripMoved = Math.abs(M.drips[0].m.scale.y - drip0) > 0.05;
+    // Reduce effects stills ambient writhing/shudder/drag
+    juice.calm = true;
+    step(10);
+    const calmStill = M.uniforms.uClogFX.value.y === 0 && M.uniforms.uClogFX.value.w === 0 && M.uniforms.uClogVel.value.lengthSq() === 0;
+    juice.calm = wasCalm;
+    return ok(winced && shaderLive && ropeMoved && propsAlive && dripMoved && calmStill, { winced, shaderLive, ropeMoved, propsAlive, dripMoved, calmStill, props: M.props.length });
+  },
+});
+

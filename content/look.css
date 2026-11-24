@@ -1215,6 +1215,18 @@
   --clog-duck: #ffd21a;          /* the four rubber ducks in the tub */
   --clog-duck-bill: #ff7a1a;
   --clog-trail-every: 0.1;       /* seconds between the gunk smears its roll leaves */
+  /* the Clog's living motion (src/clog.js): wet-mass jiggle, GPU hair flow, braided rope physics, debris bobble */
+  --clog-motion-jiggle-k: 135;     /* squash-and-stretch spring stiffness (1/s^2) */
+  --clog-motion-jiggle-c: 8.5;     /* squash-and-stretch spring damping (underdamped: 2-3 wet wobbles) */
+  --clog-motion-hair-writhe: 0.16; /* idle hair-strand squirm amplitude (fraction of boss radius) */
+  --clog-motion-hair-drag: 0.42;   /* how far strands trail behind velocity and leaps */
+  --clog-motion-hair-bristle: 0.24;/* radial puff-up on windups, hits and enrage */
+  --clog-motion-core-churn: 0.065; /* peristaltic internal churning of the matted core */
+  --clog-motion-rope-k: 280;       /* rope root spring toward its pose (1/s^2) */
+  --clog-motion-rope-tip-k: 28;    /* rope tip spring (soft so tips whip and trail) */
+  --clog-motion-rope-drag: 7.5;    /* rope damping across its length */
+  --clog-motion-prop-k: 180;       /* caught-debris bobble spring stiffness */
+  --clog-motion-prop-c: 7.0;       /* caught-debris bobble damping */
   --vacuum-sweep-life: 0.25;     /* seconds a brush sweep's wall takes to spread out and fade */
   /* (the sweep's reach moved to content/bosses.kdl: brushes reach) */
   /* a Warning's volume over its floor shape (src/vfx.js VolumeMaterial): a faint hex shell of the
