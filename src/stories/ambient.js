@@ -358,7 +358,7 @@ story('ambient/status-lights-and-smoke-are-one-draw-each', {
     const without = calls();
     parts.forEach((p, i) => (p.visible = was[i]));
     const delta = withAll - without;
-    return ok(lightCount() === 3 && delta > 0 && delta <= parts.length * 2 && parts.every((p) => p.parent === APT.root), { lights: lightCount(), delta, parts: parts.length, inRoom: parts.every((p) => p.parent === APT.root) });
+    return ok(lightCount() === 4 && delta > 0 && delta <= parts.length * 2 && parts.every((p) => p.parent === APT.root), { lights: lightCount(), delta, parts: parts.length, inRoom: parts.every((p) => p.parent === APT.root) });
   },
 });
 
@@ -393,10 +393,10 @@ story('ambient/status-lights-blink-and-hold-steady-when-calm', {
 });
 
 story('ambient/act4-has-the-same-lights-and-smoke', {
-  about: 'Act 4 is act 1\'s room: it has the same status lights and the same two smoke threads.',
+  about: 'Act 4 is act 1\'s room: it has the same status lights (the candle flame among them) and the same two smoke threads.',
   act: 4,
   setup() { fresh({ elites: false }); },
-  play() { return ok(lightCount() === 3 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
+  play() { return ok(lightCount() === 4 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
 });
 
 story('ambient/act2-has-smoke-only', {
@@ -411,4 +411,20 @@ story('ambient/act3-has-a-light-and-a-plume', {
   act: 3,
   setup() { fresh({ elites: false }); },
   play() { return ok(lightCount() === 1 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
+});
+
+story('ambient/candle-is-open-with-a-flame', {
+  about: "Act 1's candle is an open tumbler with wax inside and a flame, and its smoke starts at the flame (act 4 is the same room).",
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT, powered, run } = G();
+    const candle = APT.scene.children.find((o) => o.name === 'Candle' && o.userData.dressed !== true && o.children.some((c) => c.material?.isMeshBasicMaterial));
+    const flame = candle?.children.find((c) => c.material?.isMeshBasicMaterial);
+    const wax = candle?.children.filter((c) => c.material?.isMeshStandardMaterial).length;
+    const top = flame && new THREE.Box3().setFromObject(flame).max.y;
+    const smoke = run.stage.smoke.find((s) => Math.abs(s.at[0] - 1.725) < 0.01);
+    const light = run.stage.status.some((s) => s.colour === 'flame');
+    return ok(!!flame && wax >= 2 && smoke && smoke.at[1] >= top && smoke.at[1] - top < 0.03 && light && !!powered?.smoke,
+      { flame: !!flame, wax, top, smoke: smoke?.at, light });
+  },
 });

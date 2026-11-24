@@ -34,10 +34,11 @@ export const STAGE1 = {
     { at: [0.822, 0.46, 2.85], colour: 'green', pattern: 'pulse', period: 6 },                    // the PC tower, breathing
     { at: [1.42, 0.40, 4.385], colour: 'blue', pattern: 'pulse', period: 5, phase: 0.3 },          // the game console, in standby
     { at: [1.5, 0.40, 4.385], colour: 'white', pattern: 'blink', period: 10, phase: 0.6 },         // ... its disc light
+    { at: [1.725, 0.686, 4.439], colour: 'flame', pattern: 'flicker', period: 4, size: 1.6 },      // the candle's flame, glowing
   ],
   smoke: [
     { at: [1.2, 0.62, 4.415], h: 0.3, kind: 'thread' },                                            // the incense, a thin curl
-    { at: [1.72, 0.68, 4.43], h: 0.1, kind: 'thread' },                                            // the candle's wick
+    { at: [1.725, 0.7, 4.439], h: 0.1, kind: 'thread' },                                           // the open candle's flame
   ],
   tvScreensaver: true,                // the wall TV shows its idle colours (set-dressing.js); act 4's concert dressing owns it there
   rain: true,                         // rain on the windows (rain.js) and in the room tone (ambience.js); act 4 is the same room, dry

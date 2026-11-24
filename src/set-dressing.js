@@ -171,7 +171,41 @@ function buildCurtain(box) {
   return g;
 }
 
+// The act 1 candle, opened: the baked one was a closed black tin, so the smoke curling off its wick made no sense.
+// An open black glass tumbler with white wax inside, a wick and a small flame (the flame's glow is a status light,
+// powered.js, and its smoke a thread: stage1.js). The baked label and floor shadow stay; only the closed body goes.
+function buildCandle(box, { baked }) {
+  const body = baked.children[0];
+  const b = new THREE.Box3().setFromObject(body, true), c = b.getCenter(new THREE.Vector3());
+  const r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2, h = b.max.y - b.min.y, wall = 0.0025, floor = 0.006;
+  const waxTop = h - 0.012, wickTop = waxTop + 0.008, flame = 0.016;
+  const lathe = (pts, seg = 24) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
+  const glass = [   // outside up, over the rim, inside down: one open shell
+    paint(lathe([[0, 0], [r, 0], [r, h], [r - wall, h], [r - wall, floor], [0, floor]]), 0x0a0a0c),
+  ];
+  const wax = [paint(lathe([[0, floor], [r - wall - 0.0004, floor], [r - wall - 0.0004, waxTop], [0.0035, waxTop], [0.0012, waxTop - 0.0012], [0, waxTop - 0.0012]]), 0xf3eee2)];
+  wax.push(paint(new THREE.CylinderGeometry(0.0006, 0.0006, wickTop - waxTop + 0.0015, 6).translate(0, (wickTop + waxTop) / 2 - 0.00075, 0), 0x2a2420));
+  const g = new THREE.Group();
+  const tumbler = new THREE.Mesh(merge(glass), std({ roughness: 0.55, metalness: 0, side: THREE.DoubleSide }));
+  const waxMesh = new THREE.Mesh(merge(wax), std({ roughness: 0.6, metalness: 0 }));
+  const fl = new THREE.Mesh(lathe([[0, 0], [0.0035, 0.004], [0.0028, 0.009], [0.0009, 0.0145], [0, flame]], 10),
+    new THREE.MeshBasicMaterial({ color: LOOK.color('candle-flame', '#ff8f33'), toneMapped: false }));
+  fl.position.y = wickTop - 0.0005;
+  g.add(tumbler, waxMesh, fl);
+  g.position.set(c.x, b.min.y, c.z);
+  // the label and the floor shadow keep their world places
+  for (const old of baked.children.slice(1)) {
+    const k = old.clone(false);
+    old.updateWorldMatrix(true, false);
+    old.matrixWorld.decompose(k.position, k.quaternion, k.scale);
+    k.position.sub(g.position);
+    g.add(k);
+  }
+  return g;
+}
+
 const BUILDERS = [
+  ['Candle', buildCandle],
   ['TV', buildTV],
   ['Soundbar', buildSoundbar],
   ['Shower curtain', buildCurtain],
@@ -215,7 +249,7 @@ export function dressSet(scene, root, { tvScreensaver = false } = {}) {
     baked.visible = false;
     baked.userData.dressed = true;
     baked.traverse((m) => { if (m.isMesh) m.userData.noCollide = true; });   // not shown, not solid: the replacement is
-    const g = build(box, { screensaver: tvScreensaver });
+    const g = build(box, { screensaver: tvScreensaver, baked });
     g.name = want;                       // stage treatments look pieces up by this name (traversal.js)
     scene.add(g);
   }
