@@ -130,11 +130,9 @@ export const STAGE4 = {
 
   // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
   // painted flat, never a collider or a light.
-  //   wristbands: a low crowd barrier of Festival wristbands strung along z, behind where the sun stops
   //   cables: runs along the floor from the media console's front (from) to the room's edge (to), x z
   //   pulse: the lit props that flash on the song's beat (their emissive, by the apartment's names)
   dressing: {
-    wristbands: { z: 3.42, across: [0.2, 4.85], gap: 0.055 },
     cables: [
       { from: [1.0, 4.33], to: [0.28, 3.78] },
       { from: [1.6, 4.33], to: [3.0, 3.86] },

@@ -1,7 +1,6 @@
 // Act 4's room dressed as a show about to start: a stage's `dressing` block (stage4.js).
-//   - a low crowd barrier of Festival wristbands, flat rings on a cord, strung across the room just
-//     behind where the sun stops (`wristbands`), and cables run along the floor from the media
-//     console's front (`cables`): one merged mesh, one draw call, painted flat on the floor
+//   - cables run along the floor from the media console's front (`cables`): one merged mesh,
+//     one draw call, painted flat on the floor
 //   - the lit props (`pulse`: the LED cove strip, the Corner LED and the Spotlight floor lamps) and the
 //     TV flash on the song's beat (run.beat): their emissive only, never a light added or removed
 //   - the stage door moment: at time-up the bugs go, the TV flares and the media console lights up for
@@ -81,23 +80,9 @@ export class ConcertDressing {
 
   build(stage) {
     const { world, scene } = this.run, D = this.D, lift = LOOK.num('dress-lift', 0.003);
-    const R = LOOK.num('dress-band-radius', 0.032), W = LOOK.num('dress-cable-width', 0.018);
-    const colours = LOOK.list('dress-wristbands', ['#ff5ca8', '#38d6ff']), cord = LOOK.color('dress-cord', '#202026'), cable = LOOK.color('dress-cable', '#44444f');
+    const W = LOOK.num('dress-cable-width', 0.018);
+    const cable = LOOK.color('dress-cable', '#44444f');
     const parts = [];
-    // the crowd barrier: wristbands lying flat in a row, each a little off the line and turned
-    const B = D.wristbands, [x0, x1] = B.across;
-    const bit = (n) => ((Math.sin(n * 12.9898) * 43758.5453) % 1 + 1) % 1;   // a repeatable scatter, no Math.random
-    const cordPts = [];
-    for (let i = 0, x = x0; x <= x1; i++, x += B.gap) {
-      const z = B.z + (bit(i) - 0.5) * 0.02, y = this.floorAt(x, z);
-      cordPts.push(y === null ? null : [x, y, z]);
-      if (y === null) continue;
-      const ring = new THREE.RingGeometry(R * 0.7, R, 12); ring.deleteAttribute('uv'); ring.rotateX(-Math.PI / 2).rotateY(bit(i + 7) * Math.PI).scale(1, 1, 0.8 + bit(i + 3) * 0.3);
-      ring.translate(x, y + lift * (1 + (i % 2) * 0.5), z);
-      parts.push(paint(ring, colours[i % colours.length]));
-    }
-    // the cord through them
-    for (let i = 0; i < cordPts.length - 1; i++) if (cordPts[i] && cordPts[i + 1]) parts.push(this.ribbon(cordPts[i], cordPts[i + 1], 0.004, cord, lift * 0.5));
     // cables off the media console's front: a gentle wander from `from` to `to`, a segment at a time
     for (const { from, to } of D.cables) {
       const n = Math.max(6, Math.round(Math.hypot(to[0] - from[0], to[1] - from[1]) / 0.06));
