@@ -14,6 +14,8 @@ import { hostile } from './vfx.js';
 import { coil, eyes, heavy, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
 import { prismFacets } from './prism-balls.js';
+import { loft, segmentedAbdomen, taperedLimb, paintWithUV, bugNormalMap } from './critter-kit.js';
+import { GaitRig } from './bug-gait.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -39,61 +41,114 @@ const rod = (a, b, r0, r1, hex) => tint(rodGeo(a, b, r0, r1), hex);
 const merge = (parts) => { const g = mergeGeometries(parts); g.computeVertexNormals(); g.computeBoundingSphere(); return g; };
 
 const MAT = {};
+const isLowGfx = () => typeof window !== 'undefined' && window.GAME?.gfx?.quality === 'low';
 function mats() {
+  const low = isLowGfx();
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });
   MAT.matte ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
   MAT.wing ||= new THREE.MeshStandardMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, forceSinglePass: true, roughness: 0.1, depthWrite: false });
+  MAT.chitin ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.24, metalness: 0.08, ...(low ? {} : { normalMap: bugNormalMap('chitin', 3), normalScale: new THREE.Vector2(0.45, 0.45) }) });
+  MAT.striae ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1, ...(low ? {} : { normalMap: bugNormalMap('striae', 2), normalScale: new THREE.Vector2(0.55, 0.55) }) });
+  MAT.compoundEye ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.14, metalness: 0.15, ...(low ? {} : { normalMap: bugNormalMap('ommatidia', 2), normalScale: new THREE.Vector2(0.75, 0.75) }) });
   const lit = { base: LOOK.num('bug-glow', 0.35), rim: LOOK.num('bug-rim', 0.8) };   // content/look.css
   standOut(MAT.shell, lit);     // brighter bugs: readable in the dark room
   standOut(MAT.matte, lit);
   standOut(MAT.wing, { base: 0.3, rim: 0.5 });
+  standOut(MAT.chitin, { ...lit, sheen: 0.14 });
+  standOut(MAT.striae, { base: lit.base * 0.85, rim: lit.rim * 0.6, sheen: 0.18 });
+  standOut(MAT.compoundEye, { base: 0.14, rim: 0.45, sheen: 0.35 });
   return MAT;
 }
 
 // ------------------------------------------------------------------ cockroach
 const GEO = {};
 function roachGeometry() {
-  const brown = '#4a2210', edge = '#8a4a1c', tan = '#b27a40', dark = '#241008';
-  const body = [
-    ellipsoid(0.5, 0.26, 0.95, V(0, 0.34, -0.35), dark),                 // abdomen
-    ellipsoid(0.27, 0.12, 0.92, V(-0.25, 0.5, -0.3), brown),              // wing covers
-    ellipsoid(0.27, 0.12, 0.92, V(0.25, 0.5, -0.3), brown),
-    ellipsoid(0.52, 0.16, 0.36, V(0, 0.46, 0.5), tan),                    // pronotum shield, pale rim
-    ellipsoid(0.36, 0.14, 0.26, V(0, 0.52, 0.5), edge),                   // ...dark middle
-    ellipsoid(0.24, 0.2, 0.2, V(0, 0.34, 0.8), dark),                     // head
-    rod(V(-0.12, 0.25, -1.2), V(-0.25, 0.22, -1.45), 0.04, 0.01, brown),  // cerci
-    rod(V(0.12, 0.25, -1.2), V(0.25, 0.22, -1.45), 0.04, 0.01, brown),
-  ];
-  for (const s of [-1, 1]) body.push(tube([V(s * 0.08, 0.4, 0.92), V(s * 0.4, 0.6, 1.4), V(s * 0.9, 0.5, 1.6), V(s * 1.4, 0.35, 1.2)], 0.018, brown, 16));
-  // a leg: femur out and up, tibia down to the ground, with little spines. Built at the hip.
-  const leg = (s, reach) => merge([
-    rod(V(0, 0, 0), V(s * 0.45, 0.14, 0), 0.07, 0.05, brown),
-    rod(V(s * 0.45, 0.14, 0), V(s * reach, -0.33, 0), 0.05, 0.02, brown),
-    rod(V(s * 0.6, 0.02, 0), V(s * 0.66, 0.12, 0.03), 0.015, 0.002, dark),
-    rod(V(s * 0.75, -0.1, 0), V(s * 0.82, 0.0, 0.03), 0.015, 0.002, dark),
+  const brown = '#3a1608', edge = '#5c2a10', tan = '#8e5826', dark = '#1a0a04', legCol = '#52220c';
+  // Body: segmented flattened abdomen + sculpted pronotum shield (pale translucent rim + dark twin maculae) + tucked head + cerci
+  const abdomen = segmentedAbdomen({ z0: -1.32, z1: 0.36, y0: 0.25, y1: 0.34, rx: 0.49, ry: 0.2, rings: 7, groove: 0.09, color: dark, bandColor: '#2c1206', top: 0.9, bot: 0.65, radial: 14 });
+  const pronotum = loft([
+    { z: 0.24, y: 0.44, rx: 0.44, ry: 0.14, top: 1.05, bot: 0.35, color: tan, ao: 0.88 },
+    { z: 0.38, y: 0.48, rx: 0.56, ry: 0.17, top: 1.1, bot: 0.3, color: tan, ao: 0.98 },
+    { z: 0.58, y: 0.47, rx: 0.54, ry: 0.16, top: 1.05, bot: 0.3, color: tan, ao: 1.0 },
+    { z: 0.76, y: 0.43, rx: 0.38, ry: 0.12, top: 0.95, bot: 0.3, color: tan, ao: 0.95 },
+    { z: 0.87, y: 0.39, rx: 0.16, ry: 0.06, top: 0.85, bot: 0.3, color: tan, ao: 0.88 },
+  ], 16);
+  const maculae = [-1, 1].map((s) => loft([
+    { z: 0.32, x: s * 0.16, y: 0.53, rx: 0.14, ry: 0.055, top: 1.1, bot: 0.2, color: edge, ao: 0.92 },
+    { z: 0.52, x: s * 0.18, y: 0.56, rx: 0.18, ry: 0.07, top: 1.15, bot: 0.2, color: brown, ao: 1.0 },
+    { z: 0.72, x: s * 0.11, y: 0.52, rx: 0.11, ry: 0.045, top: 1.0, bot: 0.2, color: edge, ao: 0.92 },
+  ], 10));
+  const head = loft([
+    { z: 0.68, y: 0.33, rx: 0.2, ry: 0.17, color: dark, ao: 0.85 },
+    { z: 0.82, y: 0.31, rx: 0.23, ry: 0.19, color: '#241008', ao: 0.96 },
+    { z: 0.94, y: 0.26, rx: 0.14, ry: 0.13, color: dark, ao: 0.9 },
+  ], 12);
+  const cerci = [-1, 1].map((s) => taperedLimb([V(s * 0.11, 0.25, -1.24), V(s * 0.19, 0.24, -1.39), V(s * 0.27, 0.23, -1.52)], [0.036, 0.024, 0.008], brown, 6));
+  const body = merge([abdomen, pronotum, ...maculae, head, ...cerci]);
+
+  // Overlapping leathery tegmina (forewings) with longitudinal striae normal map
+  const wing = (s) => loft([
+    { z: -1.36, x: s * 0.1, y: 0.33, rx: 0.12, ry: 0.05, top: 1.1, bot: 0.3, color: brown, ao: 0.88 },
+    { z: -1.05, x: s * 0.21, y: 0.44, rx: 0.24, ry: 0.085, top: 1.15, bot: 0.25, color: brown, ao: 0.98 },
+    { z: -0.45, x: s * 0.25, y: 0.49, rx: 0.28, ry: 0.095, top: 1.15, bot: 0.25, color: '#4a1e0c', ao: 1.0 },
+    { z: 0.12, x: s * 0.23, y: 0.48, rx: 0.25, ry: 0.085, top: 1.1, bot: 0.25, color: brown, ao: 0.95 },
+    { z: 0.34, x: s * 0.16, y: 0.44, rx: 0.15, ry: 0.06, top: 1.0, bot: 0.25, color: dark, ao: 0.82 },
+  ], 12);
+  const tegmina = merge([wing(-1), wing(1)]);
+
+  // Sweeping tapered antennae (built at their base on the head so each can whip on a spring)
+  const antenna = (s) => taperedLimb([
+    V(0, 0, 0), V(s * 0.26, 0.16, 0.38), V(s * 0.62, 0.14, 0.68), V(s * 1.08, 0.06, 0.64), V(s * 1.38, -0.04, 0.36),
+  ], [0.022, 0.017, 0.013, 0.009, 0.004], edge, 5);
+
+  // Shared 2-bone leg segments along +X (femur L1=0.48, spiny tibia+tarsus L2=0.62)
+  const femur = taperedLimb([V(0, 0, 0), V(0.24, 0.02, 0), V(0.48, 0, 0)], [0.065, 0.072, 0.045], legCol, 6);
+  const tibia = merge([
+    taperedLimb([V(0, 0, 0), V(0.46, 0, 0), V(0.62, -0.02, 0)], [0.04, 0.022, 0.012], legCol, 6),
+    paintWithUV(rodGeo(V(0.16, 0, 0), V(0.22, -0.09, 0.02), 0.013, 0.002, 4), dark),
+    paintWithUV(rodGeo(V(0.30, 0, 0), V(0.36, -0.09, 0.02), 0.012, 0.002, 4), dark),
+    paintWithUV(rodGeo(V(0.42, 0, 0), V(0.47, -0.07, 0.02), 0.01, 0.002, 4), dark),
   ]);
-  return { body: merge(body), legL: [leg(-1, 0.85), leg(-1, 0.95), leg(-1, 1.05)], legR: [leg(1, 0.85), leg(1, 0.95), leg(1, 1.05)] };
+  return { body, tegmina, antL: antenna(-1), antR: antenna(1), femur, tibia };
 }
 
+const ROACH_LEGS = [
+  { z: 0.34, rx: 0.78, rz: 0.72 },
+  { z: -0.04, rx: 0.92, rz: -0.05 },
+  { z: -0.44, rx: 0.96, rz: -0.92 },
+];
 export function buildRoach() {
   const G = (GEO.roach ||= roachGeometry()), M = mats();
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  const shell = new THREE.Mesh(G.body, M.shell);
-  body.add(shell);
+  body.add(new THREE.Mesh(G.body, M.chitin));
+  body.add(new THREE.Mesh(G.tegmina, M.striae));
+
   const legs = [];
-  [[G.legL, -1], [G.legR, 1]].forEach(([set, s]) => set.forEach((geo, i) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.22, 0.33, 0.35 - i * 0.38);
-    pivot.rotation.y = s * (i - 1) * -0.5;           // front legs point forward, back legs back
-    pivot.add(new THREE.Mesh(geo, M.shell));
-    body.add(pivot);
-    legs.push({ pivot, base: pivot.rotation.y, phase: (i + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });   // tripod gait
-  }));
+  for (const s of [-1, 1]) ROACH_LEGS.forEach((P, i) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.24, 0.30, P.z);
+    const swing = new THREE.Group(); hip.add(swing);
+    const femur = new THREE.Group(); swing.add(femur);
+    femur.add(new THREE.Mesh(G.femur, M.chitin));
+    const knee = new THREE.Group(); knee.position.x = 0.48; femur.add(knee);
+    knee.add(new THREE.Mesh(G.tibia, M.chitin));
+    body.add(hip);
+    legs.push({ hip, swing, femur, knee, L1: 0.48, L2: 0.62, restX: s * P.rx, restZ: P.rz, group: (i + (s > 0 ? 1 : 0)) % 2, pair: i, s });
+  });
+  const gait = new GaitRig(legs, { stride: 0.48, stepH: 0.22, stepDur: 0.11 });
+
+  const antennae = [G.antL, G.antR].map((geo, j) => {
+    const p = new THREE.Group();
+    p.position.set(j ? 0.09 : -0.09, 0.38, 0.9);
+    p.add(new THREE.Mesh(geo, M.chitin));
+    body.add(p);
+    return { p, spY: { x: 0, v: 0 }, spX: { x: 0, v: 0 }, s: j ? 1 : -1 };
+  });
+
   // the eyes sit on the front of the head
-  const face = angryEyes({ y: 0.4, z: 0.9, size: 0.17, gap: 0.14 });
+  const face = angryEyes({ y: 0.4, z: 0.92, size: 0.16, gap: 0.13 });
   body.add(face);
-  // antennae sweep on their own
   let t = 0, k = 0;
   // its nip (attack-motion "nip", src/attack-motion.js): close to you it leans in, head low; its touch landing jabs
   // the head forward, then it hops back and rocks (it has no wind-up, so none is added)
@@ -101,10 +156,6 @@ export function buildRoach() {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 6) - k) * (1 - Math.exp(-8 * dt));   // smoothed, so it never flickers
     t += dt * (3 + 14 * k);                                           // legs cycle ~2.5 steps/s at full run
-    for (const L of legs) {
-      L.pivot.rotation.y = L.base + Math.sin(t + L.phase) * 0.4 * k;
-      L.pivot.rotation.z = Math.max(0, Math.cos(t + L.phase)) * 0.25 * k * Math.sign(L.pivot.position.x);
-    }
     const A = e.atk, ph = A ? A.phase : 'idle';
     let head = 0, jab = 0, len = 1;
     if (ph === 'build') head = 0.2 * coil(A.k, A.style.hold, A.style.over) * A.vary;
@@ -115,15 +166,29 @@ export function buildRoach() {
       const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.04);
       jab = -0.15 * b; head = -0.12 * b * A.side;
     }
-    body.position.y = Math.abs(Math.sin(t)) * 0.02 * k;              // radius units: a tiny lift per step
+    const bobY = Math.abs(Math.sin(t)) * 0.02 * k;
+    body.position.y = bobY;                                          // radius units: a tiny lift per step
     body.position.z = jab;
     body.rotation.x = head;
-    body.rotation.z = Math.sin(t) * 0.03 * k;                         // and a small waddle
+    body.rotation.z = Math.sin(t) * 0.03 * k;                        // and a small waddle
     stretch(body, len);
+    gait.update(dt, e, { bodyY: bobY, skidZ: -jab * 0.6, trigPhase: t, trigAmp: k });
+    for (let j = 0; j < antennae.length; j++) {
+      const a = antennae[j];
+      spring(a.spY, Math.sin(t * 0.65 + j * 1.7) * 0.14 - gait.turnRate * 0.04, 0.05, 2.0, dt);
+      spring(a.spX, Math.sin(t * 0.9 + j * 2.1) * 0.1 - head * 0.6 + jab * 0.8, 0.05, 2.2, dt);
+      a.p.rotation.y = a.spY.x;
+      a.p.rotation.x = a.spX.x;
+    }
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map(L => L.pivot) };
+  anim.reset = () => {
+    t = 0; k = 0; gait.reset();
+    for (const a of antennae) { a.spY.x = a.spY.v = a.spX.x = a.spX.v = 0; a.p.rotation.set(0, 0, 0); }
+    stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0);
+    face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
+  };
+  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.hip) };
 }
 
 // ------------------------------------------------------------------ ant
@@ -147,58 +212,87 @@ function pinGeometry(i) {
   ]).scale(PIN.size, PIN.size, PIN.size);
 }
 function antGeometry() {
-  const red = '#6e200e', head = '#561a0a', dark = '#22100a', band = '#6a3e1e', leg = '#621e0c', jaw = '#2e0c04';
-  const body = [
-    ellipsoid(0.38, 0.32, 0.5, V(0, 0.58, -0.88), dark),           // gaster
-    ellipsoid(0.09, 0.15, 0.09, V(0, 0.6, -0.36), red),             // petiole node
-    ellipsoid(0.13, 0.13, 0.14, V(0, 0.6, -0.22), red),             // propodeum
-    ellipsoid(0.15, 0.14, 0.2, V(0, 0.64, -0.02), red),             // mesonotum
-    ellipsoid(0.2, 0.18, 0.22, V(0, 0.68, 0.2), red),               // pronotum
-    ellipsoid(0.08, 0.08, 0.1, V(0, 0.7, 0.4), red),                // neck
-    ellipsoid(0.29, 0.26, 0.3, V(0, 0.78, 0.62), head),             // head
-    ellipsoid(0.08, 0.09, 0.08, V(-0.25, 0.85, 0.66), '#0a0505', 10),  // eyes
-    ellipsoid(0.08, 0.09, 0.08, V(0.25, 0.85, 0.66), '#0a0505', 10),
-    ...[-1, 1].map((s) => rod(V(s * 0.15, 0.64, 0.82), V(s * 0.05, 0.6, 0.96), 0.05, 0.022, jaw)),   // mandibles
-  ];
-  for (const dz of [-0.62, -0.84, -1.06]) {                        // pale bands round the gaster
-    const k = Math.sqrt(1 - ((dz + 0.88) / 0.5) ** 2);
-    body.push(ellipsoid(0.385 * k, 0.325 * k, 0.03, V(0, 0.58, dz), band, 16));
-  }
-  // an elbowed antenna, built at its base on the head: a long scape up and out, the rest bent forward
-  const antenna = (s) => merge([rod(V(0, 0, 0), V(s * 0.24, 0.34, 0.08), 0.025, 0.02, leg), tube([V(s * 0.24, 0.34, 0.08), V(s * 0.34, 0.42, 0.32), V(s * 0.4, 0.36, 0.6)], 0.016, leg, 8)]);
-  // a leg built at its hip: femur up and out to the knee, tibia down, tarsus along the floor
-  const legGeo = (s, f) => merge([
-    rod(V(0, 0, 0), V(s * 0.45, 0.32, f * 0.3), 0.04, 0.03, leg),
-    rod(V(s * 0.45, 0.32, f * 0.3), V(s * 0.8, -0.44, f * 0.6), 0.03, 0.02, leg),
-    rod(V(s * 0.8, -0.44, f * 0.6), V(s * 0.92, -0.55, f * 0.72), 0.018, 0.01, jaw),
-  ]);
-  return { body: merge(body), antL: antenna(-1), antR: antenna(1), legGeo };
+  const red = '#742210', headCol = '#581a0a', dark = '#20100a', band = '#784420', legCol = '#66200d', jaw = '#2e0c04';
+  // Continuous lofted 3-part mesosoma (propodeum -> mesonotum -> pronotum -> neck) + petiole waist node
+  const thorax = loft([
+    { z: -0.44, y: 0.58, rx: 0.05, ry: 0.05, color: red, ao: 0.72 },
+    { z: -0.36, y: 0.63, rx: 0.095, ry: 0.145, top: 1.2, bot: 0.7, color: red, ao: 0.92 },   // petiole node
+    { z: -0.29, y: 0.58, rx: 0.065, ry: 0.07, color: headCol, ao: 0.72 },
+    { z: -0.20, y: 0.62, rx: 0.14, ry: 0.145, top: 1.1, bot: 0.8, color: red, ao: 0.96 },    // propodeum
+    { z: -0.02, y: 0.64, rx: 0.145, ry: 0.135, top: 0.95, bot: 0.8, color: red, ao: 0.94 },  // mesonotum saddle
+    { z: 0.20, y: 0.69, rx: 0.21, ry: 0.19, top: 1.12, bot: 0.82, color: red, ao: 1.0 },     // pronotum dome
+    { z: 0.36, y: 0.69, rx: 0.095, ry: 0.095, color: headCol, ao: 0.8 },                     // neck
+  ], 14);
+  // Heart-shaped sculpted head + curved serrated mandibles
+  const head = loft([
+    { z: 0.38, y: 0.75, rx: 0.16, ry: 0.15, color: headCol, ao: 0.85 },
+    { z: 0.52, y: 0.80, rx: 0.30, ry: 0.25, top: 1.08, bot: 0.85, color: headCol, ao: 1.0 },
+    { z: 0.68, y: 0.77, rx: 0.28, ry: 0.23, top: 1.0, bot: 0.82, color: '#641e0d', ao: 0.98 },
+    { z: 0.82, y: 0.70, rx: 0.18, ry: 0.15, color: headCol, ao: 0.92 },
+    { z: 0.90, y: 0.65, rx: 0.09, ry: 0.08, color: jaw, ao: 0.86 },
+  ], 14);
+  const mandibles = [-1, 1].map((s) => taperedLimb([
+    V(s * 0.15, 0.65, 0.80), V(s * 0.14, 0.62, 0.91), V(s * 0.05, 0.60, 0.98),
+  ], [0.048, 0.036, 0.016], jaw, 6));
+  const frontBody = merge([thorax, head, ...mandibles]);
+
+  // Faceted compound eyes (ommatidia normal map)
+  const eyesGeo = merge([-1, 1].map((s) => paintWithUV(new THREE.SphereGeometry(1, 12, 10).scale(0.085, 0.095, 0.085).translate(s * 0.25, 0.85, 0.64), '#160808', 0.1)));
+
+  // Segmented gaster (built relative to petiole pivot at z = -0.36, y = 0.60 so it flexes in turns)
+  const gaster = segmentedAbdomen({ z0: -1.04, z1: -0.04, y0: -0.05, y1: 0.0, rx: 0.39, ry: 0.33, rings: 5, groove: 0.08, color: dark, bandColor: band, top: 1.05, bot: 0.88, radial: 14, arch: 0.03 });
+
+  // Elbowed antenna built at its base on the head
+  const antenna = (s) => taperedLimb([
+    V(0, 0, 0), V(s * 0.24, 0.34, 0.08), V(s * 0.34, 0.42, 0.32), V(s * 0.40, 0.36, 0.60),
+  ], [0.025, 0.020, 0.017, 0.011], legCol, 6);
+
+  // Shared 2-bone leg segments along +X (femur L1=0.52, tibia+tarsus L2=0.82)
+  const femur = taperedLimb([V(0, 0, 0), V(0.26, 0.015, 0), V(0.52, 0, 0)], [0.042, 0.046, 0.032], legCol, 6);
+  const tibia = taperedLimb([V(0, 0, 0), V(0.64, 0, 0), V(0.82, -0.03, 0)], [0.032, 0.020, 0.010], jaw, 6);
+  return { body: frontBody, eyes: eyesGeo, gaster, antL: antenna(-1), antR: antenna(1), femur, tibia };
 }
 
 // a pin on its own in colour i, for a thrown one (enemies.js spit): in the ant's radius units
 const pinGeo = (i) => (GEO['pin' + i] ||= pinGeometry(i));
 export function buildPushpin(i = 0) { return new THREE.Mesh(pinGeo(i), mats().shell); }
 
-// legs: [hip z, how far forward the foot reaches]
-const ANT_LEGS = [[0.2, 1], [0.02, 0], [-0.16, -1]];
+// legs: hip z, standing foot (rx, rz) in radius units
+const ANT_LEGS = [
+  { z: 0.22, rx: 0.86, rz: 0.86 },
+  { z: 0.02, rx: 0.96, rz: 0.04 },
+  { z: -0.16, rx: 0.92, rz: -0.82 },
+];
 export function buildAnts() {
   const G = (GEO.ant ||= antGeometry()), M = mats();
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  body.add(new THREE.Mesh(G.body, M.shell));
+  body.add(new THREE.Mesh(G.body, M.chitin));
+  body.add(new THREE.Mesh(G.eyes, M.compoundEye));
+  const gaster = new THREE.Group();
+  gaster.position.set(0, 0.60, -0.36);
+  gaster.add(new THREE.Mesh(G.gaster, M.chitin));
+  body.add(gaster);
+
   outer.userData.pin = Math.floor(Math.random() * pinColors().length);   // this ant's pin colour, for the ones it throws too
   const legs = [];
-  for (const s of [-1, 1]) ANT_LEGS.forEach(([z, f], i) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.1, 0.55, z);
-    pivot.add(new THREE.Mesh((GEO['antLeg' + s + i] ||= G.legGeo(s, f)), M.shell));
-    body.add(pivot);
-    legs.push({ pivot, s, phase: (i + (s > 0 ? 1 : 0)) % 2 ? Math.PI : 0 });   // tripod gait
+  for (const s of [-1, 1]) ANT_LEGS.forEach((P, i) => {
+    const hip = new THREE.Group();
+    hip.position.set(s * 0.12, 0.54, P.z);
+    const swing = new THREE.Group(); hip.add(swing);
+    const femur = new THREE.Group(); swing.add(femur);
+    femur.add(new THREE.Mesh(G.femur, M.chitin));
+    const knee = new THREE.Group(); knee.position.x = 0.52; femur.add(knee);
+    knee.add(new THREE.Mesh(G.tibia, M.chitin));
+    body.add(hip);
+    legs.push({ hip, swing, femur, knee, L1: 0.52, L2: 0.82, restX: s * P.rx, restZ: P.rz, group: (i + (s > 0 ? 1 : 0)) % 2, pair: i, s });
   });
+  const gait = new GaitRig(legs, { stride: 0.52, stepH: 0.25, stepDur: 0.12 });
+
   const antennae = [G.antL, G.antR].map((geo, j) => {
     const p = new THREE.Group();
-    p.position.set(j ? 0.11 : -0.11, 0.98, 0.78);
-    p.add(new THREE.Mesh(geo, M.shell));
+    p.position.set(j ? 0.11 : -0.11, 0.96, 0.78);
+    p.add(new THREE.Mesh(geo, M.chitin));
     body.add(p);
     return p;
   });
@@ -207,8 +301,8 @@ export function buildAnts() {
   pin.position.set(0, 0.6, 0.94);                                  // gripped in the mandibles
   pin.add(new THREE.Mesh(pinGeo(outer.userData.pin), M.shell));
   body.add(pin);
-  for (const L of legs) L.z0 = L.pivot.position.z;
   for (const a of antennae) a.sp = { x: 0, v: 0 };
+  const gasterYaw = { x: 0, v: 0 }, gasterPitch = { x: 0, v: 0 };
   let t = 0, k = 0, fired = 0, since = 9;
   // its pin throw (attack-motion "throw", src/attack-motion.js): braces low and coils back with its pin trembling,
   // its head snapping to the line as the aim locks (antennae flicking forward), goes dead still, then drives head
@@ -234,20 +328,21 @@ export function buildAnts() {
     if ((e.firedT || 0) > fired) since = 0;
     fired = e.firedT || 0;
     since += dt;
-    body.position.set(shake * 0.02, Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coilK * 0.03, coilK * -0.16 + thrust * 0.26);
+    const bodyY = Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coilK * 0.03;
+    body.position.set(shake * 0.02, bodyY, coilK * -0.16 + thrust * 0.26);
     body.rotation.x = coilK * -0.18 + thrust * 0.2 + dip * 0.1;      // rears back, then drives its head down
     body.rotation.z = Math.sin(t) * 0.03 * k + shake * 0.05;
     stretch(body, len);
-    for (const L of legs) {
-      L.pivot.rotation.y = Math.sin(t + L.phase) * 0.4 * k;
-      L.pivot.rotation.z = (Math.max(0, Math.cos(t + L.phase)) * 0.25 * k + brace * 0.12) * L.s;   // lifts a foot; braced, splays out
-      L.pivot.position.z = L.z0 - thrust * 0.1;                  // the feet skid: they stay while the body goes
-    }
+    gait.update(dt, e, { bodyY, bend: brace * 0.5, skidZ: -thrust * 0.14, trigPhase: t, trigAmp: k });
+    // flexible waist: gaster lags in turns and tucks/bobs on throws
+    spring(gasterYaw, -gait.turnRate * 0.055, 0.07, 2.2, dt);
+    spring(gasterPitch, Math.sin(t * 0.5) * 0.04 * k + coilK * 0.18 - thrust * 0.22, 0.08, 2.4, dt);
+    gaster.rotation.set(gasterPitch.x, gasterYaw.x, 0);
     for (let j = 0; j < antennae.length; j++) {
       const p = antennae[j];
       spring(p.sp, Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.4 - dip * 0.45, 0.06, 2.2, dt);   // lagging the head, a beat late
       p.rotation.x = p.sp.x;
-      p.rotation.y = Math.sin(t * 0.9 + j * 2) * 0.2;
+      p.rotation.y = Math.sin(t * 0.9 + j * 2) * 0.2 - gait.turnRate * 0.03;
     }
     // the pin: gone as it's thrown, then a new one swells into its jaws
     const grow = THREE.MathUtils.clamp((since - 0.25) / 0.3, 0, 1);
@@ -255,8 +350,14 @@ export function buildAnts() {
     pin.rotation.x = coilK * 0.12;
     pin.rotation.z = shake * 0.6;
   };
-  anim.reset = () => { t = 0; k = 0; fired = 0; since = 9; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const L of legs) L.pivot.position.z = L.z0; for (const a of antennae) { a.sp.x = 0; a.sp.v = 0; } pin.rotation.z = 0; };   // (a pooled model killed mid-throw)
-  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.pivot) };
+  anim.reset = () => {
+    t = 0; k = 0; fired = 0; since = 9; gait.reset();
+    gasterYaw.x = gasterYaw.v = gasterPitch.x = gasterPitch.v = 0; gaster.rotation.set(0, 0, 0);
+    stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0);
+    for (const a of antennae) { a.sp.x = 0; a.sp.v = 0; }
+    pin.rotation.z = 0;
+  };   // (a pooled model killed mid-throw)
+  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.hip) };
 }
 
 // ------------------------------------------------------------------ mosquito
@@ -665,19 +766,23 @@ function spiderParts() {
 }
 
 export function buildSpider() {
-  const G = (GEO.spider ||= spiderParts()), M = mats();
-  const skin = (map, rough) => { const m = new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0.05 }); standOut(m, { base: 0.25, rim: 0.7 }); return m; };
+  const G = (GEO.spider ||= spiderParts()), M = mats(), low = isLowGfx();
+  const skin = (map, rough) => {
+    const m = new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0.05, ...(low ? {} : { normalMap: bugNormalMap('velvet', 3), normalScale: new THREE.Vector2(0.35, 0.35) }) });
+    standOut(m, { base: 0.25, rim: 0.7 });
+    return m;
+  };
   M.spCarapace ||= skin(G.carapace, 0.3);
   M.spAbdomen ||= skin(G.abdomen, 0.55);
   // the legs and head: dark brown and a little glossy, with less of the other bugs' glow so they stay dark
   // (thin legs are nearly all rim, so a big rim light would wash them tan)
-  if (!M.spLeg) { M.spLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.spLeg, { base: 0.06, rim: 0.16 }); }
+  if (!M.spLeg) { M.spLeg = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.05 }); standOut(M.spLeg, { base: 0.06, rim: 0.16, sheen: 0.24 }); }
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   const front = new THREE.Group();                 // the carapace end: everything pitches about the waist
   front.position.set(0, 0.6, -0.2);
   body.add(front);
-  const rear = new THREE.Group();                  // the abdomen tips up separately when it shoots
+  const rear = new THREE.Group();                  // the abdomen tips up separately when it shoots and lags in turns
   rear.position.set(0, 0.62, -0.25);
   body.add(rear);
   const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
@@ -689,34 +794,37 @@ export function buildSpider() {
   front.add(face);
   const palps = [-1, 1].map((s) => { const p = new THREE.Group(); p.position.set(s * 0.12, -0.12, 0.85); p.scale.x = s; add(p, G.palp, M.spLeg); front.add(p); return p; });
 
-  // legs: hip (yaw outward, then swing and lift) -> femur -> knee -> tibia -> ankle -> tarsus
+  // legs: hip -> swing (body-space yaw) -> femur -> knee -> tibia -> ankle -> tarsus
   const legs = [];
   G.legs.forEach((P, pair) => {
     for (const s of [-1, 1]) {
       const a = THREE.MathUtils.degToRad(P.deg);
+      const hx = s * 0.34 * Math.sin(a), hz = 0.25 + 0.4 * Math.cos(a);
       const hip = new THREE.Group();
-      hip.position.set(s * 0.34 * Math.sin(a), -0.04, 0.45 + 0.4 * Math.cos(a));
-      hip.rotation.y = Math.atan2(-Math.cos(a), s * Math.sin(a));
+      hip.position.set(hx, -0.04, hz + 0.2);       // inside `front` (at y=0.6, z=-0.2)
       front.add(hip);
       const swing = new THREE.Group(); hip.add(swing);
-      const lift = new THREE.Group(); swing.add(lift);
-      add(lift, P.femur, M.spLeg);
-      const knee = new THREE.Group(); knee.position.x = 0.75 * P.sc; lift.add(knee);
+      const femur = new THREE.Group(); swing.add(femur);
+      add(femur, P.femur, M.spLeg);
+      const knee = new THREE.Group(); knee.position.x = 0.75 * P.sc; femur.add(knee);
       add(knee, P.tibia, M.spLeg);
       const ankle = new THREE.Group(); ankle.position.x = 0.85 * P.sc; knee.add(ankle);
       add(ankle, P.tarsus, M.spLeg);
-      // the rest pose: femur up, tibia down and out, the tarsus angled so the foot meets the floor
-      const e1 = 0.9, e2 = e1 - 1.55;
-      const reach = 0.75 * P.sc * Math.sin(e1) + 0.85 * P.sc * Math.sin(e2);
-      const e3 = Math.asin(THREE.MathUtils.clamp((-0.56 - reach) / (0.75 * P.sc), -1, 1));
+      // rest foot position on the floor (y=0) in body-local radius units
+      const reach = 1.42 * P.sc;
+      const restX = hx + s * reach * Math.sin(a), restZ = hz + reach * Math.cos(a);
       // two alternating sets of four: front left, second right, third left, back right
-      const set = (pair % 2 === 0) === (s < 0) ? 0 : 1;
-      legs.push({ s, pair, swing, lift, knee, ankle, e1, k2: e2 - e1, k3: e3 - e2, phase: set ? Math.PI : 0 });
+      const group = (pair % 2 === 0) === (s < 0) ? 0 : 1;
+      legs.push({ s, pair, hip, swing, femur, knee, ankle, hx, hy: 0.56, hz, L1: 0.75 * P.sc, L2: 1.38 * P.sc, ankleRest: -0.32, restX, restZ, group });
     }
   });
+  const gait = new GaitRig(legs, { stride: 0.65, stepH: 0.34, stepDur: 0.14 });
 
-  const frontUp = { x: 0, v: 0 }, spread = { x: 0, v: 0 };     // the front legs: how high they are raised, how far apart they are spread
+  const frontUp = { x: 0, v: 0 }, spread = { x: 0, v: 0 }, waistYaw = { x: 0, v: 0 };
   let t = 0, k = 0, drum = 0;
+  let _rearUp = 0;
+  const raiseFn = (L) => (L.pair === 0 ? frontUp.x : L.pair === 1 ? _rearUp * 0.22 : 0);
+  const spreadFn = (L) => (L.pair === 0 ? L.s * spread.x * 0.35 : 0);
   // its web lob (attack-motion "throw", src/attack-motion.js): rears in a quarter second with a small overshoot,
   // front legs high and the abdomen tucked, palps drumming; the front legs spread as the aim locks; then they
   // flick down and forward as the abdomen whips round to aim and the web goes; it rocks back, its knees bending
@@ -740,29 +848,30 @@ export function buildSpider() {
       flick = rock = (1 + A.tier.over) * b;
       bend = 1 - A.k;                                              // its knees bend to take the throw, then straighten
     }
+    _rearUp = rearUp;
     drum += dt * (6 + 14 * rearUp);
     spring(frontUp, ph === 'build' || !A ? 0.55 * rearUp : -0.25 * flick, 0.07, 2.4, dt);   // the front legs lead in, flick down, and are last up or down
     spring(spread, dip, 0.05, 2, dt);
     const step = t * (3 + 11 * k) + e.phase;
-    for (const L of legs) {
-      const ph2 = step + L.phase, up = Math.max(0, Math.sin(ph2));          // lifted while it swings forward
-      L.swing.rotation.y = Math.cos(ph2) * 0.28 * k * L.s + (L.pair === 0 ? L.s * spread.x * 0.35 : 0);   // (forward while lifted, on both sides)
-      // rearing: the front pair lifts high and reaches forward, the second pair a little
-      const raise = L.pair === 0 ? frontUp.x : L.pair === 1 ? rearUp * 0.2 : 0;
-      L.lift.rotation.z = L.e1 + up * 0.35 * k + raise - bend * 0.12;
-      L.knee.rotation.z = L.k2 - up * 0.25 * k + raise * 0.6 + bend * 0.18;
-      L.ankle.rotation.z = L.k3 + raise * 0.4;
-    }
+    const bodyY = Math.abs(Math.sin(step)) * 0.02 * k * (A?.still ? 0 : 1) - bend * 0.03;
     // the body: a slight bob with each step set, nose up and drawn back when it rears, a kick back when it throws
-    body.position.set(shake * 0.02, Math.abs(Math.sin(step)) * 0.02 * k * (A?.still ? 0 : 1) - bend * 0.03, -0.14 * rearUp + 0.1 * rock);
+    body.position.set(shake * 0.02, bodyY, -0.14 * rearUp + 0.1 * rock);
     body.rotation.z = shake * 0.04;
     stretch(body, len);
+    gait.update(dt, e, { bodyY, bend, trigPhase: step, trigAmp: k, raiseFn, spreadFn });
+    spring(waistYaw, -gait.turnRate * 0.06, 0.08, 2.2, dt);
     front.rotation.x = -rearUp * 0.16 + rock * 0.1 + dip * 0.05;
-    rear.rotation.x = -rearUp * 0.35 - flick * 0.3;                          // abdomen tucked, then whipped to aim
+    rear.rotation.set(-rearUp * 0.35 - flick * 0.3, waistYaw.x, 0);          // abdomen tucked, whipped to aim, and lags in turns
     for (const p of palps) p.rotation.x = Math.sin(drum + e.phase) * 0.15 + rearUp * -0.4;   // palps drum, lift when it rears
     if (A) eyes(face, A);
   };
-  anim.reset = () => { t = 0; k = 0; drum = 0; frontUp.x = frontUp.v = spread.x = spread.v = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
+  anim.reset = () => {
+    t = 0; k = 0; drum = 0; gait.reset();
+    frontUp.x = frontUp.v = spread.x = spread.v = waistYaw.x = waistYaw.v = 0;
+    rear.rotation.set(0, 0, 0);
+    stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0);
+    face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
+  };   // (a pooled model killed mid-throw)
   return { body: outer, face: new THREE.Group(), anim };
 }
 

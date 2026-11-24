@@ -61,18 +61,22 @@ const BALL_AT = { y: 0.72, z: 1.86 };                                 // where t
 // glow in its own colors plus a warm rim light along its silhouette. Pass a material or a whole
 // model (every lit material in it is patched once). It also takes a little of the baked light where the bug
 // stands (baked-light.js tintShader), unless `tint: false` (a bug drawn outside the apartment: the pick screen).
-export function standOut(target, { base = 0.28, rim = 0.75, tint = true } = {}) {
+export function standOut(target, { base = 0.28, rim = 0.75, tint = true, sheen = 0 } = {}) {
   const rc = new THREE.Color(LOOK.color('rim-color', '#ffcc9e'));
   const patch = (m) => {
     if (!m || m.userData.standOut || !(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
     m.userData.standOut = true;
     m.onBeforeCompile = (sh) => {
       if (tint) tintShader(sh);
+      const sheenLine = sheen > 0
+        ? `\n        float soChitin = pow(1.0 - soNdotV, 5.0) * ${sheen.toFixed(3)};\n        totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.85, 0.92, 1.0), 0.15) * soChitin;`
+        : '';
       sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        float soRim = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.5);
-        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(${rc.r.toFixed(3)}, ${rc.g.toFixed(3)}, ${rc.b.toFixed(3)}) * soRim * ${rim.toFixed(3)};`);
+        float soNdotV = saturate(abs(dot(normal, normalize(vViewPosition))));
+        float soRim = pow(1.0 - soNdotV, 2.5);
+        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(${rc.r.toFixed(3)}, ${rc.g.toFixed(3)}, ${rc.b.toFixed(3)}) * soRim * ${rim.toFixed(3)};${sheenLine}`);
     };
-    m.customProgramCacheKey = () => `standOut${base}:${rim}:${tint}`;
+    m.customProgramCacheKey = () => `standOut${base}:${rim}:${tint}:${sheen}`;
     m.needsUpdate = true;
   };
   if (target.isMaterial) patch(target);
@@ -1593,6 +1597,7 @@ export class Enemies {
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
         e.animDt = (e.animDt || 0) + dt;
+        e.unseen = unseen;
         const w0 = WORK.n;
         if (e.atk) attackClock(e, slow > 0 ? dt : 0, unseen ? null : this.fx, calm, dist / e.r);   // every frame: its pose is a function of this clock
         if (!unseen || (this.frame + e.id) % 2 === 0) { e.anim(e.animDt, e); e.animDt = 0; }
