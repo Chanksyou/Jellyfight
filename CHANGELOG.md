@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v675 adds a Skip button to the Legendary pick and the Attack upgrade pick: it takes nothing and the run carries on.
+
 v674 rewrites every Treasure, Attack upgrade, evolution and jelly type description to one short pattern (trigger, effect, cost): about 20% fewer words, no number or effect changed; the Health regen card reads "every 5 s", and two out-of-date death-screen tips about Elements are gone.
 
 v673 adds four balance facts to each act's private run log: what every Treasure and Attack upgrade pick offered, each level-up's cards, the damage dealt by source, and the jelly's stats as the Boss fight begins. Nothing changes in play.
