@@ -1,5 +1,4 @@
 // Stories: act 4's concert dressing and the stage door moment (concert-dressing.js, stage4.js `dressing`).
-import * as THREE from 'three';
 import { STAGE4 } from '../stage4.js';
 import { juice } from '../juice.js';
 import { G, fresh, night4, ok, step, tp } from './kit.js';
