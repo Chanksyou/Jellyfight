@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v661 removes the wristband rings, the cord and the console cables from Act 4's floor.
+
 v660 adds a soft pink glow on the wall behind Act 1's media console, like an LED strip washing the wall above it.
 
 v659 makes the Controller's arrow drop plainer: no circle or dome under you, and the arrow hovers smaller and farther out, then flies the way it points to hit where you were.
