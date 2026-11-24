@@ -42,6 +42,16 @@ export const MOMENTS = {
       for (const dx of [-0.15, 0.15]) G.run.gadgets.plugIn(P.clone().setX(P.x + dx), G.run.mods.nightLight);
       K.step(120);
     },
+    // 14 mixed bugs, 8 killed at once so detached parts and death bodies hit their caps
+    'mass kill': (c) => {
+      const { K, G } = c;
+      K.fresh({ elites: false, bubbles: false, lash: false }); immortal(c);
+      const kinds = ['roach', 'ants', 'ladybug', 'millipede', 'beetle', 'housefly', 'spider', 'firefly'];
+      const spawned = kinds.map((k, i) => K.spawn(k, K.near(Math.cos(i * 0.8) * 0.3, Math.sin(i * 0.8) * 0.3), { still: true }));
+      K.step(2);
+      for (const e of spawned) G.enemies.kill(e);
+      K.step(4);
+    },
   },
   act3: {
     'bugs + Alligator angry': (c) => { c.K.startCroc(0, { angry: true }); immortal(c); crowd(c, ['dragonfly', 'mantis', 'beetle']); },

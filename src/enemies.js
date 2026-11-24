@@ -216,7 +216,7 @@ function makeLooks() {
   };
   // body: the fuzz (may spin and roll); face: where the angry eyes go
   return {
-    hair: () => ({ body: body('hair', hairMat), face: angryEyes({ y: 0.2, z: 0.75 }) }),
+    hair: () => { const f = angryEyes({ y: 0.2, z: 0.75 }); return { body: body('hair', hairMat), face: f, deathRig: { eyes: f } }; },
     roach: buildRoach,
     ants: buildAnts,
     mosquito: buildMosquito,
@@ -243,6 +243,7 @@ export class Enemies {
     this.scene = scene;
     this.world = world;
     this.fx = fx;
+    if (fx?.deaths) fx.deaths.flashMat = FLASH;
     this.list = [];
     this.keepOut = [];   // safe glows (night-light safe=#true): { x, y, z, r }, the gadgets keep it
     this.models = new ModelPool();
@@ -354,7 +355,7 @@ export class Enemies {
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
     const model = this.models.take(`${type}:${elite}`, () => {
-      const { body: mesh, face, anim, ballRadius, deathParts } = this.looks[T.model || type]();
+      const { body: mesh, face, anim, ballRadius, deathParts, deathRig } = this.looks[T.model || type]();
       const root = new THREE.Group();
       if (elite && !anim) {
         const m = mesh.children[0];
@@ -370,9 +371,9 @@ export class Enemies {
       }
       mesh.scale.multiplyScalar(T.r * (elite && !anim ? 1.35 : 1));
       root.add(mesh, face);
-      return { root, mesh, face, anim, ballRadius, deathParts };
+      return { root, mesh, face, anim, ballRadius, deathParts, deathRig };
     });
-    const { root, mesh, face, anim, ballRadius, deathParts } = model.value;
+    const { root, mesh, face, anim, ballRadius, deathParts, deathRig } = model.value;
     if (elite && !anim) {
       T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
@@ -382,7 +383,7 @@ export class Enemies {
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
+      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, deathRig, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -417,6 +418,7 @@ export class Enemies {
     }
     if (e.freezeT > 0 && !e.frost) {
       this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, roughness: 0.1 });
+      if (this.fx?.deaths) this.fx.deaths.frostMat = this.frostMat;
       this.frostGeo ||= new THREE.IcosahedronGeometry(1, 1);   // shared: one per enemy leaked GPU buffers
       e.frost = new THREE.Mesh(this.frostGeo, this.frostMat);
       e.frost.scale.setScalar(e.r * 1.25);
@@ -500,6 +502,10 @@ export class Enemies {
     e.hp -= amount;
     if (e.hp <= 0) this.overkill(e, -e.hp, feedback);   // Newton's Cradle: the leftover
     e.lastElement = feedback.element;     // what finished it, if this was the last hit (feedback.js: a glitter-finished bug bursts into glitter)
+    e.lastSource = sound || feedback.source || null;
+    e.lastCrit = !!feedback.crit;
+    e.lastSlam = !!feedback.slam;
+    e.lastOverkill = e.hp <= 0 ? (-e.hp / (e.maxHp || 1)) : 0;
     if (feedback.dir) (e.lastDir ||= new THREE.Vector3()).copy(feedback.dir).multiplyScalar(feedback.slam ? -1 : 1);   // which way it was hit (a wind-finished bug is blown that way; off a wall, back out)
     else e.lastDir?.set(0, 0, 0);
     e.hits = (e.hits || 0) + 1;           // the evade word watches this
@@ -571,6 +577,7 @@ export class Enemies {
 
   // execute: the moment a low bug is finished off, a white slash across it
   sliced(e) {
+    e.wasSliced = true;
     const c = this.center(e);
     this.fx.impact(c, SLICE, e.r * 0.7, 6);
     this.fx.number(c.clone().setY(c.y + e.r * 2), 'SLICED', '#ffffff', 15);
@@ -629,8 +636,8 @@ export class Enemies {
     this.byId.delete(e.id);
     this.scene.remove(e.root);
     if (!e.proxy) e.pos = e.pos.clone();   // keep the gameplay death position while feedback moves the body
-    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, golden: !!e.lastGolden, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, by: e.lastBy, statuses: this.statusesOf(e), body: e.proxy ? null : e.root,
-      remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, style: e.deathMotion, r: e.r, velocity: e.vel,
+    bus.emit('enemy_killed', { targetId: e.id, type: e.type, elite: !!e.elite, pos: this.center(e), floor: e.pos.y, r: e.r, xp: e.T.xp, silent, golden: !!e.lastGolden, chilled: e.chillT > 0, element: e.lastElement, dir: e.lastDir, by: e.lastBy, source: e.lastSource, crit: !!e.lastCrit, overkill: e.lastOverkill || 0, slam: !!e.lastSlam, sliced: !!e.wasSliced, trapped: (e.trapT || 0) > 0, statuses: this.statusesOf(e), body: e.proxy ? null : e.root,
+      remains: e.deathMotion ? { root: e.root, mesh: e.mesh, parts: e.deathParts, rig: e.deathRig, style: e.deathMotion, weight: e.deathWeight || 'mid', r: e.r, velocity: e.vel,
         floor: this.world.cast(S.o.copy(e.pos).setY(e.pos.y + 0.005), DOWN, 3, null, false, FLOOR_HIT)?.point.y ?? e.pos.y } : null });
     this.models.release(e.model);
     if (!silent) for (const w of e.T.words) w.died?.(e, this);   // what happens after (the hatch word)

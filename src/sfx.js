@@ -732,6 +732,47 @@ export const sfx = {
     tone('square', 180 * j / size, 50, 0.1 + size * 0.04, 0.08);
     tone('sine', 520 * j, 1040 * j, 0.08, 0.06, 0.03);
   },
+  // cartoon electrocution death: rapid 60 Hz buzz + crispy high-pass crackle snaps
+  deathZap(big = false) {
+    if (!ready() || !gap('deathZap', 65)) return;
+    const j = jitter(0.1), d = big ? 0.8 : 1;
+    tone('square', 120 * j * d, 95 * d, 0.18, 0.05);
+    for (let k = 0; k < 3; k++) tone('sawtooth', 60 * j * d, 58 * d, 0.055, 0.1 * (1 - k * 0.2), k * 0.06);
+    noise(6500 * j, 0.9, 0.025, 0.22, 'highpass');
+    for (let k = 0; k < 4; k++) noise((4800 + Math.random() * 3200) * j, 1.5, 0.015, 0.12 * (1 - k * 0.18), 'highpass', 0.02 + k * 0.045 + Math.random() * 0.015);
+  },
+  // cartoon wet/rubber squish-splat for Pogo Stomp / Brick / Wind wall-slam
+  deathPancake(big = false) {
+    if (!ready() || !gap('deathPancake', 60)) return;
+    const j = jitter(0.12), d = big ? 0.8 : 1;
+    noise(1200 * j * d, 1.0, 0.14, 0.22, 'lowpass', 0, 260);
+    noise(3400 * j, 1.5, 0.03, 0.14, 'bandpass');
+    tone('triangle', (big ? 240 : 320) * j * d, 65 * d, 0.12, 0.14);
+    tone('sine', 190 * j * d, 480 * j * d, 0.08, 0.08, 0.05);
+    tone('sine', 440 * j * d, 140 * d, 0.09, 0.06, 0.11);
+    patter(3, 0.05, 0.12, 0.03);
+  },
+  // elastic upward bloop-pop for Balloon Pop / eye pop
+  deathPop(big = false) {
+    if (!ready() || !gap('deathPop', 55)) return;
+    const j = jitter(0.12), d = big ? 0.82 : 1;
+    tone('sine', 260 * j * d, 920 * j * d, 0.075, 0.12);
+    tone('triangle', 680 * j * d, 1560 * j * d, 0.045, 0.1, 0.045);
+    noise(4800 * j, 1.4, 0.025, 0.18, 'highpass', 0.045);
+    tone('sine', 1100 * j * d, 1850 * j * d, 0.035, 0.05, 0.085);
+  },
+  // tiny delayed high-pitched tink/clack taps synced to bouncing shells, antlers, and pushpins
+  partClatter(n = 2) {
+    if (!ready() || !gap('partClatter', 70)) return;
+    const j = jitter(0.12), count = Math.max(1, Math.min(3, Math.round(n)));
+    for (let k = 0; k < count; k++) {
+      const t = 0.18 + k * 0.05 + Math.random() * 0.025;
+      const f = (2400 + Math.random() * 1900) * j;
+      const v = 0.042 * (1 - k * 0.22);
+      tone('triangle', f, f * 0.86, 0.055, v, t);
+      noise(f * 1.4, 3.5, 0.014, v * 0.9, 'bandpass', t);
+    }
+  },
   controllerCharge(rumble = false, duration = 0.6) {
     if (!ready() || !gap('controllerCharge', 100)) return;
     if (sample('controller-charge', { urgent: true, rate: rumble ? 0.85 : 1 })) return;   // the recorded sweep rides over the synthesized build-up

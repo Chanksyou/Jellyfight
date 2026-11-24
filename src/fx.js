@@ -53,8 +53,9 @@ export class Fx {
     this.glitter = new GlitterLooks(scene, camera, showcase ? LOOK.num('glitter-showcase-pool', 1000) : undefined);   // the glitter Element's flakes (glitter-looks.js; the stage's fuller bursts need a bigger pool)
     this.acid = new AcidLooks(scene, this);           // the acid Element's drops and melting bugs (acid-looks.js)
     this.wind = new WindLooks(scene, this);           // the wind Element's streaks, dust and blown-away bugs (wind-looks.js)
-    this.deaths = new DeathRemains(scene);
+    this.deaths = new DeathRemains(scene, () => this.low());
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
+    this.deaths.ashMat = this.fireAshMat;
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
     this.splats = [];
     this.splatGeo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);   // 1 m radius, like the other pieces
@@ -355,7 +356,8 @@ export class Fx {
   }
 
   // Reuse the removed enemy silhouette briefly; it is already dead for gameplay.
-  fireCorpse(root) {
+  // Cartoon charcoal popcorn: hops straight up in a stiff "YEOWCH!" pose, chars to ash, then crumbles.
+  fireCorpse(root, r = 0.03, floor = null) {
     if (this.fireCorpses.length >= 12) this.freeFireCorpse(this.fireCorpses.shift());
     root.visible = true;
     this.scene.add(root);
@@ -365,11 +367,12 @@ export class Fx {
       o.userData.fireMat = o.userData.mat || o.material;
       o.material = this.fireAshMat;
     });
-    this.fireCorpses.push({ root, t: 0, scale: root.scale.clone(), rotation: root.rotation.z });
+    this.fireCorpses.push({ root, t: 0, r, y: root.position.y, floor: floor ?? root.position.y, scale: root.scale.clone(), rotation: root.rotation.z });
   }
 
   freeFireCorpse(c) {
     this.scene.remove(c.root);
+    c.root.position.y = c.y;
     c.root.scale.copy(c.scale); c.root.rotation.z = c.rotation;
     c.root.traverse(o => {
       if (o.userData.fireMat) { o.material = o.userData.fireMat; delete o.userData.fireMat; }
@@ -386,9 +389,12 @@ export class Fx {
     this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
-      const k = Math.min(1, c.t / 0.55);
-      c.root.scale.copy(c.scale).multiplyScalar(Math.max(0.001, 1 - k * k));
-      c.root.rotation.z = c.rotation + Math.sin(k * Math.PI) * 0.65;
+      const k = Math.min(1, c.t / 0.58);
+      const hop = k < 0.45 ? Math.sin((k / 0.45) * Math.PI) * c.r * 1.9 : 0;
+      c.root.position.y = Math.max(c.floor, c.y + hop);
+      const crumble = k < 0.45 ? 1 : Math.max(0.001, 1 - ((k - 0.45) / 0.55) ** 2);
+      c.root.scale.copy(c.scale).multiplyScalar(crumble);
+      c.root.rotation.z = c.rotation + Math.sin(k * Math.PI * 1.5) * 0.75;
       if (k === 1) { this.freeFireCorpse(c); this.fireCorpses.splice(i, 1); }
     }
     this.glow.update(dt, this.camera, window.APT?.renderer);

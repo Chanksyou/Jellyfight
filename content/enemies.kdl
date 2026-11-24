@@ -6,7 +6,7 @@
 
 // It has no wind-up: it leans in when you are close and jabs its head as its touch lands.
 enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
-    death-motion "crumple"
+    death-motion "belly-up" weight="light"
     attack-motion "nip" tier="fodder"
     chase 0.35                      // a little slower than you swim (0.42), so you can always get away
 }
@@ -16,7 +16,7 @@ enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
 // line shows where the pin will fly), and throws it spinning at you. A new pin appears in its jaws. Step aside
 // as it coils. A pin that misses sticks in whatever it hits for a moment.
 enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
-    death-motion "crumple"
+    death-motion "crumple" weight="light"
     attack-motion "throw" tier="light"
     chase 0.3 stop=0.3
     spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true
@@ -26,7 +26,7 @@ enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
 // stops and draws back with its whine climbing (its aim locks halfway through), then darts in and
 // bites: a small hit, and you bleed for 2 s. Bites stack. Move off as the whine climbs.
 enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
-    death-motion "flutter"
+    death-motion "flutter" weight="light"
     attack-motion "lunge" tier="light"
     zip distance=0.15 above=0.05 speed=0.9 length=0.07 pause=0.08
     bite range=0.25 every=1.6 windup=0.35 speed=1.4 reach=0.35 dmg=1 rest=0.5
@@ -36,7 +36,7 @@ enemy "mosquito" name="Mosquito" hp=40 r=0.05 dmg=1 xp=3 model="mosquito" {
 // The spotted lanternfly (from 2:00): it crawls after you, then crouches (a red
 // ring marks where it will land), springs high with its red wings flashing and slams down.
 enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.045 dmg=2 xp=4 model="lanternfly" {
-    death-motion "flutter"
+    death-motion "flutter" weight="mid"
     attack-motion "pounce" tier="mid"
     chase 0.2
     leap range=0.6 windup=0.55 height=0.3 time=1 radius=0.2 dmg=5 rest=1 every=2.5
@@ -46,6 +46,7 @@ enemy "lanternfly" name="Spotted lanternfly" hp=80 r=0.045 dmg=2 xp=4 model="lan
 // up, front legs raised, and lobs a ball of web that arcs down onto where you were. A hit stings
 // and webs you: you swim slowly for a moment. Keep moving and it lands behind you.
 enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
+    death-motion "curl-pop" weight="mid"
     attack-motion "throw" tier="mid"
     chase 0.3 stop=0.55                // keeps its distance (backs off if you close in) so it can lob webs
     spit every=2 reach=1 speed=0.8 life=2.5 dmg=3 aim=0.7 shot="web" height=0.5 arc=0.7 slow=2
@@ -55,7 +56,7 @@ enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
 // legs and draws its head back while a short line on the floor shows where it will strike, then
 // pokes you with its straw of a mouth. A melee bug: step off the line, or back out of its reach.
 enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
-    death-motion "flutter"
+    death-motion "eye-pop" weight="light"
     attack-motion "lunge" tier="light"
     hover 0.05 above=0.01 speed=0.42 circle=0.9
     poke range=0.2 windup=0.5 reach=0.2 dmg=4 time=0.08 hold=0.15 rest=1 every=1.5
@@ -66,7 +67,7 @@ enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
 // while it's curled), revs up spinning in place while its lane lights up on the floor, then rolls
 // down it at you. Get out of the lane; hit it once it uncurls.
 enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipede" {
-    death-motion "shell"
+    death-motion "bead-scatter" weight="heavy"
     attack-motion "roll" tier="mid"
     chase 0.3 weave=1 rate=2 turn=3   // swings round in arcs, never pivots on the spot
     ball-charge range=0.4 curl=0.45 spin=1.5 speed=2 time=0.8 dmg=5 uncurl=0.5 rest=1 every=2.5
@@ -77,7 +78,7 @@ enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipe
 // its back. The missile hunts you for 4 s, turning only so fast: outrun it or break sharply, and
 // it sputters out and falls. Hit it while it's grounded and locking on.
 enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
-    death-motion "shell"
+    death-motion "shell" weight="heavy"
     attack-motion "throw" tier="mid"
     sortie circle=0.3 height=0.12 speed=0.45 fly=4 land=0.35 aim=0.6 rest=1 rocket=0.6 turn=3 fuel=4 dmg=5
 }
@@ -90,7 +91,7 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
 // the same line. Each is two jelly radii (size=0.075) across from its middle and flies slowly:
 // swim to one side.
 enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
-    death-motion "flutter"
+    death-motion "flutter" weight="mid"
     attack-motion "throw" tier="mid"
     zip distance=0.2 above=0.06 speed=1.25 length=0.2 pause=0.35
     whirlwind range=0.8 every=4 windup=0.5 lock=0.6 speed=0.45 size=0.075 life=2.5 count=3 gap=0.4 dmg=3 rest=0.5
@@ -104,7 +105,7 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 // ring of 12 bolts out all round (2 each), each ring turned half a gap from the last so the gaps
 // spiral: slip through a gap or jump the ring. It lands 6 beats later as a burst (3) with a last ring.
 enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="butterfly" {
-    death-motion "flutter"
+    death-motion "flutter" weight="mid"
     attack-motion "throw" tier="mid"
     hover 0.35 above=0.3 speed=0.45 circle=0.9 bob=0.08
     on-beat every=1
@@ -119,7 +120,7 @@ enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="bu
 // and dome fill where it will land. It splashes there and stays as a glowing pool for 10 s that
 // drains your Health while you stand in it (jump it); pools from several fireflies add up.
 enemy "firefly" name="Firefly" hp=700 r=0.036 dmg=2 xp=12 model="firefly" {
-    death-motion "flutter"
+    death-motion "lantern-pop" weight="light"
     attack-motion "throw" tier="light"
     hover 0.22 above=0.17 speed=0.4 circle=0.35 bob=0.06 pause=0.3
     on-beat every=2
@@ -144,6 +145,7 @@ enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=2 xp=10 model="mantis" {
 // down. It can't leave the body, so get out of its reach or jump the line. It's as big as the
 // mantis it was in.
 enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
+    death-motion "bead-scatter" weight="mid"
     attack-motion "swipe" tier="mid"
     rooted
     burst delay=1.5 radius=0.4 dmg=5
@@ -156,7 +158,7 @@ enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
 // whine; its aim locks part way through), then fires it at you: a big slow Shot that explodes where it
 // lands, a Blast 30 cm round. Step well aside once it locks.
 enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
-    death-motion "shell"
+    death-motion "shell" weight="heavy"
     attack-motion "throw" tier="heavy"
     chase 0.14
     charge-shot range=0.6 charge=2 lock=0.5 speed=0.6 dmg=5 size=0.08 blast=0.3 knock=0.6 life=2 rest=0.7 every=3.5
@@ -170,7 +172,7 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 // beat). dig and daze are beats too, so the whole attack runs on the song: dig 1 + trail 5 + Warning 2 = two bars.
 // Step off the circle, or jump clear of the dome. Then it stands dazed for 4 beats: that's when to hit it.
 enemy "cicada" name="Cicada" hp=1200 r=0.058 dmg=1 xp=12 model="cicada" {
-    death-motion "flutter"
+    death-motion "skin-shed" weight="heavy"
     attack-motion "pounce" tier="heavy"
     chase 0.13
     on-beat every=2
@@ -181,6 +183,7 @@ enemy "cicada" name="Cicada" hp=1200 r=0.058 dmg=1 xp=12 model="cicada" {
 // furniture in the bedroom (src/stage3.js lists where). It never moves; every 4 s a wasp crawls
 // out of the entrance at its bottom. Destroy it to stop them.
 enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
+    death-motion "paper-crush" weight="heavy"
     hangs size=0.13                  // hits anywhere on the nest count (it's 30 cm tall)
     // (it squeezes and bulges at the entrance for 0.3 s before each wasp crawls out)
     brood "wasp" every=4 max=9
@@ -190,7 +193,7 @@ enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
 // buzz, then nosedives at you: a sting is a big hit (4), and the wasp dies doing it. Move off its
 // line as it rears and it shoots past, pulls up and circles again. Wasps are worth no XP.
 enemy "wasp" name="Wasp" hp=40 r=0.04 dmg=1 xp=0 model="wasp" {
-    death-motion "flutter"
+    death-motion "flutter" weight="light"
     attack-motion "lunge" tier="light"
     hover 0.2 above=0.08 speed=0.55 circle=1.6
     dive range=0.5 every=3 windup=0.5 speed=2 reach=0.5 dmg=4 rest=0.6
@@ -198,6 +201,7 @@ enemy "wasp" name="Wasp" hp=40 r=0.04 dmg=1 xp=0 model="wasp" {
 
 // The Clog (act 2 boss) sheds hair tangles into the fight
 enemy "hair" name="Hair tangle" hp=12 r=0.015 dmg=2 xp=3 model="hair" {
+    death-motion "unravel" weight="light"
     chase 0.3
     rolls
 }

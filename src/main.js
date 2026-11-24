@@ -1000,6 +1000,9 @@ async function warmUp() {
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.005), FLASH);
   flash.position.copy(P).setY(P.y + 0.02);
   scene.add(flash);
+  const ashWarm = new THREE.Mesh(flash.geometry, fx.fireAshMat);
+  ashWarm.position.copy(P).setY(P.y + 0.02);
+  scene.add(ashWarm); batcher.track(ashWarm);   // fire / lightning ash, instanced
   run.gadgets.warm(true, P.clone().setY(P.y + 0.02));
   run.shield.group.visible = true;                       // prepare the Shield's shell before anything gives one
   run.shield.group.scale.setScalar(0.001);
@@ -1018,11 +1021,11 @@ async function warmUp() {
   const warmLooks = run.bubbles.looks.warm(P.clone().setY(P.y + 0.03));   // every element projectile
   const warmFx = [new THREE.Mesh(run.bubbles.puddleGeo, run.bubbles.acidMat)];
   warmFx.forEach((m) => { m.position.copy(P); scene.add(m); });
-  temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks
+  temp[0].markT = temp[0].freezeT = 1;          // Sticky Note and Ice Cube looks (also warms enemies.frostMat instanced)
   enemies.markLook(temp[0], 0);
   temp[2].slowT = temp[2].chillT = 1;           // the slow ring and a chilled bug's ice crown
   enemies.markLook(temp[2], 0);
-  temp.at(-2).mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash, instanced
+  temp.at(-2).mesh.traverse((o) => { if (o.isMesh) o.material = FLASH; });   // the hit flash / zap strobe, instanced
   temp.at(-1).mesh.traverse((o) => { if (o.isMesh) o.material = fx.acid.gooMat; });   // an acid-finished bug melting (acid-looks.js)
   // this act's boss (not in a scene before its stage door: the boss is through it, in the next scene's page)
   const warmBoss = stage.stageDoor ? null : makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });
@@ -1064,6 +1067,7 @@ async function warmUp() {
   THREE.Material.prototype.dispose = () => {};
   try { warmBoss?.dispose(); } finally { THREE.Material.prototype.dispose = disposeMaterial; }
   scene.remove(flash);
+  scene.remove(ashWarm);
   scene.remove(spit);
   temp.forEach((e) => enemies.kill(e, true));
   enemies.list = enemies.list.filter((e) => !temp.includes(e));   // keep the elites run.start() registered
