@@ -258,8 +258,6 @@ export class Enemies {
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
     this.glowPools = new GlowPools(scene, fx);   // fireflies' lobs in flight and the glowing pools they leave (the lob word)
     this.prismBalls = new PrismBalls(scene, fx, world);   // butterflies' prism balls in flight and the rings of bolts they fire (the prism word)
-    this.pull = null;         // the dragonflies' whirlwinds sucking the jelly in this frame (m/s, flat), or null: the run adds it to its swimming
-    this._whirlPull = new THREE.Vector3();
     // a web ball: a fluffy white wad of silk with loose strands sticking out (the spider's spit)
     const wad = new THREE.IcosahedronGeometry(0.009, 2), wp = wad.attributes.position;
     for (let i = 0; i < wp.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(wp, i); v.multiplyScalar(0.8 + 0.4 * Math.abs(Math.sin(v.x * 900 + v.y * 1300 + v.z * 700))); wp.setXYZ(i, v.x, v.y, v.z); }
@@ -917,85 +915,22 @@ export class Enemies {
     for (let i = n; i < this.chargeMarks.length; i++) this.chargeMarks[i].visible = false;
   }
 
-  // ---------------------------------------------------------------- dragonflies (zip, evade, charge-beam)
+  // ---------------------------------------------------------------- dragonflies (zip, evade)
   zip(e) { sfx.zip(); }
   evade(e) { sfx.evade(); this.fx.puff(this.center(e), 0xcfe6f4, e.r * 0.8, 0.25); }
-  // the charge: a whine that builds for `dur` s, the only warning there is
-  beamCharge(e, dur) { e.chargeSound?.(); e.chargeSound = sfx.beamCharge(dur); }
-  // broken off (it dodged a hit): the whine cuts out and it flies on
-  breakCharge(e) {
-    e.chargeSound?.(); e.chargeSound = null;
-    e.state = 'approach'; e.faceLock = false; e.beamCd = 1.5;
-  }
-  // the beam: instant, along the way it faced when the charge began, stopped by walls and
-  // furniture. You're hit if any of you is within `width` of it.
-  beam(e, c, { reach, width, dmg }) {
-    e.chargeSound = null;
-    const from = this.center(e).addScaledVector(e.beamDir, e.r * 0.9), dir = e.beamDir;
-    const wall = this.world.cast(from, dir, reach);
-    const len = wall ? wall.distance : reach, to = from.clone().addScaledVector(dir, len);
-    const t = THREE.MathUtils.clamp(S.away.copy((c.realPc || c.pc)).sub(from).dot(dir), 0, len);
-    const near = S.spot.copy(from).addScaledVector(dir, t).distanceTo((c.realPc || c.pc)) < (this.playerRadius || 0.03) + width;
-    const color = hostile('dragonfly');
-    if (!this.beamGeo) {
-      this.beamGeo = new THREE.CylinderGeometry(0.0025, 0.0025, 1, 6, 1, true).rotateX(Math.PI / 2);   // 1 m along +z
-      this.beamGlowGeo = new THREE.CylinderGeometry(0.009, 0.009, 1, 10, 1, true).rotateX(Math.PI / 2);
-      this.beamMat = new THREE.MeshBasicMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.7), transparent: true, toneMapped: false });
-      this.beamGlowMat = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(2), transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
-      this.beams = [];
-    }
-    let b = this.beams.find((x) => x.t <= 0);
-    if (!b) {
-      b = { m: new THREE.Mesh(this.beamGeo, this.beamMat.clone()), t: 0 };
-      b.m.add(new THREE.Mesh(this.beamGlowGeo, this.beamGlowMat.clone()));
-      this.scene.add(b.m);
-      this.beams.push(b);
-    }
-    b.t = b.max = 0.18;
-    b.m.position.copy(from);
-    b.m.lookAt(to);
-    b.m.translateZ(len / 2);
-    b.m.scale.set(1, 1, len);
-    b.m.visible = true;
-    sfx.beamFire();
-    this.fx.impact(from, color, 0.008, 4);
-    this.fx.impact(near ? (c.realPc || c.pc).clone() : to, color, near ? 0.02 : 0.012, near ? 12 : 6);
-    if (!near && wall) {                                   // where it struck: an ember dying out, and a scorch on a floor
-      this.fx.glow.emit(to, color, 0.008, 0.002, 0.6, 0.9);
-      if (wall.normal?.y > 0.5) this.fx.splat(to, SCORCH, 0.008, 'scorch');
-    }
-    if (near) bus.emit('damage_taken', { targetId: PLAYER, amount: dmg, source: e.type, from: e.id });
-  }
-  drawBeams(dt) {
-    for (const b of this.beams || []) {
-      if (b.t <= 0) continue;
-      b.t -= dt;
-      const k = Math.max(0, b.t / b.max);
-      b.m.material.opacity = k;
-      b.m.children[0].material.opacity = 0.6 * k;
-      b.m.scale.x = b.m.scale.y = 0.4 + 0.6 * k;
-      if (b.t <= 0) b.m.visible = false;
-    }
-  }
 
   // ---------------------------------------------------------------- the dragonfly's whirlwind
-  // A little whirlwind: two rotors of blades, a wide one over a narrow one, each blurred into a
-  // disc as it spins, round a white-hot core (an fx.orb). It forms in front of the dragonfly's head
-  // as it winds up and is flung from there; in flight it sucks the jelly in (this.pull, which the
-  // run adds to its swimming) and air streams spiral into it.
+  // A helicopter rotor: two blades blurred into a disc as they spin, round a white-hot core (an
+  // fx.orb). It forms in front of the dragonfly's head as it winds up and is flung from there, then
+  // two more follow in a row (the word's `count`); air streams spiral into each in flight.
   whirlMuzzle(e, out) {
     const a = e.root.rotation.y;
     return this.center(e, out).add(S.ray.set(Math.sin(a) * e.r * 1.6, -e.r * 0.2, Math.cos(a) * e.r * 1.6));
   }
   whirlModel() {
     if (!this.whirlGeo) {
-      const rotor = (r, y, n, twist) => {
-        const parts = [];
-        for (let i = 0; i < n; i++) parts.push(new THREE.BoxGeometry(r * 0.95, 0.05, 0.26).translate(r * 0.5, 0, 0).rotateX(twist).rotateY((i / n) * Math.PI * 2).translate(0, y, 0).toNonIndexed());
-        return mergeGeometries(parts);
-      };
-      this.whirlGeo = { top: rotor(1, 0.18, 3, 0.3), low: rotor(0.62, -0.22, 3, -0.3),
-        blur: mergeGeometries([new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2).translate(0, 0.18, 0).toNonIndexed(), new THREE.CircleGeometry(0.62, 22).rotateX(-Math.PI / 2).translate(0, -0.22, 0).toNonIndexed()]) };
+      const blades = [0, 1].map((i) => new THREE.BoxGeometry(0.95, 0.05, 0.22).translate(0.5, 0, 0).rotateX(0.3).rotateY(i * Math.PI).toNonIndexed());
+      this.whirlGeo = { top: mergeGeometries(blades), blur: new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2) };
       const color = hostile('dragonfly');
       this.whirlMats = {
         blade: new THREE.MeshBasicMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.6), transparent: true, opacity: LOOK.num('whirl-blade-opacity', 1), side: THREE.DoubleSide, depthWrite: false, toneMapped: false }),
@@ -1005,25 +940,26 @@ export class Enemies {
     }
     let w = this.whirls.find((x) => !x.live);
     if (!w) {
-      const g = new THREE.Group(), top = new THREE.Mesh(this.whirlGeo.top, this.whirlMats.blade), low = new THREE.Mesh(this.whirlGeo.low, this.whirlMats.blade);
-      g.add(top, low, new THREE.Mesh(this.whirlGeo.blur, this.whirlMats.blur));
+      const g = new THREE.Group(), top = new THREE.Mesh(this.whirlGeo.top, this.whirlMats.blade);
+      g.add(top, new THREE.Mesh(this.whirlGeo.blur, this.whirlMats.blur));
       for (const m of g.children) { m.userData.noCollide = true; m.renderOrder = 3; }
       this.scene.add(g);
-      w = { g, top, low, v: new THREE.Vector3() };
+      w = { g, top, v: new THREE.Vector3() };
       this.whirls.push(w);
     }
     w.live = true; w.held = true; w.g.visible = true; w.spin = 6; w.streamT = 0;
     return w;
   }
-  // the wind-up: the whirlwind forms at its head with a rising whirr (updateWhirls grows it)
-  whirlCharge(e, { size, windup }) {
+  // the wind-up: the rotor forms at its head with a rising whirr (updateWhirls grows it); `quiet`
+  // for the volley's follow-ups, which are flung at once
+  whirlCharge(e, { size, windup }, quiet) {
     const w = this.whirlModel();
     w.owner = e; w.size = size;
     w.core = this.fx.orb(hostile('dragonfly'), size * 0.12);
     this.whirlMuzzle(e, w.g.position); w.core.position.copy(w.g.position);
     w.g.scale.setScalar(size * 0.25);
     e.whirl = w;
-    sfx.whirlCharge(windup);
+    if (!quiet) sfx.whirlCharge(windup);
   }
   // broken off (frozen, stunned or dodging): it puffs apart
   breakWhirl(e) {
@@ -1035,22 +971,21 @@ export class Enemies {
   }
   endWhirl(w) { w.live = false; w.g.visible = false; this.fx.free(w.core); w.core = null; w.owner = null; }
   // the release: a flash and a whoosh at its head, the dragonfly rocking back (whirlKick), and the
-  // whirlwind flung at `at`
-  whirlFling(e, at, { speed, life, dmg, pull, suck }) {
+  // rotor flung at `at`
+  whirlFling(e, at, { speed, life, dmg }) {
     const w = e.whirl;
     e.whirl = null;
     if (!w) return;
-    w.held = false; w.owner = null; w.t = life; w.dmg = dmg; w.pull = pull; w.suck = suck; w.from = e.id; w.source = e.type;
+    w.held = false; w.owner = null; w.t = life; w.dmg = dmg; w.from = e.id; w.source = e.type;
     this.whirlMuzzle(e, w.g.position);
     w.v.copy(at).sub(w.g.position).normalize().multiplyScalar(speed);
     w.g.scale.setScalar(w.size);
     this.fx.impact(w.g.position, hostile('dragonfly'), w.size * 0.5, 8);
     sfx.whirlFling();
   }
-  // each frame: held ones grow at the dragonfly's head; flung ones fly, suck the jelly in, and end
-  // on the jelly (a hit), a wall or furniture, or when their flight is over
+  // each frame: held ones grow at the dragonfly's head; flung ones fly and end on the jelly (a
+  // hit), a wall or furniture, or when their flight is over
   updateWhirls(dt) {
-    this.pull = null;
     if (!this.whirls) return;
     const P = this.player, glow = this.fx.glow, color = hostile('dragonfly');
     for (const w of this.whirls) {
@@ -1068,33 +1003,26 @@ export class Enemies {
         w.t -= dt;
         const wall = this.world.cast(at, S.dir.copy(w.v).normalize(), w.v.length() * dt + w.size * 0.3);
         at.addScaledVector(w.v, dt);
-        const hit = !!P && shotHits(at, w.size * 0.6, P.position, P);
+        const hit = !!P && shotHits(at, w.size * 0.85, P.position, P);
         if (hit) {
           bus.emit('damage_taken', { targetId: PLAYER, amount: w.dmg, source: w.source, from: w.from, at: at.clone() });
           bus.emit('knockback', { targetId: PLAYER, dir: w.v.clone().setY(0).normalize(), force: 0.3 });
         }
         if (hit || wall || w.t <= 0) {
+          if (hit) at.set(P.position.x, P.position.y + P.height * 0.5, P.position.z);   // the flash on the jelly, not at the blades' edge
           this.fx.impact(at, color, w.size * (hit ? 0.7 : 0.4), hit ? 12 : 6);
           this.fx.puff(at, 0xcfe6f4, w.size * 0.9, 0.3);
           sfx.whirlEnd(hit);
           this.endWhirl(w);
           continue;
         }
-        if (P) {                                                     // the suck: stronger the closer you are
-          const dx = at.x - P.position.x, dz = at.z - P.position.z, d = Math.hypot(dx, dz), dy = Math.abs(at.y - P.position.y - 0.03);
-          if (d < w.pull && d > 1e-4 && dy < w.pull) {
-            const s = w.suck * (1 - d / w.pull) / d;
-            this.pull = (this.pull || this._whirlPull.set(0, 0, 0)).add(S.spot.set(dx * s, 0, dz * s));
-          }
-        }
       }
       w.core.position.copy(at);
       this.fx.orbTick(w.core, dt, 0.6 + 0.4 * k);
       w.top.rotation.y += w.spin * dt;
-      w.low.rotation.y -= w.spin * 1.3 * dt;
       if ((w.streamT -= dt) <= 0) {                                  // air streaming in, spiralling round it
         w.streamT = 0.035;
-        const a = Math.random() * Math.PI * 2, R = w.size * (w.held ? 1.6 : 2.6), y = (Math.random() - 0.4) * w.size;
+        const a = Math.random() * Math.PI * 2, R = w.size * (w.held ? 1.3 : 1.8), y = (Math.random() - 0.4) * w.size * 0.5;
         const from = S.spot.set(at.x + Math.cos(a) * R, at.y + y, at.z + Math.sin(a) * R);
         const v = S.want.set(-Math.cos(a) - Math.sin(a) * 1.4, -y / w.size * 0.5, -Math.sin(a) + Math.cos(a) * 1.4).multiplyScalar(R * 2.2);
         glow.emit(from, Math.random() < 0.5 ? color : ARC, w.size * 0.14, w.size * 0.03, 0.4, 0.8, v, 0);
@@ -1699,7 +1627,6 @@ export class Enemies {
     this.drawLeaps(t);
     this.drawPokes(t);
     this.drawCharges(t);
-    this.drawBeams(dt);
     this.updateWhirls(dt);
     this.drawParasites(t);
     this.drawBurrows(t, dt);

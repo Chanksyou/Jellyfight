@@ -382,7 +382,6 @@ export const ENEMY_WORDS = {
           e.dodgeLeft = wall ? Math.max(0.03, wall.distance - e.r) : p.distance;
           e.evadeCd = p.every;
           e.flyHeld = true;
-          if (e.state === 'charge') en.breakCharge(e);   // (its flyHeld is the dodge's now)
           en.evade(e);
         }
         if (e.dodgeLeft > 0) {
@@ -396,42 +395,12 @@ export const ENEMY_WORDS = {
     }),
   },
 
-  'charge-beam': {
-    doc: 'Within `range` m every `every` s or so, turns to face you and holds perfectly still for `charge` s while a whine builds (its body shows it too: it draws back, its tail curls up over its back and its wings stop dead; nothing shows on the floor), then fires a beam that hits instantly along the way it faced, `reach` m long: `dmg` if any of you is within `width` m of it. Move off the line while it charges. Freezing or stunning it breaks the charge off. List it after the flying word.',
-    phases: { charge: 'build', rest: 'fire' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.45, charge: 2, dmg: 3, reach: 0.8, width: 0.008, every: 3.5, rest: 0.4 },
-    make: (_, p) => ({
-      init(e) { e.beamCd = 1.5 + Math.random() * 1.5; e.beamDir = new THREE.Vector3(); },
-      tick(e, c, en) {
-        const live = c.slow > 0 ? 1 : 0;
-        e.stateT -= c.dt * live;
-        e.beamCd -= c.dt;
-        if (e.state === 'charge' && !live) { en.breakCharge(e); e.flyHeld = false; }   // frozen or stunned: the charge is lost
-        if (e.state === 'approach') {
-          if (c.dist < p.range && e.beamCd <= 0 && live && !e.flyHeld && !c.wait) {
-            e.state = 'charge'; e.stateT = e.chargeMax = p.charge; e.flyHeld = true; e.faceLock = true;
-            e.vel.set(0, 0, 0);
-            e.beamDir.copy(c.toP).normalize();                         // it aims where it faces, and doesn't turn again
-            e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z);
-            en.beamCharge(e, p.charge);
-          }
-        } else if (e.state === 'charge') {
-          e.vel.set(0, 0, 0);
-          if (e.stateT <= 0) { en.beam(e, c, p); e.state = 'rest'; e.stateT = p.rest; e.firedT = 0.2; e.whirlCd = Math.max(e.whirlCd ?? 0, 1.5); }
-        } else if (e.state === 'rest' && e.stateT <= 0) {
-          e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.beamCd = p.every;
-        }
-        if (e.firedT > 0) e.firedT -= c.dt;
-      },
-    }),
-  },
-
   whirlwind: {
-    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a little whirlwind in front of it for `windup` s (spinning blades that grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m across at `speed` m/s for up to `life` s. In flight it sucks you toward it, at up to `suck` m/s from within `pull` m. Touching it: `dmg`. It rests `rest` s. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
+    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a spinning rotor of two blades in front of it for `windup` s (the blades grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m in radius at `speed` m/s for up to `life` s. `count` rotors fly in a row along that line, `gap` s apart. Touching one: `dmg`. It rests `rest` s after the last. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
     phases: { whirl: 'build', 'whirl-rest': 'fire' }, thrown: true, lock: { whirl: (p) => p.lock }, timer: { whirl: 'whirlT', 'whirl-rest': 'whirlT' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.03, life: 2.2, pull: 0.25, suck: 0.12, dmg: 2, rest: 0.5 },
+    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.061, life: 2.2, count: 3, gap: 0.3, dmg: 2, rest: 0.5 },
     make: (_, p) => ({
-      init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; },
+      init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; e.whirlVol = 0; e.whirlGap = 0; },
       tick(e, c, en) {
         const live = c.slow > 0 ? 1 : 0;
         e.whirlCd -= c.dt;
@@ -447,10 +416,14 @@ export const ENEMY_WORDS = {
           e.whirlT -= c.dt;
           e.whirlK = Math.min(1, 1 - e.whirlT / p.windup);
           if (e.whirlK < p.lock) { e.whirlAt.copy(c.pc); e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z); }
-          if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; }
+          if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; e.whirlVol = p.count - 1; e.whirlGap = p.gap; }
         } else if (e.state === 'whirl-rest') {
+          if (e.whirlVol > 0) {                               // the rest of the volley, along the same line
+            if ((e.whirlGap -= c.dt * live) <= 0) { en.whirlCharge(e, p, true); en.whirlFling(e, e.whirlAt, p); e.whirlKick = 0.2; e.whirlVol--; e.whirlGap = p.gap; }
+            return;
+          }
           e.whirlT -= c.dt * live;
-          if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; e.beamCd = Math.max(e.beamCd || 0, 1.5); }
+          if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; }
         } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && !c.wait) {
           e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
           e.vel.set(0, 0, 0);
@@ -804,7 +777,7 @@ export const ENEMY_WORDS = {
   },
 
   'on-beat': {
-    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, charge-beam, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
+    doc: 'Keeps time with the song: it pulses on every beat, and the attack words listed after it that wind up (leap, ball-charge, poke, whirlwind, swat, charge-shot, whip, dive, bite, lob, prism, burrow) only start on every `every`th beat (4: on the bar), so its attacks go off with the music.',
     props: { every: 1 },
     make: (_, p, where) => {
       if (!(Number.isInteger(p.every) && p.every >= 1)) throw new Error(`${where}: on-beat every= must be a whole number of beats, 1 or more`);

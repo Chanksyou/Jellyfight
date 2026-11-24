@@ -2,6 +2,16 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v660 adds a soft pink glow on the wall behind Act 1's media console, like an LED strip washing the wall above it.
+
+v659 makes the Controller's arrow drop plainer: no circle or dome under you, and the arrow hovers smaller and farther out, then flies the way it points to hit where you were.
+
+v658 adds the powered apartment: little status lights glint on what is plugged in (the PC tower and the game console; act 3's air purifier) and thin grey smoke drifts off what burns or steams (the incense and candle, act 2's candle, oil burner and tub, act 3's humidifier plume). Act 4, the same room, has act 1's. Reduce effects keeps the lights on without blinking and slows the smoke, and Low draws no smoke.
+
+v657 gives the Dragonfly a new attack and takes its beam away: it spins up a two-blade rotor two jelly radii across and flings it at you three times in a row, 0.3 s apart along the same line, with no pull on you.
+
+v656 gives the Controller a third attack, the arrow drop: a big pad arrow hovers by you for a second while a circle and dome fill where you stand, then flies in for 3 Health. It comes down from above or in from your left or right, and only comes up from below when you're already in the air.
+
 v655 The Pogo Stick now works on bosses: a jump onto the Vacuum, the Clog, the Shark or the Encore stomps for 4x Attack damage and bounces you back up. Bosses are still never Stunned and give no moment of safety.
 
 v654 adds light that moves on its own: the wall TV in act 1 shows slow drifting colours and throws a soft pool of them on the rug (a smaller one by the monitor, and act 4 keeps its monitor pool while the concert owns the TV), act 3's night light drifts between pink and amber on the floor, and the city outside has lit windows that switch off and on and red beacons that blink. Reduce effects holds all of it still.

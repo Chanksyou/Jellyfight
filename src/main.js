@@ -29,6 +29,7 @@ import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
 import { addRain } from './rain.js';
 import { FloorLight } from './floor-light.js';
+import { Powered } from './powered.js';
 import { applyLayout, applyVentLayout, LayoutEditor } from './layout.js';
 import { unlock as unlockAudio, unlockOnGesture, setMuted, isMuted, audio, sfx } from './sfx.js';
 import { Music } from './music.js';
@@ -48,7 +49,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v655';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v660';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -308,6 +309,7 @@ const statics = new StaticBatches(scene, camera);   // the furniture drawn a mat
 const ambient = new Ambient(() => juice.calm);   // plants that sway, glasses that shiver (ambient.js): marked before the batches copy their vertices
 if (!ARENA) { ambient.mark(APT.root); scene.children.filter((o) => DRESSED.includes(o.name)).forEach((o) => ambient.mark(o)); statics.add(APT.root); freeze(APT.root); }   // the furniture holds still: no matrix work each frame (movers call markMoved)
 const floorLight = !ARENA && EXPERIMENTS.ambient !== 0 ? new FloorLight(APT.root, stage.floorLight, () => ambient.calm(), () => AMBIENT.uniforms.ambientTime.value) : null;   // the screens' and the night light's pools on the floor (floor-light.js)
+const powered = !ARENA && EXPERIMENTS.ambient !== 0 && (stage.status?.length || stage.smoke?.length) ? new Powered(APT.root, stage, { calm: () => ambient.calm(), low: () => gfx.quality === 'low' }) : null;   // the little lights on what is plugged in, the smoke off what burns (powered.js)
 const cityTime = APT.skylineAtlas && addSkyline(scene, [1.5, 5.5], APT.skylineAtlas, { haze: raining ? LOOK.num('rain-haze', 0.35) : 0 });
 function setNight(minutes) {
   cityTime?.(minutes);
@@ -819,6 +821,7 @@ const GAME = {
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
     floorLight?.update();
+    powered?.update(dt, { pixelRatio: renderer.getPixelRatio() });
     systems.shadow.update(dt);
     air?.update(dt, renderer, camera);
     systems.hud.update(dt);
@@ -1304,4 +1307,4 @@ GAME.frame = (now) => {
 renderer.setAnimationLoop((now) => GAME.frame(now));
 
 // Handy for poking at things from the browser console
-Object.assign(window, { batcher, statics, ambient, floorLight, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });
+Object.assign(window, { batcher, statics, ambient, floorLight, powered, THREE, touch, player, world, tpc, input, gfx, hud, run, enemies, lash, shadows: systems.shadow, xpDrops, traversal, menus, fx, gpu, kit });

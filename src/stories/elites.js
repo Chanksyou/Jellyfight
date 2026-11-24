@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
+import { CONTENT } from '../content.js';
 import { juice } from '../juice.js';
 import { sfx } from '../sfx.js';
 import { bus } from '../events.js';
@@ -250,7 +251,7 @@ story('elites/controller-rumble-hits-inside-the-dome', {
     return ok(pass, out);
   },
 });
-for (const [atk, name] of [[0, 'barrage'], [1, 'rumble']]) {
+for (const [atk, name] of [[0, 'barrage'], [1, 'rumble'], [2, 'arrow']]) {
   story(`elites/controller-${name}-builds-no-shader`, {
     about: `Starting the Controller's ${name} builds no new shader: its warnings and explosions were built behind Play.`,
     setup() { startController(atk); },
@@ -603,3 +604,51 @@ for (const kind of ['controller', 'mug', 'kettle']) {
     },
   });
 }
+
+// --- the Controller's third attack: the arrow drop
+const arrowParts = (e) => ({ arrow: e.tele.find((m) => m.geometry && !m.material.uniforms), floor: e.tele.find((m) => m.material instanceof TeleMaterial), volume: e.tele.find((m) => m.material instanceof VolumeMaterial) });
+// start an arrow drop with Math.random fixed at `roll` (which way it comes: roll * the ways open to you), jelly at `up` m off the floor
+function startArrow(roll, up = 0) {
+  const e = startController(2), player = holdJelly(), real = Math.random.real || Math.random;
+  Math.random = () => roll; Math.random.real = real; offs.push(() => { Math.random = real; });
+  player.position.set(CONTROLLER_AT[0] + 0.2, CONTROLLER_AT[1] + up, CONTROLLER_AT[2]); player.grounded = up === 0;
+  return { e, player };
+}
+story('elites/controller-arrow-drop-warns-then-strikes', {
+  about: 'The arrow hovers a little way off you for about 1 s with no circle or dome (the arrow is the whole warning); then it flies the way it points and hits for 3 Health. Down hangs above you; left and right sit to the side, level with you. Standing where it lands hurts; stepping aside does not.',
+  setup() { fresh(); },
+  play() {
+    const out = {};
+    for (const [dir, roll] of [['down', 0], ['left', 0.4], ['right', 0.7]]) {
+      const { e, player } = startArrow(roll), D = e.def.skills.arrow, hits = controllerHits(), tempo = CONTENT.elites.pace.tempo;
+      step(400, () => e.state === 'windup' && e.stateT / tempo > D.warn * 0.5);
+      const { arrow, floor, volume } = arrowParts(e), P = player.position;
+      const rel = arrow ? [arrow.position.x - P.x, arrow.position.y - P.y, arrow.position.z - P.z] : [9, 9, 9];
+      const shape = e.arrowDir === dir && !!arrow && !floor && !volume;   // just the arrow: no circle, no dome
+      const where = dir === 'down' ? rel[1] > 0.1 && Math.hypot(rel[0], rel[2]) < 0.01 : Math.hypot(rel[0], rel[2]) > 0.1 && Math.abs(rel[1] - CONFIG.player.height / 2) < 0.01;
+      const t0 = e.stateT; step(400, () => e.state === 'idle'); const total = (e.stateT - t0) / tempo;
+      out[dir] = { shape, where, hit: hits.length === 1 && hits[0].amount === D.dmg, gone: !arrow.parent && !e.tele.length };
+      // the same attack again, but out of the way by the time it lands
+      e.next = 2; e.cool = 0; hits.length = 0;
+      step(400, () => e.state === 'windup' && e.stateT / tempo > D.warn * 0.9);
+      player.position.x += 0.3;
+      step(400, () => e.state === 'idle');
+      out[dir].dodged = hits.length === 0;
+      if (!Object.values(out[dir]).every((v) => v === true)) break;
+    }
+    return ok(['down', 'left', 'right'].every((d) => out[d] && Object.values(out[d]).every((v) => v === true)), out);
+  },
+});
+story('elites/controller-arrow-up-only-in-the-air', {
+  about: "The arrow comes up from below only when you are already in the air; on the floor the roll can never pick it.",
+  setup() { fresh(); },
+  play() {
+    const grounded = startArrow(0.99).e; step(400, () => grounded.state === 'windup' && !!grounded.arrowDir);
+    const g = grounded.arrowDir;
+    const air = startArrow(0.99, 0.09).e;
+    stub(G().run.elites, 'canSee', () => true);   // (the console's lip hides a jelly this high from its muzzle)
+    step(400, () => air.state === 'windup' && !!air.arrowDir);
+    const a = air.arrowDir, arrow = arrowParts(air).arrow, below = !!arrow && arrow.position.y < air.arrowAt.y;
+    return ok(g === 'right' && a === 'up' && below, { g, a, below });
+  },
+});

@@ -265,12 +265,12 @@ const pools = () => G().APT.root.children.filter((o) => o.name.startsWith('Floor
 const tvScreen = () => { let m; G().APT.scene.traverse((o) => { if (o.name === 'TV screen') m = o; }); return m; };
 
 story('ambient/floor-pools-are-one-soft-draw-each', {
-  about: "Act 1's TV and monitor pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
+  about: "Act 1's TV, monitor and media console strip pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 3.4, Math.PI); step(2); },
   play() {
     const { ambient, floorLight } = G(), found = pools(), was = found.map((p) => p.visible);
-    if (found.length !== 2 || !floorLight) return ok(false, { pools: found.length });
-    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= 0.4);
+    if (found.length !== 3 || !floorLight) return ok(false, { pools: found.length });
+    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= (p.name.endsWith('strip') ? 0.7 : 0.4));
     const calm = ambient.calm, colour = (t) => { ambient.uniforms.ambientTime.value = t; floorLight.update(); return found[0].material.uniforms.uColor.value.getHex(); };
     let moves, still;
     try {
@@ -284,6 +284,17 @@ story('ambient/floor-pools-are-one-soft-draw-each', {
     found.forEach((p, i) => (p.visible = was[i]));
     const delta = calls() - without;
     return ok(soft && moves && still && delta <= found.length * 2, { soft, moves, still, delta });
+  },
+});
+
+story('ambient/console-strip-washes-the-wall-pink', {
+  about: "Act 1 has a steady pink wash on the wall behind the media console (the LED strip), standing upright against the wall; act 4 has none.",
+  setup() { fresh({ elites: false }); step(2); },
+  play() {
+    const w = pools().find((p) => p.name === 'Floor light strip');
+    if (!w) return ok(false, { found: false });
+    const hex = w.material.uniforms.uColor.value;
+    return ok(w.visible && Math.abs(w.rotation.x + Math.PI / 2) < 1e-6 && hex.r > hex.g && hex.b > hex.g && w.position.y > 0.5, { y: w.position.y, hex: hex.getHexString() });
   },
 });
 
@@ -318,27 +329,97 @@ story('ambient/night-light-pool-in-act-3', {
   },
 });
 
-// the city alone (its mesh in a scene of its own), seen from the middle of the room toward the street
-function cityShot(time, calm) {
-  const { APT, ambient } = G(), R = APT.renderer, sky = APT.scene.getObjectByName('Skyline');
-  const scene = new THREE.Scene(); scene.background = APT.scene.background; scene.add(sky.clone());
-  const cam = new THREE.PerspectiveCamera(70, 1, 0.1, 400);
-  cam.position.set(1.5, 1.5, 5.5); cam.lookAt(1.5, 1.2, -50); cam.updateMatrixWorld();
-  ambient.calm = () => calm; ambient.update(0, V(99, 0, 99), 0);
-  ambient.uniforms.ambientTime.value = time;
-  const rt = (cityShot.rt ||= new THREE.WebGLRenderTarget(160, 160)), px = new Uint8Array(160 * 160 * 4), was = R.getRenderTarget();
-  try { R.setRenderTarget(rt); R.render(scene, cam); R.readRenderTargetPixels(rt, 0, 0, 160, 160, px); } finally { R.setRenderTarget(was); }
-  return px;
-}
+// The city's own windows and beacons are worked out in the skyline's shader from the room's one clock (ambient.js).
+// A picture of it is not taken here: drawing the skyline into a target of its own recompiled its heavy shader and took
+// minutes under CI's software renderer. What is checked is what the shader is given.
 story('ambient/city-twinkles-at-night', {
-  about: 'At night some of the city\'s lit windows switch off and on and its red beacons blink; with Reduce effects the city holds the picture it was painted with.',
+  about: "The city outside runs on the room's one clock: its windows switch and its beacons blink while that clock runs, and with Reduce effects it is held (the clock's \"on\" is 0), so the city keeps the picture it was painted with.",
   setup() { fresh({ elites: false }); },
   play() {
-    const { ambient } = G(), calm = ambient.calm;
+    const { ambient, APT } = G(), calm = ambient.calm, sky = APT.scene.getObjectByName('Skyline');
+    const mat = sky?.material, U = ambient.uniforms;
+    if (!mat) return ok(false, { sky: false });
     try {
-      const a = cityShot(1, false), moves = moved(a, cityShot(7.3, false));
-      const still = moved(cityShot(1, true), cityShot(7.3, true));
-      return ok(moves > 0 && still === 0, { moves, still });
-    } finally { ambient.calm = calm; }
+      ambient.calm = () => false; ambient.update(0.5, V(99, 0, 99), 0);
+      const on = U.ambientOn.value, t0 = U.ambientTime.value; ambient.update(0.5, V(99, 0, 99), 0);
+      const runs = on === 1 && U.ambientTime.value > t0;
+      ambient.calm = () => true; ambient.update(0.5, V(99, 0, 99), 0);
+      const held = U.ambientOn.value === 0;
+      const patched = mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile && /ambientOn/.test(String(mat.onBeforeCompile));
+      return ok(runs && held && patched, { runs, held, patched });
+    } finally { ambient.calm = calm; ambient.update(0, V(99, 0, 99), 0); }
   },
+});
+
+// ---- the powered apartment (A4): status lights and smoke (src/powered.js)
+const poweredParts = () => G().powered?.parts || [];
+const lightCount = () => G().powered?.lights?.geometry.attributes.position.count ?? 0;
+
+story('ambient/status-lights-and-smoke-are-one-draw-each', {
+  about: "Act 1's little lights (the PC and the console) are one Points draw and its two smoke threads one more (drawn twice over when the frame draws the room for its AO and its picture); neither adds a light.",
+  setup() { fresh({ elites: false }); tp(1.5, 0.05, 3.5, Math.PI); step(2); },
+  play() {
+    const { powered, APT } = G(), parts = poweredParts();
+    if (!powered?.lights || !powered.smoke) return ok(false, { parts: parts.length });
+    let lights = 0; APT.scene.traverse((o) => { if (o.isLight) lights++; });
+    const was = parts.map((p) => p.visible);
+    drawn(2);
+    const withAll = calls();
+    parts.forEach((p) => (p.visible = false));
+    const without = calls();
+    parts.forEach((p, i) => (p.visible = was[i]));
+    const delta = withAll - without;
+    return ok(lightCount() === 3 && delta > 0 && delta <= parts.length * 2 && parts.every((p) => p.parent === APT.root), { lights: lightCount(), delta, parts: parts.length, inRoom: parts.every((p) => p.parent === APT.root) });
+  },
+});
+
+story('ambient/smoke-is-the-vent-wisp-shader-in-grey', {
+  about: 'The smoke is the vents\' own wisp shader (no new program), grey-white and drawn with normal blending, never additive; Low draws none of it.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { powered, traversal } = G(), wisp = traversal.air.parts[2].material, m = powered?.smoke?.material;
+    if (!m) return ok(false, { smoke: false });
+    const c = m.uniforms.uColor.value, same = m.vertexShader === wisp.vertexShader && m.fragmentShader === wisp.fragmentShader;
+    const plain = m.blending === THREE.NormalBlending && c.r > 0.7 && Math.abs(c.r - c.g) < 0.05 && Math.abs(c.g - c.b) < 0.08;
+    const low = powered.low; let dropped, kept;
+    try { powered.low = () => true; powered.update(0.016); dropped = !powered.smoke.visible; powered.low = () => false; powered.update(0.016); kept = powered.smoke.visible; } finally { powered.low = low; }
+    return ok(same && plain && dropped && kept, { same, plain, dropped, kept });
+  },
+});
+
+story('ambient/status-lights-blink-and-hold-steady-when-calm', {
+  about: 'The lights run on the clock (the blink, the breath and the flicker are worked out in their shader); under Reduce effects every light stays on and nothing blinks.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { powered } = G(), u = powered?.lights?.material.uniforms;
+    if (!u) return ok(false, { lights: false });
+    const calm = powered.calm; let moving, held, calmFlag;
+    try {
+      powered.calm = () => false; powered.update(0.5); const a = u.uTime.value; powered.update(0.5); moving = u.uTime.value > a && u.uCalm.value === 0;
+      powered.calm = () => true; powered.update(0.5); held = u.uTime.value === 0; calmFlag = u.uCalm.value === 1;
+    } finally { powered.calm = calm; }
+    const pats = [...powered.lights.geometry.attributes.pat.array].filter((_, i) => i % 4 === 0), period = [...powered.lights.geometry.attributes.pat.array].filter((_, i) => i % 4 === 1);
+    return ok(moving && held && calmFlag && new Set(pats).size >= 2 && period.every((p) => 600 % p === 0), { moving, held, calmFlag, patterns: [...new Set(pats)], period });
+  },
+});
+
+story('ambient/act4-has-the-same-lights-and-smoke', {
+  about: 'Act 4 is act 1\'s room: it has the same status lights and the same two smoke threads.',
+  act: 4,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(lightCount() === 3 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
+});
+
+story('ambient/act2-has-smoke-only', {
+  about: "Act 2's bathroom has the candle's and the oil burner's curls and steam over the tub, and no status lights.",
+  act: 2,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(!G().powered?.lights && !!G().powered?.smoke, { lights: !!G().powered?.lights, smoke: !!G().powered?.smoke }); },
+});
+
+story('ambient/act3-has-a-light-and-a-plume', {
+  about: "Act 3's bedroom has the air purifier's light and the humidifier's plume, and nothing for the sleeping baby.",
+  act: 3,
+  setup() { fresh({ elites: false }); },
+  play() { return ok(lightCount() === 1 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
 });

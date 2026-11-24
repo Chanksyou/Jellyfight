@@ -39,6 +39,12 @@ export const STAGE2 = {
   xpMult: 1.2,
 
   // Things the player shouldn't bump into or can pass through
+  // The powered apartment (powered.js): the candle's and the oil burner's curls, and a little steam over the tub's water
+  smoke: [
+    { at: [0.43, 0.935, 5.2], h: 0.1, kind: 'thread' },
+    { at: [1.05, 1.0, 5.18], h: 0.16, kind: 'thread' },
+    { at: [0.8, 0.5, 7.25], h: 0.22, kind: 'steam' },
+  ],
   noCollide: ['Shower curtain'],      // you slip behind the curtain after climbing it
   hide: ['Ornate wall clock', 'Bathtub_3'],   // the detailed clock replaces the simple one; Bathtub_3 is a green see-through blob in the tub (the boss arena)
   decor: [HALL_CLOCK],                // it still hangs there when it isn't fighting (a 1 on 1 with another elite)
