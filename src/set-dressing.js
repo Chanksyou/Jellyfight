@@ -173,8 +173,8 @@ function buildCurtain(box) {
 
 // The candles (act 1's and act 2's toilet-tank one), opened: the baked ones were closed black tins, so the smoke curling off a wick made no sense.
 // An open black glass tumbler with white wax inside, a wick and a small flame (the flame's glow is a status light,
-// powered.js, and its smoke a thread: stage1.js). The baked label and floor shadow (the flat children) stay; the closed body and any lid go.
-function buildCandle(box, { baked }) {
+// powered.js, and its smoke a thread: stage1.js). The label (facing -z or +z, as the baked one did) and the soft shadow are drawn here.
+const buildCandle = (face, label) => (box, { baked }) => {
   const body = baked.children[0];
   const b = new THREE.Box3().setFromObject(body, true), c = b.getCenter(new THREE.Vector3());
   const r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2, h = b.max.y - b.min.y, wall = 0.0025, floor = 0.006;
@@ -183,7 +183,7 @@ function buildCandle(box, { baked }) {
   const glass = [   // outside up, over the rim, inside down: one open shell
     paint(lathe([[0, 0], [r, 0], [r, h], [r - wall, h], [r - wall, floor], [0, floor]]), 0x0a0a0c),
   ];
-  const wax = [paint(lathe([[0, floor], [r - wall - 0.0004, floor], [r - wall - 0.0004, waxTop], [0.0035, waxTop], [0.0012, waxTop - 0.0012], [0, waxTop - 0.0012]]), 0xf3eee2)];
+  const wax = [paint(lathe([[0, waxTop - 0.006], [r - wall - 0.0004, waxTop - 0.006], [r - wall - 0.0004, waxTop], [0.0035, waxTop], [0.0012, waxTop - 0.0012], [0, waxTop - 0.0012]]), 0xf3eee2)];
   wax.push(paint(new THREE.CylinderGeometry(0.0006, 0.0006, wickTop - waxTop + 0.0015, 6).translate(0, (wickTop + waxTop) / 2 - 0.00075, 0), 0x2a2420));
   const g = new THREE.Group();
   const tumbler = new THREE.Mesh(merge(glass), std({ roughness: 0.55, metalness: 0, side: THREE.DoubleSide }));
@@ -193,23 +193,27 @@ function buildCandle(box, { baked }) {
   fl.position.y = wickTop - 0.0005;
   g.add(tumbler, waxMesh, fl);
   g.position.set(c.x, b.min.y, c.z);
-  // the label and the floor shadow keep their world places
-  for (const old of baked.children) {
-    if (old === body || !old.isMesh) continue;
-    old.geometry.computeBoundingBox();
-    if (old.geometry.boundingBox.getSize(new THREE.Vector3()).z > 1e-4) continue;   // a solid (the lid) goes; a flat plane (label, shadow) stays
-    const k = old.clone(false);
-    old.updateWorldMatrix(true, false);
-    old.matrixWorld.decompose(k.position, k.quaternion, k.scale);
-    k.position.sub(g.position);
-    g.add(k);
-  }
+  // a label on the front and a soft shadow on the surface it stands on, drawn here (the baked ones go with the baked
+  // candle; moving or cloning them upset the cat's in-view check, ambient/dendi-breathes)
+  const labelH = 1.5 * r, labelW = labelH * 0.8;
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 80;
+  const x = cv.getContext('2d'); x.fillStyle = '#f4f2ec'; x.fillRect(0, 0, 64, 80); x.fillStyle = '#111'; x.textAlign = 'center';
+  if (label) { x.font = 'bold 12px serif'; x.fillText(label[0], 32, 24); x.font = '6px sans-serif'; x.fillText(label[1], 32, 34); x.font = 'bold 8px sans-serif'; x.fillText(label[2], 32, 64); }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const lab = new THREE.Mesh(new THREE.PlaneGeometry(labelW, labelH), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+  lab.position.set(0, h / 2, face * (r + 0.0004)); if (face < 0) lab.rotation.y = Math.PI;
+  const sc = document.createElement('canvas'); sc.width = sc.height = 64;
+  const sx = sc.getContext('2d'), gr = sx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  sx.fillStyle = gr; sx.fillRect(0, 0, 64, 64);
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(r * 5, r * 5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false }));
+  sh.position.y = 0.0005;
+  g.add(lab, sh);
   return g;
-}
+};
 
 const BUILDERS = [
-  ['Candle', buildCandle],
-  ['Black candle', buildCandle],
+  ['Candle', buildCandle(-1, ['EMME', 'NEW YORK CITY', 'LYCHEE'])],
+  ['Black candle', buildCandle(1, null)],
   ['TV', buildTV],
   ['Soundbar', buildSoundbar],
   ['Shower curtain', buildCurtain],
