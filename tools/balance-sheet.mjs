@@ -37,8 +37,9 @@ export { CONTENT };
 const TEXT = {};
 const read = (f) => (TEXT[f] ??= fs.readFileSync(path.join(ROOT, f), 'utf8'));
 // file:line of the first line matching re; a moved number fails loudly rather than citing the wrong line
-export function at(f, re) {
-  const i = read(f).split('\n').findIndex((l) => re.test(l));
+export function at(f, re, after = null) {
+  const lines = read(f).split('\n'), from = after ? lines.findIndex((l) => after.test(l)) : 0;
+  const i = from < 0 ? -1 : lines.findIndex((l, k) => k >= from && re.test(l));
   if (i < 0) throw new Error(`balance-sheet: ${f} has no line matching ${re}`);
   return `${f}:${i + 1}`;
 }
@@ -78,7 +79,7 @@ export const ACTS = [
   return { ...A, bossId: B.id, boss: B.name.replace(/^The /, '').replace(/ One$/, ''), bossHp: B.hp * (A.fight.bossHp ?? 1), power: A.stage.power ?? 1, xpMult: A.stage.xpMult ?? 1, bugs: A.stage.bugs ?? 1, toughness: A.stage.toughness ?? 1, night: A.stage.duration,
     seconds: A.stage.duration + RUN_LOG.bossSeconds[A.n - 1] };
 });
-const knob = (A, k) => at(A.file, new RegExp(`^  ${k}:`));
+const knob = (A, k) => at(A.file, new RegExp(`^  ${k}:`), new RegExp(`^export const STAGE${A.n} = `));   // (stage4.js: the room, not the ENCORE arena above it)
 
 // The night's bugs (run.js spawnWaves): rate + grow x t a second, times the act's `bugs`, each pick by
 // weight among the bugs already out. The alive cap is ignored, so counts are a ceiling.
@@ -136,7 +137,7 @@ export function offence(type, S, target = 'one') {
   const shots = kind === 'tentacle' ? 1 : S.bubbles * bubbleShare(S.bubbles);   // side by side, all on one target; a tentacle stings each bug once
   let one = AD * J.hit * rate * shots, more = 0;
   if (kind === 'fire' && 1 / rate < ELEMENT_BASE.fire.burnTime) one += AD * PW * ELEMENT.burn * S.burnDamage;   // Burn, kept lit by every hit
-  if (kind === 'poison') one += Math.min(ELEMENT_BASE.poison.poisonStacks, rate * ELEMENT_BASE.poison.poisonTime) * AD * PW * ELEMENT.poison;
+  if (kind === 'poison' && 1 / rate < ELEMENT_BASE.poison.poisonTime) one += ELEMENT_BASE.poison.poisonStacks * AD * PW * ELEMENT.poison;   // each hit adds a stack and restarts them all
   if (target === 'clump') {
     if (kind === 'lightning') more = Math.min(4, ELEMENT_BASE.lightning.chain) * AD * PW * ELEMENT.bolt * rate * shots;
     if (kind === 'glitter') more = 4 * AD * PW * ELEMENT.glitter * rate * shots;
@@ -357,7 +358,7 @@ function sheetA3() {
       const worth = (a) => { const S = refStats('normal', door.level), after = { ...S }; applyCard(after, { stat, amount: cardAmount(stat, a, S[stat]) }); return (OFFENCE_CARDS.includes(stat) ? offence('normal', after) / offence('normal', S) : defence(after, door.A) / defence(S, door.A)) - 1; };
       for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (worth(m) < yard(door)) lo = m; else hi = m; }
       const want = (lo + hi) / 2, d = want < 1 ? 2 : 0;
-      flags.push({ text: `At the ${door.name} a Common ${CARD_NAME[stat]} card is worth ${pct(cardWorth('normal', stat, 0, door))} of a Normal jelly's ${OFFENCE_CARDS.includes(stat) ? 'Offence' : 'Defence'}, ${r(k, 2)}x Fire rate's ${pct(yard(door))}.`,
+      flags.push({ text: `At the ${door.name} a Common ${CARD_NAME[stat]} card is worth ${pct(cardWorth('normal', stat, 0, door))} of a Normal jelly's ${OFFENCE_CARDS.includes(stat) ? 'Offence' : 'Defence'}, ${r(k, 2)}x Fire rate's ${pct(yard(door))}.${['shield', 'regen'].includes(stat) ? ` (This rests on the assumed Shield refill every ${STYLES.careful} s; check it against play before turning the knob.)` : ''}`,
         knob: { at: cardLine(stat), change: `common=${LV.cards[stat].amounts[0]} → ${r(want, d)} (Rare and Epic in step)`, does: 'level with the Fire rate yardstick' } });
     }
   }
@@ -437,12 +438,12 @@ function sheetA4() {
   const flags = [];
   const lineRows = LINES.map((line) => {
     const its = items.filter((x) => x.line === line.key && x.all > 0);
-    // the most one build holds: every Treasure at full stack, and the best one type's upgrades
-    const tre = its.filter((x) => x.kind !== 'upgrade').reduce((s, x) => s + x.all, 0);
-    const byType = {};
-    for (const x of its.filter((y) => y.kind === 'upgrade')) byType[x.jelly] = (byType[x.jelly] || 0) + x.all;
-    const up = Math.max(0, ...Object.values(byType));
-    return { line, its, max: tre + up };
+    // the most one build holds: every Treasure at full stack, the best 3 evolutions (a Boss pick each)
+    // and the best 3 Attack upgrades of one type (a run takes one at the start and after Bosses 1 to 3)
+    const best = (list, n) => list.map((x) => x.all).sort((a, b) => b - a).slice(0, n).reduce((s, v) => s + v, 0);
+    const tre = best(its.filter((x) => x.kind === 'treasure'), Infinity), evo = best(its.filter((x) => x.kind === 'evolution'), 3);
+    const up = Math.max(0, ...TYPES.map((t) => best(its.filter((x) => x.kind === 'upgrade' && x.jelly === t), 3)));
+    return { line, its, max: tre + evo + up };
   });
   for (const { line, its } of lineRows) {
     // a Common past a Rare card's worth with one copy; an Attack upgrade past 2.5x its budget (about +40%, the balance plan)
@@ -455,7 +456,8 @@ function sheetA4() {
     if (free.length === 1 && line.key !== 'rate') flags.push({ text: `The ${line.name} line has one Treasure in it (${free[0].name}), so the line's whole bonus multiplies everything else.`,
       knob: { at: free[0].at, change: 'join it to the Attack damage line (stat "bubble-damage" … percent=#true)', does: 'it adds with Lemon Slice and Shot Glass instead of multiplying them' } });
   }
-  const product = lineRows.reduce((p, L) => p * (1 + L.max), 1);
+  // Marks change only ordinary bugs (enemies.js returns for an Elite or a Boss first); Elite damage only Elites and Bosses
+  const product = (skip) => lineRows.reduce((p, L) => (L.line.key === skip ? p : p * (1 + L.max)), 1);
   return {
     id: 'A4', title: 'The multiplier lines',
     lede: 'Bonuses on one line add; lines multiply. Which line each damage bonus joins, and how far each can reach.',
@@ -465,10 +467,10 @@ function sheetA4() {
 Attack damage line counts in shares of Normal's ${BASE_STATS.bubbleDamage} (Lemon Slice's +2 = +33%)
 A conditional counts as if it always holds, a mark as if it is always on, a status bonus as if the bug always has it (Poison at ${ELEMENT_BASE.poison.poisonStacks} stacks):
 the paper ceiling, not a typical run. Growing items (per, grow-on-kills, bounty) are priced in Wave B4.`,
-    tables: [{ head: ['Line', 'Items', 'One type\'s most', 'x at most'], rows: lineRows.map(({ line, its, max }) => [line.name, its.length, pct(max), `x${r(1 + max, 2)}`]) }],
+    tables: [{ head: ['Line', 'Sources', 'One build\'s most', 'x at most'], rows: lineRows.map(({ line, its, max }) => [line.name + (line.key === 'mark' ? ' (bugs only)' : line.key === 'elite' ? ' (Elites and Bosses only)' : ''), its.length, pct(max), `x${r(1 + max, 2)}`]) }],
     charts: [bars('Most each line reaches in one build (x)', lineRows.map(({ line, max }) => [line.name, 1 + max]), { fmt: (v) => 'x' + r(v, 2), ref: 1 })],
     flags,
-    notes: [`Every line at its most multiplies to x${r(product)} on paper. A typical build needs the run log's pickups by act (the run log additions) to price.`],
+    notes: [`Every line at its most multiplies to x${r(product('elite'))} on a bug and x${r(product('mark'))} on an Elite or Boss, on paper: every Treasure at full stack, 3 evolutions and 3 Attack upgrades. A typical build needs the run log's pickups by act (the run log additions) to price.`],
   };
 }
 // ------------------------------------------------------------------ A5: staying alive
@@ -484,17 +486,17 @@ function sheetA5() {
   // Thimble: one less Health a hit, against each act's typical bug hit
   const hitOf = (E) => Math.max(E.dmg, ...E.words.map((w) => +w.dmg || 0).filter(Number.isFinite));
   const typical = ACTS.map((A) => { const N = night(A); const t = Object.entries(N.per).reduce((s, [id, k]) => s + k * hitOf(CONTENT.enemies[id]) * A.power, 0) / Object.values(N.per).reduce((a, b) => a + b, 0); return t; });
-  const thimble = read('content/treasures.kdl').match(/hit-less ([\d.]+)/)[1];
+  const [, thimble, least = TREASURE_WORDS['hit-less'].props.least] = read('content/treasures.kdl').match(/hit-less ([\d.]+)(?: least=([\d.]+))?/).map(Number);
+  const off = (t) => (t > least ? Math.min(thimble, t - least) / t : 0);   // run.js hit: never below least
   const potC = pot('careful'), potB = pot('brawler');
   if (potB > 0.7 * DEF0) flags.push({ text: `On paper Pot Lid gives ${r(potC)} Health over the Vacuum act to a careful player and ${r(potB)} to a brawler, far past a Legendary's 70 points (${r(0.7 * DEF0)} Health). The catch the sum can't see: at 1 Health, the first hit while the Shield is down ends the run.`,
     knob: { at: kdl('content/treasures.kdl', 'treasure', 'potLid'), change: 'health-to-shield keeps 5 Health, not 1 (a keep= on the word)', does: 'one stray hit is no longer the end, and the paper number stops hiding the risk' } });
-  const fade = typical.map((t) => 1 / t);
-  if (fade[3] < fade[0] / 2.5) flags.push({ text: `The Thimble takes ${thimble} off each hit: ${pct(Math.min(1, +thimble / typical[0])).slice(1)} of a typical act 1 hit, ${pct(+thimble / typical[3]).slice(1)} of an act 4 one.`,
+  if (off(typical[3]) < off(typical[0]) / 1.5) flags.push({ text: `The Thimble takes ${thimble} off each hit (never below ${least}): ${pct(off(typical[0])).slice(1)} of a typical act 1 hit, ${pct(off(typical[3])).slice(1)} of an act 4 one.`,
     knob: { at: kdl('content/treasures.kdl', 'treasure', 'thimble'), change: 'hit-less 1 → a share of each hit (a new word, hit-share)', does: 'keeps its worth in every act' } });
   // evolution costs in Health: a negative percent of starting Health
   const evo = CONTENT.evolutions.map((e) => { const node = KDL.parse(read('content/evolutions.kdl'), 'e').find((n) => n.args[0] === e.id); const w = node.children.find((c) => c.name === 'stat' && c.args[0] === 'health' && c.args[1] < 0); return w ? [e, w.props.percent ? BASE_STATS.health * w.args[1] / 100 : w.args[1], w] : null; }).filter(Boolean);
   const felt = 0.2 * DEF0;   // a cost worth at least 20 Defence points
-  for (const [e, hp, w] of evo) if (-hp < felt) flags.push({ text: `${e.name} costs ${r(-hp)} max Health${w.props.percent ? ` (${-w.args[1]}% of a starting ${BASE_STATS.health})` : ''}, less than ${LV.cards.health.amounts[1]} from one Rare Health card.`,
+  for (const [e, hp, w] of evo) if (-hp < felt) flags.push({ text: `${e.name} costs ${r(-hp)} max Health${w.props.percent ? ` (${-w.args[1]}% of a starting ${BASE_STATS.health})` : ''}, under 20 Defence points (${r(felt)} Health) for a Normal jelly.`,
     knob: { at: `content/evolutions.kdl:${w.line}`, change: `stat "health" ${w.args[1]} → ${w.props.percent ? -Math.round(100 * felt / BASE_STATS.health) : -Math.round(felt)}`, does: `a cost of ${r(felt)} Health, 20 Defence points` } });
   const snooze = read('content/treasures.kdl').match(/death-save health=([\d.]+)/)[1];
   return {
@@ -516,9 +518,9 @@ function sheetA5() {
 act seconds = night + the run log's Boss fight; refill gap: careful ${STYLES.careful} s, brawler ${STYLES.brawler} s
 Health lost (run log) already counts the act's power and is before Shield; it is what survivors spent, not a limit
 A death save is worth ${snooze} x max Health once a run, and the run itself.`,
-    tables: [{ head: ['Item', 'Health over the Vacuum act, careful', 'Brawler'], rows: [...priced.map(([n, c, b]) => [`Common ${n} card`, r(c), r(b)]), ['Pot Lid', r(potC), r(potB)], ['Snooze Button (once a run)', r(snooze * S0.health), r(snooze * S0.health)]] },
+    tables: [{ head: ['Source', 'Health over the Vacuum act, careful', 'Brawler'], rows: [...priced.map(([n, c, b]) => [`Common ${n} card`, r(c), r(b)]), ['Pot Lid', r(potC), r(potB)], ['Snooze Button (once a run)', r(snooze * S0.health), r(snooze * S0.health)]] },
       { head: ['Act', 'Reference jelly can spend, careful', 'Brawler', 'Real Health lost'], rows: supply.map(([n, c, b, d]) => [n, r(c), r(b), d]) },
-      { head: ['Act', 'Typical bug hit (with power)', 'Thimble takes off'], rows: typical.map((t, i) => [i + 1, r(t, 2), pct(Math.min(1, +thimble / t)).slice(1)]) }],
+      { head: ['Act', 'Typical bug hit (with power)', 'Thimble takes off'], rows: typical.map((t, i) => [i + 1, r(t, 2), pct(off(t)).slice(1)]) }],
     charts: [bars('Health a Common card gives over the Vacuum act (careful)', priced.map(([n, c]) => [n, c]), { fmt: (v) => r(v) }),
       grouped('Health to spend in each act against Health lost', ['Act 1', 'Act 2', 'Act 3', 'Act 4'], [['Careful', supply.map((s) => s[1])], ['Brawler', supply.map((s) => s[2])], ['Lost (real)', supply.map((s) => s[3])]], (v) => r(v))],
     flags,

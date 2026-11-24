@@ -18,7 +18,7 @@ One **point** is 1% of a level 1 Normal jelly.
 ```
 Offence = Attack damage line x Fire rate line x Attacks share
         x (1 + Crit chance x (Crit mult - 1))      Crit
-        x (1 + mark)                               Marks
+        x (1 + mark)                               Marks (ordinary bugs only)
         x (1 + status bonus)                       Status bonus
         x (1 + conditional)                        Conditional
         x (1 + Elite damage)                       Elite damage (Elites and Bosses only)
@@ -28,11 +28,12 @@ Offence = Attack damage line x Fire rate line x Attacks share
 
 Bonuses on the same line add.
 Lines multiply.
+Marks and Elite damage never meet: a mark changes only ordinary bugs (`src/enemies.js` returns for an Elite or a Boss first), Elite damage only Elites and Bosses.
 A flat stat (Lemon Slice's +2) and a percent (Shot Glass's +50%) are both on the Attack damage line, because `Run.S` adds `base + add + base x pct`.
 
 Each jelly type's attack (`content/jellies.kdl`, `src/bubbles.js` `ELEMENT`):
 
-- one bug: Attack damage x `hit` x Fire rate, plus Fire's Burn (Attack damage x 4.5 x 0.17 a second, lit while hits come faster than its 3 s) and Poison's stacks (up to 5, each 20% of Attack damage a second).
+- one bug: Attack damage x `hit` x Fire rate, plus Fire's Burn (Attack damage x 4.5 x 0.17 a second, lit while hits come faster than its 3 s) and Poison's stacks (all 5 while hits come faster than its 5 s, since each hit restarts them; each 20% of Attack damage a second).
 - a clump of 5 adds, on the other four: Lightning's 3 arcs, Glitter's splash, the Poison burst's stacks, Wind's pierce, one sting per extra tentacle.
 - a Boss counts as one bug.
 
@@ -59,6 +60,7 @@ level       = XP in all through xpToNext(L) = round(base x growth^(L-1))
 ```
 
 This predicts the run log's end-of-act levels to within about half a level.
+It leaves out the combo bonus on kill XP (`juice.bonus`) and the alive cap, which roughly cancel against the run log.
 
 ## The reference jelly
 
