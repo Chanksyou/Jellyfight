@@ -59,8 +59,8 @@ upgrade "melt" jelly="fire" name="Melt" icon="🫠" text="Burning Elites and the
 upgrade "permafrost" jelly="ice" name="Permafrost" icon="⛸️" text="3 hits in a row on a Chilled bug: it's Frozen for 1.5 s." {
     chill-to-freeze 3 time=1.5
 }
-upgrade "brittle" jelly="ice" name="Brittle" icon="🔨" text="Chilled bugs take 40% more damage." {
-    status-damage "chilled" more=0.4
+upgrade "brittle" jelly="ice" name="Brittle" icon="🔨" text="Chilled bugs, Elites and Bosses take 40% more damage." {
+    status-damage "chilled" more=0.4 elites=#true
 }
 upgrade "shatterShards" jelly="ice" name="Shatter Shards" icon="💎" text="A Chilled bug that dies bursts into 4 shards that hit and Chill nearby bugs." {
     on-kill-of status="chilled" {

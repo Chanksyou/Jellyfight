@@ -265,7 +265,7 @@ function sheetA1() {
            + Poison (stacks kept = min(${ELEMENT_BASE.poison.poisonStacks}, Fire rate x ${ELEMENT_BASE.poison.poisonTime} s), each Attack damage x 0.2 a second)
 clump of 5 adds, on the other 4: Lightning ${ELEMENT_BASE.lightning.chain} arcs at ${r(PW * ELEMENT.bolt, 2)} x Attack damage; Glitter a splash at ${r(PW * ELEMENT.glitter, 2)};
            Poison its burst's stacks; Wind its pierce (${ELEMENT_BASE.wind.pierce} + Pierce); Tentacle one sting per tentacle
-a Boss    = one bug (arcs and splashes need other bugs; Stun does nothing to a Boss)
+a Boss    = one bug (arcs and splashes need other bugs; a Stun holds a Boss only 0.1 s)
 Not counted: Normal's small pop splash, Burn spreading on a kill, Wind's push into furniture, Chill's slowing.`,
     tables: [{ head: ['Type', 'Attack', 'hit', 'Attack damage', 'Fire rate', 'Level 1, one bug', 'Clump / one', ...MOMENTS.slice(1).map((M) => M.name)], rows },
       { head: ['Type', 'Reach at level 1', 'Bugs whose attack reaches as far'], rows: reachRows }],
@@ -939,7 +939,7 @@ words with no number on paper (fire-trail, rebirth, decoy, reflect...) are liste
 }
 
 // ------------------------------------------------------------------ B7: status effects
-// How a status reaches a bug, from src/words.js and src/enemies.js: Elites and Bosses take no control status
+// How a status reaches a bug, from src/words.js and src/enemies.js: Elites and Bosses take only a 0.1 s mini-stun and a x0.9 slow
 const SLOWED = 0.55;   // a slowed or chilled bug moves at this speed (enemies.js slow)
 function sheetB7() {
   const flags = [], el = ELEMENT_BASE;
@@ -947,11 +947,11 @@ function sheetB7() {
     ['Burn', `${el.fire.burn}x for ${el.fire.burnTime} s a hit, ${el.fire.burnStacks} at once`, 'Elites and Bosses too (damage over time)', at('src/words.js', /^ {2}fire: \{ burn: /)],
     ['Poison', `${el.poison.poisonStacks} stacks, ${el.poison.poisonTime} s each`, 'Elites and Bosses too (damage over time)', at('src/words.js', /^ {2}poison: \{ poison: /)],
     ['Bleed', 'a bug\'s hit makes you bleed: dps x seconds', 'a hit on you, not on a bug', at('src/enemies.js', /e\.bleeds/)],
-    ['Stun', `${el.lightning.stun} s an arc; Treasures 0.5 to 1 s`, 'Elites and Bosses cannot be stunned (they say IMMUNE)', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
-    ['Pin', 'a stun that stops it dead', 'Elites and Bosses cannot be pinned', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
-    ['Chill', `${el.ice.chill} s a hit, a slow to x${SLOWED}`, 'not Elites or Bosses', at('src/enemies.js', /status === 'chill'/)],
-    ['Slow', `x${SLOWED} speed for its time`, 'not Elites or Bosses', at('src/enemies.js', /e\.slowT > 0 \? 0\.55/)],
-    ['Freeze', 'stopped for its time; a hit on it can shatter it', 'not Elites or Bosses', at('src/enemies.js', /status === 'freeze'/)],
+    ['Stun', `${el.lightning.stun} s an arc; Treasures 0.5 to 1 s`, 'Elites and Bosses take a 0.1 s mini-stun', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
+    ['Pin', 'a stun that stops it dead', 'Elites and Bosses take a 0.1 s mini-stun', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
+    ['Chill', `${el.ice.chill} s a hit, a slow to x${SLOWED}`, 'Elites and Bosses too, but only x0.9', at('src/enemies.js', /status === 'chill'/)],
+    ['Slow', `x${SLOWED} speed for its time`, 'Elites and Bosses too, but only x0.9', at('src/enemies.js', /e\.slowT > 0 \? 0\.55/)],
+    ['Freeze', 'stopped for its time; a hit on it can shatter it', 'not Elites or Bosses (never Frozen)', at('src/enemies.js', /status === 'freeze'/)],
   ];
   // control from one Treasure or jelly attack: seconds a bug is held a second, if it is kept topped up, as attack time removed
   const sources = [];
@@ -974,16 +974,16 @@ function sheetB7() {
   const pure = LIVE(CONTENT.treasures).filter((t) => sources.some((s) => s.from === t.id) && !hurts(t));
   for (const t of pure) {
     const node = nodeOf('treasures', t.id), T = turn(node);
-    flags.push({ text: `${t.name} only holds bugs still or slows them, and Elites and Bosses ignore that: in the ${r(100 * bossShare[0])}% to ${r(100 * Math.max(...bossShare))}% of an act spent in the Boss fight it does nothing, and Elites (${ACTS[0].stage.elites.length} an act) shrug it off too.`,
+    flags.push({ text: `${t.name} only holds bugs still or slows them, and Elites and Bosses barely feel that (a 0.1 s stun, a 10% slow): in the ${r(100 * bossShare[0])}% to ${r(100 * Math.max(...bossShare))}% of an act spent in the Boss fight it does next to nothing, and Elites (${ACTS[0].stage.elites.length} an act) shrug it off too.`,
       knob: { at: T ? `content/treasures.kdl:${T.line}` : kdl('content/treasures.kdl', 'treasure', t.id), change: 'give it a damage part (a ring or squeak dmg=…) that Elites and Bosses do take', does: 'it keeps some worth in a Boss fight' } });
   }
   return {
     id: 'B7', title: 'Status effects',
-    lede: 'What each status does, to what, and how much attack time each control source takes from a bug. Elites and Bosses take Burn, Poison and Bleed damage and no control.',
+    lede: 'What each status does, to what, and how much attack time each control source takes from a bug. Elites and Bosses take Burn, Poison and Bleed damage, a 0.1 s mini-stun and a x0.9 slow, and no other control.',
     numbers: [...status.map(([n, v, w, f]) => [n + ': ' + w, v, f]), ...sources.map((s) => [`${s.label}: ${s.kind} ${s.secs} s every ${r(s.every, 2)} s`, `${s.kind}`, s.from === 'ice' || s.from === 'lightning' ? at('src/words.js', new RegExp(`^ {2}${s.from}: \\{`)) : kdl('content/treasures.kdl', 'treasure', s.from)])],
     model: `a bug held still or frozen loses all its attack time; a slowed or chilled bug moves at x${SLOWED}, so loses ${r(100 * (1 - SLOWED))}% of it
 attack time removed a second on one bug = (seconds held per use / seconds between uses, at most 1) x that share, if the source is kept going on the one bug
-Elites and Bosses (src/enemies.js status_applied returns for them) take none of it: Stun, Pin, Chill, Slow, Freeze, Mark and trap all do nothing to them
+Elites and Bosses (src/enemies.js status_applied) take only a 0.1 s mini-stun from Stun and Pin and a x0.9 slow from Chill and Slow; Freeze, Mark and trap do nothing to them
 the Boss fight is ${ACTS.map((A, i) => `${r(100 * bossShare[i])}%`).join(', ')} of acts 1 to 4 on the run log's mean times`,
     tables: [{ head: ['Status', 'Strength and length', 'Elites and Bosses'], rows: status.map(([n, v, w]) => [n, v, w]) },
       { head: ['Source', 'Kind', 'Seconds held a use', 'Every (s)', 'Attack time removed a second, one bug'], rows: sources.map((s) => [s.label, s.kind, r(s.secs, 2), r(s.every, 2), pct(s.held).slice(1)]) }],

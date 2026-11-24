@@ -177,6 +177,7 @@ export class Encore {
   // up while it warms up as the fight opens, and while it reboots after shorting out (guardT)
   get stompTop() { return this.holder.position.y + 0.03; }   // its hit sphere's top, within a jump (stomp, Pogo Stick)
   get shielded() { return this.guardT > 0; }
+  get beatBound() { return true; }   // its set is the song's: a stun or chill never moves it
   get immune() { return !!(this.cut || this.falling) || this.shielded; }   // damage() does nothing now: attacks shouldn't pick it
 
   // where the fight is: 'warmup' behind its opening force field, then by its Health (bosses.kdl

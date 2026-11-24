@@ -631,7 +631,7 @@ export class Run {
     const tr = this.traversal.query(P.position);
     let push = null;
     if (this.phase === 'boss' && this.boss) {
-      push = this.boss.update(dt, P).push;
+      push = this.boss.update(dt * this.enemies.timeScale(this.boss), P).push;
       if (this.boss.dead && !this.bossDeadT) this.onBossDead();
     } else if (this.phase === 'explore') {
       push = this.elites.pull;

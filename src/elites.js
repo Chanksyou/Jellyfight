@@ -525,9 +525,9 @@ const KINDS = {
   croc: { name: 'The Alligator', scale: 1.28, build: crocModel },
   bull: { name: 'The Bull', scale: 0.6, build: bullModel },
   coffer: { name: 'The Latticework Coffer', build: cofferModel },
-  bowl: { name: 'The Singing Bowl', scale: 1.4, build: bowlModel },
-  pillow: { name: 'The Mushroom Pillow', scale: 0.6, build: pillowModel },   // smaller than the 44 cm prop: life size, its cap filled the game camera
-  headphones: { name: 'The Headphones', build: headphonesModel },
+  bowl: { beatBound: true, name: 'The Singing Bowl', scale: 1.4, build: bowlModel },
+  pillow: { beatBound: true, name: 'The Mushroom Pillow', scale: 0.6, build: pillowModel },   // smaller than the 44 cm prop: life size, its cap filled the game camera
+  headphones: { beatBound: true, name: 'The Headphones', build: headphonesModel },
 };
 const ONE = new THREE.Vector3(1, 1, 1);
 // the Wall Clock's attacks in 3D (m): the sweeping hand's volume and each chime's ring wall are this
@@ -553,7 +553,7 @@ export const ELITE_DOWN = Object.fromEntries(Object.entries(KINDS).filter(([, K]
 class Elite {
   constructor(owner, spec) {
     const K = KINDS[spec.kind], D = CONTENT.elites[spec.kind];
-    Object.assign(this, { owner, spec, kind: spec.kind, name: K.name, aggro: D.aggro, def: D });
+    Object.assign(this, { owner, spec, kind: spec.kind, name: K.name, beatBound: !!K.beatBound, aggro: D.aggro, def: D });
     this.maxHp = this.hp = Math.round(D.hp * (owner.hpScale || 1));   // later acts: tougher (stage eliteHp)
     this.dead = false;
     this.base = new THREE.Vector3(...spec.at);
@@ -1257,7 +1257,9 @@ export class Elites {
       if (d.kind === 'clock') this.clockHands(d, dt);
     }
 
+    const dtAll = dt;
     for (const e of this.list) {
+      const dt = dtAll * this.enemies.timeScale(e);   // a mini-stun or light chill (enemies.timeScale)
       if (e.dead) {
         if (!e.done) {
           e.done = true;

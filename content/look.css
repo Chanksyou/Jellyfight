@@ -800,6 +800,8 @@
   --bug-rim: 0.8;
   --elite-glow: 0.2;
   --elite-rim: 0.6;
+  --boss-stun: 0.1;            /* a stun or pin on an Elite or Boss holds it only this long (s) */
+  --boss-chill: 0.1;           /* a Chill or slow on an Elite or Boss slows it by at most this share */
   --boss-glow: 0.15;
   --boss-rim: 0.6;
   --rim-color: #ffcc9e;

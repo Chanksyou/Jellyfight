@@ -153,22 +153,44 @@ story('boss/vacuum-lanternfly-shield', {
   },
 });
 
-story('boss/bosses-cant-be-stunned', {
-  about: 'A stun or pin from lightning, the Static Balloon or pin-on-crit does nothing to the boss: it shows IMMUNE over it, at most once every 1.5 s.',
+story('boss/a-stun-is-a-mini-stun', {
+  about: 'A stun or pin from lightning, the Static Balloon or pin-on-crit holds a boss for only 0.1 s (--boss-stun), whatever its length: its own clock stops for that long, then runs again. No IMMUNE pop-up.',
   setup() { fresh({ bubbles: false, lash: false }); G().run.startBossIntro(); },
   play() {
     const { run, enemies } = G();
     step(180);
+    const B = run.boss;
     const shown = [];
     stub(enemies.fx, 'number', (pos, text) => { shown.push(text); });
-    const id = enemies.list.find((e) => e.proxy === run.boss).id, entry = enemies.byId.get(id);
-    bus.emit('status_applied', { targetId: id, status: 'stun', duration: 1 });
-    bus.emit('status_applied', { targetId: id, status: 'pin', duration: 1 });
-    const once = shown.filter((t) => t === 'IMMUNE').length;
-    step(100);
-    bus.emit('status_applied', { targetId: id, status: 'stun', duration: 1 });
-    const again = shown.filter((t) => t === 'IMMUNE').length;
-    return ok(once === 1 && again === 2 && !(entry.stunT > 0) && !(run.boss.stunT > 0), { once, again, stun: entry.stunT, bossStun: run.boss.stunT });
+    const entry = B.entry;
+    bus.emit('status_applied', { targetId: entry.id, status: 'stun', duration: 1 });
+    bus.emit('status_applied', { targetId: entry.id, status: 'pin', duration: 1 });
+    const held = entry.stunT <= 0.1 + 1e-9 && entry.stunT > 0.09 && enemies.timeScale(B) === 0;
+    const t0 = B.t;
+    step(30);   // a half second: 6 frames held, the rest running
+    const ran = B.t - t0, slack = ran > 0.35 && ran < 0.45;
+    return ok(held && slack && enemies.timeScale(B) === 1 && !shown.includes('IMMUNE'), { stun: entry.stunT, held, ran, shown });
+  },
+});
+
+story('boss/chill-slows-a-boss-by-a-tenth', {
+  about: 'A Chill on a boss makes it Chilled (so Brittle counts) and slows its clock by 10% (--boss-chill), not 45%. Freeze, trap and mark still pass it by.',
+  setup() { fresh({ bubbles: false, lash: false }); G().run.startBossIntro(); },
+  play() {
+    const { run, enemies } = G();
+    step(180);
+    const B = run.boss;
+    const entry = B.entry;
+    run.mods.statusDamage = [{ status: 'chilled', more: 0.4, by: 'all', elites: true, bugs: true, perStack: 0, thaw: false, blast: 0, blastDmg: 0 }];
+    const plain = enemies.statusMore(entry, 'bubble');
+    for (const status of ['freeze', 'trap', 'mark']) bus.emit('status_applied', { targetId: entry.id, status, duration: 2 });
+    const untouched = !(entry.freezeT > 0) && !(entry.trapT > 0) && !(entry.markT > 0);
+    bus.emit('status_applied', { targetId: entry.id, status: 'chill', duration: 2 });
+    const scale = enemies.timeScale(B), brittle = enemies.statusMore(entry, 'bubble');
+    const t0 = B.t;
+    step(60);
+    const ran = B.t - t0;
+    return ok(untouched && plain === 1 && Math.abs(scale - 0.9) < 1e-9 && Math.abs(brittle - 1.4) < 1e-9 && entry.chillT > 0 && ran > 0.88 && ran < 0.92, { untouched, plain, scale, brittle, chillT: entry.chillT, ran });
   },
 });
 
