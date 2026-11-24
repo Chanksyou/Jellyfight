@@ -754,7 +754,7 @@ story('treasures/pause-lists-what-you-carry', {
     const trophy = card('trophy'), lemon = card('lemon'), pin = card('bobbyPin'), clip = card('paperclipChain');
     overlay.hidden = true;
     return ok(shown && run.level === 1
-      && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Attack damage') && trophy.includes('Next +0.25 Attack damage in 7 bugs')
+      && trophy.includes('Little Trophy') && trophy.includes('+0.25 / +5 Attack damage') && !trophy.includes('So far:')
       && lemon.includes('×2') && lemon.includes('+2 Attack damage')
       && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce up to 3') && pin.includes('Next level: Attacks pierce up to 7')
       && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2'),
