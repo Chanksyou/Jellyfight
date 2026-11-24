@@ -1,0 +1,1 @@
+Exaggerated projectile recoil animations for all seven ranged bugs (Wood Ant, Giant House Spider, Ladybug, Dragonfly, Stag Beetle, Firefly, and Monarch Butterfly) with impulse kickback, recoil squash, front-leg wheelie/skid, and overlapping wing/appendage follow-through.

@@ -102,9 +102,10 @@ export class GaitRig {
       if (this.state[i].stepT >= 0) { if (this.legs[i].group === 0) air0 = true; else air1 = true; }
     }
 
+    const pitchLift = opts.pitchLift || 0;
     for (let i = 0; i < this.legs.length; i++) {
       const L = this.legs[i], st = this.state[i];
-      const raise = opts.raiseFn ? opts.raiseFn(L, i) : 0;
+      const raise = (opts.raiseFn ? opts.raiseFn(L, i) : 0) + (L.pair === 0 ? pitchLift : 0);
       const desiredX = pos.x + (L.restX * cosY + L.restZ * sinY) * r + vx * leadT;
       const desiredZ = pos.z + (-L.restX * sinY + L.restZ * cosY) * r + vz * leadT;
 

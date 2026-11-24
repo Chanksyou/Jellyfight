@@ -24,9 +24,9 @@ let K = null;
 export function knobs() {
   if (K) return K;
   const n = (name, d) => LOOK.num('bug-attack-' + name, d);
-  K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), beat: n('lock-beat', 0.067), style: {}, tier: {} };
+  K = { still: n('still', 0.1), fire: n('fire', 0.06), smear: n('smear', 1.3), smearAt: n('smear-at', 0.03), vary: n('vary', 0.1), puffs: n('puffs', 4), beat: n('lock-beat', 0.067), recoilKick: n('recoil-kick', 1.45), style: {}, tier: {} };
   for (const s of STYLES) K.style[s] = { hold: n(s + '-hold', 0.35), over: n(s + '-over', 0.08), strike: n(s + '-strike', 0.08), bounces: n(s + '-bounces', 2), damp: n(s + '-damp', 2), follow: n(s + '-follow', 0.06) };
-  for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), end: n(t + '-end', 1), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
+  for (const t of TIERS) K.tier[t] = { stretch: n(t + '-stretch', 1.2), over: n(t + '-over', 0.12), contact: n(t + '-contact', 0.05), end: n(t + '-end', 1), squash: n('recoil-squash-' + t, 0.2), puff: LOOK.list('bug-attack-' + t + '-puff', []), bounce: t !== 'heavy' };
   K.nip = { near: n('nip-near', 5), lean: n('nip-lean', 0.12), recoil: n('nip-recoil', 0.25) };   // a touch: how close it leans in (bug radii), how fast, how long it hops back
   K.nest = { squeeze: n('nest-squeeze', 0.06), bulge: n('nest-bulge', 0.03), lead: n('nest-lead', 0.3) };   // a Wasp nest before each wasp
   return K;
@@ -52,8 +52,24 @@ export function snap(k, over = 0.15) {
 }
 // recoil for light bugs: from 1 to 0 with `bounces` swings through zero, dying away as (1 - k)^damp
 export function settle(k, bounces = 2, damp = 2) { WORK.n++; k = clamp01(k); return (1 - k) ** damp * Math.cos(Math.PI * bounces * k); }
+// exaggerated projectile recoil: hands off from swing at k=0, snaps immediately into backward kickback by frame 2, settles cleanly to 0 by k=1
+export function recoilKick(k, over = 0.85) {
+  WORK.n++;
+  const u = clamp01(k), p = 1 - u;
+  return p * p * (Math.cos(Math.PI * 3 * u) - over * Math.sin(Math.PI * Math.min(1, u * 2.4)));
+}
+// instant-rise, slow-settle impulse bell (peaks at 1.0 around k = 0.08 right on release, hangs through mid-recoil, strictly 0 by k >= 0.92)
+export function recoilBell(k) {
+  WORK.n++;
+  const u = clamp01(k);
+  if (u >= 0.92) return 0;
+  const t = u / 0.92, p = 1 - t;
+  return 1.32 * Math.sin(Math.PI * Math.pow(t, 0.35)) * p * p;
+}
 // recoil for heavy bugs: no bounce, a slow ease from 1 to 0
 export function heavy(k) { WORK.n++; k = clamp01(k); return 1 - k * k * (3 - 2 * k); }
+// heavy cannon recoil: strictly monotonic from 1 to 0 (no forward bounce), holds weight briefly then drags home
+export function heavyKick(k) { WORK.n++; const u = clamp01(k), p = 1 - u; return p * p * (1 + 0.5 * u); }
 // squash and stretch that keeps volume: `a` times as long along z (its line), thinner across
 export function stretch(obj, a) { const w = 1 / Math.sqrt(a); obj.scale.set(w, w, a); }
 // mix two poses (arrays of angles) into `out`; with `lag`, each joint after the first runs that much k behind

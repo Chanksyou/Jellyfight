@@ -861,3 +861,22 @@ story('motion/bug-ik-and-lofted-shells', {
   },
 });
 
+story('motion/projectile-recoil-is-felt', {
+  about: 'Every projectile-firing bug (Ant, House spider, Ladybug, Dragonfly, Stag beetle, Firefly, Monarch butterfly) kicks visibly opposite its shot and compresses with recoil squash during recoil.',
+  setup() {},
+  play() {
+    const ids = ['ants', 'spider', 'ladybug', 'dragonfly-whirlwind', 'beetle', 'firefly', 'butterfly'];
+    const out = {};
+    for (const id of ids) {
+      const F = film(id), R = of(F, 'recoil');
+      const minZ = Math.min(...R.map((f) => f.z)), maxZ = Math.max(...R.map((f) => f.z));
+      const minScale = Math.min(...R.map((f) => Math.min(f.sy ?? 1, f.sz ?? 1)));
+      const kick = id === 'firefly' ? maxZ : -minZ;
+      out[id] = { kick: +kick.toFixed(3), minScale: +minScale.toFixed(3) };
+    }
+    const pass = Object.values(out).every((o) => o.kick >= 0.2 && o.minScale <= 0.92);
+    return ok(pass, out);
+  },
+});
+
+

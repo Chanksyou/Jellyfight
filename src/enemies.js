@@ -682,6 +682,20 @@ export class Enemies {
   // across `spread` degrees, with a flash at the muzzle. A pin is the ant's pushpin (its own model, at the ant's size), thrown from its jaws spinning on its long axis.
   // A web ball is lobbed: it arcs up and falls onto where you were (gravity `arc` m/s²), and
   // sticks: `slow` s of slowed swimming on a hit.
+  // Physical backward recoil impulse when a bug fires a projectile: smoothly slides `e.pos` opposite the shot
+  // over `dur` s (via this.move(), sweeping collision radius) and kicks up a dust puff under grounded shooters.
+  shotRecoil(e, vx, vz, mult = 1, dur = 0.55) {
+    if (!e || e.dead || e.proxy || e.T.rooted) return;
+    let dx = -vx, dz = -vz, len = Math.hypot(dx, dz);
+    if (len < 1e-4) { const a = e.root.rotation.y; dx = -Math.sin(a); dz = -Math.cos(a); len = 1; }
+    const dist = e.r * LOOK.num('bug-attack-recoil-slide', 3.4) * mult;
+    const speed = (3 * dist) / dur;   // integral of (1 - t/dur)^2 over [0, dur] is dur/3 -> exact distance = dist
+    e.recVx = (dx / len) * speed;
+    e.recVz = (dz / len) * speed;
+    e.recT = e.recMax = dur;
+    if (!e.T.fly) this.fx.puff(S.spot.copy(e.pos).setY(e.pos.y + 0.008), 0xd8c8b4, e.r * 1.1, 0.35);
+  }
+
   spit(e, at, { speed, life, dmg, count = 1, spread = 0, shot = 'web', height = 0, slow = 0, arc = 0 }) {
     const from = this.center(e).add(S.ray.set(0, height * e.r, 0));
     const aim = at.clone().sub(from).normalize();
@@ -701,6 +715,7 @@ export class Enemies {
       this.scene.add(m);
       this.shots.push(Object.assign(pooled.value.state ||= {}, { done: false, stuckT: 0, pooled, m, v, t: life, dmg, from: e.id, back: null, unit: e.type, spin: kind === 'web' ? 6 : 0, roll: kind === 'pin' ? 16 : 0, r: kind === 'pin' ? pinR : e.r, source: kind, c: color, trailT: 0, slow, arc, web: kind === 'web' }));
     }
+    this.shotRecoil(e, aim.x, aim.z, 1, 0.55);
     this.fx.impact(from.addScaledVector(aim, 0.03), color, 0.01, 4);   // the muzzle flash
     sfx.spit(kind);
   }
@@ -759,6 +774,7 @@ export class Enemies {
     batcher.track(M.group);
     this.scene.add(M.group);
     this.missiles.push(Object.assign(pooled.value.state ||= {}, { done: false, downT: 0, coughT: 0, pooled, m: M.group, flame: M.flame, unit: e.type, vel, t: 0, state: 'boost', fuel: p.fuel, speed: p.rocket, turn: p.turn, dmg: p.dmg, smokeT: 0, hissT: 0 }));
+    this.shotRecoil(e, fwd.x, fwd.z, 1.25, 0.65);
     const red = hostile('missile');
     this.fx.impact(at, 0xffd28a, 0.03, 12);
     this.fx.puff(at.clone().setY(at.y - 0.01), 0xd0d0d0, 0.05, 0.7);
@@ -984,6 +1000,7 @@ export class Enemies {
     this.whirlMuzzle(e, w.g.position);
     w.v.copy(at).sub(w.g.position).normalize().multiplyScalar(speed);
     w.g.scale.setScalar(w.size);
+    this.shotRecoil(e, w.v.x, w.v.z, 0.85, 0.35);
     this.fx.impact(w.g.position, hostile('dragonfly'), w.size * 0.5, 8);
     sfx.whirlFling();
   }
@@ -1050,6 +1067,7 @@ export class Enemies {
     const s = this.fx.shot(color, from, at, { speed, size, life });
     s.dmg = dmg; s.blast = blast; s.knock = knock; s.from = e.id; s.source = e.type;
     this.sparkShots.push(s);
+    this.shotRecoil(e, at.x - from.x, at.z - from.z, 1.05, 0.65);
     this.fx.glow.emit(from, ARC, size * 9, size * 3, 0.12, 1.4);
     this.fx.impact(from, color, size * 1.6, 10);
     sfx.sparkFire();
@@ -1306,6 +1324,7 @@ export class Enemies {
     const k = e.mesh.scale.x, a = e.root.rotation.y, floor = this.floorBelow(c.foot, c.foot.y);
     const from = S.spot.set(e.pos.x - Math.sin(a) * k * 1.5, e.pos.y + k * 0.3, e.pos.z - Math.cos(a) * k * 1.5);
     this.glowPools.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type);
+    this.shotRecoil(e, c.foot.x - from.x, c.foot.z - from.z, 1.15, 0.55);
   }
   // ---------------------------------------------------------------- the butterfly (prism)
   prismWind(e, dur) { sfx.prismWind(dur); }
@@ -1314,6 +1333,7 @@ export class Enemies {
     const k = e.mesh.scale.x, a = e.root.rotation.y, floor = this.floorBelow(c.foot, c.foot.y);
     const from = S.spot.set(e.pos.x + Math.sin(a) * k * 0.75, e.pos.y - k * 0.2, e.pos.z + Math.cos(a) * k * 0.75);
     this.prismBalls.throw(from, S.away.set(c.foot.x, floor, c.foot.z), p, e.id, e.type, this.beat ?? this.now * 2);
+    this.shotRecoil(e, c.foot.x - from.x, c.foot.z - from.z, 1.2, 0.6);
   }
   // a mosquito's bite (the bite word): it draws back with its whine climbing, darts in with a zip, and
   // its bite pricks where its mouth meets you (enemies.js landed then answers if the hit got through)
@@ -1595,6 +1615,13 @@ export class Enemies {
         e.mesh.scale.y *= 1 - k; e.mesh.scale.x *= 1 + k * 0.5; e.mesh.scale.z *= 1 + k * 0.5;
       }
       if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
+      if (e.recT > 0 && !e.dead && !e.proxy) {   // physical backward recoil slide from firing a projectile
+        const rk = e.recT / e.recMax;
+        e.recT = Math.max(0, e.recT - dt);
+        const step = rk * rk * dt;
+        this.move(e, S.ray.set(e.recVx * step, 0, e.recVz * step), 1, true);
+        e.root.position.copy(e.pos);
+      }
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
         e.animDt = (e.animDt || 0) + dt;
         e.unseen = unseen;
