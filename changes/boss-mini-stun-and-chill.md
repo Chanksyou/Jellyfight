@@ -1,0 +1,1 @@
+makes Elites and Bosses take a 0.1 second mini-stun from any stun or pin, and a Chill or slow of at most 10%, so Chilled bonuses (Brittle, Frostbite, Icicle Lance, Glacier Shell) now work on them; they still can't be Frozen, trapped or marked.

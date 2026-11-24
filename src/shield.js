@@ -39,7 +39,7 @@ export class Shield {
   get fill() {
     const run = this.run, S = run.mods.shield;
     let faster = S.faster;
-    for (const N of S.near) if (run.enemies.list.some((e) => e.chillT > 0 && !e.dead && !e.proxy && run.enemies.center(e, _c).distanceTo(run.player.position) - e.r <= N.radius)) faster += N.faster;
+    for (const N of S.near) if (run.enemies.list.some((e) => e.chillT > 0 && !e.dead && run.enemies.center(e, _c).distanceTo(run.player.position) - e.r <= N.radius)) faster += N.faster;
     return SHIELD_FILL / (1 + faster);
   }
 

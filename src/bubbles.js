@@ -651,14 +651,14 @@ export class Bubbles {
       this.looks.fireHit(c, b.r, b.vel, this.fx.showcase ? this.enemies.floorBelow(c, c.y - e.r) : undefined);
       sfx.fire(b.fireWeight);
     }
-    if (el.has('ice') && !e.proxy) {
+    if (el.has('ice')) {   // (an Elite or Boss takes only the light Chill: enemies.js; Permafrost never Freezes it)
       this.fx.puff(c, 0xdff8ff, e.r * 1.6, 0.4);
       const t = b.ep?.chill ?? 2;
       if (e.slowT > 0) dmg *= b.ep?.slowedMul ?? 1;      // Freezer Burn rewards follow-up hits
       const was = e.chillT > 0;
       bus.emit('status_applied', { targetId: e.id, status: 'chill', duration: t });
       if (b.ep?.frostbite) this.frostbitten.set(e, { dps: dmg * b.ep.frostbite, t: t + 0.01, tick: this.frostbitten.get(e)?.tick ?? 0.5 });   // Frostbite (a re-hit keeps the beat running)
-      const F = mods.chillFreeze;                         // Permafrost: hits in a row on a Chilled bug freeze it
+      const F = e.proxy ? null : mods.chillFreeze;                         // Permafrost: hits in a row on a Chilled bug freeze it
       if (F) {
         e.chillHits = (was ? e.chillHits || 0 : 0) + 1;
         if (e.chillHits >= F.hits) {

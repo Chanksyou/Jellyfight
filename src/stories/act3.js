@@ -312,7 +312,7 @@ act3('shark-prey-tightens-fin-pursuit',{
     for(let i=0;i<12;i++)B.update(1/60,P);const marked=B.position.distanceTo(at);return ok(marked>calm*1.2&&B.shielded&&!B.model.visible,{calm,marked});},
 });
 act3('shark-ignores-stun-but-not-freeze',{
-  about:'Bosses can\'t be stunned: a stun mid-leap leaves the shark\'s leap going and its frenzy on. A freeze still interrupts the attack, holds it still and ends its frenzy.',setup(){},
+  about:'A stun is only a 0.1 s mini-stun on a boss (its clock, not its attack): a stun mid-leap leaves the shark\'s leap going and its frenzy on. A freeze still interrupts the attack, holds it still and ends its frenzy.',setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly(),{enemies}=G(),id=enemies.list.find(e=>e.proxy===B).id;B.frenzy=3;B.begin('leap');bus.emit('status_applied',{targetId:id,status:'stun',duration:1});
     for(let i=0;i<30;i++)B.update(1/60,P);const free=B.stunT===0&&B.frenzy>0&&B.state==='leap'&&B.phase!=='rest';
     bus.emit('status_applied',{targetId:id,status:'freeze',duration:1});const at=B.position.clone();

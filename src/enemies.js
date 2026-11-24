@@ -303,10 +303,12 @@ export class Enemies {
       const e = this.byId.get(targetId);
       if (!e || e.dead || e.under) return;   // (a bug under the floor can't be stunned, frozen or marked)
       if (status === 'spot') { e.spotUntil = (this.now ?? 0) + duration; e.spotMore = more ?? 1; return; }   // in the spotlight (Disco Ball): Elites and the boss too
-      if (e.proxy) {   // Elites and bosses can't be stunned: say so, at most every 1.5 s each
-        if ((status === 'stun' || status === 'pin') && !(this.frame < e.immuneAt)) {
-          e.immuneAt = this.frame + 90;
-          this.fx.number(this.center(e), 'IMMUNE', LOOK.color('stunned', '#fff27a'), 12);
+      if (e.proxy) {   // Elites and bosses: a stun or pin is only a mini-stun, a chill or slow only a light one; freeze, trap and mark pass them by
+        if (e.proxy.beatBound) return;   // (the Encore and the song-beat Elites keep the song's time: nothing here moves it)
+        if (status === 'stun' || status === 'pin') e.stunT = Math.max(e.stunT || 0, LOOK.num('boss-stun', 0.1));
+        else if (status === 'slow' || status === 'chill') {
+          e.slowT = Math.max(e.slowT || 0, duration);
+          if (status === 'chill') e.chillT = Math.max(e.chillT || 0, duration);   // so Chilled bonuses (Brittle, Frostbite...) count
         }
         return;
       }
@@ -457,6 +459,7 @@ export class Enemies {
   // Something else (a boss) that tentacles can target. obj needs position, r and damage(amount, color, feedback?).
   addProxy(obj) {
     const e = { id: nextId(), proxy: obj, T: { fly: false }, get pos() { return obj.position; }, get r() { return obj.r; }, dead: false };
+    obj.entry = e;
     this.list.push(e);
     this.byId.set(e.id, e);
     return e;
@@ -1521,6 +1524,13 @@ export class Enemies {
     this.shots = this.shots.filter((s) => !s.done);
   }
 
+  // How fast an Elite's or boss's own clock runs this frame: 0 in a mini-stun, 1 - (--boss-chill) chilled, else 1.
+  // Its owner multiplies the dt it gives that proxy by this, so a Warning and the hit it ends stay in step.
+  timeScale(proxy) {
+    const e = proxy?.entry;
+    return !e || e.dead ? 1 : e.stunT > 0 ? 0 : e.slowT > 0 ? 1 - LOOK.num('boss-chill', 0.1) : 1;
+  }
+
   // player: { position, radius, height }
   update(dt, player, t, decoy = null) {
     this.frame++;
@@ -1538,7 +1548,11 @@ export class Enemies {
     beginFrame();
     const calm = juice.calm || !!this.fx?.reducedMotion?.matches;
     for (const e of list) {
-      if (e.dead || e.proxy) continue;
+      if (e.proxy) {   // an Elite's or boss's clocks (timeScale)
+        e.slowT = Math.max(0, (e.slowT || 0) - dt); e.chillT = Math.max(0, (e.chillT || 0) - dt); e.stunT = Math.max(0, (e.stunT || 0) - dt);
+        continue;
+      }
+      if (e.dead) continue;
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
       if (e.blockT > 0) e.blockT -= dt;
       e.slowT = Math.max(0, e.slowT - dt);
