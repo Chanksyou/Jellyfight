@@ -315,9 +315,11 @@ export class Lash {
       crit = true;
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
+    const lashDir = E.center(s.target, this._c).sub(a).setY(0);
+    if (lashDir.lengthSq() > 1e-8) lashDir.normalize();
     // a shove away from the jelly: the harder the sting, the further (a grabbed bug is reeled in instead)
-    if (!s.target.T.fly && !X?.grab) bus.emit('knockback', { targetId: id, dir: E.center(s.target, this._c).sub(a).setY(0).normalize(), force: knockFor(dmg * E.statusMore(s.target, 'tentacle')) });
-    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit, golden: s.golden } });
+    if (!s.target.T.fly && !X?.grab) bus.emit('knockback', { targetId: id, dir: lashDir, force: knockFor(dmg * E.statusMore(s.target, 'tentacle')) });
+    bus.emit('damage_taken', { targetId: id, amount: dmg, color, source: 'tentacle', feedback: { crit, golden: s.golden, dir: lashDir } });
     this.slash(s.target, a, b);
     this.snap(a, b);
     // the streak (glowLash) fades behind it; floor droplets stay a moment longer

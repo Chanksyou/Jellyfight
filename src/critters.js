@@ -124,7 +124,8 @@ export function buildRoach() {
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
   body.add(new THREE.Mesh(G.body, M.chitin));
-  body.add(new THREE.Mesh(G.tegmina, M.striae));
+  const tegmina = new THREE.Mesh(G.tegmina, M.striae);
+  body.add(tegmina);
 
   const legs = [];
   for (const s of [-1, 1]) ROACH_LEGS.forEach((P, i) => {
@@ -190,7 +191,11 @@ export function buildRoach() {
     stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0);
     face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
   };
-  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.hip) };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathParts: legs.map((L) => L.hip),
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [tegmina, ...antennae.map((a) => a.p)], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ ant
@@ -269,7 +274,8 @@ export function buildAnts() {
   const G = (GEO.ant ||= antGeometry()), M = mats();
   const outer = new THREE.Group(), body = new THREE.Group();
   outer.add(body);
-  body.add(new THREE.Mesh(G.body, M.chitin));
+  const frontBody = new THREE.Mesh(G.body, M.chitin);
+  body.add(frontBody);
   body.add(new THREE.Mesh(G.eyes, M.compoundEye));
   const gaster = new THREE.Group();
   gaster.position.set(0, 0.60, -0.36);
@@ -359,7 +365,11 @@ export function buildAnts() {
     for (const a of antennae) { a.sp.x = 0; a.sp.v = 0; }
     pin.rotation.z = 0;
   };   // (a pooled model killed mid-throw)
-  return { body: outer, face: new THREE.Group(), anim, deathParts: legs.map((L) => L.hip) };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathParts: legs.map((L) => L.hip),
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [gaster, ...antennae], props: [{ mesh: pin, mode: 'stick' }], split: [frontBody, gaster] },
+  };
 }
 
 // ------------------------------------------------------------------ mosquito
@@ -509,7 +519,7 @@ export function buildMosquito() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; fwd = 0; side = 0; legs.forEach(L => { L.sp.x = 0; L.sp.v = 0; L.sway = 0; }); stretch(body, 1); body.position.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-bite)
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { limbs: legs.map((L) => L.hip), detach: wings.map((W) => W.pivot), eyes: face } };
 }
 
 // ------------------------------------------------------------------ spotted lanternfly
@@ -708,7 +718,10 @@ export function buildLanternfly() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; k = 0; gait.reset(); stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [...hindW, ...foreW].map((w) => ({ mesh: w.pivot, mode: 'flutter' })), eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ giant house spider
@@ -903,7 +916,7 @@ export function buildSpider() {
     stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0);
     face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
   };   // (a pooled model killed mid-throw)
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { limbs: legs.map((L) => L.hip), detach: [rear], split: [front, rear], eyes: face } };
 }
 
 // ------------------------------------------------------------------ house fly
@@ -1021,7 +1034,7 @@ export function buildHouseFly() {
   add(body, G.thoraxGeo, M.flyThorax);
   add(body, G.abdomenGeo, M.flyAbdomen);
   add(body, G.body, M.flyLeg);
-  for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.flyEye, V(s * 0.19, 0.08, 0.7)); e.rotation.y = s * 0.35; }
+  const eyeMeshes = [-1, 1].map((s) => { const e = add(body, G.eyeGeo, M.flyEye, V(s * 0.19, 0.08, 0.7)); e.rotation.y = s * 0.35; return e; });
   const face = angryEyes({ y: 0.12, z: 0.88, size: 0.1, gap: 0.21 });   // glaring out of the big red eyes
   body.add(face);
   // the proboscis hangs from under the head; it swings up to aim and telescopes out to poke
@@ -1132,7 +1145,10 @@ export function buildHouseFly() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); straw.rotation.set(AIM, 0, 0); trunk.scale.set(1, 1, LEN); pad.position.z = LEN; for (const W of wings) W.flap.rotation.z = 0; for (const L of legs) { L.hip.rotation.x = 0; L.hip.rotation.z = 0; } face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [...eyeMeshes, straw, ...wings.map((w) => w.sweep)], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ millipede
@@ -1325,7 +1341,11 @@ export function buildMillipede() {
     if (K) eyes(face, K);
   };
   anim.reset = () => { t = 0; move = 0; W.length = 0; body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); body.scale.set(1, 1, 1); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim, ballRadius: spiral.radius, deathParts: [segs[3].shell] };   // radius units: how big the rolling ball is
+  return {
+    body: outer, face: new THREE.Group(), anim, ballRadius: spiral.radius,
+    deathParts: [segs[3].shell],
+    deathRig: { detach: [segs[3].shell, segs[7].shell, segs[11].shell, segs[15].shell, segs[19].shell, segs[23].shell], split: [segs[0].seg, segs[12].seg] },
+  };   // radius units: how big the rolling ball is
 }
 
 // ------------------------------------------------------------------ homing missile
@@ -1554,7 +1574,11 @@ export function buildLadybug() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; shell = 0; fly = 0; flap = 0; shellSp.x = shellSp.v = tilt.x = tilt.v = 0; stretch(body, 1); body.position.set(0, 0, 0); pod.rotation.x = 0; for (const L of legs) L.hip.position.z = L.z0; face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-sortie)
-  return { body: outer, face: new THREE.Group(), anim, deathParts: [elytra[1].pivot] };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathParts: [elytra[1].pivot],
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [elytra[1].pivot, elytra[0].pivot], props: [{ mesh: pod, mode: 'corkscrew' }], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ dragonfly
@@ -1727,7 +1751,7 @@ export function buildDragonfly() {
   outer.add(body);
   const add = (parent, geo, mat, at) => { const m = new THREE.Mesh(geo, mat); if (at) m.position.copy(at); parent.add(m); return m; };
   add(body, G.body, M.dfLeg);
-  add(body, G.thoraxGeo, M.dfThorax);
+  const thorax = add(body, G.thoraxGeo, M.dfThorax);
   for (const s of [-1, 1]) { const e = add(body, G.eyeGeo, M.dfEye, V(s * 0.13, 0.1, 0.86)); e.rotation.set(0, s * 0.4, -s * 0.25); }
   const face = angryEyes({ y: 0.14, z: 1.02, size: 0.09, gap: 0.14 });
   body.add(face);
@@ -1806,7 +1830,10 @@ export function buildDragonfly() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; dart = 0; glide = 0; stretch(body, 1); body.position.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathRig: { detach: [...wings.map((w) => ({ mesh: w.hinge, mode: 'flutter' })), tail], split: [thorax, tail], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ praying mantis
@@ -2030,7 +2057,7 @@ export function buildMantis({ dead = false } = {}) {
     if (A && face) eyes(face, A);
   };
   anim.reset = () => { t = 0; k = 0; walk = 1; P.fill(0); stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); for (const F of fore) { F.shoulder.rotation.y = F.s * 0.08; F.tibia.scale.z = 1; } face?.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { eyes: face } };
 }
 
 // ------------------------------------------------------------------ stag beetle
@@ -2206,7 +2233,11 @@ export function buildBeetle() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; k = 0; open = 0; pump = 0; gait.reset(); stretch(body, 1); shell.scale.y = 1; body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-shot)
-  return { body: outer, face: new THREE.Group(), anim, deathParts: [shell] };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathParts: [shell],
+    deathRig: { limbs: legs.map((L) => L.hip), detach: [shell, ...jaws.map((m) => m.hinge)], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ cicada
@@ -2523,7 +2554,11 @@ export function buildCicada() {
     { const y = squash ? 1 - squash : len, w = 1 / Math.sqrt(y); body.scale.set(w, y, w); }   // stretched up, squashed down
   };
   anim.reset = () => { t = 0; k = 0; mt = 0; body.visible = true; mound.visible = chimney.visible = shell.visible = crater.visible = false; body.scale.set(1, 1, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); tymbals.scale.set(1, 1, 1); };
-  return { body: outer, face: new THREE.Group(), anim, deathParts: wings.map((W) => W.hinge) };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathParts: wings.map((W) => W.hinge),
+    deathRig: { limbs: legs.map((L) => L.hip), detach: wings.map((W) => ({ mesh: W.hinge, mode: 'flutter' })), props: [{ mesh: shell, mode: 'husk' }] },
+  };
 }
 
 // ------------------------------------------------------------------ horsehair worm
@@ -2614,7 +2649,7 @@ export function buildWorm() {
     (e.emergeAt ||= new THREE.Vector3()).copy(base).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
   anim.reset = () => { t = 0; grow = 0; };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { detach: [beads[8], beads[18], beads[28], beads[38], beads[48], beads[58]] } };
 }
 
 // ------------------------------------------------------------------ wasp
@@ -2836,7 +2871,7 @@ export function buildWasp() {
     for (const L of legs) L.hip.rotation.x = 0.4 + L.pair * 0.15;
     face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; });
   };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { detach: wings.map((w) => ({ mesh: w.hinge, mode: 'flutter' })), props: [{ mesh: tail, mode: 'stick' }], eyes: face } };
 }
 
 // ------------------------------------------------------------------ butterfly
@@ -3017,7 +3052,7 @@ export function buildButterfly() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); ball.scale.setScalar(0.001); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { detach: wings.map((w) => ({ mesh: w.hinge, mode: 'flutter' })), props: [{ mesh: ball, mode: 'pop' }], eyes: face } };
 }
 
 // ------------------------------------------------------------------ firefly
@@ -3177,7 +3212,10 @@ export function buildFirefly() {
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; wind = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
-  return { body: outer, face: new THREE.Group(), anim };
+  return {
+    body: outer, face: new THREE.Group(), anim,
+    deathRig: { detach: [...covers.map((c) => c.pivot), ...wings.map((w) => ({ mesh: w.pivot, mode: 'flutter' }))], props: [{ mesh: lamp, mode: 'flicker' }], eyes: face },
+  };
 }
 
 // ------------------------------------------------------------------ wasp nest
@@ -3260,5 +3298,5 @@ export function buildNest() {
     (e.emergeAt ||= new THREE.Vector3()).copy(door).applyAxisAngle(UPV, e.root.rotation.y).multiplyScalar(e.r).add(e.pos);
   };
   anim.reset = () => { t = 0; shake = 0; body.scale.set(1, 1, 1); body.position.y = 0; };
-  return { body: outer, face: new THREE.Group(), anim };
+  return { body: outer, face: new THREE.Group(), anim, deathRig: { crush: true } };
 }

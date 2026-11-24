@@ -26,11 +26,14 @@ const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead 
 
 export const ENEMY_WORDS = {
   'death-motion': {
-    doc: 'On death, leaves a harmless body that `style` animates: crumple, flutter or shell. Rewards and removal from combat are immediate.',
+    doc: 'On death, leaves a harmless body that `style` animates (crumple, flutter, shell, belly-up, pop-shell, eye-pop, bead-scatter, curl-pop, lantern-pop, skin-shed, paper-crush, unravel) with optional `weight` (light, mid, heavy). Rewards and removal from combat are immediate.',
     args: ['style'],
-    make: ([style]) => {
-      if (!['crumple', 'flutter', 'shell'].includes(style)) throw new Error('death-motion style must be crumple, flutter or shell');
-      return { init(e) { e.deathMotion = style; } };
+    props: { weight: 'mid' },
+    make: ([style], p) => {
+      const styles = ['crumple', 'flutter', 'shell', 'belly-up', 'pop-shell', 'eye-pop', 'bead-scatter', 'curl-pop', 'lantern-pop', 'skin-shed', 'paper-crush', 'unravel'];
+      if (!styles.includes(style)) throw new Error(`death-motion style must be one of ${styles.join(', ')}`);
+      if (!['light', 'mid', 'heavy'].includes(p.weight)) throw new Error('death-motion weight must be light, mid or heavy');
+      return { init(e) { e.deathMotion = style; e.deathWeight = p.weight; } };
     },
   },
   'attack-motion': {

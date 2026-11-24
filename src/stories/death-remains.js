@@ -132,3 +132,68 @@ phone('enemy-death-personalities', {
     return ok(fx.deaths.list.length === 4 && run.kills === kills + 4, { bodies: fx.deaths.list.length, kills: run.kills - kills, tier: gfx.quality });
   },
 });
+
+story('deaths/multi-part-and-part-cap', {
+  about: 'Exaggerated deaths detach multiple real bug parts, respect the global part cap, compile zero new shaders, and release every part back to ModelPool on expiry.',
+  setup,
+  play() {
+    const { fx, GAME, APT, batcher } = G();
+    GAME.render(); const programs = APT.renderer.info.programs.length;
+    for (let i = 0; i < 16; i++) kill(['ladybug', 'beetle', 'millipede', 'ants', 'housefly', 'firefly'][i % 6], 0.24 + (i % 4) * 0.07);
+    const activeParts = fx.deaths.detached.length;
+    const multiPart = activeParts > fx.deaths.list.length;
+    const withinCap = activeParts <= fx.deaths.maxParts;
+    const parts = fx.deaths.detached.map((p) => p.mesh);
+    batcher.sync(); GAME.render();
+    const shaders = APT.renderer.info.programs.length - programs;
+    step(90); batcher.sync();
+    const cleaned = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0 && parts.every((m) => !m.parent);
+    return ok(multiPart && withinCap && shaders === 0 && cleaned, { activeParts, maxParts: fx.deaths.maxParts, shaders, cleaned });
+  },
+});
+
+story('deaths/cause-of-death-treatments', {
+  about: 'Lightning zap, stomp pancake, tentacle whip, wind wall-slam, and poison DoT kills each play their own distinct death treatment and clean up.',
+  setup,
+  play() {
+    const { fx, THREE } = G();
+    const hitKill = (type, extra) => {
+      const e = spawn(type, near(0.28, 0, 0), { still: true }); step(1);
+      bus.emit('damage_taken', { targetId: e.id, amount: 10000, ...extra });
+      return e;
+    };
+    hitKill('roach', { source: 'lightning', feedback: { element: 'lightning' } });
+    const zap = fx.deaths.list.at(-1)?.cause === 'zap';
+    hitKill('ants', { source: 'stomp' });
+    const pancake = fx.deaths.list.at(-1)?.cause === 'pancake';
+    hitKill('beetle', { source: 'tentacle', feedback: { dir: new THREE.Vector3(1, 0, 0) } });
+    const whip = fx.deaths.list.at(-1)?.cause === 'whip';
+    hitKill('spider', { source: 'wind-collision', feedback: { element: 'wind', slam: true, dir: new THREE.Vector3(0, 0, 1) } });
+    const wallSplat = fx.deaths.list.at(-1)?.cause === 'wall-splat';
+    const meltsBefore = fx.acid.melts.length;
+    hitKill('roach', { source: 'poison' });
+    const poisonMelts = fx.acid.melts.length > meltsBefore;
+    step(90);
+    const cleaned = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0 && fx.acid.melts.length === 0;
+    return ok(zap && pancake && whip && wallSplat && poisonMelts && cleaned, { zap, pancake, whip, wallSplat, poisonMelts, cleaned });
+  },
+});
+
+story('deaths/low-tier-and-calm-budgets', {
+  about: 'Low graphics enforces tighter body and detached-part caps; Reduce Effects suppresses death bodies and detached parts completely.',
+  setup,
+  play() {
+    const { fx } = G(), prevLow = fx.low, calm = juice.calm;
+    try {
+      fx.low = () => true;
+      for (let i = 0; i < 16; i++) kill(['ladybug', 'beetle', 'millipede', 'ants'][i % 4], 0.24 + (i % 4) * 0.06);
+      const lowBodies = fx.deaths.list.length <= fx.deaths.capLow;
+      const lowParts = fx.deaths.detached.length <= fx.deaths.partCapLow;
+      fx.deaths.clear();
+      juice.calm = true;
+      kill('ladybug');
+      const calmQuiet = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0;
+      return ok(lowBodies && lowParts && calmQuiet, { bodies: fx.deaths.list.length, parts: fx.deaths.detached.length, lowBodies, lowParts, calmQuiet });
+    } finally { fx.low = prevLow; juice.calm = calm; }
+  },
+});
