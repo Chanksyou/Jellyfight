@@ -40,8 +40,11 @@ export const STAGE2 = {
 
   // Things the player shouldn't bump into or can pass through
   // The powered apartment (powered.js): the candle's and the oil burner's curls, and a little steam over the tub's water
+  status: [
+    { at: [0.43, 0.933, 5.2], colour: 'flame', pattern: 'flicker', period: 4, size: 1.6 },   // the candle's flame, glowing
+  ],
   smoke: [
-    { at: [0.43, 0.935, 5.2], h: 0.1, kind: 'thread' },
+    { at: [0.43, 0.945, 5.2], h: 0.1, kind: 'thread' },          // the open candle's flame (set-dressing.js)
     { at: [1.05, 1.0, 5.18], h: 0.16, kind: 'thread' },
     { at: [0.8, 0.5, 7.25], h: 0.22, kind: 'steam' },
   ],

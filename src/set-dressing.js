@@ -171,9 +171,9 @@ function buildCurtain(box) {
   return g;
 }
 
-// The act 1 candle, opened: the baked one was a closed black tin, so the smoke curling off its wick made no sense.
+// The candles (act 1's and act 2's toilet-tank one), opened: the baked ones were closed black tins, so the smoke curling off a wick made no sense.
 // An open black glass tumbler with white wax inside, a wick and a small flame (the flame's glow is a status light,
-// powered.js, and its smoke a thread: stage1.js). The baked label and floor shadow stay; only the closed body goes.
+// powered.js, and its smoke a thread: stage1.js). The baked label and floor shadow (the flat children) stay; the closed body and any lid go.
 function buildCandle(box, { baked }) {
   const body = baked.children[0];
   const b = new THREE.Box3().setFromObject(body, true), c = b.getCenter(new THREE.Vector3());
@@ -194,7 +194,10 @@ function buildCandle(box, { baked }) {
   g.add(tumbler, waxMesh, fl);
   g.position.set(c.x, b.min.y, c.z);
   // the label and the floor shadow keep their world places
-  for (const old of baked.children.slice(1)) {
+  for (const old of baked.children) {
+    if (old === body || !old.isMesh) continue;
+    old.geometry.computeBoundingBox();
+    if (old.geometry.boundingBox.getSize(new THREE.Vector3()).z > 1e-4) continue;   // a solid (the lid) goes; a flat plane (label, shadow) stays
     const k = old.clone(false);
     old.updateWorldMatrix(true, false);
     old.matrixWorld.decompose(k.position, k.quaternion, k.scale);
@@ -206,6 +209,7 @@ function buildCandle(box, { baked }) {
 
 const BUILDERS = [
   ['Candle', buildCandle],
+  ['Black candle', buildCandle],
   ['TV', buildTV],
   ['Soundbar', buildSoundbar],
   ['Shower curtain', buildCurtain],

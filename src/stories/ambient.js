@@ -399,11 +399,11 @@ story('ambient/act4-has-the-same-lights-and-smoke', {
   play() { return ok(lightCount() === 4 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
 });
 
-story('ambient/act2-has-smoke-only', {
-  about: "Act 2's bathroom has the candle's and the oil burner's curls and steam over the tub, and no status lights.",
+story('ambient/act2-has-smoke-and-a-flame', {
+  about: "Act 2's bathroom has the candle's and the oil burner's curls and steam over the tub, and one light: the candle's flame.",
   act: 2,
   setup() { fresh({ elites: false }); },
-  play() { return ok(!G().powered?.lights && !!G().powered?.smoke, { lights: !!G().powered?.lights, smoke: !!G().powered?.smoke }); },
+  play() { return ok(lightCount() === 1 && !!G().powered?.smoke, { lights: lightCount(), smoke: !!G().powered?.smoke }); },
 });
 
 story('ambient/act3-has-a-light-and-a-plume', {
@@ -426,5 +426,20 @@ story('ambient/candle-is-open-with-a-flame', {
     const light = run.stage.status.some((s) => s.colour === 'flame');
     return ok(!!flame && wax >= 2 && smoke && smoke.at[1] >= top && smoke.at[1] - top < 0.03 && light && !!powered?.smoke,
       { flame: !!flame, wax, top, smoke: smoke?.at, light });
+  },
+});
+
+story('ambient/toilet-candle-is-open-with-a-flame', {
+  about: "Act 2's candle on the toilet tank is an open tumbler with wax and a flame, its lid gone, and its smoke starts at the flame.",
+  act: 2,
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { APT, run } = G();
+    const candle = APT.scene.children.find((o) => o.name === 'Black_candle' && o.children.some((c) => c.material?.isMeshBasicMaterial));
+    const flame = candle?.children.find((c) => c.material?.isMeshBasicMaterial);
+    const top = flame && new THREE.Box3().setFromObject(flame).max.y;
+    const smoke = run.stage.smoke.find((s) => Math.abs(s.at[0] - 0.43) < 0.01);
+    const hid = (APT.root.getObjectByName('Apartment') || APT.root).children.filter((o) => o.name === 'Black_candle' && o.userData.dressed && !o.visible).length;
+    return ok(!!flame && hid === 1 && smoke && smoke.at[1] >= top && smoke.at[1] - top < 0.03, { flame: !!flame, hid, top, smoke: smoke?.at });
   },
 });
