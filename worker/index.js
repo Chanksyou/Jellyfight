@@ -435,12 +435,18 @@ const scoreFacts = (f) => !f || typeof f !== 'object' ? null : {
   bugsOut: int(f.bugsOut, 0, 100000), bugsCleared: int(f.bugsCleared, 0, 100000), damageTaken: num(f.damageTaken, 0, 1e6, 1),
   bossSeconds: f.bossSeconds == null ? null : num(f.bossSeconds, 0, 100000, 1), nightShare: num(f.nightShare, 0, 1, 2), bossShare: num(f.bossShare, 0, 1, 2),
 };
+// Balance facts: [kind, seconds, [offered ids], picked id], [seconds, [stat-rarity shown], stat-rarity picked]
+const offers = (list) => (Array.isArray(list) ? list : []).slice(0, 48).filter((o) => Array.isArray(o) && Array.isArray(o[2]))
+  .map((o) => [pick(o[0], ['chest', 'legendary', 'upgrade']) || 'chest', num(o[1], 0, 100000, 1) ?? 0, o[2].slice(0, 6).map(word).filter(Boolean), word(o[3])]);
+const cardPicks = (list) => (Array.isArray(list) ? list : []).slice(0, 48).filter((c) => Array.isArray(c) && Array.isArray(c[1]))
+  .map((c) => [num(c[0], 0, 100000, 1) ?? 0, c[1].slice(0, 6).map(word).filter(Boolean), word(c[2])]);
 const details = (d, outcome) => !d || typeof d !== 'object' || Array.isArray(d) ? null : JSON.stringify({
   ...omitNull({ perf: perf(d.perf), settings: settings(d.settings) }),
   ...omitNull({ season: d.season == null ? null : int(d.season, 0, 1e6) }),   // src/score.js SEASON; an older client sends none
   jelly: jellyOf(d.jelly), upgrades: wordList(d.upgrades), elitesBeaten: int(d.elitesBeaten, 0, 1000), elites: events(d.elites, 32),
   treasuresObtained: int(d.treasuresObtained, 0, 10000), pickups: events(d.pickups, 128, true),
   ...omitNull({ score: scoreFacts(d.score) }),
+  offers: offers(d.offers), cards: cardPicks(d.cards), dealt: JSON.parse(amounts(d.dealt)), ...omitNull({ bossDoor: d.bossDoor ? JSON.parse(amounts(d.bossDoor)) : null }),
   killedBy: outcome === 'died' && d.killedBy && typeof d.killedBy === 'object'
     ? { unit: word(d.killedBy.unit) || 'unknown', source: word(d.killedBy.source) || 'other' } : null,
 });

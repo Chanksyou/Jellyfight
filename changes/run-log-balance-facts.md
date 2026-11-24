@@ -1,0 +1,1 @@
+adds four balance facts to each act's private run log: what every Treasure and Attack upgrade pick offered, each level-up's cards, the damage dealt by source, and the jelly's stats as the Boss fight begins. Nothing changes in play.

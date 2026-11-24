@@ -123,6 +123,34 @@ story('engine/run-details', {
   },
 });
 
+story('engine/run-balance-facts', {
+  about: 'Each act\'s run log row also carries what every Treasure, Legendary and Attack upgrade pick offered and took, each level-up\'s cards shown and chosen, the damage dealt by source, and the jelly\'s stats as the Boss fight begins.',
+  setup: () => fresh({ hurt: true, levels: true }),
+  play() {
+    const { run } = G(), rows = [];
+    stub(run, 'telemetryDisabled', false);
+    stub(run, 'board', { runLog: {}, saveRun: row => rows.push(row) });
+    step(1 / 60);
+    stub(run.ui, 'choose', (_title, _sub, choices, pick) => pick(choices[1] || choices[0]));
+    stub(run.ui, 'treasure', () => {});
+    const two = TREASURES.filter(t => t.rarity === 'common').slice(0, 2);
+    run.t = 12.3; run.offer('', '', two, () => {}, { kind: 'treasure' });
+    const cards = [{ stat: 'fireRate', amount: 18, rarity: { id: 'rare' } }, { stat: 'health', amount: 3, rarity: { id: 'common' } }];
+    let take; stub(run, 'onResume', () => {}); stub(run.ui, 'levelUp', (_l, _c, _s, _r, t) => { take = t; });
+    run.owedCards = [cards]; run.pendingLevels = 1; run.t = 20; run.levelUp(); take(cards[0]);
+    bus.emit('damage_taken', { targetId: 99999, amount: 4, source: 'bubble' });
+    bus.emit('damage_taken', { targetId: 99999, amount: 2.5, source: 'bubble' });
+    run.bossDoor = { level: run.level, fireRate: 1.76 };
+    run.recordRun('in-progress');
+    const d = rows.at(-1).details;
+    const offered = d.offers.length === 1 && d.offers[0][0] === 'chest' && d.offers[0][2].join() === two.map(t => t.id).join() && d.offers[0][3] === two[1].id;
+    const picked = d.cards.length === 1 && d.cards[0][1].join() === 'fireRate-rare,health-common' && d.cards[0][2] === 'fireRate-rare';
+    const dealt = d.dealt.bubble === 6.5;
+    const door = d.bossDoor.fireRate === 1.76 && d.bossDoor.level === run.level;
+    return ok(offered && picked && dealt && door, { offered, picked, dealt, door });
+  },
+});
+
 story('engine/run-death-attribution', {
   about: 'Fatal attribution follows a projectile after its owner is gone, labels the act boss, and only records a death after death-save or rebirth has failed.',
   setup: () => fresh({ hurt: true }),
