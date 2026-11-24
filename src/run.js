@@ -1326,9 +1326,7 @@ export class Run {
     if (!B) return this.hud.toast(text, ms);
     const n = this.growCount.goodieBag = (this.growCount.goodieBag || 0) + 1;
     if (n % B.every) return this.hud.toast(`${text} Goodie Bag: next one.`, ms);
-    let p = this.openSpotNear(_drop.copy(first).add(_near.set(0.12, 0, 0)));
-    if (!p || p.distanceTo(first) < 0.08) p = first.clone().add(_near.set(0.12, 0, 0));   // never on top of the first
-    this.placeTreasure(p, Infinity, Math.random() * Math.PI * 2);
+    this.placeTreasure(this.spotBeside(first), Infinity, Math.random() * Math.PI * 2);
     this.hud.toast('Goodie Bag! It left two treasures.', ms);
   }
 
@@ -1640,6 +1638,19 @@ export class Run {
       }
     }
     return other;
+  }
+
+  // An open spot 10-30 cm from `first` on the same surface (openSpot: clear of walls and furniture, so
+  // it can be reached). None: the same spot, so a second chest is never put out of reach
+  spotBeside(first) {
+    for (const d of [0.1, 0.14, 0.18, 0.24, 0.3]) {
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2 + d * 10, x = first.x + Math.cos(a) * d, z = first.z + Math.sin(a) * d;
+        const r = this.openSpot([x, first.y, z]);
+        if (r.ok && Math.abs(r.y - first.y) < 0.05) return new THREE.Vector3(x, r.y, z);
+      }
+    }
+    return first.clone();
   }
 
   placeTreasure(at, stay, facing) {

@@ -368,6 +368,7 @@
   --vacuum-shudder: 0.0015;
   --vacuum-dust: #8a8278;        /* dust and grit it leaves on the floor (fx.splat, fx.burst): harmless, fading */
   --vacuum-scuff-size: 0.05;
+  --chest-grab: 0.085;            /* m: how close the jelly's feet must come to a golden chest to open it (the chest itself is ~3 cm wide) */
   --xp-size: 0.007;               /* an XP sphere's radius (m); a big one is 1.9x this */
   --xp-gem-scale: 1.25;           /* the crystal's size against the old sphere radius, so it reads as big as the bead */
   --xp-gem-height: 1.35;          /* how much taller than wide the crystal is */

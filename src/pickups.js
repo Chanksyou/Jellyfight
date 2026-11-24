@@ -223,8 +223,8 @@ export class RoomTreasure {
     }
     // touched: close to it, or right over it (standing on something beside it, up to 12 cm up).
     // Touching starts the open sequence; the pick is offered when the lid has popped (stepOpening)
-    const flat = Math.hypot(feet.x - p.x, feet.z - p.z), up = feet.y - p.y;
-    if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < 0.045 || p.distanceTo(feet) < 0.04 || (flat < 0.04 && up > -0.02 && up < 0.12)) {
+    const flat = Math.hypot(feet.x - p.x, feet.z - p.z), up = feet.y - p.y, G = LOOK.num('chest-grab', 0.085);   // a wide hitbox: far wider than the chest, so a swim past or a rush under Warnings still takes it
+    if (_v.copy(p).setY(p.y + 0.015).distanceTo(feet) < G || p.distanceTo(feet) < G * 0.9 || (flat < G * 0.9 && up > -0.02 && up < 0.12)) {
       this.opening = 0;
       this.snapped = false;
       sfx.chestCreak(this.timed ? 0 : 1);

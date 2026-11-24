@@ -1,7 +1,7 @@
 // Stories: golden chests in the room. Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import * as THREE from 'three';
-import { G, V, fresh, near, ok, r3, step, story, stub, tp } from './kit.js';
+import { G, V, fresh, give, near, ok, r3, step, story, stub, tp } from './kit.js';
 
 // --- treasures in the room: golden chests, on a schedule (each somewhere else, for a limited
 // time) and where elites fall (for good)
@@ -128,5 +128,47 @@ story('treasures/chest-opens-with-a-snap', {
     const elite = open(Infinity);
     return ok(room.done && elite.done && room.frames >= 30 && room.frames <= 46 && elite.frames >= 68 && elite.frames <= 88
       && room.lid < -1.2 && elite.lid < -1.2 && elite.strained && room.seenOpenFor >= 15 && elite.seenOpenFor >= 15, { room, elite });
+  },
+});
+
+// Goodie Bag's second chest: every Elite chest, wherever it falls (spots beside walls too), gets a
+// partner on open floor it can be reached from, never in a wall
+for (const act of [1, 2, 3, 4]) story(`treasures/goodie-bag-second-chest-reachable-act-${act}`, {
+  about: "With the Goodie Bag, the second chest an Elite leaves is always on an open spot (nothing crowding it, so the jelly can reach it), including beside walls.",
+  act,
+  setup() { fresh({ treasures: false, elites: false }); },
+  play() {
+    const { run } = G();
+    stub(run.hud, 'toast', () => {});
+    give('goodieBag');
+    run.growCount.goodieBag = 1;   // the next Elite is the second: it leaves two
+    let tried = 0, bad = [];
+    for (const sp of run.spots || []) for (let dx = -0.5; dx <= 0.5; dx += 0.1) for (let dz = -0.5; dz <= 0.5; dz += 0.1) {
+      const x = sp.at[0] + dx, z = sp.at[2] + dz;
+      if (!run.openSpot([x, sp.y, z]).ok) continue;
+      for (const t of run.roomTreasures) t.hide();
+      run.growCount.goodieBag = 1;
+      run.eliteTreasure(V(x, sp.y, z), '', 0);
+      tried++;
+      for (const t of run.roomTreasures) if (t.active && !run.openSpot([t.pos.x, t.pos.y, t.pos.z]).ok) bad.push(r3(t.pos));
+    }
+    return ok(tried > 20 && !bad.length, { tried, bad: bad.slice(0, 4) });
+  },
+});
+
+story('treasures/chest-has-a-wide-hitbox', {
+  about: 'A chest opens when the jelly is within about 8 cm of it, well clear of the chest itself, and not from 12 cm.',
+  setup() { fresh({ elites: false, treasures: true }); tp(3.2, 0.05, 3.0, 0); G().run.t = 14.9; },
+  play() {
+    const { run } = G();
+    step(30, () => waiting(true).length);
+    const t = waiting(true)[0], p = t.pos.clone();
+    stub(run.ui, 'choose', () => {});
+    tp(p.x + 0.12, p.y + 0.005, p.z);
+    step(5);
+    const farOk = t.opening === null;
+    tp(p.x + 0.07, p.y + 0.005, p.z);
+    step(5);
+    return ok(farOk && t.opening !== null, { farOk, opening: t.opening });
   },
 });
