@@ -112,15 +112,16 @@ story('engine/story-randomness-is-scoped', {
 });
 
 story('engine/loading-screen-says-each-step', {
-  about: 'The loading screen stays up until Play works, steps through what it is doing with its bar only moving forward and the graphics step reaching the end, and its jelly swims on its own (a compositor animation).',
+  about: 'The loading screen stays up until Play works, steps through what it is doing with its bar only moving forward and the graphics step reaching the end, and its jelly swims on its own (a compositor animation). Once it has faded it leaves the page, so its loops stop and nothing keeps redrawing over the game.',
   setup() {},
   play() {
     const steps = window.JF_LOAD.steps, el = document.getElementById('loading'), fs = steps.map(([, f]) => f);
     const forward = fs.every((f, i) => !i || f >= fs[i - 1]);
     const graphics = steps.find(([t]) => t === 'Preparing the graphics…')?.[1] ?? 0;
-    const swims = document.querySelector('#loading .jelly').getAnimations().length > 0;
+    const swims = getComputedStyle(document.querySelector('#loading .jelly')).animationName === 'jf-swim';
+    const left = el.hidden && getComputedStyle(el).display === 'none' && document.getAnimations().every((a) => !el.contains(a.effect?.target));
     const play = document.querySelector('#g-over .play');
-    return ok(el.classList.contains('gone') && !play.disabled && forward && graphics > 0.94 && steps.length >= 4 && swims, { steps, swims });
+    return ok(el.classList.contains('gone') && !play.disabled && forward && graphics > 0.94 && steps.length >= 4 && swims && left, { steps, swims, left });
   },
 });
 
