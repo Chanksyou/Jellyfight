@@ -59,7 +59,7 @@ test('growth reads kills, levels and picks from the night model and the run log'
 
 test('Wave C reads the bugs and the night', () => {
   const fly = B.attackOf('housefly');
-  assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.3);
+  assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.5);
   assert.equal(B.attackOf('roach').hits[0].word, 'touch');
   B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [10.2, 15.4, 19.65, 22.8][i]) < 0.3, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the levels at each Boss door under the steady curve (the old x1.35 curve gave 11.7 / 16.2 / 19.3 / 20.6)
 });

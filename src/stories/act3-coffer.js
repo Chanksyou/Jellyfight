@@ -65,7 +65,7 @@ act3('coffer-accordion', {
       if (e.strike != null && e.strike !== k) { k = e.strike; starts.push(frames); }
       const u = e.strike != null && e.strike >= 0 ? (e.stateT - e.strike * A.unfold) / A.unfold : 0;
       if (k === 1 && moved < 1 && u > A.track + 0.1) { moved = 1; player.position.x += 0.15; }   // strike 2: steps aside after the lock
-      if (k === 2 && moved < 2 && u > 0.1 && u < A.track - 0.1) { moved = 2; player.position.x -= 0.15; }   // strike 3: steps back before it
+      if (k === 2 && moved < 2 && u > 0.005 && u < A.track - 0.01) { moved = 2; player.position.x -= 0.15; }   // strike 3: steps back before it
       if (k >= 0 && aims.length === k && u > A.track + 0.05) aims.push(e.aim.clone());
       const n = hitsBy(log, 'coffer-accordion').length;
       for (; seen < n; seen++) hitAt.push(starts.at(-1) === frames ? starts.length - 2 : starts.length - 1);   // its slam comes the frame the next one starts
@@ -124,16 +124,14 @@ function watchTongue(e) {
   return { latchedS: +((latched / 60) * tempo).toFixed(2), held, pull: +pull.toFixed(3), closest: +closest.toFixed(3), far: +far.toFixed(3) };
 }
 
-act3('coffer-tongue-drags-a-base-speed-jelly-into-its-mouth', {
-  about: 'Tongue: its mouth opens, the tongue shoots to the jelly and latches on (no Warning: it can\'t be dodged), and pulls it toward the mouth faster than a jelly at base move speed (0.42 m/s) can swim away; dragged to the mouth it is bitten (6) and knocked back out, and the tongue lets go.',
+act3('coffer-tongue-drags-a-still-jelly-into-its-mouth', {
+  about: 'Tongue: its mouth opens, the tongue shoots to the jelly and latches on (no Warning: it can\'t be dodged), and pulls it toward the mouth (0.36 m/s, slower than a jelly at base move speed, 0.42 m/s, can swim away, so only a jelly that stops is dragged); dragged to the mouth it is bitten (6) and knocked back out, and the tongue lets go.',
   setup() { startCoffer(1, { hold: false, z: 8.9 }); },
   play() {
     const { e } = startCoffer(1, { hold: false, z: 8.9 }), log = record('damage_taken'), knocks = record('knockback'), T = CONTENT.elites.coffer.skills.tongue;
-    swimAway(1);
-    const speed = G().run.S.moveSpeed;
     const r = watchTongue(e), bites = hitsBy(log, 'coffer-tongue');
-    return ok(speed === 1 && r.held && Math.abs(r.pull - T.pull) < 1e-6 && T.pull > CONFIG.player.walkSpeed && bites.length === 1 && bites[0] === T.dmg && knocks.length >= 1 && r.closest < T.bite && r.latchedS < T.hold,
-      { speed, ...r, bites, knocks: knocks.length, walk: CONFIG.player.walkSpeed });
+    return ok(r.held && Math.abs(r.pull - T.pull) < 1e-6 && T.pull < CONFIG.player.walkSpeed && bites.length === 1 && bites[0] === T.dmg && knocks.length >= 1 && r.closest < T.bite && r.latchedS < T.hold,
+      { ...r, bites, knocks: knocks.length, walk: CONFIG.player.walkSpeed });
   },
 });
 
@@ -142,7 +140,6 @@ act3('coffer-tongue-chomps-chews-and-spits', {
   setup() { startCoffer(1, { hold: false, z: 8.9 }); },
   play() {
     const { e } = startCoffer(1, { hold: false, z: 8.9 }), { run, fx } = G(), log = record('damage_taken'), knocks = record('knockback'), T = CONTENT.elites.coffer.skills.tongue;
-    swimAway(1);
     let chompJaw = null, chewFrames = 0, held = 0, jawMoves = 0, lastJaw = null, knocksChewing = null, splats = 0, spat = false;
     const splatsBefore = fx.splats.filter((x) => x.alive).length;
     step(60 * 8, () => {
@@ -166,14 +163,14 @@ act3('coffer-tongue-chomps-chews-and-spits', {
   },
 });
 
-act3('coffer-tongue-a-fast-jelly-gets-away', {
-  about: 'A jelly with a high move speed (160%) swims away against the tongue\'s pull: it is never dragged into the mouth, and the tongue lets go after 4 s (in the attack\'s time) and snaps back.',
+act3('coffer-tongue-a-swimming-jelly-gets-away', {
+  about: 'A jelly that swims away, even at base move speed, outswims the tongue\'s pull: it is never dragged into the mouth, and the tongue lets go (within its 4 s hold) and snaps back.',
   setup() { startCoffer(1, { hold: false, z: 8.75 }); },
   play() {
     const { e } = startCoffer(1, { hold: false, z: 8.75 }), log = record('damage_taken'), T = CONTENT.elites.coffer.skills.tongue;
-    swimAway(1.6);
+    swimAway(1);
     const r = watchTongue(e), bites = hitsBy(log, 'coffer-tongue');
-    return ok(r.held && !bites.length && Math.abs(r.latchedS - T.hold) < 0.1 && r.far > 0.4 && !e.model.tongue.visible && !G().run.elites.pull, { ...r, bites });
+    return ok(r.held && !bites.length && r.latchedS <= T.hold + 0.1 && r.far > 0.4 && !e.model.tongue.visible && !G().run.elites.pull, { ...r, bites });
   },
 });
 

@@ -13,13 +13,13 @@
 
 boss "vacuum" name="The Vacuum" icon="🤖" hp=1200 contact=2 {
     chase   time=2.6 speed=0.3
-    charge  windup=1.0 time=1.3 speed=1.05 dmg=4
+    charge  windup=1.0 time=1.02 speed=1.05 dmg=4
     suction time=5 pull=0.36 dmg=2
     brushes time=1.4 dmg=3 reach=0.1
     dump    time=1.1 roaches=3
     // (one more roach when angry: that's the attack's rule, not a number)
     spin    time=3 every=0.18 speed=0.9 dmg=3
-    flies   windup=1.0 count=4 shield=30 max=2
+    flies   windup=1.0 count=4 shield=30 max=1
     enrage  at=0.5 pace=2
 }
 

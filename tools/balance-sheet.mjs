@@ -1163,7 +1163,7 @@ export function eliteAttacks(kind, angry = false) {
     clock: () => {
       const wind = A(1.0, 0.8), dur = 0.55, wr = num('src/elites.js', /wreathFlight: ([\d.]+)/), H = S.hour, out = [
         { id: 'sweep', dmg: S.sweep.dmg, warn: t(wind), dodge: t(wind), len: t(wind + dur), rest: A(1.7, 1.2), times: [t(wind + dur / 2)], move: 0, how: 'jump the hand (2 cm) or leave its half circle', src: E_AT(/Sweeping hands: a half circle fills/) },
-        { id: 'wreath', dmg: S.wreath.dmg, warn: t(0.8), dodge: t(0.8 * 0.5), len: t(0.8) + 2 * wr, rest: A(1.7, 1.2), times: [t(0.8) + wr, t(0.8) + 2 * wr], move: 0.04 + R, how: 'step off its line after it locks, twice (out and back)', src: E_AT(/Victory's wreath: a line on the bench/) }];
+        { id: 'wreath', dmg: S.wreath.dmg, warn: t(0.8), dodge: t(0.8 * 0.3), len: t(0.8) + 2 * wr, rest: A(1.7, 1.2), times: [t(0.8) + wr, t(0.8) + 2 * wr], move: 0.04 + R, how: 'step off its line after it locks, twice (out and back)', src: E_AT(/Victory's wreath: a line on the bench/) }];
       if (angry) out.push({ id: 'hour', dmg: H.dmg, warn: t(H.warn), dodge: t(H.warn), len: t(H.warn * H.rounds + 0.3), rest: 1.6, times: span(H.rounds, t(H.warn), t(H.warn)), move: 0.1, how: 'stand between the hands', src: E_AT(/Telling the time \(angry only\)/) });
       return out;
     },
@@ -1247,7 +1247,7 @@ function sheetC3() {
   for (const { f, x, hit } of atk) if (hit >= 6 && x.dodge < 0.4) {
     const kdlLine = `content/elites.kdl:${nodeOf('elites', f.kind).children.find((c) => c.name === (x.id === 'wreath' ? 'wreath' : x.id))?.line ?? nodeOf('elites', f.kind).line}`;
     const fix = { accordion: ['track', CONTENT.elites.coffer.skills.accordion.track, +(1 - 0.4 * TEMPO / CONTENT.elites.coffer.skills.accordion.unfold).toFixed(2), kdlLine],
-      wreath: ['the lock at half the 0.8 s wind-up (wind * 0.5)', 0.5, +(1 - 0.4 * TEMPO / 0.8).toFixed(2), E_AT(/if \(s < wind \* 0\.5 \|\| !e\.aim\)/)] }[x.id];
+      wreath: ['the lock at 0.3 of the 0.8 s wind-up (wind * 0.3)', 0.3, +(1 - 0.24 * TEMPO / 0.8).toFixed(2), E_AT(/if \(s < wind \* 0\.3 \|\| !e\.aim\)/)] }[x.id];
     flags.push({ text: `${f.name}'s ${x.id} hits for ${r(hit, 1)} (act ${f.A.n}'s power) with ${r(x.dodge, 2)} s between locking on and landing: under the 0.4 s a phone thumb needs (sheet C1's line).${x.hits > 1 ? ` It can land ${x.hits} times an attack.` : ''}`,
       knob: fix ? { at: fix[3], change: `${fix[0]} ${fix[1]} → ${fix[2]}`, does: 'it locks 0.4 s before it lands' } : { at: kdlLine, change: 'its wind-up up by ' + r(0.4 - x.dodge, 2) + ' s', does: '0.4 s to react' } });
   }

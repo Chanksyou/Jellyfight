@@ -61,7 +61,7 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true no
 // your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
 // Legendary pick) always offers at least one you don't have; never from treasures in the room. Attack damage, Fire rate, Range, Attack size and extra Attacks all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits: Crit for 3x damage." stack=3 {
+treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="rare" text="1 in 5 hits: Crit for 3x damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
 treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Hits mark bugs for 3 s: they take 30% more damage." {
@@ -297,7 +297,7 @@ treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true te
     stat bubble-damage 50 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% Attack damage and +15% Fire rate. -30% Range." stack=3 {
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="rare" attack=#true text="+40% Attack damage and +15% Fire rate. -30% Range." stack=3 {
     stat bubble-damage 40 percent=#true
     stat fire-rate 15 percent=#true
     stat range -30 percent=#true
@@ -461,7 +461,7 @@ treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="+15% dama
 treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits finish off bugs under 15% Health (Elites under 8%, never the Boss)." stack=1 {
     execute under=0.15 elites=0.08
 }
-treasure "rollingPin" name="Rolling Pin" icon="🫓" rarity="common" text="+40% damage to anything above 90% Health." stack=3 {
+treasure "rollingPin" name="Rolling Pin" icon="🫓" rarity="rare" text="+40% damage to anything above 90% Health." stack=3 {
     fresh-damage 40 above=0.9
 }
 treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Hits take 1 less Health, never under 0.5." stack=2 {

@@ -89,7 +89,7 @@ elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
 //              strike, then locks, and the lid slams down there as a Blast
 //   tongue:    its mouth opens for open= s, then the tongue shoots to you in shoot= s and latches on:
 //              it can't miss. For hold= s it pulls you toward its mouth at pull= m/s (base swim speed
-//              is 0.42 m/s: config.js walkSpeed, so it takes over 143% move speed to get away, 167% angry);
+//              is 0.42 m/s: config.js walkSpeed, so at 0.36 a swimming jelly gets away at base speed; only one that stops is dragged);
 //              brought within bite= m of its middle its jaws slam shut on you (dmg=), it chews chews= times
 //              (chew= s each) and spits you back out (knock= knocks you away)
 //              and it lets go; else it lets go at the end
@@ -98,8 +98,8 @@ elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
 //              jewels fall from up= m onto them in drop= s and burst as Blasts
 // (its times were authored for tempo=1.2; the shared pace above scales these attacks too)
 elite "coffer" name="The Latticework Coffer" icon="🧰" hp=800 aggro=1.2 angry=0.65 {
-    accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 track=0.45 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
-    tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.6 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7
+    accordion dmg=3 strikes=5 range=0.8 radius=0.06 unfold=0.6 track=0.07 angryUnfold=0.48 hover=0.05 rest=1.0 angryRest=0.7
+    tongue dmg=6 open=0.4 shoot=0.15 hold=4.8 pull=0.36 angryPull=0.7 bite=0.14 chews=3 chew=0.22 knock=1.0 rest=1.0 angryRest=0.7
     jewels dmg=3 count=10 angryCount=14 radius=0.1 spread=0.17 rain=2.4 drop=0.25 up=0.9 rest=1.0 angryRest=0.7
 }
 
