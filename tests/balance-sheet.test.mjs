@@ -23,8 +23,8 @@ test('the night, the level curve and the reference jelly', () => {
   assert.equal(B.DEF0, 25);
 });
 test('every number and every knob cites a line that exists', () => {
-  const sheets = B.buildSheets();
-  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2', 'D1', 'D2']);
+  const sheets = B.buildSheets({ runs: 160 });
+  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2', 'C3', 'C4', 'C5', 'D1', 'D2', 'D3']);
   const real = (src) => {
     const m = /^([\w./-]+):(\d+)$/.exec(src);
     if (!m) return /^(src|content|tools|docs)\//.test(src);
@@ -62,4 +62,25 @@ test('Wave C reads the bugs and the night', () => {
   assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.3);
   assert.equal(B.attackOf('roach').hits[0].word, 'touch');
   B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [11.7, 16.2, 19.3, 20.6][i]) < 1, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the run log's levels
+});
+
+test('Wave C3 to C5 read the Elites, the Bosses and the jump from the code', () => {
+  assert.equal(B.landed([0, 0.5, 1.0, 1.6]), 2);                              // one hit per second of i-frames (run.js hit)
+  const barrage = B.eliteAttacks('controller')[0], P = B.CONTENT.elites;
+  assert.ok(Math.abs(barrage.warn - P.controller.skills.barrage.windup / P.pace.tempo) < 1e-9, `barrage warns ${barrage.warn}`);
+  assert.equal(B.eliteAttacks('clock').length, 2); assert.equal(B.eliteAttacks('clock', true).length, 3);   // the hour only when angry
+  const J = B.jumpArc();
+  assert.ok(Math.abs(J.top - 0.2) < 0.005 && J.air > 0.8 && J.air < 2, `a jump: top ${J.top}, ${J.air} s`);   // config.js jumpHeight, 'about a second'
+  const vac = B.bossFight(B.ACTS[0]);
+  assert.ok(Math.abs(vac.secs - B.RUN_LOG.bossSeconds[0]) < 1, `the Normal jelly's Vacuum fight is solved to the run log: ${vac.secs}`);
+});
+test('D3 rolls runs with the game\'s own dice, the same every time', () => {
+  const a = B.rollRun('fire', 7), b = B.rollRun('fire', 7), c = B.rollRun('fire', 8);
+  assert.deepEqual(a, b);
+  assert.notDeepEqual(a.items, c.items);
+  assert.equal(a.doors.length, 4);
+  const held = {};
+  for (const id of a.items) held[id] = (held[id] || 0) + 1;
+  for (const [id, n] of Object.entries(held)) { const t = B.CONTENT.treasures.find((x) => x.id === id); if (t) assert.ok(n <= t.stack, `${id} x${n} over its stack ${t.stack}`); }
+  assert.ok(a.doors[3].off > a.doors[0].off, 'a build grows door to door');
 });
