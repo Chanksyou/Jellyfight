@@ -52,6 +52,7 @@ const CSS = `
 .jf-hint { position: relative; max-width: min(420px, calc(100vw - 32px)); margin: var(--ui-space-1) auto var(--ui-space-4); padding: var(--ui-space-3) var(--ui-space-4); border-radius: var(--ui-radius-m); text-align: left; font-size: var(--ui-size-body); line-height: 1.35;
   background: var(--ui-panel-raised); border: 1px solid var(--ui-line); }
 /* one card for every pick (the kit's .ui-card): its rarity frame, label and tint come from data-rarity */
+.jf-skip { margin: var(--ui-space-4) 0 0; text-align: center; }
 .jf-cards { display: flex; gap: var(--ui-space-4); justify-content: center; align-items: stretch; padding: 0 var(--ui-space-4); }
 .jf-cards .ui-card { flex: 0 1 280px; min-width: 0; align-content: start; padding-top: var(--ui-space-4); text-align: left;
   background: linear-gradient(color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-panel-raised)), color-mix(in srgb, var(--rarity) var(--wash, 0%), var(--ui-deep)));
@@ -368,7 +369,8 @@ export class UI {
   // treasure grows (Lv 1 → Lv 2, ×1 → ×2)
   // slot(choice) -> { to: DOMRect, done?() } | null: where the won card's icon lands in the HUD (measured once, as it's picked), else the toast's spot
   // spin: { kind, rollOne, odds, luck } (run.pickTreasure): the reward spin plays before the cards
-  choose(title, sub, choices, onPick, slot = null, spin = null) {
+  // onSkip: a Skip button under the cards (Legendary and Attack upgrade picks); takes nothing and carries on
+  choose(title, sub, choices, onPick, slot = null, spin = null, onSkip = null) {
     const gen = ++this._gen;
     this.dropSpin();
     this._arm = 0;
@@ -376,7 +378,7 @@ export class UI {
       const at = dealDelays(choices.map((c) => c.tier?.name));
       this.modal.innerHTML = `<div><h2>${title}</h2><p class="sub">${sub}</p>
         <div class="jf-cards jf-pick">${choices.map((c, i) => tierCard({ i, tier: c.tier, icon: c.icon, name: esc(c.name), body: hi(c.text) + changeLines(c.changes), key: i + 1, d: at[i],
-          up: c.upgraded, badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div></div>`;
+          up: c.upgraded, badges: `${c.fresh ? '<span class="jf-new">New!</span>' : ''}${c.delta ? `<span class="ui-card-count">${esc(c.delta)}</span>` : ''}` })).join('')}</div>${onSkip ? '<p class="jf-skip"><button type="button" class="ui-btn" data-skip>Skip</button></p>' : ''}</div>`;
       this.dealSound(at, choices.map((c) => c.tier?.name));
     };
     this.modal.hidden = false;
@@ -391,7 +393,13 @@ export class UI {
       this.outro(gen, i, land?.to, land?.done);
       onPick(c);   // resume can capture the mouse during this click, before user activation expires
     };
-    this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) pick(+b.dataset.i); };
+    const skip = () => {
+      if (out || !onSkip) return;
+      out = true;
+      this.outro(gen, -1);   // every card drops away
+      onSkip();
+    };
+    this.modal.onclick = (e) => { const b = e.target.closest('button'); if (b) { if (b.dataset.skip !== undefined) skip(); else pick(+b.dataset.i); } };
     this.keyHandler = (e) => { if (/^Digit[1-9]$/.test(e.code)) pick(+e.code.slice(-1) - 1); };
   }
 

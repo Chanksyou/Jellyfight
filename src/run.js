@@ -1489,7 +1489,7 @@ export class Run {
     const evos = EVOLUTIONS.filter((e) => !this.evolved.includes(e.id) && this.forAttack(e));
     const left = shuffle([...TREASURES.filter(can), ...evos]).slice(0, 3);
     if (!left.length) { then(); return; }
-    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then);
+    this.offer(title, sub, shuffle(left).map((t) => ({ ...t, tier: treasureTier(t) })), then, null, true);
   }
 
   // a throw's somersault (radians, about the jelly's middle): eases out to whole turns as the tumble ends; none under Reduce effects
@@ -1527,7 +1527,7 @@ export class Run {
       this.health = Math.min(this.health, this.S.health);
       this.ui.treasure(u);
       then();
-    });
+    }, null, null, then);
   }
 
   // The Treasure book (collection.js): note a find, and list it for the end screen when it's a first
@@ -1536,13 +1536,14 @@ export class Run {
   found(kind, id, label = id) { if (!this.dev && discover(kind, id)) { this.newFinds.push(label); return true; } return false; }
 
   // spin: the reward spin's { kind, rollOne, odds, luck } (ui.choose), or none
-  // Balance facts: what a pick showed and what was taken (the entry's last item is filled in by the pick)
+  // Balance facts: what a pick showed and what was taken (the entry's last item is filled in by the pick; a Skip leaves it empty)
   logOffer(kind, choices) {
     if (this.offerLog.length < 48) this.offerLog.push([kind, Math.round(this.t * 10) / 10, choices.map((c) => c.id), '']);
   }
   pickedOffer(id) { const o = this.offerLog.findLast((e) => !e[3]); if (o) o[3] = id; }
 
-  offer(title, sub, choices, then = () => this.resume(), spin = null) {
+  // skip: true adds a Skip button (the Legendary pick): nothing taken, the run carries on
+  offer(title, sub, choices, then = () => this.resume(), spin = null, skip = false) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
     this.logOffer(spin?.kind === 'treasure' ? 'chest' : 'legendary', choices);
@@ -1562,7 +1563,7 @@ export class Run {
       this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();
-    }, (t) => this.treasureSlot(t), spin);
+    }, (t) => this.treasureSlot(t), spin, skip ? then : null);
   }
 
   // Where a Treasure just picked belongs in the HUD's row, for its icon to fly to (measured once, as it's picked):
