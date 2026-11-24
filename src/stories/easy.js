@@ -1,7 +1,8 @@
 // Stories: Easy mode (easy.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import { BEST_KEY } from '../leaderboard.js';
-import { EASY_KEY, chooseEasy } from '../easy.js';
+import { EASY_KEY, DEATHS_KEY, chooseEasy, easyChosen, act1Deaths } from '../easy.js';
+import { FOUND_KEY } from '../collection.js';
 import { G, fresh, hitJelly, ok, phone, spawn, near, step, story, tp } from './kit.js';
 import { bus } from '../events.js';
 
@@ -79,5 +80,36 @@ phone('easy/dev-run-says-why-no-submit', {
     const text = modal().innerText, noSubmit = !/Submit score/.test(text), says = /Dev run/.test(text) && /not on the leaderboard/.test(text);
     run.dev = false;
     return ok(noSubmit && says, { noSubmit, says });
+  },
+});
+
+// --- the death screen's offer of Easy mode (easy.js easyOffered, run.js endRun)
+const keep = (keys) => keys.map((k) => [k, localStorage.getItem(k)]);
+const restore = (saved) => { for (const [k, v] of saved) v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); };
+const dieAt = (run, deaths, cleared) => {
+  localStorage.setItem(DEATHS_KEY, String(deaths));
+  localStorage.setItem(FOUND_KEY, JSON.stringify(cleared ? { bosses: ['vacuum'] } : {}));
+  run.phase = 'dead';
+  run.endRun('You dried out', 'x', 'Try again');
+  return [...modal().querySelectorAll('button')].find((b) => /Try Easy mode/.test(b.textContent));
+};
+
+story('easy/offered-after-a-second-act-1-death', {
+  about: 'After a second death in act 1 by a player who has never cleared it, the death screen says what Easy mode is and offers "Try Easy mode"; tapping it turns Easy on for the next run. Not offered after the first death, once act 1 is cleared, in a dev run, or when Easy is already on; the death itself is counted.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { run } = G(), saved = keep([DEATHS_KEY, FOUND_KEY, EASY_KEY]);
+    try {
+      localStorage.removeItem(DEATHS_KEY); chooseEasy(false);
+      run.die(); const counted = act1Deaths() === 1;
+      run.phase = 'explore'; run.ui.close();
+      const first = !!dieAt(run, 1, false);
+      const cleared = !!dieAt(run, 5, true);
+      run.dev = true; const dev = !!dieAt(run, 5, false); run.dev = false;
+      chooseEasy(true); const already = !!dieAt(run, 5, false); chooseEasy(false);
+      const btn = dieAt(run, 2, false), says = /deal twice the damage and take half/.test(modal().innerText);
+      btn?.click();
+      return ok(counted && !first && !cleared && !dev && !already && !!btn && says && easyChosen(), { counted, first, cleared, dev, already, btn: !!btn, says, chosen: easyChosen() });
+    } finally { restore(saved); }
   },
 });
