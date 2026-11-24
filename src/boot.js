@@ -54,6 +54,13 @@ resize();
 // blocks the page for seconds at a time (building the rooms, the graphics), so each step waits for
 // the screen to show it first; the swimming jelly (index.html) moves on its own meanwhile.
 const bar = document.querySelector('#loading .bar i'), said = document.querySelector('#loading p');
+// Fade the loading screen out, then take it out of the page: faded but still there, its looping animations
+// kept the compositor drawing a full-screen layer over the game every frame, for the whole session.
+function hideLoading() {
+  const el = document.getElementById('loading');
+  el.classList.add('gone');
+  setTimeout(() => { el.hidden = true; }, 450);   // after its .4 s fade (index.html)
+}
 const shown = () => new Promise((r) => { requestAnimationFrame(() => setTimeout(r)); setTimeout(r, 100); });   // (a hidden tab draws no frames)
 window.JF_LOAD = {
   steps: [],
@@ -105,7 +112,7 @@ try {
   await loading.step(0.55, 'Building the rooms…');
   await startGame();
   }
-  document.getElementById('loading').classList.add('gone');
+  hideLoading();
 } catch (e) {
   reportError(e, 'loading');
   said.textContent = 'Something went wrong while loading. Details below.';

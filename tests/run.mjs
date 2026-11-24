@@ -83,7 +83,16 @@ const gate = async (f) => {
   if (free > 0) free--; else await new Promise((r) => waiting.push(r));
   try { return await f(); } finally { const next = waiting.shift(); if (next) next(); else free++; }
 };
-const prep = async (page) => page.evaluate(() => APT.renderer.setAnimationLoop(null));   // stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise
+// Stories step and draw the game themselves; the game's own frame loop only adds slow software-rendered frames and timing noise.
+// The canvas is also kept out of the page's picture (opacity 0: still laid out and still hit by taps). Headless Chromium copies
+// every frame drawn on a visible WebGL canvas back off the software GPU for its compositor, and a story that draws dozens of
+// frames in one go queued so many copies that the page stalled for minutes and ran out of memory ("Target crashed").
+// shown(page, f) puts the picture back for a failure screenshot.
+const prep = async (page) => page.evaluate(() => { APT.renderer.setAnimationLoop(null); APT.renderer.domElement.style.opacity = '0'; });
+const shown = async (page, f) => {
+  await page.evaluate(() => { APT.renderer.domElement.style.opacity = ''; GAME.render(); }).catch(() => {});
+  try { return await f(); } finally { await page.evaluate(() => { APT.renderer.domElement.style.opacity = '0'; }).catch(() => {}); }
+};
 const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
 // The page that lists the stories is the one this run plays first. Under --shard that's FIRST's entry
 // for this shard (the CI's eight: the reload check's new-player page, act 1 three times, then the other
@@ -193,7 +202,7 @@ async function playAll(page, errors, names, out = []) {
     if (!good) {
       const dir = path.join(ROOT, '.wrangler/story-failures'); fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, name.replace(/[^a-z0-9_-]/gi, '-') + `-${r.seed}.png`);
-      await page.screenshot({ path: file }).catch(e => console.log(`Screenshot failed: ${e.message}`));
+      await shown(page, () => page.screenshot({ path: file })).catch(e => console.log(`Screenshot failed: ${e.message}`));
     }
     out.push(result(good, name, r.ms, { ...r.info, seed: r.seed, ...(newErrors.length ? { errors: newErrors } : {}) }));
   }
