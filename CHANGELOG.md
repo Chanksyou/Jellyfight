@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v687 gives Act 3's Great White One shark weightier, smoother attack timings (lengthening active/follow-through windows on bites, combo beats, spins, leaps, and breaches), adds non-linear strike/hold/recoil curves, and removes the hard rotation snap on recovery so attacks flow organically into swimming.
+
 v686 keeps dying bug bodies and detached parts at full size until they hit the floor, adding floor-impact splatters and a longer grounded settle window before fading out.
 
 v685 makes Elites and Bosses take a 0.1 second mini-stun from any stun or pin, and a Chill or slow of at most 10%, so Chilled bonuses (Brittle, Frostbite, Icicle Lance, Glacier Shell) now work on them; they still can't be Frozen, trapped or marked.

@@ -1,1 +1,0 @@
-gives Act 3's Great White One shark weightier, smoother attack timings (lengthening active/follow-through windows on bites, combo beats, spins, leaps, and breaches), adds non-linear strike/hold/recoil curves, and removes the hard rotation snap on recovery so attacks flow organically into swimming.
