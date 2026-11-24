@@ -22,17 +22,29 @@ let SHARED_HAZARDS=null;
 function hazardAssets(color){
   if(SHARED_HAZARDS)return SHARED_HAZARDS;
   const paint=(geo,hex)=>{const c=new THREE.Color(hex),a=[];for(let i=0;i<geo.attributes.position.count;i++)a.push(c.r,c.g,c.b);geo.setAttribute('color',new THREE.Float32BufferAttribute(a,3));return geo.toNonIndexed();};
-  const fishParts=[paint(new THREE.SphereGeometry(1,10,6).scale(.018,.009,.006),LOOK.color('shark-fish','#ffb15e')),
-    paint(new THREE.ConeGeometry(.009,.018,3).scale(1,1,.4).rotateZ(Math.PI/2).translate(-.023,0,0),LOOK.color('shark-fish','#ffb15e'))];
-  for(const s of [-1,1])fishParts.push(paint(new THREE.SphereGeometry(.0018,6,4).translate(.011,.003,s*.0055),'#171921'));
+  const body=LOOK.color('shark-fish-body','#6c8da6'),belly=LOOK.color('shark-fish-belly','#e6eef4'),fin=LOOK.color('shark-fish','#ff7b54');
+  // Stylized predatory bait-fish: metallic blue-slate back, pale belly, coral-red dorsal/pectoral/forked-tail fins, fierce underbite & bright eyes
+  const fishParts=[
+    paint(new THREE.SphereGeometry(1,10,6).scale(.022,.011,.0075),body),                                              // sleek upper body
+    paint(new THREE.SphereGeometry(1,8,5).scale(.019,.007,.0065).translate(.001,-.0045,0),belly),                     // pale metallic belly
+    paint(new THREE.ConeGeometry(.009,.020,4).scale(1.1,1,.3).rotateZ(.45).translate(-.002,.013,0),fin),              // spiky dorsal fin
+    paint(new THREE.ConeGeometry(.008,.018,3).scale(1,1,.35).rotateZ(Math.PI/2+.38).translate(-.024,.005,0),fin),     // upper forked tail lobe
+    paint(new THREE.ConeGeometry(.008,.018,3).scale(1,1,.35).rotateZ(Math.PI/2-.38).translate(-.024,-.005,0),fin),    // lower forked tail lobe
+    paint(new THREE.BoxGeometry(.012,.004,.009).rotateZ(-.22).translate(.016,-.004,0),fin),                           // fierce underbite jaw
+  ];
+  for(const s of [-1,1]){
+    fishParts.push(paint(new THREE.ConeGeometry(.005,.012,3).scale(1,1,.35).rotateX(s*1.2).translate(.004,-.004,s*.008),fin)); // pectoral fins
+    fishParts.push(paint(new THREE.SphereGeometry(.0024,6,4).translate(.014,.0035,s*.0062),'#ffe67a'));               // bright predator eye
+    fishParts.push(paint(new THREE.SphereGeometry(.0013,6,4).translate(.0155,.0038,s*.0072),'#101318'));              // pupil
+  }
   const fishGeo=mergeGeometries(fishParts);fishParts.forEach(g=>g.dispose());
-  const fishMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,emissive:color,emissiveIntensity:.12});
+  const fishMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,metalness:.22,emissive:color,emissiveIntensity:.18});
   const spiral=[];for(let i=0;i<=100;i++){const t=i/100,a=t*Math.PI*10,r=.095*(1-t)+.02;spiral.push(V(Math.cos(a)*r,t*.28,Math.sin(a)*r));}
   const tube=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiral),120,.007,6);
   const funnel=new THREE.CylinderGeometry(.025,.10,.28,24,1,true).translate(0,.14,0);
   const tubeFlat=tube.toNonIndexed(),funnelFlat=funnel.toNonIndexed(),tornadoGeo=mergeGeometries([tubeFlat,funnelFlat]);
   tube.dispose();funnel.dispose();tubeFlat.dispose();funnelFlat.dispose();
-  const tornadoMat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.3,roughness:.7,side:THREE.DoubleSide});
+  const tornadoMat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.35,roughness:.55,side:THREE.DoubleSide});
   return SHARED_HAZARDS={fishGeo,fishMat,tornadoGeo,tornadoMat};
 }
 
@@ -47,6 +59,8 @@ export class Shark {
     this.dead=false;this.dying=false;this.frenzy=0;this.prey=0;this.bleed=0;this.bleedFx=0;
     this.state='idle';this.stateT=1;this.elapsed=0;this.phase='rest';this.beat=0;this.repeats=0;this.lift=0;this.groundT=0;
     this.gait=0;this.sway=0;this.settle=0;this.walkBlend=0;this.visualTilt=-1.1;this.visualRoll=0;
+    // 2nd-order plush bounce, head-kick & flinch springs (zero allocations per frame)
+    this.squash=0;this.squashV=0;this.flinch=0;this.flinchV=0;this.headKick=0;this.headKickV=0;this.poolFxT=0;
     this.holder=new THREE.Group();this.model=buildShark();if(this.illusion)ghostly(this.model,LOOK.num('shark-illusion-opacity',.35));this.model.scale.setScalar(SIZE);
     this.model.position.y=-.45;this.model.rotation.x=-1.1; // submerged even on the creation frame
     this.holder.add(this.model);this.holder.position.fromArray(arena.spawn);scene.add(this.holder);
@@ -73,8 +87,8 @@ export class Shark {
     this.fin.userData.noCollide=true;this.fin.visible=false;scene.add(this.fin);
     this.circleGeo=new THREE.CircleGeometry(1,48).rotateX(-Math.PI/2);
     Object.assign(this,hazardAssets(this.color));
-    this.fish=new THREE.InstancedMesh(this.fishGeo,this.fishMat,72);this.fish.count=0;this.fish.userData.noCollide=true;this.fish.frustumCulled=false;scene.add(this.fish);
-    this._matrix=new THREE.Matrix4();this._quat=new THREE.Quaternion();this._pos=V();this._scale=V(1,1,1);this._up=V(0,1,0);this._front=V();this._move=V();
+    this.fish=new THREE.InstancedMesh(this.fishGeo,this.fishMat,96);this.fish.count=0;this.fish.userData.noCollide=true;this.fish.frustumCulled=false;scene.add(this.fish);
+    this._matrix=new THREE.Matrix4();this._quat=new THREE.Quaternion();this._euler=new THREE.Euler(0,0,0,'YXZ');this._pos=V();this._scale=V(1,1,1);this._up=V(0,1,0);this._front=V();this._move=V();
     this.off=bus.on('player_hurt',e=>{
       // only a hit this shark is landing right now (hit()): the shark and its illusion each keep their own Prey and frenzy
       if(!this.striking||this.dead||this.dying||!['shark-bite','shark-melee','shark-impact'].includes(e.from))return;
@@ -134,6 +148,8 @@ export class Shark {
   damage(amount,color='#fff',feedback={}){
     if(this.dead||this.dying||this.rise<1||this.shielded)return;
     this.hp=Math.max(0,this.hp-amount);this.hitPop=.14;
+    // reactive plush flinch: bouncy squish, head recoil & lateral roll kick
+    this.squashV+=4.0;this.headKickV-=3.8;this.flinchV+=(Math.sin(this.t*41)>=0?1:-1)*4.2;
     this.fx.number(this.center().add(V(0,.08,0)),amount,color,18,feedback);
     if(!this.hp){this.dying=true;this.vanish();this.clearHazards();this.clearWarning();this.state='idle';this.phase='rest';}
   }
@@ -148,6 +164,7 @@ export class Shark {
   clearWarning(){if(!this.warning)return;for(const m of [this.warning.floor,this.warning.volume]){this.scene.remove(m);m.material.dispose();}this.warning=null;}
   burst(at,r,heavy=false){
     this.settle=1;
+    this.squash=Math.max(this.squash,heavy?.62:.38);this.squashV+=heavy?6.8:4.2;
     this.fx.impact(at,this.color,r*.25,heavy?18:10);this.fx.ring(at,this.color,r,.4);
     for(let i=0;i<6;i++){const a=i*Math.PI/3;this.fx.puff(at.clone().add(V(Math.sin(a)*r*.5,.025,Math.cos(a)*r*.5)),this.dust,.028,.5);}
     this.fx.splat(at,this.dust,r*.7, 'dust');juice.feel(heavy?'impact-big':'impact');sfx.sharkSlam(heavy);
@@ -187,27 +204,28 @@ export class Shark {
   release(player){
     const sk=this.skill();this.phase='active';this.elapsed=0;this.heading=this.aimHeading;this.struck=false;this.lastSpinProgress=0;
     if(['bite','rear','combo','spin'].includes(this.state)){
-      this.fx.impact(this.center(),this.color,.035,6);sfx.sharkSwish();
+      this.squashV-=4.5;this.fx.impact(this.center(),this.color,.035,6);sfx.sharkSwish();
     }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
       this.phase='track';this.elapsed=0;this.clearWarning();this.model.visible=false;this.fin.visible=true;sfx.sharkDive();
       if(this.state==='maelstrom')this.pool(this.position,this.def.skills.maelstrom.radius,true);
-    }else {sfx.sharkSwish(1.4);this.fx.puff(this.position,this.dust,.08,.4);}
+    }else {this.squashV-=6.5;sfx.sharkSwish(1.4);this.fx.puff(this.position,this.dust,.08,.4);}
   }
   pool(at,r=this.def.skills.pools.radius,slow=false){
     const sk=this.def.skills.pools;
     if(this.pools.length>=sk.max)this.removePool(this.pools.shift());
+    const boundCol=LOOK.color('shark-pool-boundary','#ff5a42'),baseOp=LOOK.num('shark-pool-warning-opacity',.24);
     const floor=new THREE.Mesh(this.circleGeo,this.fx.tele(this.color,'circle'));
     floor.position.copy(at).setY(at.y+.005);floor.scale.setScalar(r);floor.material.progress=1;floor.renderOrder=3;this.scene.add(floor);
-    floor.material.opacity=LOOK.num('shark-pool-warning-opacity',.09);
-    floor.material.uniforms.uColor.value.set(LOOK.color('shark-pool-boundary','#8b6841'));
+    floor.material.opacity=baseOp;
+    floor.material.uniforms.uColor.value.set(boundCol);
     const volume=this.fx.volume(this.color,'disc',at,V(r,sk.height,r));volume.material.progress=1;
-    volume.material.opacity=LOOK.num('shark-pool-warning-opacity',.09);
-    volume.material.uniforms.uColor.value.set(LOOK.color('shark-pool-boundary','#8b6841'));
+    volume.material.opacity=baseOp*.75;
+    volume.material.uniforms.uColor.value.set(boundCol);
     const surface=new THREE.Mesh(this.circleGeo,sharkWaterMaterial().clone()),U=surface.material.uniforms;
-    surface.position.copy(at).setY(at.y+.011);surface.scale.setScalar(r);surface.renderOrder=2;surface.userData.noCollide=true;this.scene.add(surface);
+    surface.position.copy(at).setY(at.y+.012);surface.scale.setScalar(r);surface.renderOrder=2;surface.userData.noCollide=true;this.scene.add(surface);
     U.uMurky.value=1;U.uCircular.value=1;U.uCenter.value.set(at.x,at.z);U.uExtent.value.set(r,r);U.uSource.value.set(at.x,at.z);U.uReach.value=r+.025;U.uFill.value=1;U.uWake.value=0;
-    this.pools.push({at:at.clone(),r,floor,volume,surface,life:slow?this.def.skills.maelstrom.life:sk.life,slow,age:0});
-    this.fx.impact(at,this.color,.04,8);sfx.sharkFish(true);
+    this.pools.push({at:at.clone(),r,floor,volume,surface,life:slow?this.def.skills.maelstrom.life:sk.life,slow,age:0,baseOp});
+    this.fx.impact(at,this.color,.045,10);this.fx.ring(at,this.color,r*.85,.35);sfx.sharkFish(true);
   }
   removePool(p){for(const m of [p.floor,p.volume,p.surface]){this.scene.remove(m);m.material.dispose();}}
   launchTornadoes(){
@@ -225,35 +243,74 @@ export class Shark {
     this.fx.impact(from,this.color,.02,5);sfx.sharkFish();
   }
   hazards(dt,player){
-    const sk=this.def.skills.pools, T=this.def.skills.tornado;let fish=0;
-    const drawFish=(p,a,scale=1)=>{
-      if(fish>=72)return;this._quat.setFromAxisAngle(this._up,a);this._scale.setScalar(scale);
+    const sk=this.def.skills.pools, T=this.def.skills.tornado, calm=juice.calm;let fish=0;
+    const drawFish=(p,yaw,pitch=0,roll=0,scale=1)=>{
+      if(fish>=96)return;
+      this._euler.set(pitch,yaw,roll);this._quat.setFromEuler(this._euler);this._scale.setScalar(scale);
       this._matrix.compose(p,this._quat,this._scale);this.fish.setMatrixAt(fish++,this._matrix);
     };
+    this.poolFxT=Math.max(0,this.poolFxT-dt);
     for(let i=this.pools.length-1;i>=0;i--){
       const p=this.pools[i];p.life-=dt;p.age+=dt;p.floor.material.time=this.t;
-      p.surface.material.uniforms.uTime.value=this.t;
+      p.surface.material.uniforms.uTime.value=calm?0:this.t;
       if(p.life<=0){this.removePool(p);this.pools.splice(i,1);continue;}
+      // spring pop-in & smooth shrink-out on the visual vortex sheet
+      const pop=p.age<.22?Math.sin(clamp(p.age/.22,0,1)*Math.PI*.66)*1.12:1;
+      const fade=clamp(p.life/.45,0,1);
+      const vs=p.r*Math.min(1.08,pop)*(.25+.75*fade);
+      p.surface.scale.setScalar(vs);
+      const pulse=calm?1:.82+.22*Math.sin(this.t*6+i);
+      p.floor.material.opacity=p.baseOp*pulse*fade;
+      p.volume.material.opacity=p.baseOp*.75*pulse*fade;
       if(Math.hypot(player.position.x-p.at.x,player.position.z-p.at.z)<p.r+player.cfg.radius&&player.position.y<p.at.y+sk.height&&player.position.y+player.cfg.height>p.at.y){
         if(p.slow)bus.emit('status_applied',{targetId:PLAYER,status:'slow',duration:.15});
         else{bus.emit('status_applied',{targetId:PLAYER,status:'slow',strength:sk.slow,duration:.15});bus.emit('damage_taken',{targetId:PLAYER,amount:sk.dmg*dt,source:'boss',drain:true});}
         if(this.dead||this.dying)return;
       }
-      for(let k=0;k<5;k++){const a=this.t*(k%2?2:-2)+k*2.4;this._pos.set(Math.sin(a)*p.r*.65,.018+Math.abs(Math.sin(this.t*5+k))*.024,Math.cos(a)*p.r*.65).add(p.at);drawFish(this._pos,-a,1);}
+      // 8 predatory fish per pool: layered vortex rings, leaping breaches with pitch/bank, and thrashing tail wag
+      const nFish=8;
+      for(let k=0;k<nFish;k++){
+        const ring=k%2?.76:.44, dir=k%2?1:-1;
+        const speed=(k%2?3.2:4.4)*dir, a=this.t*speed+k*(Math.PI*2/nFish)+i*1.1;
+        const cycle=(this.t*1.45+k*.37+i*.23)%1;
+        // dramatic breaching leap out of the water every cycle
+        const breach=cycle<.42?Math.sin((cycle/.42)*Math.PI):0;
+        const breachSlope=cycle<.42?Math.cos((cycle/.42)*Math.PI):0;
+        const y=.010+breach*.058+Math.sin(this.t*9+k)*.004;
+        const rad=p.r*ring*(.88+.14*Math.sin(this.t*3.5+k));
+        this._pos.set(Math.sin(a)*rad,y,Math.cos(a)*rad).add(p.at);
+        const wag=calm?0:Math.sin(this.t*28+k*2.1)*.26;
+        const yaw=(dir>0?-a:Math.PI-a)+wag;
+        const pitch=calm?0:-breachSlope*.85;
+        const roll=calm?0:dir*(.35+breach*.55);
+        drawFish(this._pos,yaw,pitch,roll,(k%2?1.08:.92)*fade);
+      }
+      if(!calm&&this.poolFxT<=0&&Math.random()<.28){
+        this.poolFxT=.14;
+        const sa=Math.random()*Math.PI*2,sr=p.r*(.3+Math.random()*.55);
+        this.fx.puff(this._pos.set(p.at.x+Math.sin(sa)*sr,p.at.y+.016,p.at.z+Math.cos(sa)*sr),this.color,.014,.28);
+      }
     }
     for(let i=this.tornadoes.length-1;i>=0;i--){
-      const q=this.tornadoes[i];q.life-=dt;q.age+=dt;q.m.rotation.y+=dt*8;
+      const q=this.tornadoes[i];q.life-=dt;q.age+=dt;q.m.rotation.y+=dt*10;
+      const pulse=calm?1:1+Math.sin(this.t*12+i)*.1;
+      q.m.scale.set(1/Math.sqrt(pulse),pulse,1/Math.sqrt(pulse));
       q.m.position.addScaledVector(q.dir,T.travel*dt);this.clampIn(q.m.position,.10);
       if(q.life<=0){q.m.visible=false;this.tornadoes.splice(i,1);continue;}
       this.hitTornado(q,dt,player);
       if(this.dead||this.dying)return;
       if((q.fishT-=dt)<=0){q.fishT=T.fishEvery;this.fishShot(q.m.position.clone().add(V(0,.17,0)),q.age*3+i*2);}
-      for(let k=0;k<4;k++){const a=this.t*7+k*1.57;this._pos.set(Math.sin(a)*.06,.04+k*.055,Math.cos(a)*.06).add(q.m.position);drawFish(this._pos,-a,1.1);}
+      for(let k=0;k<5;k++){
+        const a=this.t*9+k*1.26, hY=.035+k*.052+Math.sin(this.t*8+k)*.012;
+        this._pos.set(Math.sin(a)*(.045+k*.012),hY,Math.cos(a)*(.045+k*.012)).add(q.m.position);
+        drawFish(this._pos,-a,-.25,.45,1.15);
+      }
     }
     for(let i=this.shots.length-1;i>=0;i--){
       const s=this.shots[i];s.t+=dt;const t=clamp(s.t/T.flight,0,1);
       s.m.position.lerpVectors(s.from,s.to,t).y+=Math.sin(t*Math.PI)*.20;this.fx.orbTick(s.m,dt);
-      drawFish(s.m.position,this.t*8,1.4);
+      const ang=Math.atan2(s.to.x-s.from.x,s.to.z-s.from.z);
+      drawFish(s.m.position,ang,-Math.cos(t*Math.PI)*.95,Math.sin(this.t*26)*.65,1.45);
       if(t>=1){this.burst(s.to,.08);this.hit(player,s.to,.08,.10,T.fishDmg,false,false);if(this.dead||this.dying)return;this.pool(s.to);this.fx.free(s.m);this.shots.splice(i,1);}
     }
     this.fish.count=fish;this.fish.instanceMatrix.needsUpdate=true;
@@ -285,7 +342,12 @@ export class Shark {
     const G=this.ghost;
     if(G&&!G.summoned&&this.ready&&!this.dying&&!this.dead&&this.hp<=this.maxHp*this.def.skills.illusion.at)this.summon(player);
     if(G?.summoned&&!G.dead){G.update(dt,player);if(this.dead||this.dying)return{push:null};}
-    if(this.dead){this.model.rotation.z=mix(this.model.rotation.z,-1.4,1-Math.exp(-5*dt));this.holder.position.y-=dt*.025;return{push:null};}
+    const calm=juice.calm, h=Math.min(dt,.05);
+    if(this.dead){
+      this.model.rotation.z=mix(this.model.rotation.z,-1.55,1-Math.exp(-5*dt));
+      this.model.pose({gape:.35,tailSwing:Math.sin(this.t*7)*.25*Math.exp(-this.t*.2),left:.5,right:-.4,size:SIZE});
+      this.holder.position.y-=dt*.025;return{push:null};
+    }
     const arrival=this.def.skills.arrival;
     this.rise=clamp((this.arrivalT-arrival.barrier)/arrival.breach,0,1);
     // Make room during anticipation, then hold that view through the jump.
@@ -294,32 +356,56 @@ export class Shark {
     this.camera.distance=this.cameraBase.distance+this.cameraAirView*this.cameraAir;
     this.camera.pitch=this.cameraBase.pitch+Math.min(.3,this.cameraAirView*this.cameraAir*.27);
     this.hitPop=Math.max(0,(this.hitPop||0)-dt);this.frenzy=Math.max(0,this.frenzy-dt);this.prey=Math.max(0,this.prey-dt);
-    if(this.dying){this.model.visible=true;this.fin.visible=false;this.lift=0;this.model.position.y=.15*K;this.model.rotation.x=-.4;this.model.pose({gape:.5,tailSwing:Math.sin(this.t*2)*.07});return{push:null};}
+    if(this.dying){
+      this.model.visible=true;this.fin.visible=false;this.lift=0;this.model.position.y=.15*K;this.model.rotation.x=-.4;
+      const flop=calm?0:Math.sin(this.t*11);
+      this.model.pose({gape:.65+Math.abs(flop)*.25,tailSwing:flop*.42,headRoll:flop*.18,left:flop*.35,right:-flop*.35,squint:-.5,time:this.t,size:SIZE});
+      return{push:null};
+    }
     if(this.bleed>0){this.bleed=Math.max(0,this.bleed-dt);bus.emit('damage_taken',{targetId:PLAYER,amount:this.def.skills.scent.dmg*dt,source:'boss',drain:true});
       if(this.dead||this.dying)return{push:null};
       if((this.bleedFx-=dt)<=0){this.bleedFx=.22;this.fx.puff(player.position.clone().add(V(0,.04,0)),this.color,.009,.3);}}
     const rate=this.frenzy>0?this.def.skills.frenzy.tempo:1;
     this.stunT=Math.max(0,this.stunT-dt);if(!this.stunT)this.elapsed+=dt*rate;this.hazards(dt,player);
     if(this.dead||this.dying)return{push:null};
-    if(this.stunT>0){this.model.pose({gape:.1});return{push:null};}
-    let gape=.06,tailSwing=Math.sin(this.t*(this.frenzy?9:4))*.18,left=0,right=0,tilt=-.4,coil=0,stretch=0,roll=0,squint=this.hitPop>0?.8:0;this.crouch=0;
+    if(this.stunT>0){this.model.pose({gape:.1,squint:.8,size:SIZE});return{push:null};}
+
+    // 2nd-order underdamped plush squash, head-kick & flinch springs
+    const jK=LOOK.num('shark-motion-jiggle-k',130), jC=LOOK.num('shark-motion-jiggle-c',7.5);
+    if(calm){
+      this.squash*=Math.exp(-8*h);this.squashV=0;this.flinch=this.flinchV=this.headKick=this.headKickV=0;
+    }else{
+      this.squashV+=(-jK*this.squash-jC*this.squashV)*h;this.squash=clamp(this.squash+this.squashV*h,-.65,.85);
+      this.flinchV+=(-140*this.flinch-11*this.flinchV)*h;this.flinch=clamp(this.flinch+this.flinchV*h,-.45,.45);
+      this.headKickV+=(-150*this.headKick-12*this.headKickV)*h;this.headKick=clamp(this.headKick+this.headKickV*h,-.4,.4);
+    }
+
+    let gape=.08,tailSwing=Math.sin(this.t*(this.frenzy?10:4.6))*(this.frenzy?.34:.24),tailCurl=0;
+    let left=0,right=0,finFlare=0,tilt=-.4,coil=0,stretch=0,roll=0,headPitch=0,headRoll=0;
+    let squint=this.hitPop>0?.9:0;this.crouch=0;
     const turn=Math.atan2(player.position.x-this.position.x,player.position.z-this.position.z);
     const delta=Math.atan2(Math.sin(turn-this.heading),Math.cos(turn-this.heading));
-    const headTurn=clamp(delta,-.25,.25);
+    const headTurn=clamp(delta,-.38,.38);
     this.settle=Math.max(0,this.settle-dt*3.5);
     this.sway=mix(this.sway,clamp(delta,-1,1),1-Math.exp(-6*dt));
     const walking=this.phase==='rest'&&this.position.distanceTo(player.position)>.42;
     this.walkBlend=mix(this.walkBlend,walking?1:0,1-Math.exp(-8*dt));
-    this.gait+=dt*mix(2,7*rate,this.walkBlend);
+    this.gait+=dt*mix(2.6,8.2*rate,this.walkBlend);
     const stride=Math.sin(this.gait),strideBack=Math.sin(this.gait-Math.PI);
-    left=stride*mix(.045,.3,this.walkBlend);right=strideBack*mix(.045,.3,this.walkBlend);
-    tailSwing+=this.sway*.35;roll=this.sway*.08+stride*.045*this.walkBlend+Math.sin(this.t*1.3)*.015;
-    coil=this.settle*.6;stretch=-this.settle*.65;
-    this.lift=Math.abs(stride)*.009*this.walkBlend;
+    left=stride*mix(.12,.52,this.walkBlend);right=strideBack*mix(.12,.52,this.walkBlend);
+    tailSwing+=this.sway*.52;
+    roll=this.sway*.15+stride*.095*this.walkBlend+Math.sin(this.t*1.8)*.03;
+    headPitch=Math.sin(this.t*2.4)*.05;
+    coil=this.settle*.75;stretch=-this.settle*.6;
+    this.lift=Math.abs(stride)*.015*this.walkBlend;
+
     if(!this.ready){
       this.clearWarning();for(const m of this.tornadoVisuals)m.visible=false;this.model.scale.setScalar(SIZE);
-      gape=Math.sin(this.rise*Math.PI)*.8;this.lift=mix(-.60,0,ease(this.rise));tilt=mix(-1.1,-.4,ease(this.rise));this.elapsed=0;
-      if(this.rise>0&&this.rise<1&&(this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.08;this.fx.puff(this.position,this.dust,.04,.4);}
+      const r=ease(this.rise);
+      gape=Math.sin(this.rise*Math.PI)*1.05;headPitch=-Math.sin(this.rise*Math.PI)*.32;
+      tailSwing=Math.sin(this.t*12)*.5*(1-r*.5);finFlare=Math.sin(this.rise*Math.PI)*.8;
+      this.lift=mix(-.60,0,r);tilt=mix(-1.25,-.4,r);this.elapsed=0;
+      if(this.rise>0&&this.rise<1&&(this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.07;this.fx.puff(this.position,this.dust,.045,.45);}
     }
     else if(this.phase==='rest'){
       this.heading+=clamp(delta,-dt*2,dt*2);
@@ -335,15 +421,29 @@ export class Shark {
         this.begin(name,player);
       }
     }else if(this.phase==='windup'){
-      const sk=this.skill(), progress=clamp(this.elapsed/sk.windup,0,1);
+      const sk=this.skill(), progress=clamp(this.elapsed/sk.windup,0,1), ep=ease(progress);
       const difference=Math.atan2(Math.sin(this.aimHeading-this.heading),Math.cos(this.aimHeading-this.heading));
-      this.heading+=clamp(difference,-dt*4,dt*4);gape=ease(progress)*.85;tilt-=Math.sin(progress*Math.PI)*.17;
-      coil=ease(progress);tailSwing-=Math.sin(progress*Math.PI)*.35;stretch=-Math.sin(progress*Math.PI)*.4;
-      squint=ease(progress)*.7;
-      if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){tilt+=ease(progress)*1.1;this.lift=-ease(progress)*.60;left=right=-ease(progress)*.4;}
-      else if(this.state==='leap'){this.crouch=ease(progress)*.035;left=right=-ease(progress)*.5;}
-      if(this.state==='combo'&&this.beat===1)left=-ease(progress)*1.1;
-      if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){roll=-Math.sin(progress*Math.PI)*.16;coil=ease(progress)*1.5;}
+      this.heading+=clamp(difference,-dt*4,dt*4);
+      // Coiled anticipation + tension tremor near peak + wide-eyed lock snap at >0.88
+      const quiver=!calm&&progress>.65?Math.sin(this.t*46)*(progress-.65)*2.2:0;
+      gape=ep*1.05;tilt-=Math.sin(progress*Math.PI)*.28;
+      headPitch=-ep*.32+quiver*.04;headRoll=quiver*.08;
+      coil=ep*1.45;tailSwing=-Math.sin(progress*Math.PI)*.55+quiver*.15;
+      stretch=-Math.sin(progress*Math.PI)*.55;finFlare=ep*.65;
+      squint=progress>.88?-.65:ep*.85;
+      if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
+        // Dramatic nose-dive arch with tail kicking high into the air before submerging
+        tilt+=ep*1.35;headPitch=ep*.28;this.lift=-ep*.60;left=right=-ep*.75;tailCurl=ep*.8;
+      }else if(this.state==='leap'){
+        // Deep squashed plush crouch before torpedo launch
+        this.crouch=ep*.055;this.squash=Math.max(this.squash,ep*.55);left=right=-ep*.85;finFlare=ep*.9;
+      }else if(this.state==='combo'&&this.beat===1){
+        // Huge right-banked Haymaker wind-back for left flipper slap
+        left=-ep*1.45;right=ep*.45;roll=ep*.28;headRoll=-ep*.2;tailCurl=-ep*.8;
+      }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){
+        // Tight counter-coil twisting back before the 360 whip-spin
+        roll=-Math.sin(progress*Math.PI)*.32;coil=ep*1.85;tailCurl=-ep*1.2;headRoll=ep*.24;
+      }
       if(this.warning){this.warning.floor.material.progress=this.warning.volume.material.progress=progress;this.warning.floor.material.time=this.t;}
       if(progress>=1)this.release(player);
     }else if(this.phase==='track'){
@@ -353,8 +453,11 @@ export class Shark {
       this.heading+=clamp(change,-dt*2*scent,dt*2*scent);
       if(distance>.01)this.position.addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),Math.min(distance,sk.speed*dt*scent*rate));
       this.clampIn(this.position);
-      this.fin.position.copy(this.position).setY(this.floor+.055*K);this.fin.rotation.y=this.heading;
-      if((this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.08;this.fx.puff(this.fin.position,this.dust,.015,.25);}
+      // Sinuous predator dorsal fin slicing through the water (sways, banks into turns & bobs)
+      const finWave=calm?0:Math.sin(this.t*(scent>1?13:8.5));
+      this.fin.position.copy(this.position).setY(this.floor+.055*K+finWave*.006);
+      this.fin.rotation.set(calm?0:Math.cos(this.t*7)*.09,this.heading,calm?0:clamp(change*.5,-.35,.35)+finWave*.18);
+      if((this.wakeT=(this.wakeT||0)-dt)<=0){this.wakeT=.065;this.fx.puff(this.fin.position,this.dust,.018,.28);}
       if(this.elapsed>=sk.track){
         this.target.copy(this.position);this.target.y=this.floorAt(this.target);this.floor=this.target.y;
         this.warn(this.target,sk.radius,sk.height);this.phase='eruption';this.elapsed=0;sfx.sharkRumble(sk.tell);
@@ -362,14 +465,14 @@ export class Shark {
     }else if(this.phase==='eruption'){
       const sk=this.skill(), t=clamp(this.elapsed/sk.tell,0,1);
       this.warning.floor.material.progress=this.warning.volume.material.progress=t;
-      // The floor clips the buried portion; reveal the snout before the shoulders and tail.
+      // The floor clips the buried portion; burst snout skyward with jaws wide and flippers flared.
       const emerge=ease(clamp((t-.35)/.65,0,1));
       this.model.visible=emerge>0;this.fin.visible=emerge<.25;
-      this.lift=mix(-.60,sk.apex*.45,emerge);tilt=-.4-Math.sin(.15*Math.PI)*.9;gape=.9*emerge;
-      coil=-emerge*.6;left=right=-emerge*.6;stretch=emerge*.5;
-      if(emerge>0&&emerge<1&&(this.wakeT-=dt)<=0){this.wakeT=.07;this.fx.puff(this.position,this.dust,.035,.3);}
+      this.lift=mix(-.60,sk.apex*.45,emerge);tilt=-.4-Math.sin(.15*Math.PI)*1.05;gape=1.15*emerge;
+      headPitch=-emerge*.35;coil=-emerge*.95;left=right=-emerge*.85;finFlare=emerge*.95;stretch=emerge*.85;
+      if(emerge>0&&emerge<1&&(this.wakeT-=dt)<=0){this.wakeT=.06;this.fx.puff(this.position,this.dust,.04,.35);}
       if(t>=1){this.phase='active';this.elapsed=0;this.start.copy(this.position);this.start.y=this.floor;this.model.visible=true;this.fin.visible=false;this.clearWarning();
-        this.lift=sk.apex*.45;gape=.9;
+        this.lift=sk.apex*.45;gape=1.15;this.squashV-=5;
         this.burst(this.target,sk.radius,true);this.hit(player,this.target,sk.radius,sk.height,sk.dmg,this.state==='burrowBite',false);
         if(this.dead||this.dying||this.phase!=='active')return{push:null};
         this.pool(this.target);if(this.state==='tornado')this.launchTornadoes();
@@ -378,41 +481,54 @@ export class Shark {
           this.warn(this.target,sk.radius,sk.height);
         }}
     }else if(this.phase==='active'){
-      const sk=this.skill(), p=clamp(this.elapsed/sk.active,0,1);
-      gape=Math.max(.04,(1-p)*.9);tailSwing+=Math.sin(p*Math.PI)*.8;
-      stretch=Math.sin(p*Math.PI)*.65;coil=-Math.sin(p*Math.PI)*.7;
-      squint=-Math.sin(p*Math.PI)*.4;
+      const sk=this.skill(), p=clamp(this.elapsed/sk.active,0,1), sp=Math.sin(p*Math.PI);
+      gape=Math.max(.04,(1-p)*1.05);tailSwing+=sp*1.15;
+      stretch=sp*.85;coil=-sp*.95;squint=-sp*.55;finFlare=sp*.6;
       if(['bite','rear','combo','spin'].includes(this.state)){
         const bite=this.state==='bite'||this.state==='rear'||(this.state==='combo'&&this.beat===0);
         const sweep=this.state==='spin'||(this.state==='combo'&&this.beat===2);
-        if(bite){gape=.9*Math.max(0,1-p/.33);this.crouch=Math.sin(Math.min(1,p/.66)*Math.PI)*.16;tilt+=this.crouch*2.5;this.position.copy(this.start).addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),Math.sin(p*Math.PI)*.10);this.clampIn(this.position);}
+        if(bite){
+          // Snappy chomp: jaws slam shut at p=.33 with downward head-whip overshoot & plush rebound
+          gape=1.15*Math.max(0,1-p/.33);
+          this.crouch=Math.sin(Math.min(1,p/.66)*Math.PI)*.18;
+          tilt+=this.crouch*2.9;
+          headPitch=p<.33?-((1-p/.33)*.32):Math.sin(clamp((p-.33)/.67,0,1)*Math.PI)*.32;
+          this.position.copy(this.start).addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),sp*.10);this.clampIn(this.position);
+        }
         const contact=sweep?arcHits(this.warning.at,.08,this.warning.r,this.aimHeading+this.lastSpinProgress*Math.PI*2+Math.PI,this.aimHeading+p*Math.PI*2+Math.PI,this.warning.height,player.position,player.cfg):p>=(bite ? .33 : .5);
         if(!this.struck&&contact){
           // Damage callbacks can synchronously kill or stun the attacker.
           const warning=this.warning;this.struck=true;this.hit(player,warning.at,warning.r,warning.height,sk.dmg,bite);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};
-          this.burst(warning.at,warning.r);if(bite)sfx.sharkChomp();else sfx.sharkSwish(1.2);
+          this.burst(warning.at,warning.r);if(bite){this.headKickV+=5;sfx.sharkChomp();}else sfx.sharkSwish(1.2);
           if(!sweep)this.clearWarning();
         }
         this.lastSpinProgress=p;
       }
       if(this.state==='leap'){
-        this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);this.lift=Math.sin(p*Math.PI)*sk.apex;tilt=-.4+Math.sin(p*Math.PI)*.8;
-        left=right=-Math.sin(p*Math.PI)*.8;tailSwing*=.45;coil=Math.sin(p*Math.PI)*1.2;stretch=Math.sin(p*Math.PI);
+        // Torpedo nose-up launch -> nose-down predatory dive-bomb -> massive belly-flop splash!
+        this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);this.lift=sp*sk.apex;
+        tilt=-.4+Math.cos(p*Math.PI)*-.85+.35;
+        headPitch=Math.cos(p*Math.PI)*-.26;
+        left=right=-sp*1.05;tailSwing*=.55;coil=sp*1.45;stretch=sp*1.1;finFlare=sp*.85;
         if(p>=1){const r=this.warning.r;this.burst(this.target,r,true);this.hit(player,this.target,r,sk.height,sk.dmg,false,false);if(this.dead||this.dying||this.phase!=='active')return{push:null};this.clearWarning();}
       }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
         if(this.state==='maelstrom'){this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);}
         if(this.warning)this.warning.floor.material.progress=this.warning.volume.material.progress=p;
-        this.lift=Math.sin((.15+p*.85)*Math.PI)*sk.apex;tilt=-.4-Math.sin((.15+p*.85)*Math.PI)*.9;gape=.9*Math.sin((.15+p*.85)*Math.PI);
-        coil=-Math.sin((.2+p*.8)*Math.PI)*1.1;stretch=Math.sin((.15+p*.85)*Math.PI);left=right=-Math.sin((.3+p*.7)*Math.PI)*.75;
-        gape=.9*Math.sin((.5+p*.5)*Math.PI);
-        if(this.state==='dive'&&this.repeats<sk.count-1){const sink=ease(clamp((p-.65)/.35,0,1));tilt+=sink*1.2;this.lift-=sink*.60;}
+        const arc=Math.sin((.15+p*.85)*Math.PI);
+        this.lift=arc*sk.apex;tilt=-.4-arc*1.05+p*.65;
+        headPitch=-arc*.28;coil=-Math.sin((.2+p*.8)*Math.PI)*1.35;stretch=arc*1.1;left=right=-Math.sin((.3+p*.7)*Math.PI)*.95;finFlare=arc*.9;
+        gape=1.15*Math.sin((.5+p*.5)*Math.PI);
+        if(this.state==='dive'&&this.repeats<sk.count-1){const sink=ease(clamp((p-.65)/.35,0,1));tilt+=sink*1.35;this.lift-=sink*.60;}
         if(p>=1){this.burst(this.position,sk.radius,true);
           if(this.state==='tornado'||this.state==='maelstrom')this.hit(player,this.position,sk.radius,sk.height,sk.dmg,false,false);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};}
-      }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){this.heading=this.aimHeading+p*Math.PI*2;roll=Math.sin(p*Math.PI)*.18;coil=Math.sin(p*Math.PI)*1.3;}
-      else if(this.state==='combo'&&this.beat===1){left=Math.sin(p*Math.PI)*1.5;right=-Math.sin(p*Math.PI)*.35;roll=-Math.sin(p*Math.PI)*.14;}
-      else this.lift=Math.sin(p*Math.PI)*.035;
+      }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){
+        this.heading=this.aimHeading+p*Math.PI*2;roll=sp*.36;coil=sp*1.65;tailCurl=sp*1.35;finFlare=sp*.9;
+      }else if(this.state==='combo'&&this.beat===1){
+        // Exaggerated left-flipper Haymaker sweep across the front!
+        left=sp*1.85;right=-sp*.55;roll=-sp*.32;headRoll=sp*.22;tailCurl=sp*.9;
+      }else this.lift=sp*.045;
       if(p>=1){
         if(this.state==='combo'&&this.beat<2){this.beat++;this.phase='windup';this.elapsed=0;this.aim(player);this.prepare(player);}
         else if(this.state==='dive'&&++this.repeats<sk.count){this.phase='track';this.elapsed=0;this.model.visible=false;this.fin.visible=true;}
@@ -423,11 +539,16 @@ export class Shark {
     this.position.y=this.floor;this.holder.rotation.y=this.heading;
     this.model.rig.clipPlane.constant=-this.floor;
     const blend=1-Math.exp(-16*dt);
-    this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll,blend);
-    // The jaw remains frame-exact; only secondary body motion eases between poses.
+    this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll+this.flinch,blend);
+    // The jaw remains frame-exact; secondary body motion & plush springs ease between poses.
     this.model.position.y=.15*K+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
-    this.model.pose({gape,headTurn,tailSwing,left,right,finLift:this.crouch*5,breath:Math.sin(this.t*2),coil,roll,stretch,time:this.t,energy:this.frenzy>0?1.6:1,squint});
-    this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:Math.max(this.glow,this.frenzy>0?.13:0));
+    this.model.pose({
+      gape,headTurn,headPitch:headPitch+this.headKick,headRoll:headRoll+this.flinch*.6,
+      tailSwing,tailCurl,left,right,finLift:this.crouch*5.5,finFlare,
+      breath:calm?0:Math.sin(this.t*(this.frenzy?4.5:2.4)),coil,roll:roll+this.flinch*.5,
+      stretch,squash:this.squash,time:calm?0:this.t,energy:calm?.4:(this.frenzy>0?1.85:1.15),squint,size:SIZE
+    });
+    this.model.rig.mat.emissive.copy(this.color).multiplyScalar(this.hitPop>0?.5:Math.max(this.glow,this.frenzy>0?.15:0));
     if(!this.illusion)bus.emit('boss_health',{name:this.arena.name,hp:this.hp,maxHp:this.maxHp,shielded:this.shielded,shieldText:'BENEATH THE QUILT'});
     return{push:null};
   }

@@ -99,16 +99,20 @@
   --shark-grain: 0.0003;
   --hostile-shark: #ff6548;
   --shark-dust: #d6c5a7;
-  --shark-fish: #ffb15e;
+  --shark-fish: #ff5a36;
+  --shark-fish-body: #325a7a;
+  --shark-fish-belly: #e8f3fa;
   --shark-illusion-opacity: 0.35;   /* the half-Health illusion (src/shark.js): how see-through it is */
   --shark-illusion-glow: 0.18;      /* and its faint hostile glow, so it reads as a threat, not scenery */
   --shark-water: #304c51;
-  --shark-pool-deep: #30281d;
-  --shark-pool-shallow: #796644;
+  --shark-pool-deep: #0b1326;       /* deep abyssal ocean-indigo vortex eye of a feeding-frenzy pool */
+  --shark-pool-shallow: #c42830;    /* crimson-coral chum churn inside the vortex */
   --shark-water-foam: #b1bca4;
   --shark-water-glint: 0.16;
-  --shark-pool-warning-opacity: 0.09;
-  --shark-pool-boundary: #8b6841;
+  --shark-pool-warning-opacity: 0.11;
+  --shark-pool-boundary: #ff5a42;   /* crisp hostile coral rim around each feeding-frenzy pool */
+  --shark-motion-jiggle-k: 130;     /* plush squash-and-stretch spring stiffness (1/s^2) */
+  --shark-motion-jiggle-c: 7.5;     /* plush squash-and-stretch spring damping (bouncy stuffed-toy settle) */
   --shark-camera-distance: 1.15;     /* the fight view: about the Vacuum fight's angle (--camera-tilt) */
   --shark-camera-tilt: 0.98;
   --shark-camera-ahead: 0.25;        /* m it aims past the jelly: more puts the jelly lower on screen */

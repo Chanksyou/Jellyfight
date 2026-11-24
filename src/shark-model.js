@@ -15,23 +15,40 @@ function riggedClone(template){
   const [trunk,head,jaw,eyes,leftFin,rightFin,tail]=parts;
   const spine=trunk.skeleton.bones,flippers=[leftFin,rightFin];
   group.rig={trunk,head,jaw,eyes,fins:flippers,tail,spine,mat:trunk.material,clipPlane:trunk.material.clippingPlanes[0]};
-  group.pose=({gape=0,headTurn=0,tailSwing=0,left=0,right=0,breath=0,finLift=0,coil=0,roll=0,stretch=0,time=0,energy=1,squint=0}={})=>{
-    // The neck carries the complete head so turning cannot split the skull seam.
-    head.rotation.set(0,0,0);eyes.rotation.copy(head.rotation);jaw.rotation.set(gape,0,0);
-    const blinkPhase=(time+1.7)%4.2,blink=time>0&&blinkPhase<.14?Math.sin(blinkPhase/.14*Math.PI):0;
-    eyes.scale.y=Math.max(.15,1-blink*.85-squint*.35);
-    leftFin.rotation.set(left*.25,left,-finLift-Math.abs(left)*.3);
-    rightFin.rotation.set(right*.25,right,finLift+Math.abs(right)*.3);
+  group.pose=({gape=0,headTurn=0,headPitch=0,headRoll=0,tailSwing=0,tailCurl=0,left=0,right=0,breath=0,finLift=0,finFlare=0,coil=0,roll=0,stretch=0,squash=0,time=0,energy=1,squint=0,size=0}={})=>{
+    // The neck carries the complete head; add subtle pitch/roll for biting snaps & roars without splitting the seam.
+    const hp=THREE.MathUtils.clamp(headPitch,-.38,.32), hr=THREE.MathUtils.clamp(headRoll,-.35,.35);
+    head.rotation.set(hp,0,hr);eyes.rotation.copy(head.rotation);
+    jaw.rotation.set(Math.max(0,gape),0,0);
+    const blinkPhase=(time+1.7)%(energy>1.35?3.0:4.2),blink=time>0&&blinkPhase<.14?Math.sin(blinkPhase/.14*Math.PI):0;
+    const eyeY=squint<0?1-squint*.45:Math.max(.14,1-blink*.86-squint*.45);
+    eyes.scale.y=eyeY;
+    // Flippers: exaggerated root sweep + secondary tip bend with slight wave lag
+    const finWave=Math.sin(time*4.2*Math.min(1.4,energy))*0.06*energy;
+    leftFin.rotation.set(left*.36+finFlare*.22,left*.95,-finLift*1.15-finFlare*.55-Math.abs(left)*.35+finWave);
+    rightFin.rotation.set(right*.36+finFlare*.22,right*.95,finLift*1.15+finFlare*.55+Math.abs(right)*.35-finWave);
+    flippers.forEach((f,i)=>{
+      const s=i?1:-1, drive=i?right:left;
+      f.skeleton.bones[1].rotation.set(-drive*.25,0,s*(Math.abs(drive)*.55+finLift*.45+finFlare*.45+Math.sin(time*4.2-0.7)*0.08*energy));
+    });
+    // Progressive S-wave down the 5-bone spine (subtle near nose, sweeping toward tail stock) + expressive C-coil
     for(let i=0;i<spine.length;i++){
-      const wave=Math.sin(time*3-i*.7)*.025*energy;
-      spine[i].rotation.set(coil*(i-2)*.055-(i===4?coil*.12:0), wave+headTurn*NECK_WEIGHTS[i]+tailSwing*(2-i)*.05,roll*.16);
+      const amp=(.095-i*.015)*energy;
+      const wave=Math.sin(time*3.8-i*.85)*amp;
+      const coilBend=coil*(i-2)*.095-(i===4?coil*.18-hp*.35:0);
+      spine[i].rotation.set(coilBend,wave+headTurn*NECK_WEIGHTS[i]+tailSwing*(2.2-i)*.085,roll*.24+(i===4?hr*.35:0));
     }
-    flippers.forEach((f,i)=>{f.skeleton.bones[1].rotation.z=(i?1:-1)*(Math.abs(i?right:left)*.4+finLift*.35);});
-    tail.skeleton.bones[1].rotation.set(coil*.18,Math.sin(time*3-.9)*.15*energy+tailSwing*.35,0);
-    tail.skeleton.bones[2].rotation.y=Math.sin(time*3-1.6)*.18*energy+tailSwing*.2;
-    tail.rotation.y=tailSwing;group.scale.y=group.scale.x*(1+breath*.025);
+    // 3-bone tail whip: traveling wave lags behind spine for silky shark swimming & violent attack follow-through
+    tail.rotation.y=tailSwing+tailCurl*.35;
+    tail.skeleton.bones[1].rotation.set(coil*.26,Math.sin(time*3.8-1.45)*.24*energy+tailSwing*.48+tailCurl*.3,roll*.14);
+    tail.skeleton.bones[2].rotation.set(coil*.15,Math.sin(time*3.8-2.3)*.30*energy+tailSwing*.32+tailCurl*.25,0);
+    // Volume-preserving plush squash-and-stretch anchored to base model size
+    const base=size||group.userData.baseScale||(group.userData.baseScale=group.scale.x||1);
+    if(size)group.userData.baseScale=size;
+    const sy=THREE.MathUtils.clamp(1+breath*.038+stretch*.20-squash*.32,.58,1.58);
+    const sxz=1/Math.sqrt(sy);
+    group.scale.set(base*sxz,base*sy,base*sxz*(1-stretch*.08+squash*.08));
     trunk.scale.y=1; // the whole rig breathes together so the neck seam stays closed
-    group.scale.y*=1+stretch*.12;group.scale.z=group.scale.x*(1-stretch*.06);
   };
   group.pose();return group;
 }
