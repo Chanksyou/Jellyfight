@@ -96,6 +96,7 @@ A knob is a suggestion; nothing changes until the owner picks it.
 - A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
 - B1: chests and rarity odds. B2: stat Treasures. B3: gadget Treasures. B4: growing and economy Treasures. B5: Attack upgrades. B6: Legendary Treasures and evolutions. B7: status effects.
 - C1: bugs. C2: waves and act knobs.
+- D1: score. D2: first run and Easy.
 
 ## What you pick up (Wave B)
 
@@ -120,3 +121,9 @@ Budgets from the balance plan (points a pick should be worth): Common 15 a copy,
 
 A bug's attack is read from its words in `content/enemies.kdl`: damage a hit, seconds between hits (its `every`, or wind-up plus rest), and the wind-up as its warning; a bug with no attack word touches about once a second (`ASSUME.contact`).
 The night's pressure (C2) is Health arriving a second against the reference jelly's Offence, with the jelly levelling on the XP that arrives; it reproduces the run log's end-of-act levels to within a level.
+
+## What wraps it (Wave D)
+
+The score (D1) prices each part of `src/score.js` for the run log's mean cleared act, and splits a run into finishing parts (night, Boss damage, Boss beaten) and skill parts (Elites, bugs, clean play, pace).
+The run log has means only, so a part that pays everyone the same shows up here, but how far players spread around it needs the per-run rows.
+First run and Easy (D2) sizes what a first-timer's jelly can spend in act 1 against what a cleared act costs, and what Easy's x2 dealt and x0.5 taken do on paper.

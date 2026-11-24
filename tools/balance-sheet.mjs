@@ -31,6 +31,8 @@ const { BASE_STATS, MAX_DODGE, SHIELD_WAIT, SHIELD_FILL, applyCard, bubbleShare,
 const { ELEMENT_BASE, TREASURE_WORDS, STAT_NAMES } = await game('src/words.js');
 const { STAGE1 } = await game('src/stage1.js'), { STAGE2 } = await game('src/stage2.js'), { STAGE3 } = await game('src/stage3.js'), { STAGE4, ENCORE } = await game('src/stage4.js');
 const KDL = await game('src/kdl.js');
+const { SCORE, actParts, MAX_SCORE } = await game('src/score.js'), { EASY } = await game('src/easy.js');
+const { dealt: EASY_DEALT, taken: EASY_TAKEN, pearls: EASY_PEARLS } = EASY;
 export { CONTENT };
 
 // ------------------------------------------------------------------ sources
@@ -1046,13 +1048,13 @@ bugs out is the night model's count (alive cap ignored)`,
 // from where the last act's Boss door left it; Offence is the cards-only jelly times what Treasures add at this act's door (the run log).
 export function pressure(A, dt = 5, scale = {}) {
   const W = CONTENT.waves, list = W.bugs.filter((b) => b.act === A.n), tough = A.toughness * (scale.toughness ?? 1), bugs = A.bugs * (scale.bugs ?? 1), M = MOMENTS[A.n];
-  const k = (M.real || 1) / offence('normal', refStats('normal', M.level)), x0 = xpFor(RUN_LOG.level[A.n - 2] ?? 1), out = [];
+  const k = (scale.k ?? (M.real || 1) / offence('normal', refStats('normal', M.level))), x0 = xpFor(RUN_LOG.level[A.n - 2] ?? 1), out = [];
   let xp = 0;
   for (let t = 0; t < A.night; t += dt) {
     const rate = (W.rate + t * W.grow) * bugs, live = list.filter((b) => t >= b.from), sw = live.reduce((s, b) => s + b.weight, 0);
     const hp = rate * live.reduce((s, b) => s + b.weight * CONTENT.enemies[b.id].hp * tough, 0) / sw;
     xp += rate * live.reduce((s, b) => s + b.weight * Math.round(CONTENT.enemies[b.id].xp * A.xpMult), 0) / sw * dt;
-    const level = levelAt(x0 + xp), off = offence('normal', refStats('normal', level)) * k;
+    const level = levelAt(x0 + xp), off = offence('normal', refStats('normal', level)) * k * (scale.off ?? 1);
     out.push({ t, hp, off, load: hp / off, level });
   }
   return out;
@@ -1090,6 +1092,82 @@ load = arriving Health a second / Offence: above 1 the jelly cannot keep up and 
   };
 }
 
+
+// ================================================================== Wave D: the wrappers (D1 and D2)
+// ------------------------------------------------------------------ D1: score
+ASSUME.elitesBeaten = 2;   // Elites beaten in a cleared act, of 3: the run log has no count (a run log addition)
+// What the mean cleared act on the run log earns, part by part (src/score.js actParts), and what a perfect one does
+export function meanAct(i) {
+  const A = ACTS[i];
+  return actParts({ nightShare: 1, won: true, elites: ASSUME.elitesBeaten, bugsOut: 1, bugsCleared: RUN_LOG.cleared[i], damageTaken: RUN_LOG.healthLost[i], bossSeconds: RUN_LOG.bossSeconds[i] });
+}
+function sheetD1() {
+  const flags = [], acts = ACTS.map((A, i) => meanAct(i)), keys = acts[0].map(([k]) => k);
+  const PART = { night: 'Night survived', bossDamage: 'Boss damage', bossBeaten: 'Boss beaten', elites: 'Elites', bugs: 'Bugs cleared', clean: 'Clean play', pace: 'Boss pace' };
+  const perfect = actParts({ nightShare: 1, won: true, elites: SCORE.elites, bugsOut: 1, bugsCleared: 1, damageTaken: 0, bossSeconds: 0 });
+  const rows = keys.map((k, j) => [PART[k], r(perfect[j][1]), ...acts.map((a) => `${r(a[j][1])} (${pct(a[j][1] / perfect[j][1]).slice(1)})`)]);
+  const tot = acts.map((a) => a.reduce((s, [, v]) => s + v, 0)), fixed = ['night', 'bossDamage', 'bossBeaten'];
+  const skillMax = perfect.filter(([k]) => !fixed.includes(k)).reduce((s, [, v]) => s + v, 0), fixedMax = perfect.filter(([k]) => fixed.includes(k)).reduce((s, [, v]) => s + v, 0);
+  // clean play: the damage that pays nothing, against what the mean cleared act takes
+  const lost = RUN_LOG.healthLost, zero = lost.map((l, i) => (l >= SCORE.cleanGone ? i + 1 : 0)).filter(Boolean);
+  if (zero.length) {
+    const want = Math.ceil(Math.max(...lost) / 0.75 / 50) * 50;
+    flags.push({ text: `Clean play pays nothing at ${SCORE.cleanGone} Health taken, and the mean cleared act loses ${lost.join(', ')} (acts 1 to 4): act${zero.length > 1 ? 's' : ''} ${zero.join(', ')} earn${zero.length > 1 ? '' : 's'} 0 of its ${r(SCORE.clean)}, so most of the part is out of reach.`,
+      knob: { at: at('src/score.js', /^ {2}cleanGone:/), change: `cleanGone: ${SCORE.cleanGone} → ${want}`, does: `the mean act in act 4 keeps ${pct(1 - Math.max(...lost) / want).slice(1)} of the part, and a clean run still takes all of it` } });
+  }
+  // pace: the mean Boss fight sits near the top of the range in acts 1 to 3
+  const paceShare = RUN_LOG.bossSeconds.map((t) => Math.max(0, Math.min(1, (SCORE.paceNone - t) / (SCORE.paceNone - SCORE.paceFull))));
+  if (Math.max(...paceShare.slice(0, 3)) > 0.85) {
+    const m = RUN_LOG.bossSeconds.slice(0, 3).reduce((s, x) => s + x, 0) / 3, F = Math.round(0.45 * m / 5) * 5, N = Math.round((m - 0.55 * F) / 0.45 / 5) * 5;
+    flags.push({ text: `Boss pace gives full marks at ${SCORE.paceFull} s and the mean Boss fight takes ${RUN_LOG.bossSeconds.slice(0, 3).join(', ')} s in acts 1 to 3: ${paceShare.slice(0, 3).map((p) => pct(p).slice(1)).join(', ')} of the part, so it pays nearly everyone the same.`,
+      knob: { at: at('src/score.js', /^ {2}paceFull:/), change: `paceFull: ${SCORE.paceFull} → ${F}, paceNone: ${SCORE.paceNone} → ${N}`, does: `a ${r(m)} s fight earns ${pct((N - m) / (N - F)).slice(1)} of the part, with room above and below` } });
+  }
+  return {
+    id: 'D1', title: 'Score',
+    lede: 'What each part of the score pays the mean cleared act on the run log, and how much of a run\'s score is skill and how much is just finishing.',
+    numbers: Object.entries(SCORE).map(([k, v]) => [`score.${k}`, v, at('src/score.js', new RegExp(`^ {2}${k}:`))])
+      .concat([['Run log: Health lost, Boss seconds, share of bugs cleared', `${RUN_LOG.healthLost.join(', ')}; ${RUN_LOG.bossSeconds.join(', ')}; ${RUN_LOG.cleared.join(', ')}`, 'tools/balance-sheet.mjs RUN_LOG'], ['Elites beaten in a cleared act (of 3)', ASSUME.elitesBeaten, 'tools/balance-sheet.mjs ASSUME']]),
+    model: `each part is src/score.js actParts of the run log's mean cleared act: the whole night, the Boss beaten, ${ASSUME.elitesBeaten} Elites (assumed: the run log has no count), the cleared share of bugs, the Health lost, the Boss time
+a run's means hide its spread: a part that looks fair on the mean can still pay every player the same, or pay none of them. The per-run spread needs the run log's rows (the run log additions), so this sheet reads the mean only
+night, Boss damage and Boss beaten are the finishing parts (${r(fixedMax)} of an act's ${r(fixedMax + skillMax)}); Elites, bugs, clean play and pace are the skill parts (${r(skillMax)})`,
+    tables: [{ head: ['Part', 'Perfect act', ...ACTS.map((A) => `Act ${A.n}, mean cleared`)], rows }, { head: ['', ...ACTS.map((A) => `Act ${A.n}`), 'Run (4 acts)'], rows: [['Mean cleared act earns', ...tot.map((t) => r(t)), r(tot.reduce((s, x) => s + x, 0))], ['Share of a perfect act', ...tot.map((t) => pct(t / (fixedMax + skillMax)).slice(1)), pct(tot.reduce((s, x) => s + x, 0) / MAX_SCORE).slice(1)]] }],
+    charts: [bars('Share of each part the mean cleared act earns, act 2', keys.map((k, j) => [PART[k], 100 * acts[1][j][1] / perfect[j][1]]), { fmt: (v) => r(v) + '%' }),
+      bars('Clean play earned by the mean cleared act, by act (of 2,000)', ACTS.map((A, i) => [`Act ${A.n}`, acts[i][keys.indexOf('clean')][1]]), { fmt: (v) => r(v), cls: 'b' })],
+    flags,
+    notes: ['A part that pays zero or full to the mean act can still separate players if the spread around that mean is wide: the per-run rows will say.'],
+  };
+}
+
+// ------------------------------------------------------------------ D2: first run and Easy
+function sheetD2() {
+  const flags = [], A = ACTS[0], lost = RUN_LOG.healthLost[0], levels = [1, 3, 6, 9, MOMENTS[1].level];
+  // Defence a first-timer's jelly has by level (cards only), against what a cleared act 1 costs on the run log
+  const rows = levels.map((L) => { const S = refStats('normal', L), c = defence(S, A), b = defence(S, A, 'brawler'); return [r(L), r(S.health), r(c), r(b), r(c / lost, 2), r(b / lost, 2)]; });
+  const sec = (L) => { const P = pressure(A, 1, { k: 1 }); return (P.find((x) => x.level >= L) || P[P.length - 1]).t; };
+  const need = (style) => levels.find((L) => defence(refStats('normal', L), A, style) >= lost);
+  const needB = need('brawler'), tB = needB ? sec(needB) : null;
+  // Easy: x2 dealt, x0.5 taken
+  const peak = (s) => { const P = pressure(A, 5, s); return [Math.max(...P.map((x) => x.load)), P.reduce((q, x) => q + x.load, 0) / P.length]; };
+  const norm = peak({ k: 1 }), easy = peak({ k: 1, off: EASY_DEALT });
+  const lines = [['Normal, cards only', ...norm.map((v) => r(v, 2))], ['Easy (x2 dealt)', ...easy.map((v) => r(v, 2))]];
+  if (tB != null && tB > 0.25 * A.night) flags.push({ text: `A first-timer's jelly, with cards only, cannot spend what a cleared act 1 costs on the run log (${lost} Health) until level ${r(needB)}, about ${r(tB)} s into a ${A.night} s night, if it keeps the Shield down as a brawler does; as a careful player it needs level ${r(need('careful') ?? 0)}.`,
+    knob: { at: at('src/first-run.js', /^const JUMP_TIP_AT/), change: 'a first run takes x0.75 from hits (a new number here, read by the damage step)', does: `a first run's Defence is a third more: the same ${lost} Health lasts about ${r(lost / 0.75)}` } });
+  const offX = 1 / EASY_TAKEN;
+  return {
+    id: 'D2', title: 'First run and Easy',
+    lede: 'What a first-timer\'s jelly can spend in act 1, and what Easy mode changes on paper. The run log\'s share of first-run deaths (6 in 10 Normal runs that finish act 1 and then die) is not in the files, so the sheet sizes the gap rather than proving it.',
+    numbers: [['Easy: dealt, taken, Pearls', `x${EASY_DEALT}, x${EASY_TAKEN}, x${EASY_PEARLS}`, at('src/easy.js', /export const EASY = /)], ['Act 1: night s, power, toughness', `${A.night}, ${A.power}, ${A.toughness}`, A.file], ['Run log: act 1 Health lost', lost, 'tools/balance-sheet.mjs RUN_LOG']],
+    model: `Defence = Health to spend over act 1 (sheet A5) for a reference Normal jelly, cards only, by level; the run log's act 1 Health lost is what a cleared act cost
+load = Health arriving a second / Offence (sheet C2), cards only; Easy doubles damage dealt (x${EASY_DEALT}) and halves damage taken (x${EASY_TAKEN}): Offence x${EASY_DEALT}, Defence x${offX}
+this sheet reads one act of one jelly with no Treasures: a first run takes some, so the gap is a ceiling`,
+    tables: [{ head: ['Level', 'Health', 'Spend, careful', 'Spend, brawler', 'x the run log\'s loss, careful', 'brawler'], rows }, { head: ['Act 1 load', 'Peak', 'Mean over the night'], rows: lines },
+      { head: ['Easy mode', 'Offence', 'Defence', 'Together'], rows: [['x', `x${EASY_DEALT}`, `x${offX}`, `x${r(EASY_DEALT * offX)}`]] }],
+    charts: [bars('Act 1 Health to spend by level, brawler (line: the run log\'s loss)', levels.map((L, i) => [`Level ${r(L)}`, defence(refStats('normal', L), A, 'brawler')]), { fmt: (v) => r(v), ref: lost })],
+    flags,
+    notes: [`Easy's two halves multiply: x${EASY_DEALT} Offence and x${offX} Defence is about x${r(EASY_DEALT * offX)} on paper, and it posts no score.`],
+  };
+}
+
 // ------------------------------------------------------------------ charts (inline SVG, no libraries)
 const W = 460, ROW = 22;
 const xmlesc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -1109,7 +1187,7 @@ function grouped(title, groups, series, fmt = String) {
 }
 
 // ------------------------------------------------------------------ the page
-export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7(), sheetC1(), sheetC2()];
+export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7(), sheetC1(), sheetC2(), sheetD1(), sheetD2()];
 function page(sheets) {
   const rev = (() => { try { return fs.readFileSync(path.join(ROOT, '.git/HEAD'), 'utf8').trim(); } catch { return ''; } })();
   const table = (t) => `<div class="scroll"><table><tr>${t.head.map((h) => `<th>${xmlesc(h)}</th>`).join('')}</tr>${t.rows.map((row) => `<tr>${row.map((c) => `<td>${xmlesc(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
