@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v669 makes the candles in Act 1, Act 2 and Act 4 open tumblers with white wax inside, a wick and a small flickering flame, so the smoke curling off them makes sense.
+
+v668 removes the leftover plant pieces that floated in the air above Act 1's and Act 4's sofa and by the lounge chair (leaves, a berry cluster and a bead string that were part of the room's walls-and-floor mesh).
+
 v667 moves Act 4's five floor vents (the TV, sofa, desk, lounge chair and stove) to the spots set in the layout editor, so each lands the jelly where the layout puts it.
 
 v666 gives the corduroy sofa, the kitchen, desk and sideboard wood, the bathroom's tiles and the kitchen counter and backsplash real photo textures in place of the drawn ones.
