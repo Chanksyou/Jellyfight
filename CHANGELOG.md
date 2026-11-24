@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v659 makes the Controller's arrow drop plainer: no circle or dome under you, and the arrow hovers smaller and farther out, then flies the way it points to hit where you were.
+
 v658 adds the powered apartment: little status lights glint on what is plugged in (the PC tower and the game console; act 3's air purifier) and thin grey smoke drifts off what burns or steams (the incense and candle, act 2's candle, oil burner and tub, act 3's humidifier plume). Act 4, the same room, has act 1's. Reduce effects keeps the lights on without blinking and slows the smoke, and Low draws no smoke.
 
 v657 gives the Dragonfly a new attack and takes its beam away: it spins up a two-blade rotor two jelly radii across and flings it at you three times in a row, 0.3 s apart along the same line, with no pull on you.
