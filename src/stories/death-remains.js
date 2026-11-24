@@ -71,7 +71,7 @@ story('deaths/cleanup-floor-and-reduced-effects', {
         step(1); c.root.updateMatrixWorld(true);
         above &&= new THREE.Box3().setFromObject(c.root).min.y >= c.floor + 0.0009;
       }
-      step(20); const expired = !c.root.parent && !fx.deaths.list.length;
+      step(125); const expired = !c.root.parent && !fx.deaths.list.length;
       juice.calm = true; kill('roach'); const quiet = !fx.deaths.list.length;
       juice.calm = false;
       const silent = spawn('roach', near(0.3, 0, 0)); enemies.kill(silent, true);
@@ -84,7 +84,7 @@ story('deaths/cleanup-floor-and-reduced-effects', {
 });
 
 story('deaths/crowd-cap-and-prepared-shaders', {
-  about: 'Crowded kills retain at most twelve bodies, reuse prepared model materials, and release every body and shell after their short lifetime.',
+  about: 'Crowded kills retain at most twelve bodies, reuse prepared model materials, and release every body and shell after their grounded lifetime.',
   setup,
   play() {
     const { fx, GAME, APT, batcher } = G();
@@ -94,7 +94,7 @@ story('deaths/crowd-cap-and-prepared-shaders', {
     batcher.sync(); GAME.render();
     const shaders = APT.renderer.info.programs.length - programs;
     const roots = fx.deaths.list.flatMap(c => [c.root, ...(c.fragment ? [c.fragment.mesh] : [])]);
-    step(80); batcher.sync();
+    step(180); batcher.sync();
     return ok(capped && shaders === 0 && !fx.deaths.list.length && roots.every(r => !r.parent && !batcher.roots.has(r)), { capped, shaders, remaining: fx.deaths.list.length });
   },
 });
@@ -146,7 +146,7 @@ story('deaths/multi-part-and-part-cap', {
     const parts = fx.deaths.detached.map((p) => p.mesh);
     batcher.sync(); GAME.render();
     const shaders = APT.renderer.info.programs.length - programs;
-    step(90); batcher.sync();
+    step(180); batcher.sync();
     const cleaned = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0 && parts.every((m) => !m.parent);
     return ok(multiPart && withinCap && shaders === 0 && cleaned, { activeParts, maxParts: fx.deaths.maxParts, shaders, cleaned });
   },
@@ -173,7 +173,7 @@ story('deaths/cause-of-death-treatments', {
     const meltsBefore = fx.acid.melts.length;
     hitKill('roach', { source: 'poison' });
     const poisonMelts = fx.acid.melts.length > meltsBefore;
-    step(90);
+    step(180);
     const cleaned = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0 && fx.acid.melts.length === 0;
     return ok(zap && pancake && whip && wallSplat && poisonMelts && cleaned, { zap, pancake, whip, wallSplat, poisonMelts, cleaned });
   },
@@ -195,5 +195,28 @@ story('deaths/low-tier-and-calm-budgets', {
       const calmQuiet = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0;
       return ok(lowBodies && lowParts && calmQuiet, { bodies: fx.deaths.list.length, parts: fx.deaths.detached.length, lowBodies, lowParts, calmQuiet });
     } finally { fx.low = prevLow; juice.calm = calm; }
+  },
+});
+
+story('deaths/never-disappear-midair', {
+  about: 'Airborne dying bodies and detached parts stay full size while falling, hit the floor with a splatter, settle on the ground, and only expire after landing.',
+  setup,
+  play() {
+    const { enemies, fx } = G();
+    const e = spawn('mosquito', near(0.28, 0, 0.45), { still: true });
+    step(1);
+    const splatsBefore = fx.splats.filter((s) => s.alive).length;
+    enemies.kill(e);
+    const c = fx.deaths.list.at(-1);
+    let neverShrankAirborne = true, sawLanded = false;
+    for (let i = 0; i < 180 && c.active; i++) {
+      step(1);
+      if (!c.landed) neverShrankAirborne &&= c.mesh.scale.x >= c.r * 0.85;
+      else sawLanded = true;
+    }
+    const splatted = fx.splats.filter((s) => s.alive).length > splatsBefore || c.splatted;
+    step(90);
+    const cleaned = fx.deaths.list.length === 0 && fx.deaths.detached.length === 0;
+    return ok(neverShrankAirborne && sawLanded && splatted && cleaned, { neverShrankAirborne, sawLanded, splatted, cleaned });
   },
 });
