@@ -68,3 +68,16 @@ phone('easy/badge-and-score-not-posted', {
     return ok(shown && noSubmit && says && noBest && badge.hidden, { shown, noSubmit, says, noBest, box: [box.x, box.y, box.width] });
   },
 });
+
+phone('easy/dev-run-says-why-no-submit', {
+  about: 'A dev run\'s end screen says the score is not on the leaderboard and offers no Submit.',
+  setup() { fresh({ elites: false }); G().run.devRun(); },
+  play() {
+    const { run } = G();
+    run.kills = 30;
+    run.endRun('Done', 'x', 'Again');
+    const text = modal().innerText, noSubmit = !/Submit score/.test(text), says = /Dev run/.test(text) && /not on the leaderboard/.test(text);
+    run.dev = false;
+    return ok(noSubmit && says, { noSubmit, says });
+  },
+});
