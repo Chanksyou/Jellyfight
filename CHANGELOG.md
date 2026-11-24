@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v657 gives the Dragonfly a new attack and takes its beam away: it spins up a two-blade rotor two jelly radii across and flings it at you three times in a row, 0.3 s apart along the same line, with no pull on you.
+
 v656 gives the Controller a third attack, the arrow drop: a big pad arrow hovers by you for a second while a circle and dome fill where you stand, then flies in for 3 Health. It comes down from above or in from your left or right, and only comes up from below when you're already in the air.
 
 v655 The Pogo Stick now works on bosses: a jump onto the Vacuum, the Clog, the Shark or the Encore stomps for 4x Attack damage and bounces you back up. Bosses are still never Stunned and give no moment of safety.
