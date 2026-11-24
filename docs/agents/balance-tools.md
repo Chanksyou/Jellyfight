@@ -1,6 +1,7 @@
 # Balance tools
 
 Use the real game for balance measurements; these scripts do not change gameplay values.
+To price numbers on paper first, without a browser, use the balance sheets (`node tools/balance-sheet.mjs`, [Balance model](balance-model.md)).
 They print JSON Lines (one JSON object per line) to stdout, with progress on stderr.
 Save reports under `.wrangler/` so they stay out of commits.
 Each report records its revision, dirty-checkout flag, seeds, styles and build settings.
