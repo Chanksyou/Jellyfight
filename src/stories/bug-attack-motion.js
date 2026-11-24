@@ -822,3 +822,42 @@ story('motion/nest-squeezes-before-each-wasp', {
     return ok(spawned > 0 && calm && grows && hung && relaxed && !squeezed, { spawned, calm, lastX: +last.x.toFixed(3), lastY: +last.y.toFixed(3), hung, relaxed, squeezedWhenFull: squeezed });
   },
 });
+
+story('motion/bug-ik-and-lofted-shells', {
+  about: 'All 16 upgraded bugs build valid finite geometry and animate smoothly with finite joint poses when close (!unseen) and far (unseen), with articulated 2-bone IK legs moving on ground walkers.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); holdJelly(); },
+  play() {
+    const out = {};
+    let allOk = true;
+    const ikWalkers = new Set(['roach', 'ants', 'spider', 'lanternfly', 'beetle']);
+    const types = ['roach', 'ants', 'mosquito', 'lanternfly', 'spider', 'housefly', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'cicada', 'wasp', 'butterfly', 'firefly'];
+    for (const type of types) {
+      const e = spawn(type, near(0.35, 0), { hp: 9999 });
+      let tris = 0, badVerts = 0, meshes = 0;
+      e.mesh.traverse((o) => {
+        if (!o.isMesh) return;
+        meshes++;
+        const p = o.geometry.attributes.position, n = o.geometry.attributes.normal;
+        tris += o.geometry.index ? o.geometry.index.count / 3 : p.count / 3;
+        for (let i = 0; i < p.array.length; i++) if (!Number.isFinite(p.array[i]) || (n && !Number.isFinite(n.array[i]))) badVerts++;
+      });
+      const moved = new Set();
+      for (let i = 0; i < 16; i++) {
+        e.unseen = false;
+        e.vel.set(0, 0, 0.3);
+        e.pos.z += 0.3 / 60;
+        e.anim(1 / 60, e);
+        e.mesh.traverse((o) => { if (o.isGroup && (Math.abs(o.rotation.z) > 0.05 || Math.abs(o.rotation.x) > 0.05)) moved.add(o.id); });
+      }
+      e.unseen = true;
+      e.anim(1 / 30, e);
+      let finite = true;
+      e.mesh.traverse((o) => { if (!Number.isFinite(o.rotation.x) || !Number.isFinite(o.rotation.y) || !Number.isFinite(o.rotation.z)) finite = false; });
+      const good = badVerts === 0 && finite && (!ikWalkers.has(type) || moved.size >= 6);
+      if (!good) allOk = false;
+      out[type] = { tris: Math.round(tris), meshes, badVerts, finite, movedJoints: moved.size };
+    }
+    return ok(allOk, out);
+  },
+});
+

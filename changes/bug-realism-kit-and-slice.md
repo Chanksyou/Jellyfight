@@ -1,0 +1,1 @@
+adds a shared procedural insect geometry and micro-normal kit, LOD-gated 2-bone leg IK foot planting, and a hybrid CC0 GLB hero-bug import tool, upgrading all 16 bug models and animations while keeping draw calls and triangles lean on phones.
