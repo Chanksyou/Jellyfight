@@ -94,5 +94,23 @@ A knob is a suggestion; nothing changes until the owner picks it.
 
 - S0: the yardstick (units, moments, the reference jelly).
 - A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
+- B1: chests and rarity odds. B2: stat Treasures. B3: gadget Treasures. B4: growing and economy Treasures. B5: Attack upgrades. B6: Legendary Treasures and evolutions. B7: status effects.
+
+## What you pick up (Wave B)
+
+A pick is priced by running the game's own `compileMods` (`src/content.js`) with it and without it on the reference jelly, so a word the game reads is read the same way here.
+Points are the percent of the reference jelly's Offence plus the percent of its Defence at that moment, which is the 1% of a level 1 Normal jelly at the Start.
+Stats apply as `Run.S` does (`withMods`); Crit, marks and status bonuses count as in A4, always on.
+Gadgets (timed effects, orbiting lights, a beam, an aura) are paper damage a second: Attack damage x 1.8 x the word's multiple x bugs reached / seconds between uses.
+A hit rate is not on paper: B3 says so, and the clear test measures it one Treasure at a time, on request.
+Words with no number on paper (a trail, a rebirth, a decoy, `element-up`) are listed as not priced, and a pick with any is never flagged for being weak.
+Growing Treasures (B4) read what an act brings from the night model and the run log: bugs killed, levels gained, picks found, seconds and metres swum.
+Chest odds (B1) are the game's own `rollTreasures` run on a fixed seed.
+Elites and Bosses take no control status (`src/enemies.js` returns for them first), so B7 counts control as attack time taken from ordinary bugs only.
+
+Assumptions the files can't give are in `ASSUME` in `tools/balance-sheet.mjs`, each with its reason: how many bugs an area hit reaches, how much of a fight each `while` holds, how much of the time the jelly swims, and how long a Chore List target takes to clear.
+They are guesses until play measures them, so a flag that rests on one says so.
+
+Budgets from the balance plan (points a pick should be worth): Common 15 a copy, Rare 25, Epic 40, Legendary 70 (and a cost worth at least 20), Attack upgrade 40.
 
 `tests/balance-sheet.test.mjs` (run by `node tests/check.mjs`) checks the model reproduces the damage each type's note in `content/jellies.kdl` works out by hand, and that every number and knob cites a line that exists.

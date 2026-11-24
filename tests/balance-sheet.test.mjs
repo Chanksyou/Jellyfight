@@ -24,14 +24,35 @@ test('the night, the level curve and the reference jelly', () => {
 });
 test('every number and every knob cites a line that exists', () => {
   const sheets = B.buildSheets();
-  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5']);
+  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7']);
   const real = (src) => {
     const m = /^([\w./-]+):(\d+)$/.exec(src);
-    if (!m) return /^(src|content|tools)\//.test(src);
+    if (!m) return /^(src|content|tools|docs)\//.test(src);
     return +m[2] <= fs.readFileSync(path.join(ROOT, m[1]), 'utf8').split('\n').length;
   };
   for (const s of sheets) {
     for (const [label, , src] of s.numbers) for (const one of String(src).split(', ')) assert.ok(real(one.split(' ')[0]), `${s.id} ${label}: ${src}`);
     for (const f of s.flags) { assert.ok(f.text && f.knob.change && f.knob.does, `${s.id}: ${f.text}`); assert.ok(real(f.knob.at), `${s.id} knob ${f.knob.at}`); }
   }
+});
+
+test('Wave B prices a pick with the game\'s own mods', () => {
+  const lemon = B.worth('normal', B.MOMENTS[0], { t: { lemon: 1 } });
+  assert.ok(Math.abs(lemon.off - 100 * 2 / 6) < 0.01, `Lemon Slice +2 on 6: ${lemon.off}`);     // +2 Attack damage on a level 1 Normal jelly
+  assert.equal(lemon.def, 0);
+  const pick = B.worth('normal', B.MOMENTS[0], { t: { guitarPick: 1 } });
+  assert.ok(Math.abs(pick.dps - 6 * 1.8 * 2 * B.ASSUME.area / 5) < 1e-9, `Guitar Pick every 5 s, ring 2: ${pick.dps}`);   // power x multiple x bugs / seconds
+  const glass = B.worth('normal', B.MOMENTS[0], { t: { shotGlass: 1 } });
+  assert.ok(Math.abs(glass.off - 50) < 0.01 && glass.def < -19 && glass.def > -21, `Shot Glass: ${glass.off} ${glass.def}`);   // +50% damage, hits take x1.25
+});
+test('chest odds are seeded, and a Common is likelier than a Rare', () => {
+  const x = B.chestOdds('room', 0, 800), y = B.chestOdds('room', 0, 800);
+  assert.deepEqual(x, y);
+  assert.ok(x.per.common > x.per.rare && x.per.rare > x.per.epic && x.per.epic > x.per.legendary, JSON.stringify(x.per));
+  assert.ok(B.chestOdds('elite', 0, 800).legend > x.legend);
+});
+test('growth reads kills, levels and picks from the night model and the run log', () => {
+  const trophy = B.growthWorth(B.nodeOf('treasures', 'trophy'), 0, 3), late = B.growthWorth(B.nodeOf('treasures', 'trophy'), 3, 3);
+  assert.ok(trophy.pts > late.pts && late.pts > 0);
+  assert.ok(trophy.add.bubbleDamage > 0 && Math.abs(trophy.add.bubbleDamage - 0.25 * Math.floor(B.FLOW.reduce((s, f) => s + f.kills, 0) / 10)) < 0.5);
 });

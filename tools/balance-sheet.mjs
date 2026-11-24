@@ -23,12 +23,12 @@ register('data:text/javascript,' + encodeURIComponent(`const M=${JSON.stringify(
 export async function resolve(s,c,n){if(M[s])return{url:M[s],shortCircuit:true};for(const p of['three/addons/','three/examples/jsm/'])if(s.startsWith(p))return{url:T+'examples/jsm/'+s.slice(p.length),shortCircuit:true};return n(s,c)}`));
 const game = (f) => import(pathToFileURL(path.join(ROOT, f)).href);
 
-const { CONTENT, loadContent } = await game('src/content.js');
+const { CONTENT, loadContent, compileMods } = await game('src/content.js');
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (f) => ({ ok: true, text: async () => fs.readFileSync(f, 'utf8') });   // loadContent reads with fetch
 try { await loadContent(path.join(ROOT, 'content') + '/'); } finally { globalThis.fetch = realFetch; }
-const { BASE_STATS, MAX_DODGE, SHIELD_WAIT, SHIELD_FILL, applyCard, bubbleShare, cardAmount, xpToNext, luckWeights, RARITY } = await game('src/stats.js');
-const { ELEMENT_BASE, TREASURE_WORDS } = await game('src/words.js');
+const { BASE_STATS, MAX_DODGE, SHIELD_WAIT, SHIELD_FILL, applyCard, bubbleShare, cardAmount, xpToNext, luckWeights, RARITY, MAX_BUBBLES, rollTreasures, CHEST_WEIGHTS, TREASURE_RARITY, treasureTier } = await game('src/stats.js');
+const { ELEMENT_BASE, TREASURE_WORDS, STAT_NAMES } = await game('src/words.js');
 const { STAGE1 } = await game('src/stage1.js'), { STAGE2 } = await game('src/stage2.js'), { STAGE3 } = await game('src/stage3.js'), { STAGE4, ENCORE } = await game('src/stage4.js');
 const KDL = await game('src/kdl.js');
 export { CONTENT };
@@ -153,7 +153,7 @@ export const offPts = (x) => 100 * x / OFF0;
 // Defence: Health you can spend in an act (before the act's power; Shield refills by style)
 export function defence(S, A, style = 'careful', taken = 1) {
   const refills = A.seconds / STYLES[style];
-  return (S.health + S.shield * refills + S.regen * A.seconds) / ((1 - Math.min(MAX_DODGE, S.dodge) / 100) * taken);
+  return (S.health + S.shield * refills + S.regen * A.seconds) / ((1 - Math.min(S.dodgeCap ?? MAX_DODGE, S.dodge) / 100) * taken);
 }
 export const DEF0 = defence(baseOf('normal'), ACTS[0]);    // 1 Defence point = 1% of this
 export const defPts = (x) => 100 * x / DEF0;
@@ -411,12 +411,12 @@ const MAIN = { stat: (w) => [w.args[1], (v) => `stat "${w.args[0]}" ${v}${w.prop
   while: (w) => [w.args[2], (v) => `while "${w.args[0]}" "${w.args[1]}" ${v}`], 'fresh-damage': (w) => [w.args[0], (v) => `fresh-damage ${v}`], 'shield-full-damage': (w) => [w.args[0], (v) => `shield-full-damage ${v}`],
   'focus-ramp': (w, p) => [p.most, (v) => `focus-ramp most=${v}`], 'elite-damage': (w) => [w.args[0], (v) => `elite-damage ${v}`], spotlight: (w, p) => [p.more, (v) => `spotlight more=${v}`] };
 // one item (a treasure, upgrade or evolution) on each line: one copy, and all its copies or its top level
-export function linesOf(item, node) {
+export function linesOf(item, node, n = null) {
   const top = item.levels?.length > 1 ? item.levels.length : item.stack ?? 1;
   const kids = (lv) => (lv > 1 ? node.children.find((c) => c.name === 'level' && c.args[0] === lv)?.children ?? [] : node.children.filter((c) => c.name !== 'level'));
   const sum = (words) => Object.fromEntries(LINES.map((L) => [L.key, words.reduce((s, w) => { const f = L.words[w.name]; return f ? s + f(w, { ...TREASURE_WORDS[w.name]?.props, ...w.props }) : s; }, 0)]));
   const one = sum(kids(1)), levelled = item.levels?.length > 1;
-  const all = levelled ? sum(kids(top)) : Object.fromEntries(Object.entries(one).map(([k, v]) => [k, v * top]));
+  const all = levelled ? sum(kids(n ?? top)) : Object.fromEntries(Object.entries(one).map(([k, v]) => [k, v * (n ?? top)]));
   return { one, all, top, levelled, grows: kids(1).some((w) => GROWS.includes(w.name)) };
 }
 function sheetA4() {
@@ -528,6 +528,456 @@ A death save is worth ${snooze} x max Health once a run, and the run itself.`,
   };
 }
 
+// ================================================================== Wave B: what you pick up
+// The same model, now for Treasures, Attack upgrades and evolutions. One pick is priced by running the
+// game's own compileMods (src/content.js) with and without it on the reference jelly, so a word the
+// game reads is read here the same way. Points are percent of the reference jelly's Offence plus
+// percent of its Defence at that moment (at the Start that is the docs' 1% of a level 1 Normal jelly).
+// Assumptions the files can't give are in ASSUME, each with its reason; the page prints them.
+export const ASSUME = {
+  area: 3,          // bugs an area hit reaches (the clump of 5 in sheet A1 is the ceiling)
+  while: { airborne: 0.25, moving: 0.8, unhurt: 0.5, rooted: 0.2, 'low-health': 0.1, lit: 0.3, wet: 0.3 },   // share of a fight each `while` holds
+  moving: 0.6,      // share of the time the jelly is swimming
+  swim: 0.42,       // m/s at Move speed 1 (the balance plan)
+  bountyKill: 8,    // seconds to clear a Chore List target after it appears
+  orbitGap: 0.4,    // an orbiting bulb hurts a bug at most this often (words.js orbit-lights)
+};
+export const PICK = { common: 15, rare: 25, epic: 40, legendary: 70, upgrade: 40 };   // points a pick should be worth (docs/agents/balance-model.md)
+const STACK_COMMON = 60;                  // a Common at full stack
+const TREE = {};
+const tree = (f) => (TREE[f] ??= KDL.parse(read(`content/${f}.kdl`), `content/${f}.kdl`));
+export const nodeOf = (f, id) => tree(f).find((n) => n.args[0] === id);
+const LIVE = (list) => list.filter((t) => !t.retired);
+const forType = (item, type) => !(item.notFor || []).includes(CONTENT.jellies[type].attack);
+const modsOf = (type, { t = {}, e = [], u = [] } = {}) => compileMods({ count: (id) => t[id] || 0 }, e, u, type);
+const gapOf = (i) => (i < 0 ? Infinity : ACTS[i].night / Math.max(0.5, RUN_LOG.level[i] - (RUN_LOG.level[i - 1] ?? 1)));   // seconds between level-ups in act i
+
+// The stats a jelly has with `m` on: Run.S (src/run.js) with a `while` held for its share of a fight
+// and a level-up buff for the share of the gap it lasts. Other buffs (kills, hits) are left out.
+export function withMods(type, S0, m, gap = Infinity) {
+  const base = baseOf(type), S = { ...S0 };
+  for (const k in S) S[k] = S0[k] + (m.stats.add[k] || 0) + base[k] * (m.stats.pct[k] || 0) / 100;
+  for (const c of m.whiles) S[c.stat] += (ASSUME.while[c.when] ?? 0.3) * (c.percent ? base[c.stat] * c.amount / 100 : c.amount);
+  for (const b of m.buffs) if (b.event === 'level-up') S[b.stat] += Math.min(b.stacks, b.time / gap) * (b.percent ? base[b.stat] * b.amount / 100 : b.amount);
+  S.bubbles = Math.max(1, Math.min(MAX_BUBBLES, Math.round(S.bubbles)));
+  const cap = S.dodgeCap = Math.max(MAX_DODGE, m.dodgeCap);
+  let left = 1;
+  for (const d of m.stats.dodge) left *= 1 - Math.min(1, d / cap);
+  S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
+  if (m.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }
+  if (m.noRegen === true) S.regen = 0;
+  S.taken = m.damageTaken;
+  return S;
+}
+
+// Paper damage a second from timed words, orbiting lights, a beam and an aura, on the reference jelly.
+// `left` names the effect kinds that could hurt but aren't priced here (they need play).
+const HITS = { ring: (e) => e.dmg * ASSUME.area, zap: (e) => e.count * e.dmg, brick: (e) => e.dmg * (e.burst ? ASSUME.area : 1), marble: (e) => e.dmg * ASSUME.area, swatter: (e) => e.mult, geyser: (e) => e.dmg * ASSUME.area,
+  cone: (e) => e.dmg * ASSUME.area, shards: (e) => e.count * e.dmg, 'bubble-ring': (e) => e.count * e.dmg / GADGET_POWER, orb: (e) => e.dmg };   // (a bubble ring's bubbles hit for Attack damage, not power)
+const NO_DAMAGE = ['puddle', 'xp', 'heal', 'ink', 'cloud', 'reach-flare', 'pass-stacks'];
+export function gadgets(m, S) {
+  const P = S.bubbleDamage * GADGET_POWER, left = new Set();
+  let dps = 0;
+  for (const t of m.timed) for (const e of t.effects) { const f = HITS[e.kind]; if (f) dps += P * f(e) / t.every; else if (!NO_DAMAGE.includes(e.kind)) left.add(e.kind); }
+  if (m.orbit) dps += P * m.orbit.dmg / ASSUME.orbitGap;   // one bug on the ring at a time
+  if (m.beam) dps += P * m.beam.dmg / m.beam.tick;
+  if (m.aura) dps += P * m.aura.dmg / m.aura.tick * ASSUME.area;
+  return { dps, left: [...left] };
+}
+
+// What an item adds, in points, to the reference jelly at a moment: the same jelly with `spec` and without `base`.
+// fx multiplies Offence for the lines the stats don't carry (Crit, marks, status bonus), as sheet A4 counts them.
+export function worth(type, M, spec, { fx = 1, base = {}, gap = Infinity } = {}) {
+  const S0 = refStats(type, M.level), m0 = modsOf(type, base), m1 = modsOf(type, spec);
+  const A0 = withMods(type, S0, m0, gap), A1 = withMods(type, S0, m1, gap), g0 = gadgets(m0, A0), g1 = gadgets(m1, A1);
+  const o0 = offence(type, A0) + g0.dps, o1 = (offence(type, A1) + g1.dps) * fx;
+  const def = (S) => defence(S, M.A, 'careful', S.taken);
+  return { off: 100 * (o1 / o0 - 1), def: 100 * (def(A1) / def(A0) - 1), gad: 100 * (g1.dps - g0.dps) / o0, dps: g1.dps - g0.dps, left: g1.left, m: m1 };
+}
+const total = (w) => w.off + w.def;
+// the cost side: only the stat parts that take something away
+export function costOf(type, M, spec) {
+  const S0 = refStats(type, M.level), m = modsOf(type, spec), neg = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.min(0, v)]));
+  const mn = { stats: { add: neg(m.stats.add), pct: neg(m.stats.pct), dodge: [] }, whiles: [], buffs: [], dodgeCap: 0, shield: { fromHealth: false }, noRegen: false, damageTaken: Math.max(1, m.damageTaken) };
+  const A0 = withMods(type, S0, { ...mn, stats: { add: {}, pct: {}, dodge: [] }, damageTaken: 1 }), A1 = withMods(type, S0, mn);
+  const def = (S) => defence(S, M.A, 'careful', S.taken);
+  return 100 * (offence(type, A1) / offence(type, A0) - 1) + 100 * (def(A1) / def(A0) - 1);
+}
+// the lines a pick carries outside the stats, at n copies (or level n): crit, marks, status bonus, and a conditional that isn't a `while` (those are in the stats)
+export function fxOf(item, node, n = 1) {
+  const L = linesOf(item, node, n).all, hasWhile = (item.vocabulary || []).includes('while');
+  return ['crit', 'mark', 'status', ...(hasWhile ? [] : ['conditional'])].reduce((p, k) => p * (1 + (L[k] || 0)), 1);
+}
+// the words a price covers; everything else a pick says is listed as not priced
+const PRICED = new Set(['stat', 'crit', 'mark-on-hit', 'status-damage', 'burn-ramp', 'while', 'fresh-damage', 'shield-full-damage', 'focus-ramp', 'damage-taken', 'dodge-cap', 'stack-buff', 'every', 'orbit-lights', 'beam', 'aura', 'health-to-shield', 'no-regen', 'adorn']);
+const unpricedOf = (item) => [...new Set((item.vocabulary || []).filter((w) => !PRICED.has(w)))];
+// the number a pick's change turns on: the first word A4 knows (a stat that adds), else the first dmg= or mult= inside it
+function turn(node, level = 1) {
+  const kids = level > 1 ? node.children.find((c) => c.name === 'level' && c.args[0] === level)?.children ?? [] : node.children.filter((c) => c.name !== 'level');
+  for (const w of kids) { if (MAIN[w.name] && (w.name !== 'stat' || w.args[1] > 0)) { const [v, write] = MAIN[w.name](w, { ...TREASURE_WORDS[w.name]?.props, ...w.props }); return { v, write, line: w.line }; } }
+  const NUM = { 'grow-on-kills': 1, per: 1, bounty: 1, 'xp-mult': 0, 'distance-xp': 0, 'more-treasures': 0 };
+  for (const w of kids) if (NUM[w.name] != null) { const i = NUM[w.name], put = (x) => `${w.name} ${w.args.map((q, j) => (j === i ? x : typeof q === 'string' ? `"${q}"` : q)).join(' ')}${Object.entries(w.props).map(([k, q]) => ` ${k}=${q === true ? '#true' : typeof q === 'string' ? `"${q}"` : q}`).join('')}`; return { v: w.args[i], write: put, line: w.line }; }
+  const find = (ws) => { for (const w of ws) { for (const k of ['dmg', 'mult']) if (typeof w.props[k] === 'number') return { v: w.props[k], write: (x) => `${w.name} ${k}=${x}`, line: w.line }; const f = find(w.children); if (f) return f; } return null; };
+  return find(kids);
+}
+const scaled = (t, want, have) => { const k = want / have; return { change: `${t.write(t.v)} → ${t.write(+(t.v * k).toPrecision(2))}`, does: `about ${r(want)} points, ${r(have)} now` }; };
+const MOMENT_VAC = MOMENTS[1], MOMENT_ENC = MOMENTS[4];
+const rarityName = (x) => ({ common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' })[x];
+const budgetOf = (item, kind) => (kind === 'upgrade' ? PICK.upgrade : PICK[item.rarity]);
+function seeded(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// ------------------------------------------------------------------ B1: chests and rarity odds
+// What a chest can hold for a Normal jelly at the start: no needs=, nothing retired
+const ROOM_CHESTS = ACTS.reduce((s, A) => s + A.stage.treasures.at.length, 0), ELITE_CHESTS = ACTS.reduce((s, A) => s + A.stage.elites.length, 0);
+export const startPool = () => LIVE(CONTENT.treasures).filter((t) => !t.needs && !t.needsChance && forType(t, 'normal'));
+export function chestOdds(source, luck, trials = 6000) {
+  const rng = seeded(11 + luck), pool = startPool().filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0), seen = {}, favor = (t) => CHEST_WEIGHTS[source][t.rarity] / treasureTier(t).weight;
+  let legend = 0;
+  for (let i = 0; i < trials; i++) { const got = rollTreasures(pool, 3, luck, favor, rng); if (got.some((t) => t.rarity === 'legendary')) legend++; for (const t of got) seen[t.id] = (seen[t.id] || 0) + 1; }
+  const per = Object.fromEntries(TREASURE_RARITY.map((R) => { const ids = pool.filter((t) => t.rarity === R.id); return [R.id, ids.length ? ids.reduce((s, t) => s + (seen[t.id] || 0), 0) / trials / ids.length : 0]; }));
+  return { legend: legend / trials, per };
+}
+// what a pick from a source is worth on average, from its rarity weights
+const pickWorth = (source) => { const W = CHEST_WEIGHTS[source], s = Object.values(W).reduce((p, q) => p + q, 0); return Object.entries(W).reduce((p, [k, w]) => p + w / s * PICK[k], 0); };
+function sheetB1() {
+  const flags = [], pool = startPool(), all = LIVE(CONTENT.treasures), counts = TREASURE_RARITY.map((R) => [R.id, all.filter((t) => t.rarity === R.id).length, pool.filter((t) => t.rarity === R.id).length]);
+  const lucks = [0, 20, 40, 60], rows = lucks.map((L) => ({ L, room: chestOdds('room', L), elite: chestOdds('elite', L) }));
+  const runSee = (o) => 1 - (1 - o.room.legend) ** ROOM_CHESTS * (1 - o.elite.legend) ** ELITE_CHESTS;
+  const zero = rows[0];
+  // each Common is offered how many times as often as each Rare
+  const ratio = zero.room.per.common / zero.room.per.rare;
+  if (ratio >= 2) {
+    const w = CHEST_WEIGHTS.room, want = Math.round(2 * w.rare * counts[0][2] / counts[1][2]);
+    flags.push({ text: `In a room chest each one of the ${counts[0][2]} Commons is offered ${r(ratio, 1)}x as often as each one of the ${counts[1][2]} Rares (${pct(zero.room.per.common).slice(1)} against ${pct(zero.room.per.rare).slice(1)} of chests), because a rarity's weight is shared among its members.`,
+      knob: { at: at('src/stats.js', /^ {2}room: /), change: `common ${w.common} → ${want}`, does: 'each Common shows up about twice as often as each Rare, not more' } });
+  }
+  const keyN = LIVE(CONTENT.treasures).find((t) => t.id === 'windUpKey'), bagN = nodeOf('treasures', 'goodieBag');
+  const extraRoom = ROOM_CHESTS * 0.2, keyWorth = extraRoom * pickWorth('room');
+  if (keyWorth > 1.5 * PICK.rare) {
+    const want = Math.max(1, Math.round(20 * PICK.rare / keyWorth));
+    flags.push({ text: `One Wind-Up Key brings about ${r(extraRoom)} more room chests over a run, and a room pick is worth about ${r(pickWorth('room'))} points on average: ${r(keyWorth)} points against a Rare's ${PICK.rare} (taken at the start; ${r(3 * keyWorth)} at 3 copies).`,
+      knob: { at: kdl('content/treasures.kdl', 'treasure', keyN.id), change: `more-treasures 20 → ${want}`, does: `a copy brings about ${r(ROOM_CHESTS * want / 100)} chests, worth the Rare budget` } });
+  }
+  const bagWorth = (every) => Math.floor(ELITE_CHESTS / every) * pickWorth('elite');
+  if (bagWorth(2) > 1.5 * PICK.legendary) {
+    const best = [3, 4, 5, 6].map((e) => [e, Math.abs(bagWorth(e) - PICK.legendary)]).sort((p, q) => p[1] - q[1])[0][0];
+    flags.push({ text: `The Goodie Bag, with an Elite pick worth about ${r(pickWorth('elite'))} points, brings ${Math.floor(ELITE_CHESTS / 2)} extra picks over ${ELITE_CHESTS} Elites: ${r(bagWorth(2))} points against a Legendary's ${PICK.legendary} (taken at the start).`,
+      knob: { at: kdl('content/treasures.kdl', 'treasure', bagN.args[0]), change: `elite-bonus every=2 → every=${best}`, does: `${Math.floor(ELITE_CHESTS / best)} extra picks, about ${r(bagWorth(best))} points` } });
+  }
+  const nLeg = (o) => ROOM_CHESTS * o.room.legend + ELITE_CHESTS * o.elite.legend;
+  if (nLeg(rows[3]) < 1.5 * nLeg(zero)) flags.push({ text: `Luck 60 lifts the chests that offer a Legendary in a run from ${r(nLeg(zero))} to ${r(nLeg(rows[3]))}, x${r(nLeg(rows[3]) / nLeg(zero), 2)} for the most Luck there is.`,
+    knob: { at: at('src/stats.js', /export const luckWeights/), change: '(1 + luck/200) → (1 + luck/120) per rarity step', does: 'Luck 60 makes each step up 1.5x as likely, not 1.3x' } });
+  return {
+    id: 'B1', title: 'Chests and rarity odds',
+    lede: 'What a chest offers, how often each Treasure turns up, and what Luck buys. Odds are rolled with the game\'s own rollTreasures on a fixed seed, for a Normal jelly at the start.',
+    numbers: [
+      ['Room chest weights: Common, Rare, Epic, Legendary', Object.values(CHEST_WEIGHTS.room).join(' / '), at('src/stats.js', /^ {2}room: /)],
+      ['Elite chest weights', Object.values(CHEST_WEIGHTS.elite).join(' / '), at('src/stats.js', /^ {2}elite: /)],
+      ['Luck: each rarity step up is (1 + Luck/200)x likelier', 'luckWeights', at('src/stats.js', /export const luckWeights/)],
+      ...ACTS.map((A) => [`Act ${A.n}: room chests at (s), Elites`, `${A.stage.treasures.at.join(', ')}, ${A.stage.elites.length}`, at(A.file, /^ {2}treasures:/)]),
+      ['Wind-Up Key: more room chests per copy', '20%', kdl('content/treasures.kdl', 'treasure', 'windUpKey')],
+      ['Goodie Bag: every 2nd Elite leaves a second pick', 'every 2', kdl('content/treasures.kdl', 'treasure', 'goodieBag')],
+      ...counts.map(([id, n, p]) => [`${rarityName(id)} Treasures in play, offered to Normal at the start`, `${n}, ${p}`, 'content/treasures.kdl']),
+    ],
+    model: `A chest rolls 3 Treasures without repeats (rollTreasures, src/stats.js): each slot picks a rarity by weight x (1 + Luck/200)^step, then one Treasure of it.
+Each Treasure of a rarity has that rarity's chance divided by how many there are, so more Treasures of a rarity means each shows up less.
+Chests in a run: ${ROOM_CHESTS} room (stage treasures.at) and ${ELITE_CHESTS} Elite, plus the Boss's Legendary pick (not counted here).
+Pick worth = the chest's weights x the budget (Common ${PICK.common}, Rare ${PICK.rare}, Epic ${PICK.epic}, Legendary ${PICK.legendary}): room ${r(pickWorth('room'))}, Elite ${r(pickWorth('elite'))}.
+Odds are ${6000} seeded rolls per cell, so each is good to about a point of chance.`,
+    tables: [
+      { head: ['Rarity', 'In play', 'At the start (no needs=)', 'Chance one is in a room chest', 'In an Elite chest'], rows: counts.map(([id, n, p]) => [rarityName(id), n, p, pct(zero.room.per[id], 1).slice(1), pct(zero.elite.per[id], 1).slice(1)]) },
+      { head: ['Luck', 'Room chest has a Legendary', 'Elite chest has a Legendary', `Chests in a run with one (of ${ROOM_CHESTS + ELITE_CHESTS})`, 'A run sees at least one'], rows: rows.map((o) => [o.L, pct(o.room.legend, 1).slice(1), pct(o.elite.legend, 1).slice(1), r(nLeg(o)), pct(runSee(o)).slice(1)]) },
+    ],
+    charts: [bars('Chance a Treasure of each rarity is in a room chest (each one)', counts.map(([id]) => [rarityName(id), zero.room.per[id] * 100]), { fmt: (v) => r(v, 1) + '%' }),
+      bars('Chests in a run that offer a Legendary, by Luck', rows.map((o) => [`Luck ${o.L}`, nLeg(o)]), { fmt: (v) => r(v, 1), cls: 'b' })],
+    flags,
+    notes: ['A Treasure with needs= (Pizza Cutter is not, but Lucky Cat needs a chance effect) joins the pool later; the table counts what a Normal jelly can be offered at the start.', 'The Boss\'s Legendary pick is separate: 3 from the Legendary Treasures and evolutions you can take, so a run sees 4 such picks.'],
+  };
+}
+
+// ------------------------------------------------------------------ B2: stat Treasures
+// Treasures that only move stats, add a Crit or a mark, or condition a stat. Priced on every jelly type that can be offered them.
+const STATLIKE = new Set(['stat', 'damage-taken', 'dodge-cap', 'dodge-slip', 'stack-buff', 'while', 'crit', 'mark-on-hit', 'fresh-damage', 'shield-full-damage', 'shot-speed', 'elite-damage']);
+export const statTreasures = () => LIVE(CONTENT.treasures).filter((t) => t.vocabulary.every((w) => STATLIKE.has(w)));
+// one pick of a Treasure at a moment: n copies (or level n), on one type
+export function treasureWorth(t, type, M, n = 1, gapAt = -1) {
+  const node = nodeOf('treasures', t.id);
+  return worth(type, M, { t: { [t.id]: n } }, { fx: fxOf(t, node, n), gap: gapOf(gapAt) });
+}
+function sheetB2() {
+  const flags = [], items = statTreasures(), rows = [], chartRows = [];
+  const gapAt = [-1, 0, 3];   // the start has no level-up gap; the Vacuum act and the Encore act
+  const moments = [MOMENTS[0], MOMENT_VAC, MOMENT_ENC];
+  for (const t of items) {
+    const node = nodeOf('treasures', t.id), types = TYPES.filter((x) => forType(t, x)), one = moments.map((M, i) => total(treasureWorth(t, 'normal', M, 1, gapAt[i])));
+    const full = total(treasureWorth(t, 'normal', MOMENT_VAC, t.stack, 0)), spread = types.map((x) => total(treasureWorth(t, x, MOMENT_VAC, 1, 0)));
+    const eliteOnly = t.vocabulary.length === 1 && t.vocabulary[0] === 'elite-damage';
+    const budget = PICK[t.rarity], left = unpricedOf(t);
+    rows.push([t.name, rarityName(t.rarity), t.stack, ...one.map((v) => r(v)), r(full), `${r(Math.min(...spread))} to ${r(Math.max(...spread))}`, r(budget), left.length ? left.join(', ') : eliteOnly ? 'Elites and Bosses only' : '']);
+    chartRows.push([t.name, one[1], t.rarity === 'common' ? '' : t.rarity === 'rare' ? 'b' : 'c']);
+    if (eliteOnly || !(one[1] > 0)) continue;
+    const v = one[1], want = budget, T = turn(node), whens = [...new Set(treasureWorth(t, 'normal', MOMENT_VAC, 1, 0).m.whiles.map((c) => c.when))], holds = whens.length ? ` It counts as holding ${whens.map((x) => `${pct(ASSUME.while[x] ?? 0.3).slice(1)} (${x})`).join(', ')} of a fight.` : '';
+    if (T && (v > 1.5 * want || v < 0.5 * want)) flags.push({ text: `${t.name}, ${a(rarityName(t.rarity))}, is worth ${r(v)} points a copy at the Vacuum door on a Normal jelly (${r(Math.min(...spread))} to ${r(Math.max(...spread))} across the types it is offered to), against a ${rarityName(t.rarity)} budget of ${budget}.${left.length ? ` (Not priced: ${left.join(', ')}.)` : ''}${holds}`,
+      knob: { at: `content/treasures.kdl:${T.line}`, ...scaled(T, want, v) } });
+  }
+  return {
+    id: 'B2', title: 'Stat Treasures',
+    lede: `The ${items.length} Treasures that move stats, add a Crit or a mark, or condition a stat, each priced against its rarity's budget. Range, Move speed and jump stay unpriced.`,
+    numbers: items.map((t) => [`${t.name} (${t.rarity}, x${t.stack})`, t.text, kdl('content/treasures.kdl', 'treasure', t.id)]).concat([['Budgets per copy', Object.entries(PICK).map(([k, v]) => `${k} ${v}`).join(', '), 'docs/agents/balance-model.md'], ['A `while` holds for this share of a fight', Object.entries(ASSUME.while).map(([k, v]) => `${k} ${v}`).join(', '), 'tools/balance-sheet.mjs ASSUME']]),
+    model: `points = 100 x (Offence after / before - 1) + 100 x (Defence after / before - 1), on the reference jelly at the moment
+the stats come from the game's own compileMods, applied as Run.S does; a while condition holds for the share of a fight in ASSUME.while;
+a level-up buff (Coffee Bean) lasts its seconds out of the act's gap between level-ups; Crit, marks and status bonuses count as in A4 (always on)
+Elite damage works on Elites and Bosses only, so it is listed but not flagged. A drawback (Shot Glass's x1.25 hits, Hot Chili's -30% Range) is priced when it is a stat;
+Range itself is not, so Hot Chili's cost shows only through its Attack damage and Fire rate.`,
+    tables: [{ head: ['Treasure', 'Rarity', 'Copies', 'One copy at the Start', 'At the Vacuum door', 'At the Encore door', 'Full stack, Vacuum door', 'Vacuum door, across its types', 'Budget a copy', 'Not priced'], rows }],
+    charts: [bars('One copy at the Vacuum door, points (Common blue, Rare green, Epic orange)', chartRows, { fmt: (v) => r(v), ref: PICK.common })],
+    flags,
+    notes: [`A Common at full stack should be about ${STACK_COMMON} points; the full-stack column is the check.`, 'Worth differs by type because the same +2 Attack damage is a bigger share of a slower attack: the spread column is the check on a Treasure that is only good for some.'],
+  };
+}
+
+// ------------------------------------------------------------------ B3: gadget Treasures
+// Treasures whose effect is a timed, orbiting, beam or aura effect: paper damage a second if every hit lands.
+export const gadgetTreasures = () => LIVE(CONTENT.treasures).filter((t) => [1, 2, 3].some((n) => { const m = modsOf('normal', { t: { [t.id]: Math.min(n, t.levels.length > 1 ? t.levels.length : 1) } }); return m.timed.length || m.orbit || m.beam || m.aura; }));
+function sheetB3() {
+  const flags = [], items = gadgetTreasures(), rows = [], priced = [];
+  for (const t of items) {
+    const node = nodeOf('treasures', t.id), levels = t.levels.length > 1 ? t.levels.length : 1;
+    const w = [...Array(levels).keys()].map((i) => treasureWorth(t, 'normal', MOMENT_VAC, i + 1, 0));
+    const left = [...new Set(w.flatMap((x) => x.left))], every = modsOf('normal', { t: { [t.id]: 1 } }).timed.map((x) => x.every), ev = unpricedOf(t);
+    const pts = w.map((x) => x.gad), L1 = pts[0];
+    priced.push({ t, node, pts, L1, w });
+    rows.push([t.name, rarityName(t.rarity), every.length ? every.join(', ') + ' s' : 'always on', ...[0, 1, 2].map((i) => (pts[i] != null ? r(pts[i]) : '')), r(PICK[t.rarity]), r(w[0].dps, 2), [...left, ...ev.filter((x) => !['every', 'orbit-lights', 'beam', 'aura', 'while', 'stat'].includes(x))].join(', ')]);
+    const T = turn(node, 1);
+    if (T && (L1 > 2 * PICK[t.rarity] || (L1 > 0 && L1 < 0.4 * PICK[t.rarity]))) flags.push({ text: `${t.name}, ${a(rarityName(t.rarity))}, does ${r(L1)} points of paper damage at the Vacuum door with one level, against a ${rarityName(t.rarity)} budget of ${PICK[t.rarity]} (every hit landing, ${ASSUME.area} bugs for an area).`,
+      knob: { at: `content/treasures.kdl:${T.line}`, ...scaled(T, PICK[t.rarity], L1) } });
+    if (levels === 3 && pts[0] > 0 && pts[2] < 1.6 * pts[0]) {
+      const T3 = turn(node, 3);
+      if (T3) flags.push({ text: `${t.name}'s level 3 does ${r(pts[2])} points against ${r(pts[0])} at level 1 (x${r(pts[2] / pts[0], 2)}): two more picks for under double.`,
+        knob: { at: `content/treasures.kdl:${T3.line}`, ...scaled(T3, 2 * pts[0], pts[2]) } });
+    }
+  }
+  const rares = priced.filter((x) => x.t.rarity === 'rare' && x.L1 > 0), bestRare = rares.sort((p, q) => q.L1 - p.L1)[0];
+  for (const x of priced.filter((y) => y.t.rarity === 'legendary')) if (bestRare && x.L1 < bestRare.L1) {
+    const T = turn(x.node, 1);
+    if (T) flags.push({ text: `${x.t.name}, a Legendary, does ${r(x.L1)} points of paper damage; ${bestRare.t.name}, a Rare, does ${r(bestRare.L1)} with one level.`, knob: { at: `content/treasures.kdl:${T.line}`, ...scaled(T, PICK.legendary, x.L1) } });
+  }
+  const evented = LIVE(CONTENT.treasures).filter((t) => !items.includes(t) && t.vocabulary.some((w) => ['landing-shockwave', 'squeak-when-hit', 'burst-on-kill', 'on-attack', 'ghosts', 'zap-on-pop', 'when-hit', 'leave-on-kill', 'overkill', 'reflect', 'toy-mouse', 'swat', 'stomp'].includes(w)));
+  return {
+    id: 'B3', title: 'Gadget Treasures',
+    lede: 'Timed, orbiting, beam and aura Treasures: damage a second on paper with every hit landing. How often a hit lands needs play: the clear test measures it, one Treasure at a time, on request.',
+    numbers: items.map((t) => [`${t.name} (${t.rarity})`, t.text, kdl('content/treasures.kdl', 'treasure', t.id)]).concat([['Gadget power, x Attack damage', GADGET_POWER, at('src/run.js', /get power\(\)/)], ['Bugs an area hit reaches; an orbit bulb hurts a bug at most every (s)', `${ASSUME.area}; ${ASSUME.orbitGap}`, 'tools/balance-sheet.mjs ASSUME']]),
+    model: `damage a second = Attack damage x ${GADGET_POWER} x its multiple x bugs reached / seconds between uses (timed)
+orbit lights: dmg per bulb every ${ASSUME.orbitGap} s on the one bug on the ring; beam: dmg every tick on 1 bug; aura: dmg every tick on ${ASSUME.area} bugs, at its full size
+points = that damage a second as a share of the reference Normal jelly's Offence at the Vacuum door
+hit rate (how often it lands, how many bugs it reaches in a real crowd) is not on paper: the clear test fills it in
+event-driven Treasures (${evented.map((t) => t.name).join(', ')}) fire on a hit, a kill, a landing or a hit taken: their rate is play, so they are left out`,
+    tables: [{ head: ['Treasure', 'Rarity', 'Every', 'Level 1', 'Level 2', 'Level 3', 'Budget', 'Damage a second, level 1', 'Not priced'], rows }],
+    charts: [bars('Paper damage at level 1, Vacuum door (points; line is a Rare\'s budget)', priced.map((x) => [x.t.name, x.L1, x.t.rarity === 'common' ? '' : x.t.rarity === 'rare' ? 'b' : x.t.rarity === 'epic' ? 'c' : '']), { fmt: (v) => r(v), ref: PICK.rare })],
+    flags,
+    notes: ['Paper damage is a ceiling: the real number is this times how often the hit lands. Treat a flag as "measure this one", not as proof.'],
+  };
+}
+
+// ------------------------------------------------------------------ B4: growing and economy Treasures
+// What an act brings, from the night model and the run log: bugs killed, levels gained, picks found, seconds, XP on offer, metres swum.
+export const FLOW = ACTS.map((A, i) => {
+  const N = night(A);
+  return { kills: N.out * RUN_LOG.cleared[i], levels: RUN_LOG.level[i] - (RUN_LOG.level[i - 1] ?? 1), chests: A.stage.treasures.at.length + A.stage.elites.length + 1, seconds: A.seconds, xp: N.xp, swum: A.seconds * ASSUME.moving * ASSUME.swim };
+});
+const flowSum = (from, to) => FLOW.slice(from, to + 1).reduce((s, f) => Object.fromEntries(Object.keys(f).map((k) => [k, (s[k] || 0) + f[k]])), {});
+// what one copy has grown to by Boss door `to` (0..3) if taken at the start of act `from`: stat gains and extra XP
+export function grown(node, from, to, S0) {
+  const F = flowSum(from, to), base = BASE_STATS, add = {}, out = { add, xp: 0 };
+  const put = (name, amount, percent, times) => { const key = STAT_NAMES[name]; add[key] = (add[key] || 0) + times * amount * (percent ? base[key] / 100 : 1); };
+  for (const w of node.children.filter((c) => c.name !== 'level')) {
+    const p = { ...TREASURE_WORDS[w.name]?.props, ...w.props };
+    if (w.name === 'grow-on-kills') { const n = Math.floor(F.kills / p.kills); put(w.args[0], w.args[1], p.percent, p.cap != null ? Math.min(n, p.cap / w.args[1]) : n); }
+    else if (w.name === 'per') put(w.args[0], w.args[1], p.percent, Math.min(p.most ?? Infinity, { levels: F.levels, chests: F.chests, 'max-health': S0.health }[p.of] / p.every));
+    else if (w.name === 'bounty') put(w.args[0], w.args[1], false, F.seconds / (p.every + ASSUME.bountyKill));
+    else if (w.name === 'xp-mult') out.xp += F.xp * (w.args[0] - 1);
+    else if (w.name === 'more-bugs') out.xp += F.xp * (w.args[0] - 1);   // (its bugs come with their XP, and their danger)
+    else if (w.name === 'distance-xp') out.xp += F.swum / p.every * w.args[0];
+    else if (w.name === 'every') for (const e of w.children) if (e.name === 'xp') out.xp += F.seconds / w.args[0] * e.args[0];
+  }
+  return out;
+}
+// one average level at a door, in points
+const levelPts = (M, type = 'normal') => { const U = refStats(type, M.level), V = refStats(type, M.level + 1); return 100 * (offence(type, V) / offence(type, U) - 1) + 100 * (defence(V, M.A) / defence(U, M.A) - 1); };
+export function growthWorth(node, from, to, type = 'normal') {
+  const M = MOMENTS[to + 1], S0 = refStats(type, M.level), g = grown(node, from, to, S0), S1 = { ...S0 };
+  for (const [k, v] of Object.entries(g.add)) S1[k] += v;
+  const stats = 100 * (offence(type, S1) / offence(type, S0) - 1) + 100 * (defence(S1, M.A) / defence(S0, M.A) - 1);
+  const L = levelAt(xpFor(M.level) + g.xp) - M.level;
+  return { pts: stats + L * levelPts(M, type), levels: L, add: g.add };
+}
+const GROWERS = ['trophy', 'stopwatch', 'bandage', 'choreList', 'teaBag', 'spareChange', 'piggyBank', 'coin', 'sugar', 'houseplant', 'pedometer', 'fishFood'];
+function sheetB4() {
+  const flags = [], rows = [], curves = [];
+  for (const id of GROWERS) {
+    const t = CONTENT.treasures.find((x) => x.id === id), node = nodeOf('treasures', id), per = [0, 1, 2, 3].map((k) => growthWorth(node, k, 3).pts), unp = id === 'spareChange' || id === 'fishFood';
+    const luck = id === 'spareChange' ? `Luck +${r(3 * flowSum(0, 3).chests)} over a run` : id === 'fishFood' ? 'levels up 2 of your Treasures a Boss: not priced' : '';
+    rows.push([t.name, rarityName(t.rarity), t.stack, ...per.map((v) => (unp ? '' : r(v))), r(PICK[t.rarity]), luck]);
+    curves.push([t.name, per, t]);
+    if (unp) continue;
+    const T = turn(node), full = per[0], late = per[2], want = PICK[t.rarity];
+    if (T && full > 2 * want) flags.push({ text: `${t.name}, ${a(rarityName(t.rarity))}, grows to ${r(full)} points at the Encore door if taken in act 1 (one copy), over twice its ${want} budget, and nothing caps it.`,
+      knob: { at: `content/treasures.kdl:${T.line}`, ...scaled(T, 1.5 * want, full) } });
+    else if (late < 0.25 * want && full >= 0.5 * want) flags.push({ text: `${t.name}, ${a(rarityName(t.rarity))}, is worth ${r(full)} points taken in act 1 but ${r(late)} taken in act 3 (budget ${want}): late in a run it is a wasted pick.`,
+      knob: { at: kdl('content/treasures.kdl', 'treasure', id), change: 'no number: let it start at a higher level, or gain faster the later it is taken', does: 'a late pick still pays something (a new word, grow-on-kills catch-up)' } });
+  }
+  const fx = FLOW.map((f, i) => [`Act ${i + 1}`, r(f.kills), r(f.levels), r(f.chests), r(f.seconds), r(f.xp), r(f.swum)]);
+  return {
+    id: 'B4', title: 'Growing and economy Treasures',
+    lede: 'A Treasure that grows or pays over time is worth more the earlier it is taken. Value in points at the Encore door, for one copy taken at the start of each act.',
+    numbers: GROWERS.map((id) => { const t = CONTENT.treasures.find((x) => x.id === id); return [`${t.name} (${t.rarity}, x${t.stack})`, t.text, kdl('content/treasures.kdl', 'treasure', id)]; })
+      .concat([['Kills, levels, picks, seconds, XP, metres an act brings', 'the night model and the run log', 'tools/balance-sheet.mjs RUN_LOG'], ['Share of time swimming; swim speed (m/s); seconds to clear a Chore List target', `${ASSUME.moving}; ${ASSUME.swim}; ${ASSUME.bountyKill}`, 'tools/balance-sheet.mjs ASSUME']]),
+    model: `taken at the start of act k, kept to the Encore door
+kills grow stats (Little Trophy, Kitchen Timer, Bandage); levels and picks feed per words (Tea Bag, Piggy Bank); a Chore List target lands every (every + ${ASSUME.bountyKill} s)
+XP words (Lucky Penny, Spilled Sugar, Houseplant, Pedometer) add XP, turned into levels through xpToNext, each level worth an average card at that door
+points = Offence and Defence of the reference Normal jelly with the grown stats, against without, plus extra levels x what one level adds
+Luck (Spare Change) and levelling Treasures (Fish Food) are not priced`,
+    tables: [{ head: ['Treasure', 'Rarity', 'Copies', 'Taken in act 1', 'Act 2', 'Act 3', 'Act 4', 'Budget a copy', 'Unpriced'], rows }, { head: ['Act', 'Bugs killed', 'Levels gained', 'Picks found', 'Seconds', 'XP on offer', 'Metres swum'], rows: fx }],
+    charts: [grouped('Points at the Encore door, one copy, by the act it was taken in', ['Taken in act 1', 'Act 3'], [['Little Trophy', [0, 2].map((k) => growthWorth(nodeOf('treasures', 'trophy'), k, 3).pts)], ['Piggy Bank', [0, 2].map((k) => growthWorth(nodeOf('treasures', 'piggyBank'), k, 3).pts)], ['Lucky Penny', [0, 2].map((k) => growthWorth(nodeOf('treasures', 'coin'), k, 3).pts)]], (v) => r(v))],
+    flags,
+    notes: ['These are one-copy ceilings if taken at the start of the act. The run log\'s real pickup order (which act a Treasure is taken in) would sharpen them: it is in the run log additions.'],
+  };
+}
+
+// ------------------------------------------------------------------ B5: Attack upgrades
+// A pick's price over what it needs first (an upgrade that needs another is priced on top of it)
+const needsChain = (u) => { const out = []; for (let x = u; x?.needs; x = CONTENT.upgrades.find((y) => y.id === x.needs)) out.unshift(x.needs); return out; };
+export function upgradeWorth(u, M = MOMENT_VAC) {
+  const node = nodeOf('upgrades', u.id), need = needsChain(u), w = worth(u.jelly, M, { u: [...need, u.id] }, { fx: fxOf(u, node, 1) * 1, base: { u: need } });
+  return { ...w, pts: total(w), node, need };
+}
+const median = (xs) => { const s = [...xs].sort((p, q) => p - q); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0; };
+function sheetB5() {
+  const flags = [], byType = TYPES.map((type) => {
+    const list = CONTENT.upgrades.filter((u) => u.jelly === type).map((u) => ({ u, ...upgradeWorth(u), left: unpricedOf(u) }));
+    const priced = list.filter((x) => x.pts > 0.5).sort((p, q) => q.pts - p.pts);
+    return { type, list, priced };
+  });
+  const meds = byType.map((x) => median(x.priced.map((y) => y.pts))), overall = median(meds.filter((m) => m > 0));
+  for (const T of byType) for (const x of T.priced) {
+    const t = turn(x.node);
+    if (t && x.pts > 2 * PICK.upgrade && !x.left.length) flags.push({ text: `${x.u.name}, ${a(name(T.type))} Attack upgrade, is worth ${r(x.pts)} points at the Vacuum door${x.need.length ? ' on top of what it needs' : ''}, over twice an Attack upgrade's ${PICK.upgrade}.`, knob: { at: `content/upgrades.kdl:${t.line}`, ...scaled(t, PICK.upgrade, x.pts) } });
+  }
+  byType.forEach((T, i) => {
+    const mine = meds[i];
+    if (T.priced.length >= 3 && overall && mine < 0.5 * overall) {
+      const weak = T.priced[T.priced.length - 1], t = turn(weak.node);
+      if (t) flags.push({ text: `${name(T.type)}'s priced Attack upgrades have a middle worth of ${r(mine)} points against ${r(overall)} across the types: its pool is the weakest of the eight on paper. The weakest priced one is ${weak.u.name} at ${r(weak.pts)}.`, knob: { at: `content/upgrades.kdl:${t.line}`, ...scaled(t, PICK.upgrade, weak.pts) } });
+    }
+  });
+  const rows = byType.map((T, i) => [name(T.type), `${T.priced.length} of ${T.list.length}`, T.priced[0] ? `${T.priced[0].u.name} ${r(T.priced[0].pts)}` : '', T.priced[1] ? `${T.priced[1].u.name} ${r(T.priced[1].pts)}` : '', r(meds[i]), T.list.filter((x) => !T.priced.includes(x)).map((x) => x.u.name + (x.u.needs ? ' (needs another)' : '')).join(', ')]);
+  return {
+    id: 'B5', title: 'Attack upgrades',
+    lede: `All ${CONTENT.upgrades.length} Attack upgrades, ${TYPES.length} types of twelve. Priced where a number exists on paper (stats, Crit, marks, status bonuses, timed effects); the rest change how an attack behaves and need play.`,
+    numbers: CONTENT.upgrades.map((u) => [`${u.name} (${name(u.jelly)}${u.needs ? `, needs ${u.needs}` : ''})`, u.text, kdl('content/upgrades.kdl', 'upgrade', u.id)]).concat([['Attack upgrade budget', PICK.upgrade, 'docs/agents/balance-model.md']]),
+    model: `points = Offence and Defence of the type's reference jelly at the Vacuum door with the upgrade, against without (and on top of what it needs)
+priced: stat and Crit, mark and status words, timed effects (every), always-on effects, as in B2 and B3; element-up, on-kill-of, streaks, echo-bubble and the other behaviour words are not
+a type with few priced upgrades is mostly behaviour: the clear test measures it`,
+    tables: [{ head: ['Type', 'Priced', 'Best priced', 'Second', 'Middle priced (points)', 'Not priced'], rows }],
+    charts: [bars('Best priced Attack upgrade at the Vacuum door, by type (points)', byType.map((T) => [name(T.type), T.priced[0]?.pts ?? 0]), { fmt: (v) => r(v), ref: PICK.upgrade }),
+      bars('Middle priced Attack upgrade, by type (points)', byType.map((T, i) => [name(T.type), meds[i]]), { fmt: (v) => r(v), ref: PICK.upgrade, cls: 'b' })],
+    flags,
+    notes: ['A priced number is a ceiling for upgrades that need a status or a streak to hold: it counts as if it always does.'],
+  };
+}
+
+// ------------------------------------------------------------------ B6: Legendary Treasures and evolutions
+const LEGENDS = () => [...LIVE(CONTENT.treasures).filter((t) => t.rarity === 'legendary').map((t) => ({ item: t, kind: 'treasure', file: 'treasures', spec: { t: { [t.id]: 1 } } })), ...CONTENT.evolutions.map((e) => ({ item: e, kind: 'evolution', file: 'evolutions', spec: { e: [e.id] } }))];
+export function legendWorth(x, type = 'normal', M = MOMENT_VAC) {
+  const node = nodeOf(x.file, x.item.id), w = worth(type, M, x.spec, { fx: fxOf(x.item, node, 1) }), cost = costOf(type, M, x.spec);
+  return { ...w, pts: total(w), cost, node };
+}
+function sheetB6() {
+  const flags = [], rows = [], priced = [];
+  for (const x of LEGENDS()) {
+    const types = TYPES.filter((t) => forType(x.item, t)), type = types.includes('normal') ? 'normal' : types[0], W = legendWorth(x, type), left = unpricedOf(x.item), dead = TYPES.filter((t) => !types.includes(t));
+    const gain = W.pts - W.cost, full = !left.length && !W.left.length;
+    rows.push([x.item.name, x.kind === 'treasure' ? 'Treasure' : 'Evolution', name(type), r(gain), r(-W.cost), r(W.pts), dead.length ? dead.map(name).join(', ') : '', left.join(', ') + (W.left.length ? ` ${W.left.join(', ')}` : '')]);
+    priced.push([x.item.name, W.pts, x.kind === 'treasure' ? '' : 'b']);
+    const T = turn(W.node);
+    if (full && T && W.pts > 0 && (W.pts < 0.5 * PICK.legendary || W.pts > 2 * PICK.legendary)) flags.push({ text: `${x.item.name}${x.kind === 'evolution' ? ' (an evolution)' : ''} is worth ${r(W.pts)} points net on the ${name(type)} jelly at the Vacuum door, against a Legendary's ${PICK.legendary}, with nothing left unpriced.${x.item.vocabulary.includes('while') ? ` A while condition counts as holding for a share of a fight (${[...new Set(W.m.whiles.map((c) => `${pct(ASSUME.while[c.when] ?? 0.3).slice(1)} ${c.when}`))].join(', ')}).` : ''}`, knob: { at: `content/${x.file}.kdl:${T.line}`, ...scaled(T, PICK.legendary, W.pts) } });
+    const neg = x.item.vocabulary.includes('stat') && -W.cost > 0;
+    const w = neg && nodeOf(x.file, x.item.id).children.find((c) => c.name === 'stat' && c.args[1] < 0), k = neg ? 20 / -W.cost : 0;
+    if (neg && -W.cost < 20 && w && Math.abs(w.args[1] * k) <= (w.props.percent ? 50 : BASE_STATS[STAT_NAMES[w.args[0]]] / 2)) {
+      const v = w.args[1];
+      flags.push({ text: `${x.item.name}'s cost is ${r(-W.cost)} points on the ${name(type)} jelly at the Vacuum door, under the 20 a Legendary's cost should be worth.`, knob: { at: `content/${x.file}.kdl:${w.line}`, change: `stat "${w.args[0]}" ${v}${w.props.percent ? ' percent=#true' : ''} → ${+(v * k).toPrecision(2)}`, does: 'a cost worth about 20 points' } });
+    }
+  }
+  return {
+    id: 'B6', title: 'Legendary Treasures and evolutions',
+    lede: `The ${rows.length} Boss picks (Legendary Treasures and evolutions): what each gains and costs in points, and for which types it is not offered.`,
+    numbers: [...LEGENDS().map((x) => [`${x.item.name} (${x.kind})`, x.item.text, kdl(`content/${x.file}.kdl`, x.kind, x.item.id)]), ['Legendary budget; cost worth at least', `${PICK.legendary}; 20`, 'docs/agents/balance-model.md']],
+    model: `gain = points the stat, Crit, mark and timed parts add on the reference jelly at the Vacuum door; cost = points the negative stats take away (Health, Fire rate, Range, Move speed)
+net = gain - cost, against a Legendary's ${PICK.legendary}; a Legendary's cost should be worth at least 20
+priced on the Normal jelly, or the first type it is offered to (Rebound Jelly: Normal only); "Not offered to" is the types its not-for= leaves out
+words with no number on paper (fire-trail, rebirth, decoy, reflect...) are listed as not priced: a pick with any is partly priced and never flagged for being weak`,
+    tables: [{ head: ['Pick', 'Kind', 'Priced on', 'Gain', 'Cost', 'Net', 'Not offered to', 'Not priced'], rows }],
+    charts: [bars('Net points at the Vacuum door (Treasures blue, evolutions green)', priced, { fmt: (v) => r(v), ref: PICK.legendary })],
+    flags,
+    notes: ['Net points leave out whatever the unpriced words are worth, so a low net with a long Not priced list is not a skip: it is a pick the paper cannot judge.'],
+  };
+}
+
+// ------------------------------------------------------------------ B7: status effects
+// How a status reaches a bug, from src/words.js and src/enemies.js: Elites and Bosses take no control status
+const SLOWED = 0.55;   // a slowed or chilled bug moves at this speed (enemies.js slow)
+function sheetB7() {
+  const flags = [], el = ELEMENT_BASE;
+  const status = [
+    ['Burn', `${el.fire.burn}x for ${el.fire.burnTime} s a hit, ${el.fire.burnStacks} at once`, 'Elites and Bosses too (damage over time)', at('src/words.js', /^ {2}fire: \{ burn: /)],
+    ['Poison', `${el.poison.poisonStacks} stacks, ${el.poison.poisonTime} s each`, 'Elites and Bosses too (damage over time)', at('src/words.js', /^ {2}poison: \{ poison: /)],
+    ['Bleed', 'a bug\'s hit makes you bleed: dps x seconds', 'a hit on you, not on a bug', at('src/enemies.js', /e\.bleeds/)],
+    ['Stun', `${el.lightning.stun} s an arc; Treasures 0.5 to 1 s`, 'Elites and Bosses cannot be stunned (they say IMMUNE)', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
+    ['Pin', 'a stun that stops it dead', 'Elites and Bosses cannot be pinned', at('src/enemies.js', /status === 'stun' \|\| status === 'pin'/)],
+    ['Chill', `${el.ice.chill} s a hit, a slow to x${SLOWED}`, 'not Elites or Bosses', at('src/enemies.js', /status === 'chill'/)],
+    ['Slow', `x${SLOWED} speed for its time`, 'not Elites or Bosses', at('src/enemies.js', /e\.slowT > 0 \? 0\.55/)],
+    ['Freeze', 'stopped for its time; a hit on it can shatter it', 'not Elites or Bosses', at('src/enemies.js', /status === 'freeze'/)],
+  ];
+  // control from one Treasure or jelly attack: seconds a bug is held a second, if it is kept topped up, as attack time removed
+  const sources = [];
+  const add = (label, kind, secs, every, from) => sources.push({ label, kind, secs, every, from, held: Math.min(1, secs / every) * (kind === 'slow' ? 1 - SLOWED : 1) });
+  for (const t of LIVE(CONTENT.treasures)) {
+    const m = modsOf('normal', { t: { [t.id]: 1 } });
+    for (const x of m.timed) for (const e of x.effects) {
+      if (e.kind === 'ring') { if (e.freeze) add(t.name, 'freeze', e.freeze, x.every, t.id); if (e.slow) add(t.name, 'slow', e.slow, x.every, t.id); if (e.chill) add(t.name, 'slow', e.chill, x.every, t.id); }
+      if (e.kind === 'swatter') add(t.name, 'stun', e.stun, x.every, t.id);
+      if (e.kind === 'puddle') add(t.name, 'stun', e.skid, x.every, t.id);
+    }
+    for (const s of m.squeaks) add(t.name, 'stun', s.stun, s.cooldown, t.id);
+  }
+  const ice = el.ice.chill, hit = 1 / BASE_STATS.fireRate;
+  add('Ice attack', 'slow', ice, hit, 'ice');
+  add('Lightning arc', 'stun', el.lightning.stun, 1 / (el.lightning.rate * BASE_STATS.fireRate), 'lightning');
+  // Boss and Elite time: how much of an act the control Treasures are on dead ground
+  const bossShare = ACTS.map((A) => RUN_LOG.bossSeconds[A.n - 1] / A.seconds);
+  const hurts = (t) => { const m = modsOf('normal', { t: { [t.id]: 1 } }); return gadgets(m, BASE_STATS).dps > 0 || m.squeaks.some((s) => s.dmg > 0) || m.popZap?.dmg > 0; };
+  const pure = LIVE(CONTENT.treasures).filter((t) => sources.some((s) => s.from === t.id) && !hurts(t));
+  for (const t of pure) {
+    const node = nodeOf('treasures', t.id), T = turn(node);
+    flags.push({ text: `${t.name} only holds bugs still or slows them, and Elites and Bosses ignore that: in the ${r(100 * bossShare[0])}% to ${r(100 * Math.max(...bossShare))}% of an act spent in the Boss fight it does nothing, and Elites (${ACTS[0].stage.elites.length} an act) shrug it off too.`,
+      knob: { at: T ? `content/treasures.kdl:${T.line}` : kdl('content/treasures.kdl', 'treasure', t.id), change: 'give it a damage part (a ring or squeak dmg=…) that Elites and Bosses do take', does: 'it keeps some worth in a Boss fight' } });
+  }
+  return {
+    id: 'B7', title: 'Status effects',
+    lede: 'What each status does, to what, and how much attack time each control source takes from a bug. Elites and Bosses take Burn, Poison and Bleed damage and no control.',
+    numbers: [...status.map(([n, v, w, f]) => [n + ': ' + w, v, f]), ...sources.map((s) => [`${s.label}: ${s.kind} ${s.secs} s every ${r(s.every, 2)} s`, `${s.kind}`, s.from === 'ice' || s.from === 'lightning' ? at('src/words.js', new RegExp(`^ {2}${s.from}: \\{`)) : kdl('content/treasures.kdl', 'treasure', s.from)])],
+    model: `a bug held still or frozen loses all its attack time; a slowed or chilled bug moves at x${SLOWED}, so loses ${r(100 * (1 - SLOWED))}% of it
+attack time removed a second on one bug = (seconds held per use / seconds between uses, at most 1) x that share, if the source is kept going on the one bug
+Elites and Bosses (src/enemies.js status_applied returns for them) take none of it: Stun, Pin, Chill, Slow, Freeze, Mark and trap all do nothing to them
+the Boss fight is ${ACTS.map((A, i) => `${r(100 * bossShare[i])}%`).join(', ')} of acts 1 to 4 on the run log's mean times`,
+    tables: [{ head: ['Status', 'Strength and length', 'Elites and Bosses'], rows: status.map(([n, v, w]) => [n, v, w]) },
+      { head: ['Source', 'Kind', 'Seconds held a use', 'Every (s)', 'Attack time removed a second, one bug'], rows: sources.map((s) => [s.label, s.kind, r(s.secs, 2), r(s.every, 2), pct(s.held).slice(1)]) }],
+    charts: [bars('Attack time removed a second on one bug (%)', sources.map((s) => [s.label, s.held * 100, s.kind === 'stun' ? '' : 'b']), { fmt: (v) => r(v) + '%', left: 170 })],
+    flags,
+    notes: ['A control Treasure is worth its hold on an ordinary bug, which a fight with many bugs and no Boss pays in full: the paper cannot say how much a held bug is worth, only how much of its time is gone.'],
+  };
+}
+
 // ------------------------------------------------------------------ charts (inline SVG, no libraries)
 const W = 460, ROW = 22;
 const xmlesc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -547,7 +997,7 @@ function grouped(title, groups, series, fmt = String) {
 }
 
 // ------------------------------------------------------------------ the page
-export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5()];
+export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7()];
 function page(sheets) {
   const rev = (() => { try { return fs.readFileSync(path.join(ROOT, '.git/HEAD'), 'utf8').trim(); } catch { return ''; } })();
   const table = (t) => `<div class="scroll"><table><tr>${t.head.map((h) => `<th>${xmlesc(h)}</th>`).join('')}</tr>${t.rows.map((row) => `<tr>${row.map((c) => `<td>${xmlesc(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
