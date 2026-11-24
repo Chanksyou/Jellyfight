@@ -17,6 +17,7 @@ import { hitBy } from './words.js';
 import { hostile, FRIENDLY, TeleMaterial, blastHits, shotHits } from './vfx.js';
 import { GlowPools } from './glow-pools.js';
 import { PrismBalls } from './prism-balls.js';
+import { EnergyBalls } from './energy-ball.js';
 import { attackClock, beginFrame, newAttack, WORK } from './attack-motion.js';
 
 // what each type bursts into when it dies
@@ -259,6 +260,7 @@ export class Enemies {
     };
     this.mods = null;         // the run's combined treasure effects (run.js sets them each frame): status-damage
     this.shots = [];          // web balls and pushpins in flight (the spit word)
+    this.energyBalls = new EnergyBalls(scene, fx.reducedMotion);   // what a stag beetle's ball looks like in flight (energy-ball.js)
     this.sparkShots = [];     // stag beetles' balls in flight (the charge-shot word): fx.shot Shots
     this.glowPools = new GlowPools(scene, fx);   // fireflies' lobs in flight and the glowing pools they leave (the lob word)
     this.prismBalls = new PrismBalls(scene, fx, world);   // butterflies' prism balls in flight and the rings of bolts they fire (the prism word)
@@ -647,7 +649,7 @@ export class Enemies {
     this.byId.clear();
     this.shots.forEach((s) => { this.scene.remove(s.m); this.projectiles.release(s.pooled); });
     this.shots = [];
-    this.sparkShots.forEach((s) => this.fx.free(s.m));
+    this.sparkShots.forEach((s) => { this.fx.free(s.m); this.energyBalls.free(s.ball); });
     this.sparkShots = [];
     this.missiles.forEach((m) => { this.scene.remove(m.m); this.projectiles.release(m.pooled); });
     this.missiles = [];
@@ -1049,6 +1051,8 @@ export class Enemies {
     const color = hostile(e.type), from = this.muzzle(e, new THREE.Vector3());
     const s = this.fx.shot(color, from, at, { speed, size, life });
     s.dmg = dmg; s.blast = blast; s.knock = knock; s.from = e.id; s.source = e.type;
+    s.m.scale.setScalar(0);                                             // (the plain white core is replaced by the energy ball)
+    s.ball = this.energyBalls.spawn(from, s.v, size);
     this.sparkShots.push(s);
     this.fx.glow.emit(from, ARC, size * 9, size * 3, 0.12, 1.4);
     this.fx.impact(from, color, size * 1.6, 10);
@@ -1059,15 +1063,18 @@ export class Enemies {
   updateSparkShots(dt) {
     if (!this.sparkShots.length) return;
     const P = this.player, glow = this.fx.glow;
+    this.energyBalls.tick(dt, this.sparkShots);
     for (const s of this.sparkShots) {
       const hit = this.fx.shotStep(s, dt, this.world, P.position, P);
       const at = s.m.position;
       if (!s.done) {
-        glow.hold(at, ARC, s.size * 4, 1);                                                    // the white-hot core
+        s.ball.position.copy(at);
+        glow.hold(at, ARC, s.size * 1.5, 0.6);                                                // the hot light round the ball
         const v = S.want.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.6);
         glow.emit(at, Math.random() < 0.5 ? ARC : s.color, s.size * 1.6, s.size * 0.3, 0.22, 1, v, 0.8);   // sparks shed behind
         continue;
       }
+      this.energyBalls.free(s.ball);
       this.sparkBlast(s, at.clone(), hit || blastHits(at, s.blast, P.position, P));
     }
     this.sparkShots = this.sparkShots.filter((s) => !s.done);

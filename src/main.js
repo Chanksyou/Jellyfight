@@ -1006,7 +1006,8 @@ async function warmUp() {
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
   enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
-  enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));   // a butterfly's bolt and its Warning
+  enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));
+  enemies.energyBalls.warm(true, P.clone().setY(P.y + 0.02));   // a stag beetle's ball   // a butterfly's bolt and its Warning
   const warmAdorn = ADORNMENTS.map(k => run.adorn.piece(k).group);
   warmAdorn.forEach(g => { g.visible = true; });
   run.evolutionReveal.warm(true);
@@ -1049,6 +1050,7 @@ async function warmUp() {
   run.fireTrail.warm(false);
   enemies.glowPools.warm(false);
   enemies.prismBalls.warm(false);
+  enemies.energyBalls.warm(false);
   run.evolutionReveal.warm(false);
   warmAdorn.forEach(g => { g.visible = false; });
   run.elites.warm(false);
