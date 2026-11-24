@@ -34,14 +34,18 @@ import { hostile, TeleMaterial, laneHits, blastHits, ringHits, shotTarget, SHOT_
 import { sfx } from './sfx.js';
 import { juice } from './juice.js';
 import { CONTENT } from './content.js';
+import { stepChain } from './chain.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const _rel = new THREE.Vector3();
 const GUNK = () => LOOK.color('clog-gunk', '#3a2a16');   // its wet smears (fx.splat: harmless, they fade)
 const HAIR = ['#1e130c', '#2a1a10', '#33200f', '#3b2618', '#24160e', '#4a2a16', '#5a3418', '#7a7470', '#b8904a'];   // mostly dark brown; a grey and a blonde one
 
-// a shudder as it winds up (its root jitters sideways)
-function M_shake(M, a) { M.root.position.x = (Math.random() - 0.5) * a; }
+const ROPE_SEG = 14;   // segments along each braided hair rope (15 chain points)
+const ROPE_RAD = 8;    // vertices around each rope ring
+const ROPE_COS = Float64Array.from({ length: ROPE_RAD }, (_, k) => Math.cos((k / ROPE_RAD) * Math.PI * 2));
+const ROPE_SIN = Float64Array.from({ length: ROPE_RAD }, (_, k) => Math.sin((k / ROPE_RAD) * Math.PI * 2));
+
 function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 function paint(geo, color) {
   geo = geo.index ? geo.toNonIndexed() : geo;
@@ -51,8 +55,9 @@ function paint(geo, color) {
   geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
   return geo;
 }
-// a curl of hair from point `a` outward along `d`, `len` long, wandering
-function curl(R, a, d, len, thick, color, segs = 10) {
+// a curl of hair from point `a` outward along `d`, `len` long, wandering; when `flex > 0`, bakes
+// `aHair` (t, phase, flex, seed) so the vertex shader can whip tips, trail, writhe, and bristle
+function curl(R, a, d, len, thick, color, segs = 10, flex = 0) {
   const pts = [a.clone()], side = new THREE.Vector3().randomDirection().cross(d).normalize();
   let p = a.clone(), dir = d.clone();
   for (let k = 1; k <= 5; k++) {
@@ -60,7 +65,90 @@ function curl(R, a, d, len, thick, color, segs = 10) {
     p = p.clone().addScaledVector(dir, len / 5);
     pts.push(p);
   }
-  return paint(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs, thick, 3), color);
+  const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), segs, thick, 3);
+  if (flex > 0) {
+    const n = geo.attributes.position.count, ah = new Float32Array(n * 4), ph = R() * Math.PI * 2, sd = R();
+    for (let v = 0; v < n; v++) {
+      const t = Math.min(1, Math.floor(v / 4) / segs);
+      ah[v * 4] = t; ah[v * 4 + 1] = ph; ah[v * 4 + 2] = flex; ah[v * 4 + 3] = sd;
+    }
+    geo.setAttribute('aHair', new THREE.BufferAttribute(ah, 4));
+  }
+  return paint(geo, color);
+}
+
+// compose a vertex deformation patch on top of standOut's onBeforeCompile (keeps rim glow & baked tint)
+function patchClogMat(m, key, uniforms, vertBody, decls = '') {
+  const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev.call(m, sh, r);
+    Object.assign(sh.uniforms, uniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>\nuniform float uClogTime;\nuniform vec3 uClogVel;\nuniform vec4 uClogFX;\n${decls}`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n${vertBody}`);
+  };
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}:${key}`;
+  m.needsUpdate = true;
+}
+
+const CORE_VERT = /* glsl */ `{
+  float clR = length(transformed) + 1e-5;
+  vec3 clN = transformed / clR;
+  float clW = sin(transformed.y * 24.0 - uClogTime * 4.2 + transformed.x * 15.0)
+            * cos(transformed.z * 21.0 + uClogTime * 3.1 - transformed.y * 12.0)
+            + 0.45 * sin(transformed.x * 36.0 + transformed.z * 32.0 + uClogTime * 5.8);
+  transformed += clN * (clW * min(uClogFX.y, 0.5) * 0.28 + uClogFX.w * 0.04 * sin(uClogTime * 48.0 + transformed.y * 42.0)) * clR;
+  float clBot = smoothstep(0.55, -0.95, clN.y);
+  transformed.xz *= 1.0 + max(uClogFX.x, 0.0) * clBot * 0.4;
+  transformed.y -= max(uClogFX.x, 0.0) * clBot * clR * 0.12;
+  transformed -= uClogVel * (0.07 * clR * (1.0 - clBot * 0.55));
+}`;
+
+const STRAND_VERT = /* glsl */ `{
+  float clT = aHair.x, clT2 = clT * clT, clPh = aHair.y, clFl = aHair.z;
+  float clR = length(transformed) + 1e-5;
+  vec3 clDir = transformed / clR;
+  float clB = min(uClogFX.y, 0.55);
+  vec3 clWr = vec3(
+    sin(uClogTime * 3.4 + clPh + clT * 4.5),
+    cos(uClogTime * 2.7 + clPh * 1.3 + clT * 3.8) * 0.85,
+    sin(uClogTime * 3.1 - clPh * 0.7 + clT * 4.2)
+  );
+  transformed += clWr * (clT2 * clFl * clB * 0.42 * clR);
+  transformed -= uClogVel * (clT2 * clFl * 0.82 * clR);
+  vec3 clSpinOut = normalize(vec3(transformed.x, 0.0, transformed.z) + vec3(1e-5));
+  transformed += clDir * (clT * (0.28 + 0.52 * clFl) * clB * 0.34 * clR);
+  transformed += clSpinOut * (clT2 * clFl * uClogFX.z * 0.58 * clR);
+  vec3 clTan = vec3(-clDir.z, 0.25 * sin(clPh), clDir.x);
+  transformed += clTan * (sin(uClogTime * 54.0 + clPh * 3.0 + clT * 6.0) * clT2 * uClogFX.w * 0.24 * clR);
+  float clBot = smoothstep(0.55, -0.95, clDir.y);
+  transformed.xz *= 1.0 + max(uClogFX.x, 0.0) * clBot * 0.4;
+}`;
+
+// a single continuous braided dynamic tube for one hair rope (replaces 8 rigid meshes -> cuts 28 draw calls)
+function buildRopeGeo(colorOffset) {
+  const verts = (ROPE_SEG + 1) * ROPE_RAD;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+  const col = new Float32Array(verts * 3), c = new THREE.Color();
+  for (let j = 0; j <= ROPE_SEG; j++) {
+    for (let k = 0; k < ROPE_RAD; k++) {
+      c.set(HAIR[(colorOffset + k + (j & 1)) % 6]);
+      const idx = (j * ROPE_RAD + k) * 3;
+      col[idx] = c.r; col[idx + 1] = c.g; col[idx + 2] = c.b;
+    }
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const idx = [];
+  for (let j = 0; j < ROPE_SEG; j++) {
+    for (let k = 0; k < ROPE_RAD; k++) {
+      const a = j * ROPE_RAD + k, b = j * ROPE_RAD + (k + 1) % ROPE_RAD, d = a + ROPE_RAD, e = b + ROPE_RAD;
+      idx.push(a, b, d, b, e, d);
+    }
+  }
+  g.setIndex(idx);
+  return g;
 }
 
 // the hairball, in meters, radius `r`, facing +z. `roll` turns as it rolls; the face, maw and
@@ -93,6 +181,7 @@ function buildClog(r) {
   const R = rng(97);
   const wet = new THREE.MeshPhysicalMaterial({ vertexColors: true, map: hairTexture(), roughness: 0.42, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.35 });
   const strandMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.05 });
+  const ropeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.52, metalness: 0.05 });
   const root = new THREE.Group(), roll = new THREE.Group();
   root.add(roll);
   // the core: a lumpy matted mass, darker in the hollows
@@ -108,6 +197,7 @@ function buildClog(r) {
   }
   core.computeVertexNormals();
   core.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  core.computeBoundingSphere(); core.boundingSphere.radius *= 1.6;
   const coreMesh = new THREE.Mesh(core, wet);
   roll.add(coreMesh);
   // the matted layer: hundreds of short curls lying over it, and long loose strands
@@ -119,35 +209,58 @@ function buildClog(r) {
     if (parted(d)) continue;
     const a = d.clone().multiplyScalar(r * (0.88 + R() * 0.1));
     const tan = new THREE.Vector3().randomDirection().cross(d).normalize();
-    strands.push(curl(R, a, tan.lerp(d, 0.12).normalize(), r * (0.3 + R() * 0.45), r * 0.009, HAIR[(R() * 7) | 0], 5));
+    strands.push(curl(R, a, tan.lerp(d, 0.12).normalize(), r * (0.3 + R() * 0.45), r * 0.009, HAIR[(R() * 7) | 0], 5, 0.36));
   }
   for (let k = 0; k < 70; k++) {
     const d = new THREE.Vector3().randomDirection();
     if (parted(d)) continue;
     const a = d.clone().multiplyScalar(r * 0.95);
     if (d.y > 0.6) d.y *= -0.3;                                         // long ones droop
-    strands.push(curl(R, a, d.clone().setY(d.y - 0.6).normalize(), r * (0.9 + R() * 1.1), r * 0.008, HAIR[(R() * HAIR.length) | 0], 12));
+    strands.push(curl(R, a, d.clone().setY(d.y - 0.6).normalize(), r * (0.9 + R() * 1.1), r * 0.008, HAIR[(R() * HAIR.length) | 0], 12, 1.0));
   }
-  const strandMesh = new THREE.Mesh(mergeGeometries(strands), strandMat);
+  const strandGeo = mergeGeometries(strands);
+  strandGeo.computeBoundingSphere(); strandGeo.boundingSphere.radius *= 2.4;
+  const strandMesh = new THREE.Mesh(strandGeo, strandMat);
   roll.add(strandMesh);
-  // things caught in it: a pink hair tie, a bobby pin, soap scum, a bead, a cotton bud
+  // things caught in it: each bounces on its own damped spring (bobble, twang, elastic flop, jelly squish)
+  const props = [];
+  const addProp = (obj, kind, freq, amp) => {
+    roll.add(obj);
+    props.push({ obj, kind, freq, amp, basePos: obj.position.clone(), baseRot: obj.rotation.clone(), baseScale: obj.scale.clone(), ax: 0, az: 0, vx: 0, vz: 0, phase: R() * Math.PI * 2 });
+  };
   const tie = new THREE.Mesh(new THREE.TorusGeometry(r * 0.22, r * 0.045, 8, 24), new THREE.MeshStandardMaterial({ color: 0xff5aa0, roughness: 0.5 }));
   tie.position.set(r * 0.55, r * 0.55, r * 0.5); tie.rotation.set(0.6, 0.3, 0.2);
-  roll.add(tie);
-  const pin = new THREE.Group();
-  for (const s of [-1, 1]) { const rod = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.012, r * 0.012, r * 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.3 })); rod.position.x = s * r * 0.03; rod.rotation.z = s * 0.06; pin.add(rod); }
+  addProp(tie, 'elastic', 1.0, 1.25);
+  // merged bobby pin (pivoted near its embedded base so it twangs like a diving board)
+  const pinGeo = mergeGeometries([-1, 1].map((s) => new THREE.CylinderGeometry(r * 0.012, r * 0.012, r * 0.7, 6).translate(s * r * 0.03, r * 0.28, 0).rotateZ(s * 0.06)));
+  const pin = new THREE.Mesh(pinGeo, new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.3 }));
   pin.position.set(-r * 0.7, r * 0.35, r * 0.55); pin.rotation.set(0.4, 0, 1.1);
-  roll.add(pin);
+  addProp(pin, 'twang', 1.75, 1.6);
   const scum = new THREE.MeshPhysicalMaterial({ color: 0xe8e4d4, roughness: 0.3, transmission: 0.2, transparent: true, opacity: 0.85, clearcoat: 0.8 });
-  for (let k = 0; k < 7; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(r * (0.08 + R() * 0.08), 10, 8), scum); b.position.copy(new THREE.Vector3().randomDirection().multiplyScalar(r * 0.95)); b.scale.y = 0.6; roll.add(b); }
+  for (let k = 0; k < 7; k++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(r * (0.08 + R() * 0.08), 10, 8), scum);
+    b.position.copy(new THREE.Vector3().randomDirection().multiplyScalar(r * 0.95));
+    b.scale.y = 0.6;
+    addProp(b, 'scum', 0.85 + R() * 0.5, 0.9);
+  }
   const bead = new THREE.Mesh(new THREE.SphereGeometry(r * 0.08, 12, 10), new THREE.MeshStandardMaterial({ color: 0x3aa8ff, roughness: 0.1, metalness: 0.2 }));
   bead.position.set(r * 0.2, -r * 0.5, r * 0.85);
-  roll.add(bead);
-  const bud = new THREE.Group();
-  bud.add(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.02, r * 0.02, r * 0.8, 8), new THREE.MeshStandardMaterial({ color: 0xf4f0ff, roughness: 0.4 })));
-  for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.SphereGeometry(r * 0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); c.position.y = s * r * 0.42; c.scale.y = 1.5; bud.add(c); }
+  addProp(bead, 'dangle', 1.25, 1.35);
+  // merged cotton bud (protrudes like an antenna, whips on hops & shudders)
+  const budParts = [paint(new THREE.CylinderGeometry(r * 0.02, r * 0.02, r * 0.8, 8).translate(0, r * 0.2, 0), '#f4f0ff')];
+  for (const s of [-1, 1]) budParts.push(paint(new THREE.SphereGeometry(r * 0.06, 8, 6).scale(1, 1.5, 1).translate(0, r * 0.2 + s * r * 0.42, 0), '#ffffff'));
+  const bud = new THREE.Mesh(mergeGeometries(budParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 }));
   bud.position.set(-r * 0.4, -r * 0.2, -r * 0.8); bud.rotation.set(0.5, 0.5, 0.8);
-  roll.add(bud);
+  addProp(bud, 'twang', 1.45, 1.7);
+  // extra drain junk: a broken teal comb fragment perched near the crown, and a dangling gold ring
+  const combParts = [paint(new THREE.BoxGeometry(r * 0.42, r * 0.07, r * 0.04).translate(0, r * 0.16, 0), '#38b6a8')];
+  for (let k = 0; k < 6; k++) combParts.push(paint(new THREE.BoxGeometry(r * 0.026, r * 0.16, r * 0.024).translate((k - 2.5) * r * 0.07, r * 0.06, 0), '#38b6a8'));
+  const combPiece = new THREE.Mesh(mergeGeometries(combParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35 }));
+  combPiece.position.set(r * 0.12, r * 0.82, -r * 0.28); combPiece.rotation.set(-0.35, 0.4, -0.25);
+  addProp(combPiece, 'twang', 1.3, 1.5);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 0.11, r * 0.024, 8, 18).translate(0, -r * 0.11, 0), new THREE.MeshStandardMaterial({ color: 0xf4c842, metalness: 0.85, roughness: 0.22 }));
+  ring.position.set(-r * 0.78, -r * 0.1, -r * 0.35); ring.rotation.set(0.2, 0.8, 0.3);
+  addProp(ring, 'dangle', 1.5, 1.85);
 
   // the face (doesn't roll): glowing eyes peering through a parting in the hair, and the maw
   const face = new THREE.Group();
@@ -156,6 +269,11 @@ function buildClog(r) {
   eyes.scale.setScalar(r * 0.6);
   eyes.position.set(0, r * 0.3, r * 0.98);
   face.add(eyes);
+  // cache each eye's sub-parts (ball, iris, pupil, brow) and rest positions for zero-alloc expression animation
+  const eyeParts = eyes.children.map((g, i) => {
+    const [ball, iris, pupil, brow] = g.children;
+    return { g, ball, iris, pupil, brow, sign: i ? 1 : -1, irisPos: iris.position.clone(), pupilPos: pupil.position.clone(), browZ: brow.rotation.z, browY: brow.position.y, mat: ball.material };
+  });
   const maw = new THREE.Group();
   maw.position.set(0, -r * 0.22, r * 0.9);
   face.add(maw);
@@ -167,41 +285,43 @@ function buildClog(r) {
     const tooth = new THREE.Mesh(new THREE.ConeGeometry(r * 0.03, r * 0.1, 6), toothMat);
     tooth.position.set((k - 2.5) * r * 0.09, y * r * 0.13, r * 0.06);
     tooth.rotation.z = s > 0 ? 0 : Math.PI;
-    maw.add(tooth); teeth.push(tooth);
+    maw.add(tooth);
+    teeth.push({ m: tooth, row: y, baseY: y * r * 0.13, phase: k * 0.85 });
   }
   maw.add(new THREE.Mesh(new THREE.TorusGeometry(r * 0.3, r * 0.04, 6, 24).scale(1, 0.55, 1), gums));
-  // slime drips hanging off the bottom
-  const slime = new THREE.MeshPhysicalMaterial({ color: 0x8a9a5a, roughness: 0.15, transparent: true, opacity: 0.7, clearcoat: 1 });
+  // slime drips hanging off the bottom (gravity stretch & pinch-off cycle)
+  const slime = new THREE.MeshPhysicalMaterial({ color: 0x8a9a5a, roughness: 0.15, transparent: true, opacity: 0.72, clearcoat: 1 });
   const drips = [];
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2 + 0.4, d = new THREE.Mesh(new THREE.SphereGeometry(r * 0.06, 10, 8), slime);
     d.position.set(Math.cos(a) * r * 0.55, -r * 0.8, Math.sin(a) * r * 0.55);
     d.scale.set(1, 2.4, 1);
-    root.add(d); drips.push(d);
+    root.add(d);
+    drips.push({ m: d, basePos: d.position.clone(), phase: k / 6 + R() * 0.12, rate: 0.32 + R() * 0.16, prevU: 0, recoil: 0 });
   }
-  // the hair ropes: four thick twisted bundles, each a chain of joints, reaching forward and down
-  const segGeo = mergeGeometries([0, 1, 2, 3].map((k) => paint(new THREE.CylinderGeometry(r * 0.065, r * 0.08, r * 0.38, 6, 1).translate(Math.cos(k * 1.6) * r * 0.05, r * 0.18, Math.sin(k * 1.6) * r * 0.05).rotateY(k * 0.7), HAIR[k + 1])));
+  // the hair ropes: 4 smooth braided dynamic tubes simulated in world space via stepChain()
   const ropes = [[-0.55, 0.15], [0.55, 0.15], [-0.35, -0.35], [0.35, -0.35]].map(([x, y], i) => {
-    const base = new THREE.Group();
-    base.position.set(x * r, y * r, r * 0.6);
-    base.rotation.y = x * 0.6;
-    root.add(base);
-    const joints = [];
-    let parent = base;
-    for (let k = 0; k < 8; k++) {
-      const j = new THREE.Group();
-      if (k) j.position.y = r * 0.34;
-      parent.add(j);
-      const seg = new THREE.Mesh(segGeo, strandMat);
-      seg.rotation.y = k * 0.8;
-      j.add(seg);
-      joints.push(j);
-      parent = j;
-    }
-    return { base, joints, i, x };
+    const geo = buildRopeGeo(i);
+    const mesh = new THREE.Mesh(geo, ropeMat);
+    mesh.frustumCulled = false;
+    root.add(mesh);
+    const anchor = V(x * r, y * r, r * 0.6);
+    const len = r * 2.85;
+    const pts = Array.from({ length: ROPE_SEG + 1 }, () => new THREE.Vector3());
+    const sim = Array.from({ length: ROPE_SEG + 1 }, () => new THREE.Vector3());
+    const vel = Array.from({ length: ROPE_SEG + 1 }, () => new THREE.Vector3());
+    const goal = Array.from({ length: ROPE_SEG + 1 }, () => new THREE.Vector3());
+    return { i, x, y, anchor, len, thick: r * 0.115, mesh, geo, pts, sim, vel, goal, phase: i * 1.65 };
   });
   standOut(root, { base: LOOK.num('boss-glow', 0.15) * 0.5, rim: LOOK.num('boss-rim', 0.6) * 0.4 });   // dimmer than other bosses: a thin strand is nearly all rim, and it washed the hair out pale
-  return { root, roll, face, maw, teeth, drips, ropes, eyes };
+  const uniforms = {
+    uClogTime: { value: 0 },
+    uClogVel: { value: new THREE.Vector3() },
+    uClogFX: { value: new THREE.Vector4() },
+  };
+  patchClogMat(wet, 'clogCore', uniforms, CORE_VERT);
+  patchClogMat(strandMat, 'clogHair', uniforms, STRAND_VERT, 'attribute vec4 aHair;');
+  return { root, roll, face, maw, teeth, drips, ropes, eyes, eyeParts, props, uniforms };
 }
 
 // the acid's murk: mottled blotches and oily streaks, light on dark, tinted by the material's colour
@@ -328,13 +448,24 @@ export class Clog {
     this.combTeles = [0, 1, 2, 3, 4].map(() => tele('strip', strip()));
     this.combVols = [0, 1, 2, 3, 4].map(() => vol('lane', V(1, 1, 1)));
     this.combX = [];
-    // its hops between attacks, and how squashed (+) or stretched (-) it is
-    this.hop = null; this.hopWait = 0.3; this.lift = 0; this.squash = 0;
+    // its hops between attacks, and how squashed (+) or stretched (-) it is (2nd-order spring)
+    this.hop = null; this.hopWait = 0.3; this.lift = 0; this.squash = 0; this.squashV = 0;
+    this.tiltX = 0; this.tiltXV = 0; this.tiltZ = 0; this.tiltZV = 0;
+    this.faceY = 0; this.faceYV = 0; this.faceYaw = 0; this.faceYawV = 0;
+    this.bristle = 0; this.shudder = 0; this.spinFlare = 0; this.winceT = 0; this.lobT = 0; this.enrageT = 0; this.lashT = 0;
+    this.lockPopT = 0; this.ropesFresh = true; this.ropeAcc = 0;
+    this.prevPos = this.drain.clone(); this.velSmoothed = new THREE.Vector3(); this.velLocal = new THREE.Vector3();
+    this.prevHeading = 0; this.jukeDir = 0;
+    const rK = LOOK.num('clog-motion-rope-k', 280), rTipK = LOOK.num('clog-motion-rope-tip-k', 28), rDrag = LOOK.num('clog-motion-rope-drag', 7.5);
+    this.ropeK = Array.from({ length: ROPE_SEG + 1 }, (_, j) => rK + (rTipK - rK) * (j / ROPE_SEG) ** 0.7);
+    this.ropeC = this.ropeK.map((k) => Math.max(rDrag, 2 * 0.48 * Math.sqrt(k)));
     this._at = new THREE.Vector3(); this._from = new THREE.Vector3();
-    // tick() scratch: the per-frame paths (chase heading, the whirlpool, the lash strike) reuse
-    // these instead of minting vectors every frame
+    // tick() & animate() scratch: reuse instead of minting vectors/matrices every frame
     this._toP = new THREE.Vector3(); this._toDrain = new THREE.Vector3(); this._side = new THREE.Vector3();
     this._d = new THREE.Vector3(); this._tip = new THREE.Vector3(); this._lane = new THREE.Vector3(); this._puff = new THREE.Vector3(); this._contact = new THREE.Vector3();
+    this._invRoot = new THREE.Matrix4(); this._qInv = new THREE.Quaternion();
+    this._rp = new THREE.Vector3(); this._rt = new THREE.Vector3(); this._rn = new THREE.Vector3(); this._rb = new THREE.Vector3();
+    this._goalP = new THREE.Vector3(); this._worldP = new THREE.Vector3(); this._look = new THREE.Vector3();
     this.tuftGeo = new THREE.ConeGeometry(0.004, 0.05, 5).translate(0, 0.025, 0);
     this.tuftMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.8 });
     // the drain itself: a dark grate that churns while it gurgles
@@ -450,6 +581,12 @@ export class Clog {
     if (this.shielded) { this.fx.number(this.center().setY(this.holder.position.y + this.r * 2.2), 'SHIELDED', '#cfe6ff', 12); return; }
     this.hp -= amount;
     this.hitPop = 1;
+    // reactive wet flinch: jiggle impulse, hair bristle, eye wince, subtle recoil tilt
+    this.squashV += 4.2;
+    this.bristle = Math.min(1.4, this.bristle + 0.75);
+    this.winceT = 0.14;
+    this.tiltXV -= 3.2;
+    this.tiltZV += (Math.sin(this.t * 37) >= 0 ? 1 : -1) * 2.6;
     this.fx.number(this.center().setY(this.holder.position.y + this.r * 2.2), amount, color, 16, feedback);
     if (this.hp <= 0) { this.hp = 0; this.dying = true; }   // doomed, not dead: the cat finishes it (main.js)
   }
@@ -495,23 +632,36 @@ export class Clog {
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.endAcid(); }
       this.sink = Math.min(1, this.sink + dt * 0.6);
+      this.heading += dt * (4 + this.sink * 18);   // corkscrew whirlpool spin down the drain
+      M.root.rotation.y = this.heading;
       this.place(dt);
+      this.animate(dt, 1, this._toP.set(0, 0, 1));
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 0.8));
       if (Math.random() < dt * 25) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(this.r)), 0x3b2618, 0.03, 0.5);
       return out;
     }
-    // doomed: it stops where it was hit, waiting for the cat
-    if (this.dying) return out;
-    // rise out of the drain, gurgling, hair unfurling
+    // doomed: it stops where it was hit, waiting for the cat, trembling with panicked eyes
+    if (this.dying) {
+      this.shudder = Math.max(this.shudder, 0.45);
+      this.animate(dt, 0.55, this._toP.copy(P).sub(p).setY(0));
+      return out;
+    }
+    // rise out of the drain: squeezed tall & narrow through the grate, then popping bulbous
     if (this.rise < 1) {
       if (this.rise === 0) sfx.clogRise();
+      const prevRise = this.rise;
       this.rise = Math.min(1, this.rise + dt * 0.55);
-      M.root.scale.setScalar(this.rise);
+      const squeeze = 1 - Math.min(1, this.rise * 1.15);
+      const sx = this.rise * (1 - squeeze * 0.55), sy = this.rise * (1 + squeeze * 0.65);
+      M.root.scale.set(sx, sy, sx);
       p.y = this.floor + this.r * (this.rise - 1);
       this.heading = Math.atan2(P.x - p.x, P.z - p.z);
       M.root.rotation.y = this.heading;
+      this.shudder = Math.max(this.shudder, 0.5 * (1 - this.rise));
+      this.bristle = Math.max(this.bristle, 0.7 * this.rise);
+      if (prevRise < 1 && this.rise >= 1) { this.squash = 0.55; this.squashV = 4.5; }   // big wet pop as it clears the drain
       if (Math.random() < dt * 30) this.fx.puff(this.drain.clone().setY(this.floor + 0.01), 0x8a9a5a, 0.02, 0.4);
-      this.animate(dt, 0);
+      this.animate(dt, this.rise * 0.7, this._toP.copy(P).sub(p).setY(0));
       return out;
     }
     this.hitPop = Math.max(0, (this.hitPop || 0) - dt * 6);
@@ -534,8 +684,10 @@ export class Clog {
       // a rope (two when angry) rears up while its line fills on the floor; the aim locks halfway
       const wind = angry ? SK.lash.angryWindup : SK.lash.windup, n = angry ? 2 : 1;
       if (this.stateT > 0.3) {
+        const prevU = this.rearing > 0 ? this.rearing : 0;
         const u = 1 - (this.stateT - 0.3) / wind;
         if (u < 0.5) this.drive(dt, P, 0, 4);
+        if (prevU < 0.5 && u >= 0.5) this.lockPopT = 0.1;   // eyes snap wide on aim lock
         this.lines.forEach((L, i) => {
           L.visible = i < n;
           if (!L.visible) return;
@@ -546,12 +698,17 @@ export class Clog {
           L.material.opacity = 0.8 + Math.sin(this.t * 26) * 0.2;
         });
         this.rearing = u;
+        this.tiltX += (-0.28 * u - this.tiltX) * Math.min(1, dt * 8);   // lean back coiling
+        this.bristle = Math.max(this.bristle, u * 0.7);
+        if (u >= 0.5) this.shudder = Math.max(this.shudder, 0.35);
       } else {
         if (!this.struck) {
           this.struck = true;
+          this.lashT = 0;
           sfx.clogLash();
           juice.feel('impact');
-          this.squash = Math.max(this.squash, 0.45);                     // it heaves down with the rope
+          this.squash = Math.max(this.squash, 0.5); this.squashV += 5.5;  // it heaves down with the rope
+          this.tiltXV += 6.5;
           this.lines.forEach((L, i) => {
             if (!L.visible) return;
             L.material.progress = 1;
@@ -565,6 +722,7 @@ export class Clog {
             if (laneHits(this._lane.copy(L.position).setY(this.floor), d, this.lashLen, this.lashW, this.lashH, P, player.cfg)) { out.hit = SK.lash.dmg; out.slow = SK.lash.slow; this.contact(P, player.cfg); }
           });
         }
+        this.lashT += dt;
         this.rearing = -1;                                              // slammed down along the line
         if (this.stateT <= 0) { hide(); this.struck = false; this.rearing = 0; this.toChase(); }
       }
@@ -572,7 +730,11 @@ export class Clog {
       // spin up in place while the lane lights up, then roll along it
       if (!this.locked) {
         this.drive(dt, P, 0, 3);
+        const w = 1 - this.stateT / (this.rollWind || Math.max(0.01, this.stateT));
         M.roll.rotation.x += dt * 30 * (1 - this.stateT);
+        this.spinFlare = Math.max(this.spinFlare, 0.25 + w * 0.75);
+        this.shudder = Math.max(this.shudder, w * 0.45);
+        this.tiltX += (0.22 * w - this.tiltX) * Math.min(1, dt * 8);
         const L = this.lines[0];
         L.visible = true;
         L.position.copy(p).setY(this.floor + 0.003);
@@ -587,10 +749,11 @@ export class Clog {
           // off it goes: a burst of grime behind it, stretched long, the camera kicked
           this.fx.impact(this._puff.copy(p).setY(this.floor + 0.02), hostile('clog'), LOOK.num('act2-muzzle-flash', 0.014) * 2.5, 10);
           this.fx.puff(this._puff, 0x6a5a3a, 0.05, 0.4);
-          this.squash = -0.5; this.trailT = 0; juice.feel('hit');
+          this.squash = -0.5; this.squashV = -3; this.trailT = 0; juice.feel('hit');
           this.rollAt.copy(p).setY(this.floor); this.rollDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.rollHit = false;
         }
       } else {
+        this.spinFlare = Math.max(this.spinFlare, 0.85);
         // the lane it rolls down, as far as its front has got: anything of the jelly in it is hit
         // (once a roll), at any height up to the top of the hairball, so a jump doesn't clear it
         const reached = Math.min(this.rollLen, _rel.copy(p).sub(this.rollAt).dot(this.rollDir) + this.r);
@@ -602,7 +765,7 @@ export class Clog {
         if (Math.random() < dt * 25) this.fx.puff(p.clone().setY(this.floor + 0.01), 0x6a5a3a, 0.025, 0.35);
         if ((this.trailT -= dt) <= 0) { this.trailT = LOOK.num('clog-trail-every', 0.1); this.fx.splat(this._puff.copy(p).setY(this.floor), GUNK(), this.r * 0.35); }   // the track it leaves
         if (wall || this.stateT <= 0) {
-          this.locked = false; sfx.clogSlam(); this.squash = 0.9;
+          this.locked = false; sfx.clogSlam(); this.squash = 0.85; this.squashV = 7.5; this.tiltXV = -5;
           this.fx.impact(p.clone().setY(this.floor + 0.02), hostile('clog'), this.r * 0.6, 16);
           this.fx.burst(p.clone().setY(this.floor + 0.04), HAIR.slice(0, 6), 12, 0.004, 0.45, this.floor);
           this.fx.splat(this._puff.copy(p).setY(this.floor), GUNK(), this.r * 0.6);
@@ -616,6 +779,8 @@ export class Clog {
       if (this.stateT > 0.25) {
         const u = 1 - (this.stateT - 0.25) / wind;
         this.drive(dt, P, 0.03, 1);
+        this.bristle = Math.max(this.bristle, u * 0.6);
+        this.shudder = Math.max(this.shudder, u * 0.3);
         this.snares.forEach((m, i) => {
           if (u < 0.5 || !m.visible) {
             const a = i * 2.1 + this.t * 0.3, d = i ? 0.075 : 0;
@@ -631,7 +796,7 @@ export class Clog {
         this.sprung = true;
         sfx.clogSnare();
         juice.feel('impact');
-        this.squash = Math.max(this.squash, 0.5); this.chomp = 0.3;   // it clenches as its hair springs
+        this.squash = Math.max(this.squash, 0.5); this.squashV += 5; this.chomp = 0.3;   // it clenches as its hair springs
         for (const m of this.snares) {
           const c = m.position;
           this.fx.impact(this._puff.copy(c).setY(this.floor + 0.01), hostile('clog'), 0.025, 8);
@@ -642,7 +807,7 @@ export class Clog {
             tuft.position.set(c.x + Math.cos(a) * 0.025, this.floor, c.z + Math.sin(a) * 0.025);
             tuft.rotation.set(Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4);
             this.scene.add(tuft);
-            this.tufts.push({ m: tuft, t: 0 });
+            this.tufts.push({ m: tuft, t: 0, rx: tuft.rotation.x, rz: tuft.rotation.z, sx: 1, sz: 1, ph: a });
           }
           this.fx.burst(c.clone().setY(this.floor + 0.01), ['#3b2618', '#2a1a10', '#8a9a5a'], 6, 0.003, 0.3, this.floor);
           if (blastHits(_rel.copy(c).setY(this.floor), this.snareR, P, player.cfg)) { out.hit = SK.snare.dmg; out.slow = SK.snare.slow; this.contact(P, player.cfg); }   // a floor Blast: its half sphere
@@ -653,9 +818,11 @@ export class Clog {
     } else if (this.state === 'acid') {
       mouth = this.acidPhase(dt, P, player, out);
     } else if (this.state === 'shed') {
-      // it shakes, and hair tangles fly off it
-      mouth = 0.5;
-      M.root.position.x = (Math.random() - 0.5) * 0.006;
+      // wet-dog shudder, and hair tangles fly off it
+      mouth = 0.55;
+      this.shudder = Math.max(this.shudder, 1.0);
+      this.bristle = Math.max(this.bristle, 0.9);
+      this.tiltZV += Math.sin(this.t * 48) * 18 * dt;
       if (this.prevT > 0.4 && this.stateT <= 0.4) {
         const n = SK.shed.count + (angry ? 1 : 0);
         for (let k = 0; k < n; k++) {
@@ -671,7 +838,7 @@ export class Clog {
         }
         this.fx.puff(this.center(), 0x3b2618, 0.07, 0.5);
         this.fx.impact(this.center(this._puff), hostile('clog'), 0.04, 14);
-        this.squash = Math.max(this.squash, 0.6); juice.feel('hit');
+        this.squash = Math.max(this.squash, 0.6); this.squashV += 6; juice.feel('hit');
         sfx.clogShed();
       }
       if (this.stateT <= 0) { M.root.position.x = 0; this.toChase(); }
@@ -679,6 +846,7 @@ export class Clog {
       // spinning, spraying globs of drain gunk all round
       this.heading += dt * 8;
       M.root.rotation.y = this.heading;
+      this.spinFlare = Math.max(this.spinFlare, 1.0);
       mouth = 1;
       this.sprayT = (this.sprayT ?? 0) - dt;
       if (this.sprayT <= 0) {
@@ -693,7 +861,7 @@ export class Clog {
           this.shots.push(this.fx.shot(hostile('clog'), from, to, { speed: SK.spray.speed, size: 0.008, life: 1.4 }));
           this.fx.impact(from, hostile('clog'), LOOK.num('act2-muzzle-flash', 0.014), 2);   // spat out of its hair
         }
-        this.squash = Math.max(this.squash, 0.15);                       // a heave with every volley
+        this.squashV += 2.2;                                             // a heave with every volley
         sfx.clogSpit();
       }
       if (this.stateT <= 0) this.toChase();
@@ -701,11 +869,11 @@ export class Clog {
     this.syncVolumes();
     if (this.state !== 'acid') this.placeDucks(dt);
     this.prevT = this.stateT;
-    if (angry && !this.wasAngry) sfx.clogRoar();
+    if (angry && !this.wasAngry) { sfx.clogRoar(); this.enrageT = 0.55; this.bristle = 1.3; this.squashV += 6; }
     this.wasAngry = angry;
     if ((this.chomp = Math.max(0, (this.chomp || 0) - dt)) > 0) mouth = 1;
     this.place(dt);
-    this.animate(dt, mouth);
+    this.animate(dt, mouth, toP);
 
     // bumping into it knocks you back
     if (this.knock <= 0 && dist < this.r + 0.02 && Math.abs(P.y - (p.y - this.r * 0.05)) < 0.12) {
@@ -725,10 +893,19 @@ export class Clog {
       if (s.done) { this.fx.splat(this._puff.set(s.m.position.x, this.floor, s.m.position.z), GUNK(), 0.014); sfx.clogSplat(); }   // where the glob ended: a smear
     }
     this.shots = this.shots.filter((s) => !s.done);
-    // hair tufts from a snare: up, then back down
+    // hair tufts from a snare or comb: overshooting elastic pop-up, writhing sway, then wilt down
     for (const f of this.tufts) {
       f.t += dt;
-      f.m.scale.set(1, Math.min(1, f.t * 8) * Math.max(0, 1 - (f.t - 0.5) * 2), 1);
+      const up = f.t < 0.18 ? Math.sin((f.t / 0.18) * Math.PI * 0.68) * 1.18 : 1;
+      const down = Math.max(0, 1 - Math.max(0, f.t - 0.52) * 2.1);
+      const sy = Math.max(0, up * down);
+      const sx = (f.sx || 1) * (1 + (1 - Math.min(1, f.t * 5)) * 0.25);
+      f.m.scale.set(sx, sy, (f.sz || 1) * (sx / (f.sx || 1)));
+      if (!juice.calm) {
+        const w = Math.sin(this.t * 14 + (f.ph || 0)) * 0.16 * down;
+        f.m.rotation.x = (f.rx || 0) + w;
+        f.m.rotation.z = (f.rz || 0) + Math.cos(this.t * 11 + (f.ph || 0)) * 0.14 * down;
+      }
       if (f.t > 1) { this.scene.remove(f.m); f.done = true; }
     }
     this.tufts = this.tufts.filter((f) => !f.done);
@@ -757,34 +934,412 @@ export class Clog {
     });
   }
 
-  // how high it sits: on the tub floor, sunk into the drain as `sink` goes to 1
+  // how high it sits: on the tub floor, sunk into the drain as `sink` goes to 1; integrates the
+  // underdamped squash-and-stretch jiggle spring and pitch/roll banking
   place(dt) {
-    const p = this.holder.position;
-    p.y = this.floor + this.r * 0.05 - this.sink * this.r * 1.6 + this.lift;
-    const b = 1 + (this.hitPop || 0) * 0.04, q = this.squash;
-    this.model.root.scale.set(b * (1 + q * 0.22), b * (1 - q * 0.3), b * (1 + q * 0.22));   // squashed flat and wide (+), or stretched tall (-)
-    this.squash *= Math.exp(-7 * dt);
+    const p = this.holder.position, M = this.model, calm = juice.calm;
+    const h = Math.min(dt, 0.05);
+    const acidBob = this.state === 'acid' && !calm && this.lift > 0.005 ? Math.sin(this.t * 2.8) * 0.009 : 0;
+    p.y = this.floor + this.r * 0.05 - this.sink * this.r * 1.6 + this.lift + acidBob;
+    // 2nd-order underdamped wet-mass jiggle spring (2-3 juicy wobbles on every slam/hop/hit)
+    const jK = LOOK.num('clog-motion-jiggle-k', 135), jC = LOOK.num('clog-motion-jiggle-c', 8.5);
+    if (calm) {
+      this.squash *= Math.exp(-8 * h); this.squashV = 0;
+    } else {
+      this.squashV += (-jK * this.squash - jC * this.squashV) * h;
+      this.squash = THREE.MathUtils.clamp(this.squash + this.squashV * h, -0.75, 0.95);
+    }
+    // pitch/roll banking & recoil springs
+    this.tiltXV += (-95 * this.tiltX - 11 * this.tiltXV) * h;
+    this.tiltZV += (-95 * this.tiltZ - 11 * this.tiltZV) * h;
+    this.tiltX = THREE.MathUtils.clamp(this.tiltX + this.tiltXV * h, -0.55, 0.55);
+    this.tiltZ = THREE.MathUtils.clamp(this.tiltZ + this.tiltZV * h, -0.55, 0.55);
+    const acidRockX = this.state === 'acid' && !calm ? Math.sin(this.t * 2.1) * 0.08 : 0;
+    const acidRockZ = this.state === 'acid' && !calm ? Math.cos(this.t * 1.7) * 0.09 : 0;
+    M.root.rotation.x = calm ? 0 : this.tiltX + acidRockX;
+    M.root.rotation.z = calm ? 0 : this.tiltZ + acidRockZ;
+    // volume-preserving squash-and-stretch (plus corkscrew stretch when sucked down the drain)
+    const b = 1 + (this.hitPop || 0) * 0.05;
+    const sy = THREE.MathUtils.clamp(1 - this.squash * 0.36 + (this.dead ? this.sink * 0.85 : 0), 0.52, 1.9);
+    const sxz = 1 / Math.sqrt(sy);
+    M.root.scale.set(b * sxz, b * sy, b * sxz);
   }
 
-  // the living bits: breathing, the maw, the ropes swaying (rearing up and slamming for a lash), drips
-  animate(dt, mouth) {
-    const M = this.model, t = this.t;
-    M.root.scale.y *= 1 + Math.sin(t * 3) * 0.03;
-    this.mouthK = (this.mouthK || 0) + (mouth - (this.mouthK || 0)) * (1 - Math.exp(-10 * dt));
-    M.maw.scale.set(1, 0.5 + this.mouthK * 1.1, 1);
-    for (const R of M.ropes) {
-      const lashing = this.state === 'lash' && R.i < (this.angry ? 2 : 1);
-      R.joints.forEach((j, k) => {
-        const sway = Math.sin(t * 2.2 + R.i * 1.7 + k * 0.6) * 0.12;
-        let x = 0.55 + sway;                                            // drooping forward and down
-        if (lashing && this.rearing > 0) x = -0.25 - this.rearing * 0.35 + sway * 0.3;   // curled up and back over it
-        if (lashing && this.rearing < 0) x = 0.22;                       // whipped out flat along the floor
-        j.rotation.x = k ? x * 0.32 : x + 0.9;
-        j.rotation.z = Math.sin(t * 1.7 + R.i + k) * 0.08;
-      });
-      R.base.scale.setScalar(lashing && this.rearing < 0 ? 1.45 : 1);    // stretched out to its full reach
+  // the living bits: GPU hair & core flow, XPBD braided hair ropes, bobbling caught debris,
+  // expressive eyes/brows/teeth/face lag, and gravity-stretching slime drips
+  animate(dt, mouth, toP) {
+    const M = this.model, t = this.t, calm = juice.calm, angry = this.angry;
+    const h = Math.min(Math.max(dt, 1e-4), 0.05);
+    const pace = angry ? 1.55 : 1.0;
+
+    // 1. Decay transient impulses & compute smoothed world/local velocity for secondary inertia
+    this.bristle *= Math.exp(-5.5 * h);
+    this.shudder *= Math.exp(-9 * h);
+    this.spinFlare *= Math.exp(-6 * h);
+    this.winceT = Math.max(0, this.winceT - h);
+    this.lockPopT = Math.max(0, this.lockPopT - h);
+    this.lobT = Math.max(0, this.lobT - h);
+    this.enrageT = Math.max(0, this.enrageT - h);
+
+    const p = this.holder.position;
+    this._d.copy(p).sub(this.prevPos).divideScalar(h);   // instantaneous world velocity (m/s)
+    this.prevPos.copy(p);
+    // clamp teleport spikes so shaders/springs never explode on story teleports
+    if (this._d.lengthSq() > 16) { this._d.set(0, 0, 0); this.ropesFresh = true; }
+    const oldVx = this.velSmoothed.x, oldVy = this.velSmoothed.y, oldVz = this.velSmoothed.z;
+    const vLerp = 1 - Math.exp(-11 * h);
+    this.velSmoothed.lerp(this._d, vLerp);
+    // linear acceleration for debris/face inertia
+    const accX = (this.velSmoothed.x - oldVx) / h, accY = (this.velSmoothed.y - oldVy) / h, accZ = (this.velSmoothed.z - oldVz) / h;
+    let dHead = this.heading - this.prevHeading;
+    dHead = Math.atan2(Math.sin(dHead), Math.cos(dHead));
+    const yawRate = dHead / h;
+    this.prevHeading = this.heading;
+
+    // organic breathing pulse on body
+    if (!calm) {
+      const breath = 1 + Math.sin(t * 3.4 * pace) * (angry ? 0.055 : 0.038);
+      M.root.scale.y *= breath;
+      M.root.scale.x /= Math.sqrt(breath);
+      M.root.scale.z /= Math.sqrt(breath);
     }
-    for (const [i, d] of M.drips.entries()) d.scale.y = 2.4 + Math.sin(t * 2 + i) * 0.5;
+
+    // 2. GPU hair strands & churning core uniforms (zero CPU vertex work!)
+    M.root.updateMatrixWorld(true);
+    M.roll.getWorldQuaternion(this._qInv).invert();
+    const hairDrag = LOOK.num('clog-motion-hair-drag', 0.42);
+    this.velLocal.copy(this.velSmoothed).applyQuaternion(this._qInv).multiplyScalar(hairDrag);
+    if (this.velLocal.length() > 1.2) this.velLocal.setLength(1.2);
+    const U = M.uniforms;
+    if (calm) {
+      U.uClogVel.value.set(0, 0, 0);
+      U.uClogFX.value.set(Math.max(0, this.squash) * 0.25, 0, 0, 0);
+    } else {
+      U.uClogTime.value += h * pace;
+      U.uClogVel.value.copy(this.velLocal);
+      const baseWrithe = LOOK.num('clog-motion-hair-writhe', 0.16) * (angry ? 1.45 : 1);
+      const bristleAmp = LOOK.num('clog-motion-hair-bristle', 0.24) * (this.bristle + (angry ? 0.35 : 0) + this.enrageT * 0.9);
+      U.uClogFX.value.set(this.squash, baseWrithe + bristleAmp, this.spinFlare, this.shudder + this.enrageT * 0.7);
+    }
+
+    // 3. Physics-driven braided hair ropes (stepChain in world space + floor/acid clamping)
+    this.stepRopes(h, calm, angry);
+
+    // 4. Caught-debris 2-DOF damped springs (bobble, twang, elastic flop, gelatinous soap scum)
+    const propK = LOOK.num('clog-motion-prop-k', 180), propC = LOOK.num('clog-motion-prop-c', 7.0);
+    const impX = THREE.MathUtils.clamp(-accZ * 0.45 - this.squashV * 0.65, -24, 24);
+    const impZ = THREE.MathUtils.clamp(accX * 0.45 + yawRate * 1.4, -24, 24);
+    for (const pr of M.props) {
+      if (calm) {
+        pr.obj.rotation.copy(pr.baseRot);
+        pr.obj.scale.copy(pr.baseScale);
+        continue;
+      }
+      const fk = propK * pr.freq * pr.freq, fc = propC * pr.freq;
+      const sh = this.shudder * 28 * Math.sin(t * 46 + pr.phase);
+      const idle = Math.sin(t * 2.6 * pr.freq * pace + pr.phase) * 0.8;
+      pr.vx += (impX * pr.amp + sh + idle - fk * pr.ax - fc * pr.vx) * h;
+      pr.vz += (impZ * pr.amp - sh * 0.8 + Math.cos(t * 2.1 * pr.freq * pace + pr.phase) * 0.8 - fk * pr.az - fc * pr.vz) * h;
+      pr.ax = THREE.MathUtils.clamp(pr.ax + pr.vx * h, -0.75, 0.75);
+      pr.az = THREE.MathUtils.clamp(pr.az + pr.vz * h, -0.75, 0.75);
+      if (pr.kind === 'scum') {
+        const w = 1 + Math.sin(t * 4.2 * pr.freq * pace + pr.phase) * 0.14 + pr.ax * 0.42;
+        const iw = 1 / Math.sqrt(Math.max(0.45, w));
+        pr.obj.scale.set(pr.baseScale.x * iw, pr.baseScale.y * w, pr.baseScale.z * iw);
+      } else if (pr.kind === 'elastic') {
+        pr.obj.rotation.set(pr.baseRot.x + pr.ax * 0.8, pr.baseRot.y + pr.az * 0.4, pr.baseRot.z + pr.az * 0.8);
+        const s = 1 + pr.ax * 0.28 + this.spinFlare * 0.22;
+        pr.obj.scale.set(pr.baseScale.x * s, pr.baseScale.y / Math.sqrt(Math.max(0.5, s)), pr.baseScale.z);
+      } else {
+        pr.obj.rotation.set(pr.baseRot.x + pr.ax, pr.baseRot.y, pr.baseRot.z + pr.az);
+      }
+    }
+
+    // 5. Floating face lag, expressive eyes/brows/pupils, and gnashing maw/teeth
+    if (!calm) {
+      this.faceYV += (-120 * this.faceY - 10 * this.faceYV - accY * 0.04 - this.squashV * 0.015) * h;
+      this.faceY = THREE.MathUtils.clamp(this.faceY + this.faceYV * h, -this.r * 0.18, this.r * 0.18);
+      this.faceYawV += (-110 * this.faceYaw - 11 * this.faceYawV - yawRate * 0.35) * h;
+      this.faceYaw = THREE.MathUtils.clamp(this.faceYaw + this.faceYawV * h, -0.26, 0.26);
+      M.face.position.y = this.faceY;
+      M.face.rotation.y = this.faceYaw;
+    } else {
+      M.face.position.y = 0; M.face.rotation.y = 0;
+    }
+    this.mouthK = (this.mouthK || 0) + (mouth - (this.mouthK || 0)) * (1 - Math.exp(-12 * h));
+    const windup = (this.state === 'lash' && this.rearing > 0) || (this.state === 'pinball' && this.pin?.phase === 'crouch')
+      || (this.state === 'roll' && !this.locked) || (this.state === 'snare' && !this.sprung) || this.state === 'comb';
+    const gnash = !calm && (windup || angry || this.state === 'shed') ? Math.sin(t * (angry ? 28 : 19)) * 0.14 : 0;
+    M.maw.scale.set(1 + this.mouthK * 0.22, Math.max(0.32, 0.5 + this.mouthK * 1.15 + gnash), 1);
+    M.maw.rotation.z = calm ? 0 : Math.sin(t * 6.5) * 0.08 * this.mouthK + (angry ? 0.06 : 0);
+    for (const th of M.teeth) {
+      const chatter = !calm ? Math.sin(t * (angry ? 30 : 21) + th.phase) * (windup || angry ? 0.018 : 0.005) * this.r : 0;
+      th.m.position.y = th.baseY + th.row * chatter;
+      th.m.rotation.x = th.row * this.mouthK * 0.38;   // teeth flare outward when roaring/chomping
+    }
+    // eyes: staggered blinking, pupil tracking, windup squint, lock-beat pop, hit wince, angry pulse
+    let lookX = 0, lookY = 0;
+    if (toP && toP.lengthSq() > 1e-4) {
+      const sH = Math.sin(this.heading), cH = Math.cos(this.heading);
+      const localX = toP.x * cH - toP.z * sH, localZ = toP.x * sH + toP.z * cH;
+      lookX = THREE.MathUtils.clamp(Math.atan2(localX, Math.max(0.05, localZ)) * 0.12, -0.09, 0.09);
+      lookY = this.lift > 0.02 ? -0.05 : 0;
+    }
+    if (this.dying && !calm) { lookX = Math.sin(t * 14) * 0.1; lookY = Math.cos(t * 11) * 0.07; }
+    for (let i = 0; i < M.eyeParts.length; i++) {
+      const ep = M.eyeParts[i];
+      const blinkPeriod = angry ? 2.6 : 3.8;
+      const bPh = (t + i * 0.06 + 1.1) % blinkPeriod;
+      const blink = !calm && !this.dying && bPh < 0.13 ? Math.sin((bPh / 0.13) * Math.PI) : 0;
+      let sy = 1 - blink * 0.86;
+      if (this.winceT > 0) sy = Math.min(sy, 0.16);
+      else if (this.lockPopT > 0 || this.dying) sy = Math.max(sy, 1.38);
+      else if (windup) sy *= 0.62;
+      else if (this.mouthK > 0.7) sy *= 1.18;
+      ep.g.scale.y = sy;
+      ep.iris.position.set(ep.irisPos.x + lookX, ep.irisPos.y + lookY, ep.irisPos.z);
+      ep.pupil.position.set(ep.pupilPos.x + lookX * 1.15, ep.pupilPos.y + lookY * 1.15, ep.pupilPos.z);
+      const pupilScale = angry && !calm ? 0.75 + Math.sin(t * 18 + i) * 0.15 : 1;
+      ep.pupil.scale.set(0.34 * 0.24 * pupilScale, 0.34 * 0.24 * pupilScale, 0.34 * 0.12);
+      const browAng = (windup ? 0.22 : 0) + (angry ? 0.18 + Math.sin(t * 14 + i * 2) * 0.07 : 0) - (this.dying ? 0.35 : 0);
+      ep.brow.rotation.z = ep.browZ + ep.sign * browAng;
+      ep.brow.position.y = ep.browY - (windup ? 0.05 : 0) + (this.lockPopT > 0 ? 0.08 : 0);
+      if (ep.mat && ep.mat.emissiveIntensity != null) {
+        ep.mat.emissiveIntensity = (angry ? 1.15 + Math.sin(t * 12) * 0.25 : 0.8) + (this.lockPopT > 0 ? 0.6 : 0);
+      }
+    }
+
+    // 6. Living slime drips: gravity elongation, pinch-off recoil, and jump/spin stretch
+    const liftStretch = Math.min(1.6, this.lift * 9);
+    for (const d of M.drips) {
+      if (calm) {
+        d.m.position.copy(d.basePos);
+        d.m.scale.set(1, 2.2, 1);
+        d.m.rotation.set(0, 0, 0);
+        continue;
+      }
+      const u = (t * d.rate * pace + d.phase) % 1;
+      if (u < d.prevU) d.recoil = 1;   // pinched off -> snap back with elastic bounce!
+      d.prevU = u;
+      d.recoil *= Math.exp(-12 * h);
+      const droop = u < 0.86 ? (u / 0.86) ** 1.4 : 1 - (u - 0.86) / 0.14;
+      const bounce = Math.sin(d.recoil * Math.PI * 2.5) * d.recoil * 0.55;
+      const sy = Math.max(0.85, 1.15 + droop * 2.45 + liftStretch - bounce);
+      const sxz = 1 / Math.sqrt(Math.max(0.5, sy * 0.55));
+      d.m.scale.set(sxz, sy, sxz);
+      d.m.position.set(d.basePos.x, d.basePos.y - (sy - 1.4) * this.r * 0.045, d.basePos.z);
+      // tilt opposite horizontal velocity + flare outward on spin
+      d.m.rotation.set(THREE.MathUtils.clamp(-this.velLocal.z * 0.45, -0.7, 0.7), 0, THREE.MathUtils.clamp(this.velLocal.x * 0.45 + this.spinFlare * 0.55, -0.8, 0.8));
+    }
+  }
+
+  // simulate all 4 braided hair ropes in world space via stepChain() and skin their tube vertices
+  stepRopes(dt, calm, angry) {
+    const M = this.model, t = this.t, r = this.r, p = this.holder.position;
+    const sH = Math.sin(this.heading), cH = Math.cos(this.heading);
+    const floorY = Math.max(this.floor, this.acid ? this.acidY - 0.008 : this.floor);
+    const pace = angry ? 1.55 : 1.0;
+
+    // build world-space goal pose for each rope based on the Clog's current combat state
+    for (const R of M.ropes) {
+      const lashing = this.state === 'lash' && R.i < (angry ? 2 : 1);
+      const upper = R.i < 2;
+      // root world position from root matrix
+      this._goalP.copy(R.anchor).applyMatrix4(M.root.matrixWorld);
+      R.goal[0].copy(this._goalP);
+
+      // determine target reach & curve profile
+      const reach = lashing && this.rearing < 0 ? R.len * 1.45 : R.len;
+      const segL = reach / ROPE_SEG;
+      // lash line angle if lashing
+      const lashAng = lashing && this.lines[R.i]?.visible ? this.lines[R.i].rotation.y : this.heading;
+      const sL = Math.sin(lashAng), cL = Math.cos(lashAng);
+      const sideX = cH, sideZ = -sH;   // right vector in world space
+
+      for (let j = 1; j <= ROPE_SEG; j++) {
+        const u = j / ROPE_SEG;
+        let lx = R.x * r * (1 + u * 0.65);   // local right
+        let ly = R.y * r - u * reach * 0.35; // local up
+        let lz = r * 0.6 + u * reach * 0.85; // local forward
+
+        if (this.dead) {
+          // flailing desperately skyward as it spirals down
+          const fl = t * 14 + R.phase + u * 3.5;
+          lx = R.x * r * (1.2 + u * 1.8) + Math.sin(fl) * r * 0.8 * u;
+          ly = R.y * r + u * reach * 0.95;
+          lz = r * 0.4 + Math.cos(fl) * r * 0.8 * u;
+        } else if (this.rise < 1) {
+          // erupting out of the drain first to grip the floor
+          lx = R.x * r * (1.1 + u * 1.6);
+          ly = R.y * r + Math.sin(u * Math.PI) * r * 0.9 - u * r * 0.8;
+          lz = r * 0.5 + u * reach * 0.9;
+        } else if (lashing && this.rearing > 0) {
+          // scorpion-tail coil high overhead (base leads, tip lags)
+          const coil = Math.min(1, this.rearing * 1.25 - u * 0.25);
+          const q = this.rearing >= 0.5 && !calm ? Math.sin(t * 48 + j) * r * 0.14 * u : 0;
+          lx = R.x * r * (1 - coil * 0.55) + q;
+          ly = R.y * r + coil * reach * 0.95 * Math.sin(u * Math.PI * 0.72);
+          lz = r * 0.6 + (1 - coil * 1.55) * u * reach * 0.75;
+        } else if (lashing && this.rearing < 0) {
+          // progressive whip-wave crack slamming straight along the lash line!
+          const wave = THREE.MathUtils.clamp(this.lashT * 11 - u * 0.55, 0, 1);
+          const arc = Math.sin(wave * Math.PI) * r * 0.65 * (1 - u * 0.4);
+          const gx = R.goal[0].x + sL * (u * reach * (0.35 + 0.65 * wave));
+          const gz = R.goal[0].z + cL * (u * reach * (0.35 + 0.65 * wave));
+          const gy = Math.max(floorY + R.thick, R.goal[0].y * (1 - wave) + (floorY + R.thick) * wave + arc);
+          R.goal[j].set(gx, gy, gz);
+          continue;
+        } else if (this.state === 'pinball') {
+          if (this.pin?.phase === 'crouch') {
+            // braced down into the tub floor like coiled springs
+            lx = R.x * r * (1.5 + u * 1.7);
+            ly = -r * 0.85 - u * r * 0.2;
+            lz = r * 0.4 + u * reach * 0.65;
+          } else if (this.pin?.phase === 'air') {
+            // streaming wildly upward and back during the leap
+            lx = R.x * r * (1.3 + u * 1.1) + Math.sin(t * 16 + R.phase + u * 3) * r * 0.35 * u;
+            ly = R.y * r + u * reach * 0.75;
+            lz = r * 0.3 - u * reach * 0.85;
+          } else {
+            // slammed flat radially across the floor
+            lx = R.x * r * (1.8 + u * 2.2);
+            ly = -r * 0.9;
+            lz = r * 0.5 + u * reach * 0.75;
+          }
+        } else if (this.state === 'comb') {
+          // thrashing high overhead in rhythm with the comb waves
+          const sway = Math.sin(t * 9 * pace + R.phase + u * 2.4) * r * 1.1 * u;
+          lx = R.x * r * (1.2 + u * 1.1) + sway;
+          ly = R.y * r + u * reach * 0.85;
+          lz = r * 0.5 + u * reach * 0.45;
+        } else if (this.state === 'snare') {
+          // plunging straight down into the tub floor as if burrowing to pop up as snares
+          lx = R.x * r * (1.2 + u * 1.4);
+          ly = R.y * r - u * reach * 0.95;
+          lz = r * 0.55 + u * reach * 0.45;
+        } else if (this.state === 'roll') {
+          if (!this.locked) {
+            // tucked tight while revving up
+            lx = R.x * r * (0.9 + u * 0.4);
+            ly = R.y * r - u * r * 0.35;
+            lz = r * 0.45 - u * reach * 0.45;
+          } else {
+            // whip-tails streaming straight behind the rolling hairball
+            lx = R.x * r * (1.1 + u * 0.7) + Math.sin(t * 22 + R.phase + u * 4) * r * 0.3 * u;
+            ly = R.y * r + Math.sin(u * Math.PI) * r * 0.35;
+            lz = -r * 0.3 - u * reach * 0.95;
+          }
+        } else if (this.state === 'shed') {
+          // wet-dog chaotic corkscrew flailing outward
+          const fl = t * 24 + R.phase + u * 4.5;
+          lx = R.x * r * (1.4 + u * 1.9) + Math.cos(fl) * r * 0.7 * u;
+          ly = R.y * r + Math.sin(fl * 1.2) * r * 0.9 * u;
+          lz = r * 0.3 + Math.sin(fl) * r * 0.7 * u;
+        } else if (this.state === 'spray') {
+          // flared straight out horizontally, whipping centrifugally
+          lx = R.x * r * (1.6 + u * 2.4);
+          ly = R.y * r + Math.sin(t * 14 + R.phase + u * 3) * r * 0.35 * u;
+          lz = r * 0.2 - u * reach * 0.4;
+        } else if (this.state === 'acid') {
+          // floating & swaying on the acid surface; upper ropes sling forward on lobChunks!
+          const sling = upper && this.lobT > 0 ? Math.sin((this.lobT / 0.45) * Math.PI) : 0;
+          lx = R.x * r * (1.3 + u * 1.2) + Math.sin(t * 3 + R.phase + u * 2) * r * 0.45 * u;
+          ly = R.y * r + sling * reach * 0.75 * u - (1 - sling) * r * 0.35 * u;
+          lz = r * 0.55 + u * reach * (0.75 + sling * 0.45);
+        } else {
+          // chase & hops: creepy reaching tendrils, kicking back mid-hop, sprawling on landing
+          const w1 = !calm ? Math.sin(t * 3.1 * pace + R.phase + u * 2.8) * r * 0.55 * u : 0;
+          const w2 = !calm ? Math.cos(t * 2.4 * pace + R.phase + u * 2.1) * r * 0.35 * u : 0;
+          const hopBack = this.hop ? -reach * 0.55 * u : 0;
+          const landSpread = Math.max(0, this.squash) * r * 1.4 * u;
+          lx = R.x * r * (1.1 + u * 0.8) + Math.sign(R.x) * landSpread + w1;
+          ly = R.y * r + (this.hop ? u * r * 0.7 : -u * reach * 0.32) + w2;
+          lz = r * 0.6 + u * reach * 0.8 + hopBack;
+        }
+
+        // transform local goal into world space (using heading & holder position)
+        const wx = p.x + sideX * lx + sH * lz;
+        const wy = Math.max(floorY + R.thick * (1 - u * 0.5), p.y + ly);
+        const wz = p.z + sideZ * lx + cH * lz;
+        R.goal[j].set(wx, wy, wz);
+      }
+      // enforce segment length on goal so stepChain's rest-length matches
+      for (let j = 1; j <= ROPE_SEG; j++) {
+        this._d.copy(R.goal[j]).sub(R.goal[j - 1]);
+        const dLen = this._d.length();
+        if (dLen > 1e-6) R.goal[j].copy(R.goal[j - 1]).addScaledVector(this._d, segL / dLen);
+      }
+    }
+
+    // initialize or substep chains (fixed 1/60s steps like tentacles.js)
+    const STEP = 1 / 60;
+    if (this.ropesFresh || calm) {
+      this.ropesFresh = false;
+      for (const R of M.ropes) {
+        for (let j = 0; j <= ROPE_SEG; j++) { R.sim[j].copy(R.goal[j]); R.vel[j].set(0, 0, 0); }
+      }
+    } else {
+      this.ropeAcc = Math.min(this.ropeAcc + dt, STEP * 3);
+      while (this.ropeAcc >= STEP) {
+        this.ropeAcc -= STEP;
+        for (const R of M.ropes) {
+          stepChain(R.sim, R.vel, R.goal, this.ropeK, this.ropeC, STEP, 0.45, 0.002, 0.62, 0.12);
+          // floor / acid surface collision so ropes slap and sprawl naturally
+          for (let j = 1; j <= ROPE_SEG; j++) {
+            const minY = floorY + R.thick * (1 - (j / ROPE_SEG) * 0.6);
+            if (R.sim[j].y < minY) { R.sim[j].y = minY; if (R.vel[j].y < 0) R.vel[j].y *= -0.2; }
+          }
+        }
+      }
+    }
+
+    // skin each braided rope tube in root-local space using parallel transport (zero kinks or flips)
+    this._invRoot.copy(M.root.matrixWorld).invert();
+    for (const R of M.ropes) {
+      for (let j = 0; j <= ROPE_SEG; j++) R.pts[j].copy(R.sim[j]).applyMatrix4(this._invRoot);
+      // 1-pass curve relaxation on interior points for silky wet-hair flow
+      for (let j = 1; j < ROPE_SEG; j++) {
+        R.pts[j].x = R.pts[j].x * 0.5 + (R.pts[j - 1].x + R.pts[j + 1].x) * 0.25;
+        R.pts[j].y = R.pts[j].y * 0.5 + (R.pts[j - 1].y + R.pts[j + 1].y) * 0.25;
+        R.pts[j].z = R.pts[j].z * 0.5 + (R.pts[j - 1].z + R.pts[j + 1].z) * 0.25;
+      }
+      const pos = R.geo.attributes.position.array, nrm = R.geo.attributes.normal.array;
+      for (let j = 0; j <= ROPE_SEG; j++) {
+        const u = j / ROPE_SEG;
+        const rad = R.thick * (1 - u * 0.65);
+        const cur = R.pts[j];
+        if (j === 0) this._rt.copy(R.pts[1]).sub(cur);
+        else if (j === ROPE_SEG) this._rt.copy(cur).sub(R.pts[j - 1]);
+        else this._rt.copy(R.pts[j + 1]).sub(R.pts[j - 1]);
+        if (this._rt.lengthSq() < 1e-10) this._rt.set(0, 0, 1); else this._rt.normalize();
+        // parallel transport: initialize frame at root, then project previous normal onto new tangent plane
+        if (j === 0) {
+          if (Math.abs(this._rt.y) < 0.9) this._rn.set(-this._rt.z, 0, this._rt.x).normalize();
+          else this._rn.set(1, 0, 0).cross(this._rt).normalize();
+        } else {
+          this._rn.addScaledVector(this._rt, -this._rn.dot(this._rt));
+          if (this._rn.lengthSq() < 1e-8) this._rn.set(0, 1, 0).cross(this._rt);
+          this._rn.normalize();
+        }
+        this._rb.crossVectors(this._rt, this._rn);
+        const twist = j * 0.65;
+        for (let k = 0; k < ROPE_RAD; k++) {
+          const ang = (k / ROPE_RAD) * Math.PI * 2 + twist;
+          const braid = 1 + 0.16 * Math.cos(3 * (k / ROPE_RAD) * Math.PI * 2 + j * 0.9);   // 3-lobe twisted hair braid
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          const nx = this._rn.x * ca + this._rb.x * sa;
+          const ny = this._rn.y * ca + this._rb.y * sa;
+          const nz = this._rn.z * ca + this._rb.z * sa;
+          const idx = (j * ROPE_RAD + k) * 3;
+          pos[idx] = cur.x + nx * rad * braid;
+          pos[idx + 1] = cur.y + ny * rad * braid;
+          pos[idx + 2] = cur.z + nz * rad * braid;
+          nrm[idx] = nx; nrm[idx + 1] = ny; nrm[idx + 2] = nz;
+        }
+      }
+      R.geo.attributes.position.needsUpdate = true;
+      R.geo.attributes.normal.needsUpdate = true;
+    }
   }
 
   // Between attacks it bounds after you: it crouches (squashing, turning to you), then hops a
@@ -795,12 +1350,19 @@ export class Clog {
     if (!this.hop) {
       this.drive(dt, P, 0, 3);
       this.hopWait -= dt;
-      if (this.hopWait < 0.16) this.squash = Math.max(this.squash, 0.55 * (1 - this.hopWait / 0.16));   // the crouch
+      if (this.hopWait < 0.16) {
+        const c = 1 - this.hopWait / 0.16;
+        this.squash = Math.max(this.squash, 0.58 * c);                   // the crouch
+        this.tiltX += (0.18 * c - this.tiltX) * Math.min(1, dt * 12);
+      }
       if (this.hopWait <= 0) {
         const juke = (Math.random() - 0.5) * 1.1, len = Math.min(H.hop ?? 0.16, Math.max(0.04, dist - this.r * 0.6));
         const a = Math.atan2(toP.x, toP.z) + juke;
+        this.jukeDir = Math.sign(juke);
         this.hop = { t: 0, dur: H.air ?? 0.32, from: p.clone(), to: this.clampIn(p.clone().add(V(Math.sin(a), 0, Math.cos(a)).multiplyScalar(len))) };
         this.heading = a;
+        this.squashV = -4.2;                                             // springy launch stretch
+        this.tiltXV = 2.8; this.tiltZV = -this.jukeDir * 3.4;            // bank into the juke
         sfx.clogHop(false);
       }
       return;
@@ -811,11 +1373,12 @@ export class Clog {
     p.x = h.from.x + (h.to.x - h.from.x) * u;
     p.z = h.from.z + (h.to.z - h.from.z) * u;
     this.lift = 4 * (H.height ?? 0.05) * u * (1 - u);
-    this.squash = -0.35 * Math.sin(Math.PI * u);
+    this.squash = -0.4 * Math.sin(Math.PI * u);
     this.model.root.rotation.y = this.heading;
     this.model.roll.rotation.x += dt * 9;
     if (u >= 1) {
-      this.hop = null; this.lift = 0; this.squash = 0.7;
+      this.hop = null; this.lift = 0; this.squash = 0.65; this.squashV = 6.5;   // juicy wet landing jiggle
+      this.tiltXV = -3.2; this.bristle = Math.max(this.bristle, 0.45);
       this.hopWait = angry ? (H.angryEvery ?? 0.4) : (H.every ?? 0.6);
       for (let k = 0; k < 4; k++) this.fx.puff(_rel.copy(p).setY(this.floor + 0.008).add(this._side.set(Math.cos(k * 1.57), 0, Math.sin(k * 1.57)).multiplyScalar(this.r * 0.9)), 0x8a7a5a, 0.022, 0.35);
       sfx.clogHop(true);
@@ -833,6 +1396,8 @@ export class Clog {
     juice.feel('impact-big');
     sfx.clogSlam();
     this.squash = Math.max(this.squash, 0.8);
+    this.squashV += 7.5 * k;
+    this.bristle = Math.max(this.bristle, 0.85 * k);
   }
 
   // an attack catching the jelly (P its feet): a flash and gunk flying off it, a smear under it,
@@ -864,9 +1429,15 @@ export class Clog {
     }
     if (J.phase === 'crouch') {
       this.drive(dt, J.at, 0, 5);
-      this.squash = Math.max(this.squash, 0.75 * Math.min(1, J.t / wind));
-      M_shake(this.model, 0.004);
-      if (J.t >= wind) { J.phase = 'air'; J.t = 0; J.from.copy(p); sfx.clogLeap(); this.fx.puff(_rel.copy(p).setY(this.floor + 0.01), 0x8a7a5a, 0.05, 0.4); }
+      const u = Math.min(1, J.t / wind);
+      this.squash = Math.max(this.squash, 0.78 * u);
+      this.shudder = Math.max(this.shudder, 0.3 + u * 0.55);
+      this.bristle = Math.max(this.bristle, 0.35 + u * 0.6);
+      this.tiltX += (0.24 * u - this.tiltX) * Math.min(1, dt * 10);
+      if (J.t >= wind) {
+        J.phase = 'air'; J.t = 0; J.from.copy(p); this.squashV = -6.5; this.tiltXV = 4.5;
+        sfx.clogLeap(); this.fx.puff(_rel.copy(p).setY(this.floor + 0.01), 0x8a7a5a, 0.05, 0.4);
+      }
       return 0.6;
     }
     if (J.phase === 'air') {
@@ -874,8 +1445,8 @@ export class Clog {
       p.x = J.from.x + (J.at.x - J.from.x) * u;
       p.z = J.from.z + (J.at.z - J.from.z) * u;
       this.lift = 4 * S.height * u * (1 - u);
-      this.squash = -0.45 * Math.sin(Math.PI * u);
-      this.model.roll.rotation.x += dt * 14;
+      this.squash = -0.52 * Math.sin(Math.PI * u);
+      this.model.roll.rotation.x += dt * 16;
       if (u >= 1) {
         this.lift = 0; this.pinTele.visible = false;
         this.slam(_rel.copy(J.at).setY(this.floor + 0.02), 1.4);
@@ -929,18 +1500,21 @@ export class Clog {
     const C = this.comb, wind = (C.wave ? S.next : S.windup) * (angry ? 0.8 : 1), len = a.arenaMax[2] - a.arenaMin[2];
     C.t += dt;
     this.drive(dt, P, 0, 3);
-    M_shake(this.model, 0.003);
+    const cu = Math.min(1, C.t / wind);
+    this.shudder = Math.max(this.shudder, 0.35 + cu * 0.45);
+    this.bristle = Math.max(this.bristle, 0.4 + cu * 0.5);
     this.combTeles.forEach((T, i) => {
       T.visible = i % 2 === C.wave % 2;
       if (!T.visible) return;
       T.position.set(this.combX[i], this.floor + 0.003, a.arenaMin[2]);
       T.rotation.y = 0;
       T.scale.set(S.width, 1, len);
-      T.material.progress = Math.min(1, C.t / wind);
+      T.material.progress = cu;
       T.material.opacity = 0.75 + 0.25 * Math.abs(Math.sin(this.t * 22));
     });
     if (C.t >= wind) {
       sfx.clogLash(); juice.feel('impact');
+      this.squash = Math.max(this.squash, 0.45); this.squashV += 5.5; this.tiltXV += 4.5;
       const dir = this._d.set(0, 0, 1);
       this.combTeles.forEach((T, i) => {
         if (!T.visible) return;
@@ -950,7 +1524,7 @@ export class Clog {
           this.fx.burst(at, HAIR.slice(0, 5), 4, 0.003, 0.3, this.floor);
           const tuft = new THREE.Mesh(this.tuftGeo, this.tuftMat);
           tuft.position.set(at.x, this.floor, at.z); tuft.scale.set(2.5, 1, 2.5);
-          this.scene.add(tuft); this.tufts.push({ m: tuft, t: 0 });
+          this.scene.add(tuft); this.tufts.push({ m: tuft, t: 0, rx: 0, rz: 0, sx: 2.5, sz: 2.5, ph: i + k });
         }
         if (laneHits(this._lane.set(this.combX[i], this.floor, a.arenaMin[2]), dir, len, S.width, S.height, P, player.cfg)) { out.hit = S.dmg; out.slow = S.slow; }
         T.visible = false;
@@ -971,7 +1545,7 @@ export class Clog {
     this.water.visible = this.acidFloor.visible = this.stream.visible = this.bubbles.visible = true;
     for (const b of this.bubbleList) { b.size = 0; b.t = b.life = Math.random() * 1.5; }   // (each comes up after a moment of its own)
     sfx.clogRoar(); sfx.clogPour(AC.rise);
-    this.squash = Math.max(this.squash, 0.6); this.chomp = 0.6; juice.feel('impact');
+    this.squash = Math.max(this.squash, 0.6); this.squashV += 5.5; this.chomp = 0.6; juice.feel('impact');
     for (const e of [...this.enemies.list]) {
       if (e.dead || e.proxy || e.elite || e.pos.x < a.arenaMin[0] || e.pos.x > a.arenaMax[0] || e.pos.z < a.arenaMin[2] || e.pos.z > a.arenaMax[2]) continue;
       this.fx.puff(this.enemies.center(e), LOOK.color('clog-acid-fume', '#d8a8ff'), 0.03, 0.5);
@@ -1009,6 +1583,10 @@ export class Clog {
       if (u >= 1) { A.phase = 'volley'; A.t = 0; this.stream.visible = false; }
     } else if (A.phase === 'volley') {
       this.drive(dt, this.mid, 0, 4);                                   // facing the ducks
+      if (A.next < 0.3 && A.round < AC.rounds) {                        // wind-back heave before lobbing
+        this.tiltX += (-0.25 - this.tiltX) * Math.min(1, dt * 8);
+        this.bristle = Math.max(this.bristle, 0.5);
+      }
       if ((A.next -= dt) <= 0 && A.round < AC.rounds) this.lobChunks(AC, A);
       if (A.round >= AC.rounds && !this.chunks.some((c) => c.on)) { A.phase = 'drain'; A.t = 0; sfx.clogDrain(AC.drain); }
     } else {
@@ -1105,10 +1683,10 @@ export class Clog {
       c.m.visible = c.tele.visible = c.vol.visible = true;
       c.m.position.copy(from);
     }
-    // thrown out of its hair: a flash there, it heaves and chomps, the spit and crack
+    // thrown out of its hair: a flash there, it heaves and chomps, ropes catapult forward
     this.fx.impact(from, hostile('clog'), 0.035, 12);
     this.fx.burst(from, HAIR.slice(0, 6), 6, 0.004, 0.4, this.acidY);
-    this.squash = Math.max(this.squash, 0.5); this.chomp = 0.35;
+    this.squash = Math.max(this.squash, 0.5); this.squashV += 5.5; this.tiltXV += 6; this.lobT = 0.45; this.chomp = 0.35;
     sfx.clogSpit(); sfx.clogLash(); sfx.clogLeap(); juice.feel('hit');
   }
 
@@ -1118,6 +1696,8 @@ export class Clog {
     m.position.lerpVectors(c.from, c.to, u);
     m.position.y += 4 * (0.1 + c.from.distanceTo(c.to) * 0.25) * u * (1 - u);   // lobbed high
     m.rotation.x += dt * 9; m.rotation.z += dt * 5;
+    const stretch = 1 + Math.sin(u * Math.PI) * 0.28;
+    m.scale.set(1 / Math.sqrt(stretch), stretch, 1 / Math.sqrt(stretch));
     this.fx.glow.hold(m.position, hostile('clog'), 0.05, 0.6);
     if (Math.random() < dt * 30) this.fx.glow.emit(m.position, hostile('clog'), 0.02, 0.006, 0.25, 0.7);
     // its Warning on its duck (where that duck is now: when it lands, that's where the chunk comes down)
