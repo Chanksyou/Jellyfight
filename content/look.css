@@ -292,9 +292,12 @@
   --death-body-cap-low: 6;
   --death-part-cap: 36;
   --death-part-cap-low: 14;
-  --death-body-life: 1.1;
+  --death-body-life: 1.8;
+  --death-settle-time: 0.95;
+  --death-fade-time: 0.25;
+  --death-max-life: 2.8;
   --death-skid: 0.055;
-  --death-fall-gravity: 1.2;
+  --death-fall-gravity: 1.85;
   --death-fly-spin: 7;
   --death-shell-lift: 0.28;
   --death-hang-time: 0.055;

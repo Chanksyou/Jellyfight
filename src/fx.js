@@ -53,7 +53,19 @@ export class Fx {
     this.glitter = new GlitterLooks(scene, camera, showcase ? LOOK.num('glitter-showcase-pool', 1000) : undefined);   // the glitter Element's flakes (glitter-looks.js; the stage's fuller bursts need a bigger pool)
     this.acid = new AcidLooks(scene, this);           // the acid Element's drops and melting bugs (acid-looks.js)
     this.wind = new WindLooks(scene, this);           // the wind Element's streaks, dust and blown-away bugs (wind-looks.js)
-    this.deaths = new DeathRemains(scene, () => this.low());
+    this.deaths = new DeathRemains(scene, () => this.low(), (pos, r, isBody, color, mode) => {
+      if (mode === 'corkscrew') {
+        this.splat(pos, LOOK.color('beetle-scorch', '#2a1a12'), Math.max(0.018, r * 1.6), 'scorch');
+        this.puff(pos, 0xffb04a, Math.max(0.015, r * 1.4), 0.35, 0.65);
+        return;
+      }
+      if (isBody) {
+        this.splat(pos, color || '#d8c8a8', Math.max(0.016, r * 1.45), 'splash');
+        if (!this.low()) this.burst(pos, [color || '#d8c8a8'], 4, r * 0.22, 0.22, pos.y);
+      } else if (!this.low() && mode !== 'flutter') {
+        this.splat(pos, color || '#4a3c30', Math.max(0.008, r * 0.8), 'dust');
+      }
+    });
     this.fireAshMat = new THREE.MeshBasicMaterial({ color: LOOK.color('fire-ash', '#382b28') });
     this.deaths.ashMat = this.fireAshMat;
     this.chunkGeo = new THREE.TetrahedronGeometry(1, 0);
@@ -389,12 +401,12 @@ export class Fx {
     this.numberClock += dt;
     for (let i = this.fireCorpses.length - 1; i >= 0; i--) {
       const c = this.fireCorpses[i]; c.t += dt;
-      const k = Math.min(1, c.t / 0.58);
-      const hop = k < 0.45 ? Math.sin((k / 0.45) * Math.PI) * c.r * 1.9 : 0;
+      const k = Math.min(1, c.t / 0.95);
+      const hop = k < 0.34 ? Math.sin((k / 0.34) * Math.PI) * c.r * 1.9 : 0;
       c.root.position.y = Math.max(c.floor, c.y + hop);
-      const crumble = k < 0.45 ? 1 : Math.max(0.001, 1 - ((k - 0.45) / 0.55) ** 2);
+      const crumble = k < 0.76 ? 1 : Math.max(0.001, 1 - ((k - 0.76) / 0.24) ** 2);
       c.root.scale.copy(c.scale).multiplyScalar(crumble);
-      c.root.rotation.z = c.rotation + Math.sin(k * Math.PI * 1.5) * 0.75;
+      c.root.rotation.z = c.rotation + Math.sin(Math.min(1, k / 0.45) * Math.PI * 1.5) * 0.75;
       if (k === 1) { this.freeFireCorpse(c); this.fireCorpses.splice(i, 1); }
     }
     this.glow.update(dt, this.camera, window.APT?.renderer);
