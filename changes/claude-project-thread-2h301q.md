@@ -1,1 +1,0 @@
-takes the loading screen out of the page once it has faded, so its looping animations stop redrawing over the game, and keeps the game's canvas out of the story runner's page picture, which had been crashing the act 1 test shard.
