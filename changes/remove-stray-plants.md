@@ -1,0 +1,1 @@
+removes the leftover plant pieces that floated in the air above Act 1's and Act 4's sofa and by the lounge chair (leaves, a berry cluster and a bead string that were part of the room's walls-and-floor mesh).
