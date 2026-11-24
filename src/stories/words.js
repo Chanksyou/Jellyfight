@@ -360,7 +360,7 @@ story('words/evade', {
   },
 });
 story('words/whirlwind', {
-  about: 'The dragonfly holds still while a two-blade rotor, two jelly radii across, grows in front of its head, then flings it at the jelly and two more in a row along the same line, 0.3 s apart: slow Shots, the first hit for 2.',
+  about: 'The dragonfly holds still while a two-blade rotor, about two and a half jelly radii across, grows in front of its head, then flings it at the jelly and two more in a row along the same line, 0.4 s apart: slow Shots, the first hit for 3.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06)); e.whirlCd = 0; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), P = player.position;
@@ -375,7 +375,7 @@ story('words/whirlwind', {
     const growing = grew.length > 20 && grew[0] < 0.1 && grew[grew.length - 1] > 0.9 && grew.every((k, i) => !i || k >= grew[i - 1]);
     step(60 * 4, () => log.some((d) => d.source === 'dragonfly'));
     const hit = log.find((d) => d.source === 'dragonfly');
-    return ok(growing && moved < 0.005 && Math.abs(across - 2 * CONFIG.player.radius) < 0.003 && seen === 3 && gaps.every((g) => Math.abs(g - 0.3) < 0.05) && hit?.amount === 2, { growing, moved: +moved.toFixed(4), across: +across.toFixed(3), seen, gaps, hit: hit?.amount });
+    return ok(growing && moved < 0.005 && Math.abs(across - 0.075) < 0.003 && seen === 3 && gaps.every((g) => Math.abs(g - 0.4) < 0.05) && hit?.amount === 3, { growing, moved: +moved.toFixed(4), across: +across.toFixed(3), seen, gaps, hit: hit?.amount });
   },
 });
 story('enemies/dragonfly-whirlwind-dodge', {
@@ -390,7 +390,7 @@ story('enemies/dragonfly-whirlwind-dodge', {
     holdJelly();
     let fired = false;
     step(60 * 4, () => { const live = enemies.whirls.some((w) => w.live && !w.held); if (live) fired = true; return fired && !live; });
-    const dodged = fired && !log.some((d) => d.source === 'dragonfly');
+    const dodged = fired && !log.some((d) => d.source === 'dragonfly' && d.amount === 3);   // (its touch, 1, is not the whirlwind's 3)
     e.whirlCd = 0; e.evadeCd = 0;
     step(60 * 3, () => e.state === 'whirl');
     step(10);
@@ -981,7 +981,7 @@ feelStory('ball-charge', 'A millipede\'s ball rolling into the jelly flashes in 
   () => { const r = feelOfHit('millipede', 6, 5); return ok(r.contact && r.near && hitFelt(r, 'milliRoll').ok, { ...r, e: undefined }); });
 feelStory('whirlwind', 'A dragonfly\'s whirlwind: a whirr rising as it grows, a flash and a whoosh as it\'s flung (the dragonfly rocks back), then a flash and a gusty thump on the jelly, which is shoved on; the jelly\'s drops splat.',
   () => { const e = spawn('dragonfly', near(0.3, 0, 0.06)); e.whirlCd = 0; },
-  () => { const r = feelOfHit('dragonfly', 5, 2); return ok(r.near && hitFelt(r, 'whirlCharge', 'whirlFling', 'whirlEnd').ok, { ...r, e: undefined }); });
+  () => { const r = feelOfHit('dragonfly', 5, 3); return ok(r.near && hitFelt(r, 'whirlCharge', 'whirlFling', 'whirlEnd').ok, { ...r, e: undefined }); });
 feelStory('swat', 'A mantis\'s swat landing: a flash on the jelly, a snap and a wet slap, the mantis squashes, the jelly\'s drops splat.',
   () => { stub(G().run, 'contactDamage', () => {}); spawn('mantis', near(0.12, 0)).swatCd = 0.3; },   // (its touch alone, contact-feel, would keep the jelly's i-frames up)
   () => { const r = feelOfHit('mantis', 8, 4); return ok(r.near && hitFelt(r, 'mantisSwat').ok, { ...r, e: undefined }); });

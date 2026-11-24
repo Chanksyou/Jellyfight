@@ -86,29 +86,29 @@ enemy "ladybug" name="Ladybug" hp=80 r=0.045 dmg=2 xp=9 model="ladybug" {
 // at you: it hangs in the air, then darts off a short way in some new direction, zigzagging in.
 // Within reach it whips its wings into a spinning helicopter rotor (two blades growing in
 // front of its head, a rising whirr; its wings beat faster and sweep forward and it leans back, then
-// freeze when its aim locks) and flings it at you, then two more right behind it, 0.3 s apart, along
-// the same line. Each is two jelly radii (size=0.061) across from its middle and flies slowly:
+// freeze when its aim locks) and flings it at you, then two more right behind it, 0.4 s apart, along
+// the same line. Each is two jelly radii (size=0.075) across from its middle and flies slowly:
 // swim to one side.
 enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     death-motion "flutter"
     attack-motion "throw" tier="mid"
     zip distance=0.2 above=0.06 speed=1.25 length=0.2 pause=0.35
-    whirlwind range=0.6 every=5 windup=0.7 lock=0.6 speed=0.45 size=0.061 life=2.2 count=3 gap=0.3 dmg=2 rest=0.5
+    whirlwind range=0.8 every=4 windup=0.5 lock=0.6 speed=0.45 size=0.075 life=2.5 count=3 gap=0.4 dmg=3 rest=0.5
     evade every=5 distance=0.25 speed=2.2
 }
 
 // Act 4 (from 0:45): the monarch butterfly. It drifts round you in wide, lazy loops, a few quick
-// beats then a glide. On a beat, every 6 s or so, it stops, faces you and rears, wings clapped high,
+// beats then a glide. On a beat, every 5 s or so, it stops, faces you and rears, wings clapped high,
 // while a ball of hot rainbow light grows between its forelegs, then flings it at you in a slow arc:
 // a circle and dome fill where it will land. The ball spins as it flies and on every beat fires a flat
 // ring of 12 bolts out all round (2 each), each ring turned half a gap from the last so the gaps
-// spiral: slip through a gap or jump the ring. It lands 4 beats later as a burst (3) with a last ring.
+// spiral: slip through a gap or jump the ring. It lands 6 beats later as a burst (3) with a last ring.
 enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="butterfly" {
     death-motion "flutter"
     attack-motion "throw" tier="mid"
     hover 0.35 above=0.3 speed=0.45 circle=0.9 bob=0.08
     on-beat every=1
-    prism range=0.6 every=6 windup=0.6 beats=4 peak=0.18 radius=0.12 count=12 rows=5 speed=0.35 life=1.2 dmg=2 burst=3 most=3 rest=0.6
+    prism range=0.8 every=5 windup=0.6 beats=6 peak=0.24 radius=0.17 count=12 rows=5 speed=0.26 life=2.5 dmg=2 burst=3 most=3 rest=0.6
 }
 
 // Act 4 (from the start): the firefly, a small beetle with a lantern for a tail. It flies, wing covers

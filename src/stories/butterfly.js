@@ -2,7 +2,7 @@
 import { G, JUMP_FEET, V, fresh, holdJelly, near, night4, ok, record, spawn, step, stub, tp, story } from './kit.js';
 
 // the butterfly's prism, as content/enemies.kdl gives it (for rings fired straight in, below)
-const PRISM = { beats: 4, peak: 0.18, radius: 0.12, count: 12, rows: 5, speed: 0.35, life: 1.2, dmg: 2, burst: 3, most: 3 };
+const PRISM = { beats: 6, peak: 0.24, radius: 0.17, count: 12, rows: 5, speed: 0.26, life: 2.5, dmg: 2, burst: 3, most: 3 };
 const balls = () => G().enemies.prismBalls;
 const settle = () => { const { run } = G(); stub(run, 'song', null); run.beat = 1.3; };
 // one ring of bolts fired from `at` (the floor under it is `floorY`), turned `turn` radians
@@ -33,7 +33,7 @@ night4('butterfly-flies', {
 });
 
 story('words/prism', {
-  about: 'prism: on a beat a butterfly stops, faces you and winds up, then lobs a ball of rainbow light in an arc at the floor where you stood; a Warning circle and dome fill together and are full as it lands 4 beats later as a Blast that hits you for 3. On each beat in the air (4) it fires a burst of 46 bolts every way, and one more as it lands: 230 in all. The ball\'s shell spins as it flies.',
+  about: 'prism: on a beat a butterfly stops, faces you and winds up, then lobs a ball of rainbow light in an arc at the floor where you stood; a Warning circle and dome fill together and are full as it lands 6 beats later as a Blast that hits you for 3. On each beat in the air (6) it fires a burst of 46 bolts every way, and one more as it lands: 322 in all. The ball\'s shell spins as it flies.',
   act: 4,
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); settle(); const b = spawn('butterfly', near(0.35, 0, 0.3)); b.prismCd = 0; },
   play() {
@@ -63,7 +63,7 @@ story('words/prism', {
       return L?.done;
     });
     const burst = hits(log).find((d) => d.amount === 3);
-    return ok(wound != null && wound % 1 < 0.1 && facing < 0.3 && at < 0.01 && peak > 0.15 && fill.every((x) => x === 0) && landK > 0.97 && Math.abs(landBeat - 4) < 0.1 && burst && bolts === 230 && spun > Math.PI * 4,
+    return ok(wound != null && wound % 1 < 0.1 && facing < 0.3 && at < 0.01 && peak > 0.15 && fill.every((x) => x === 0) && landK > 0.97 && Math.abs(landBeat - 6) < 0.1 && burst && bolts === 322 && spun > Math.PI * 4,
       { wound, facing: facing && +facing.toFixed(2), at: at && +at.toFixed(4), peak: +peak.toFixed(3), landK, landBeat: landBeat && +landBeat.toFixed(2), burst: burst?.amount, bolts, spun: +spun.toFixed(1) });
   },
 });
@@ -97,7 +97,7 @@ story('words/prism-bolts', {
     const { run, player } = G(), P = player.position;
     holdJelly();
     const floor = P.y, mid = floor + 0.045;
-    const fire = (from, turn) => { const log = record('damage_taken'); run.iFrames = 0; ringAt(from, floor, turn); step(60 * 1.4); return hits(log); };
+    const fire = (from, turn) => { const log = record('damage_taken'); run.iFrames = 0; ringAt(from, floor, turn); step(60 * 2.6); return hits(log); };
     const straight = fire(V(P.x, mid, P.z - 0.25), 0);          // 25 cm in front, level with its middle: a bolt heads straight at it (angle 0 is +z)
     P.y = floor + JUMP_FEET;                                    // feet 12 cm up, near the top of a jump
     const above = fire(V(P.x, P.y + 0.3, P.z), 0);              // the ball 30 cm over it: the bolt straight down
@@ -127,7 +127,7 @@ story('words/prism-bolts-stop', {
     hitJelly = hits(log).length > 0;
     for (let i = 0; i < 6; i++) ringAt(V(C.x + 2, C.y, C.z), floor);
     const most = balls().bolts.length;
-    return ok(wall > 0.2 && wall < 0.3 && far > 0.15 && far <= wall + 0.01 && !hitJelly && !low && most === 240, { low, wall: wall && +wall.toFixed(3), far: +far.toFixed(3), hitJelly, most });
+    return ok(wall > 0.2 && wall < 0.3 && far > 0.15 && far <= wall / Math.cos(Math.PI / 12) + 0.01 && !hitJelly && !low && most === 240, { low, wall: wall && +wall.toFixed(3), far: +far.toFixed(3), hitJelly, most });
   },
 });
 
