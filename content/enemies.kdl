@@ -186,7 +186,7 @@ enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
     death-motion "paper-crush" weight="heavy"
     hangs size=0.13                  // hits anywhere on the nest count (it's 30 cm tall)
     // (it squeezes and bulges at the entrance for 0.3 s before each wasp crawls out)
-    brood "wasp" every=4 max=9
+    brood "wasp" every=4 max=6
 }
 
 // The wasps from a nest. They circle you, and now and then one stops and rears up with a rising

@@ -703,14 +703,14 @@ story('words/brood', {
   },
 });
 story('enemies/nest-brood-limit', {
-  about: 'A nest stops sending out wasps while nine of its own are still alive.',
+  about: 'A nest stops sending out wasps while six of its own are still alive.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('nest', near(0.6, 0, 0.25)); e.broodT = 0.1; },
   play() {
     const { enemies } = G(), nest = enemies.list[0];
-    for (let i = 0; i < 9; i++) { const w = spawn('wasp', near(-0.6, 0, 0.1 + i * 0.03), { still: true }); w.motherId = nest.id; }
+    for (let i = 0; i < 6; i++) { const w = spawn('wasp', near(-0.6, 0, 0.1 + i * 0.03), { still: true }); w.motherId = nest.id; }
     step(60 * 6);
     const n = enemies.list.filter((x) => !x.dead && x.motherId === nest.id).length;
-    return ok(n === 9, { wasps: n });
+    return ok(n === 6, { wasps: n });
   },
 });
 story('words/dive', {
