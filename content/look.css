@@ -1139,6 +1139,8 @@
   --status-blue: #7fb4ff;
   --status-amber: #f0c878;
   --status-white: #e8eef5;
+  --status-flame: #ffb45a;       /* the open candle's glow in act 1 and 4 (flickers like the busy lights) */
+  --candle-flame: #ff8f33;       /* the candle flame's own colour (set-dressing.js `buildCandle`) */
   --status-level: 1;             /* how bright they are, 0..1 (they glint, they don't glow) */
   --status-size: 3;              /* a light's size in screen px at 1 m (smaller with distance, kept between --status-min and 9 px) */
   --status-min: 2.5;             /* px: the smallest a light gets */
