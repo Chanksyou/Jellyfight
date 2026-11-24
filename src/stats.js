@@ -174,9 +174,14 @@ export function threeOfAKind(cards, now = {}, rng = Math.random) {
   return out;
 }
 
-// XP needed to go from `level` to the next one: base x growth^(level-1), from
-// content/levelups.kdl (4, 6, 8, 11, 15, 22, 30, 42… at the file's values)
-export const xpToNext = (level) => Math.round(CONTENT.levelups.xp.base * CONTENT.levelups.xp.growth ** (level - 1));
+// XP needed to go from `level` to the next one, from content/levelups.kdl: base x growth^(level-1)
+// up to `steady-from` (4, 5, 7, 10, 13, 18, 24), then each level costs `step` more than the last
+// (54, 84, 114…)
+export const xpToNext = (level) => {
+  const { base, growth, steadyFrom, step } = CONTENT.levelups.xp;
+  const to = Math.min(level, steadyFrom);
+  return Math.round(base * growth ** (to - 1)) + step * Math.max(0, level - steadyFrom);
+};
 
 // Up to n different treasures from pool: each slot rolls a rarity (with luck) among the rarities
 // still in the pool, then one treasure of that rarity

@@ -289,7 +289,7 @@ story('content/levelup-and-elite-tuning', {
       soap: [E.soap.skills.trap.count, E.soap.skills.trap.angryCount, E.soap.skills.ring.rings, E.soap.skills.ring.angryRings],
     };
     const expected = {
-      xp: { base: 4, growth: 1.35 }, rarities: { common: 65, rare: 25, epic: 10 },
+      xp: { base: 4, growth: 1.35, steadyFrom: 7, step: 30 }, rarities: { common: 65, rare: 25, epic: 10 },
       cards: { health: [3, 5, 7], fireRate: [12, 18, 24], regen: [0.1, 0.2, 0.3], dodge: [10, 13, 16], bubbleSize: [15, 20, 25] },
       bubbles: 0, bubbleSize: 0, pace: { recover: 1, tempo: 1.4 }, aggro: [1.1, 0.9, 1.4, 1.2, 1.25], mug: [7, 5, 3], soap: [1, 2, 3, 5],
     };
@@ -433,10 +433,10 @@ story('progression/dodge-diminishes', {
   },
 });
 story('progression/level-curve', {
-  about: 'Each level needs 1.35x the XP of the last, starting at 4: four cockroaches (1 XP each) is level 2.',
+  about: 'Levels 1 to 7 need 1.35x the XP of the last, starting at 4; from level 7 each level needs 30 XP more than the last (54, 84, 114…). Four cockroaches (1 XP each) is level 2.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); },
   play() {
-    const { run } = G(), curve = [1, 2, 3, 4, 5, 6].map(xpToNext);
+    const { run } = G(), curve = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(xpToNext);
     let killed = 0;
     for (let k = 0; k < 4; k++) {
       const e = spawn('roach', near(0, -0.15), { still: true, hp: 1 });
@@ -445,7 +445,7 @@ story('progression/level-curve', {
       tp(e.pos.x, 0.05, e.pos.z);                  // swim over to where it burst and pick up the XP
       step(120);
     }
-    const ok1 = curve.join() === '4,5,7,10,13,18' && killed === 4 && run.level === 2 && xpToNext(run.level) === 5;
+    const ok1 = curve.join() === '4,5,7,10,13,18,24,54,84,114' && killed === 4 && run.level === 2 && xpToNext(run.level) === 5;
     return ok(ok1, { curve, killed, level: run.level, xp: run.xp });
   },
 });

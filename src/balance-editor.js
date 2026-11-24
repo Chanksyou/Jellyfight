@@ -23,7 +23,8 @@ const HINTS = {
   contact: 'damage when it bumps into you', stack: 'how many copies you can own (1–5)',
   aggro: 'how close (m) you get before it wakes', angry: 'the Health fraction under which it turns angry',
   recover: 'rest between attacks runs down this many × as fast', tempo: 'each attack plays this many × as fast',
-  base: 'XP for the first level-up', growth: 'each level-up needs this many × the XP of the last',
+  base: 'XP for the first level-up', growth: 'each level-up needs this many × the XP of the last, up to the steady level',
+  'steady-from': 'from this level on, the step replaces the growth', step: 'XP more each level costs than the last, from the steady level on',
   weight: 'how likely it is offered (1 = as likely as any; 0 = never)',
   windup: 'warning time (s)', time: 'how long it runs (s)', speed: 'm/s', rest: 'rest afterwards (s)',
   every: 'seconds between goes', slow: 'seconds you stay slowed', at: 'the Health fraction that trips it',
@@ -98,7 +99,7 @@ export function balanceGroups() {
     ...build(CONTENT.nodes.bosses, null, 'boss', 'content/bosses.kdl', null),
     { kind: 'elite', id: 'pace', file: 'content/elites.kdl', icon: '⏱️', name: 'Elite pace', desc: 'How fast every elite fights: its rest between attacks runs down recover× as fast, and each attack plays tempo× as fast.', fields: entryFields('content/elites.kdl · Elite pace', CONTENT.nodes.elites.find((n) => n.name === 'pace'), null) },
     ...build(CONTENT.nodes.elites.filter((n) => n.name === 'elite'), null, 'elite', 'content/elites.kdl', null).map((g) => ({ ...g, removeKey: `elite:${g.id}` })),
-    { kind: 'levelup', id: 'xp', file: 'content/levelups.kdl', icon: '⭐', name: 'XP curve', desc: 'XP to level up: base × growth^(level − 1).', fields: entryFields('content/levelups.kdl · XP curve', lu.find((n) => n.name === 'xp'), null) },
+    { kind: 'levelup', id: 'xp', file: 'content/levelups.kdl', icon: '⭐', name: 'XP curve', desc: 'XP to level up: base × growth^(level − 1) up to the steady level, then a steady step more each level.', fields: entryFields('content/levelups.kdl · XP curve', lu.find((n) => n.name === 'xp'), null) },
     { kind: 'levelup', id: 'rarities', file: 'content/levelups.kdl', icon: '🎲', name: 'Card rarities', desc: 'How often each level-up card rarity rolls, before Luck.', fields: entryFields('content/levelups.kdl · Card rarities', lu.find((n) => n.name === 'rarities'), null) },
     ...lu.filter((n) => n.name === 'card').map((n) => ({
       kind: 'levelup', id: n.args[0], file: 'content/levelups.kdl', icon: STAT_INFO[n.args[0]]?.icon || '🃏', name: STAT_INFO[n.args[0]]?.name || n.args[0],

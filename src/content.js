@@ -253,7 +253,7 @@ export function compileElites(nodes, file = 'content/elites.kdl') {
   return out;
 }
 
-// xp base= growth=, rarities common= rare= epic=, card "stat" common= rare= epic= weight= not-for="…":
+// xp base= growth= steady-from= step=, rarities common= rare= epic=, card "stat" common= rare= epic= weight= not-for="…":
 // what a level-up offers. How an amount applies (percent of base, per second, points) stays
 // with the stat in stats.js; this file is only the numbers.
 const CARD_STATS = ['bubbles', 'range', 'bubbleDamage', 'fireRate', 'health', 'shield', 'moveSpeed', 'regen', 'dodge', 'luck', 'bubbleSize'];
@@ -283,8 +283,8 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
     const where = `${file}:${n.line}`;
     if (n.name === 'xp') {
       if (out.xp) throw new Error(`${where}: two xp blocks`);
-      needProps(n, ['base', 'growth'], where, 'xp');
-      out.xp = { base: n.props.base, growth: n.props.growth };
+      needProps(n, ['base', 'growth', 'steady-from', 'step'], where, 'xp');
+      out.xp = { base: n.props.base, growth: n.props.growth, steadyFrom: n.props['steady-from'], step: n.props.step };
     } else if (n.name === 'rarities') {
       if (out.rarities) throw new Error(`${where}: two rarities blocks`);
       needProps(n, ['common', 'rare', 'epic'], where, 'rarities');
@@ -298,7 +298,7 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
       out.cards[id] = { amounts: [n.props.common, n.props.rare, n.props.epic], weight: n.props.weight ?? 1, notFor: notFor(n.props['not-for'], where, id) };
     } else throw new Error(`${where}: expected "xp", "rarities" or "card", got "${n.name}"`);
   }
-  if (!out.xp) throw new Error(`${file}: no xp block (base= and growth=)`);
+  if (!out.xp) throw new Error(`${file}: no xp block (base=, growth=, steady-from= and step=)`);
   if (!out.rarities) throw new Error(`${file}: no rarities block (common= rare= epic=)`);
   for (const s of CARD_STATS) if (!out.cards[s]) throw new Error(`${file}: no card called "${s}"`);
   return out;
