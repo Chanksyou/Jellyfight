@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v676 adds a shared procedural insect geometry and micro-normal kit, LOD-gated 2-bone leg IK foot planting, and a hybrid CC0 GLB hero-bug import tool, upgrading all 16 bug models and animations while keeping draw calls and triangles lean on phones.
+
 v675 adds a Skip button to the Legendary pick and the Attack upgrade pick: it takes nothing and the run carries on.
 
 v674 rewrites every Treasure, Attack upgrade, evolution and jelly type description to one short pattern (trigger, effect, cost): about 20% fewer words, no number or effect changed; the Health regen card reads "every 5 s", and two out-of-date death-screen tips about Elements are gone.
