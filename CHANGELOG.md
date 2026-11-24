@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v682 makes Act 2's Clog boss much more alive and fluid across every part: GPU vertex-shader hair flow, writhing, bristle, spin flare and churning core; 4 braided physics hair ropes via `stepChain` (cutting 28 draw calls) with per-attack choreography; underdamped spring jiggle, banking and wet hit flinch; bobbling springs on caught debris (plus a comb fragment and gold ring); staggered eye blinks, pupil tracking, windup squint/lock-beat pop, gnashing teeth and floating face lag; and gravity-stretching slime drips.
+
 v681 upgrades bug death animations across all 17 bugs with multi-part flying/bouncing bug parts, 3-beat comedic motion, and cause-of-death treatments (lightning X-ray zap, stomp/brick pancake, wind wall-slam, tentacle whip launch, Pizza Cutter real-half slice, poison melt, fire charcoal hop, ice/glitter/wind part ejection) using pooled analytical floor physics and bounded phone caps with zero new draw calls or shaders.
 
 v680 softens act 1 and gives every warning a fair look: the Mosquito's Bleed lasts 2 s, the Vacuum keeps 1 shielded fly out at a time and its charge takes 1.02 s, the House fly and Praying mantis warn for 0.5 s, the Wall Clock's wreath locks later (0.3 of its wind-up), the Coffer's accordion tracks you for 0.07 s and its tongue pulls slower. Hot Chili, Nail Clipper and Rolling Pin are now Rare.
