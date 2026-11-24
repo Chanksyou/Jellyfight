@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v685 makes Elites and Bosses take a 0.1 second mini-stun from any stun or pin, and a Chill or slow of at most 10%, so Chilled bonuses (Brittle, Frostbite, Icicle Lance, Glacier Shell) now work on them; they still can't be Frozen, trapped or marked.
+
 v684 Shield level-up card is 1 smaller at every rarity (+2 Common, +3 Rare, +4 Epic); Health is unchanged. Hot Water Bottle works below 65% Health, Little Trophy stops at +5 Attack damage a copy, and Piggy Bank stops at +30% Attack damage a copy.
 
 v683 overhauls Act 3's Great White One shark boss animations and feeding-frenzy fish pools: adds a churning crimson-indigo ocean vortex shader with boiling froth and crisp coral danger rim, upgrades pool fish into stylized predatory bait-fish that breach and bank in 3D arcs (8 per pool), and gives the plush shark progressive S-wave spine/tail swimming, underdamped plush bounce springs, reactive hit flinch, sinuous stalking dorsal fin, and exaggerated anticipation/snap/recoil across all attacks.
