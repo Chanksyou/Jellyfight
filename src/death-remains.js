@@ -259,7 +259,6 @@ export class DeathRemains {
     const isOverkill = crit || overkill > 0.5;
     const boost = (isOverkill ? this.overkillBoost : 1) * wMult;
 
-    this.measureLocal(mesh, c.localCenter, c.localHalf);
     const airborne = cause === 'whip' || cause === 'bowl' || cause === 'wall-splat' || (cause === 'normal' && AIRBORNE_STYLES.has(style));
     c.active = true;
     c.root = root;
@@ -291,23 +290,24 @@ export class DeathRemains {
     c.splitB = rig?.split?.[1] || null;
 
     const isFlyer = FLYER_STYLES.has(style);
+    const bodyBoost = Math.min(1.25, boost);
     if (cause === 'whip') {
-      c.vel.copy(c.dir).multiplyScalar(1.05 * boost);
-      c.vel.y = 0.72 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.95 * bodyBoost);
+      c.vel.y = 0.52 * bodyBoost;
     } else if (cause === 'bowl') {
-      c.vel.copy(c.dir).multiplyScalar(0.85 * boost);
-      c.vel.y = 0.92 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.8 * bodyBoost);
+      c.vel.y = 0.65 * bodyBoost;
     } else if (cause === 'wall-splat' || cause === 'pancake' || cause === 'zap' || cause === 'slice') {
       c.vel.set(0, 0, 0);
     } else if (style === 'belly-up' || style === 'curl-pop' || style === 'skin-shed') {
-      c.vel.copy(c.dir).multiplyScalar(0.32 * boost);
-      c.vel.y = (style === 'skin-shed' ? 0.82 : 0.62) * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.28 * bodyBoost);
+      c.vel.y = (style === 'skin-shed' ? 0.58 : 0.42) * bodyBoost;
     } else if (isFlyer) {
-      c.vel.copy(c.dir).multiplyScalar(0.18 * boost);
-      c.vel.y = 0.08 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.18 * bodyBoost);
+      c.vel.y = 0.06 * bodyBoost;
     } else {
-      c.vel.copy(c.dir).multiplyScalar(0.18 * boost);
-      c.vel.y = 0.15 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.18 * bodyBoost);
+      c.vel.y = 0.12 * bodyBoost;
     }
 
     const limbSrc = rig?.limbs?.length ? rig.limbs : (style === 'crumple' ? parts : []);
@@ -355,6 +355,8 @@ export class DeathRemains {
       });
     }
 
+    // Measure local bounds AFTER detaching parts so long antennae/wings/shells don't inflate floor height!
+    this.measureLocal(mesh, c.localCenter, c.localHalf);
     this.clampBodyFloor(c, 0);
     this.list.push(c);
     return true;
@@ -377,7 +379,7 @@ export class DeathRemains {
           c.landed = true;
           c.settleT = 0;
         }
-        if (!c.splatted && c.vel.y < -0.18) {
+        if (!c.splatted && c.vel.y < -0.05) {
           c.splatted = true;
           this.onLand?.(_v.set(root.position.x, c.floor, root.position.z), c.r, true, c.splatColor, c.style);
         }
