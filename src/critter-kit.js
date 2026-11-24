@@ -245,3 +245,34 @@ export function bugNormalMap(kind, repeat = 3) {
   NORMAL_MAPS[key] = tex;
   return tex;
 }
+
+// ------------------------------------------------------------------ hybrid hero-bug GLB loader
+// Loads a compressed GLB created by `node tools/bug-import.mjs` into a { [partName]: { geometry, material } }
+// map so critters.js can attach scanned rigid shells onto procedural pivots + GaitRig 2-bone IK legs while
+// staying 100% instanced inside Batcher (src/batch.js). Cached per URL; returns null on missing asset.
+const BUG_GLBS = new Map();
+export function loadBugParts(url, { patchMaterial } = {}) {
+  if (BUG_GLBS.has(url)) return BUG_GLBS.get(url);
+  const p = (async () => {
+    const [{ GLTFLoader }, { fetchModel, meshoptDecoder }] = await Promise.all([
+      import('three/addons/loaders/GLTFLoader.js'),
+      import('./apartment.js'),
+    ]);
+    const decoder = await meshoptDecoder();
+    const buffer = await fetchModel(url, null, !!decoder);
+    const loader = new GLTFLoader();
+    if (decoder) loader.setMeshoptDecoder(decoder);
+    const { scene } = await loader.parseAsync(buffer, '');
+    const out = {};
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const name = o.parent?.name || o.name || 'shell';
+      if (patchMaterial) patchMaterial(o.material);
+      out[name] = { geometry: o.geometry, material: o.material };
+    });
+    return out;
+  })().catch(() => { BUG_GLBS.delete(url); return null; });
+  BUG_GLBS.set(url, p);
+  return p;
+}
+
