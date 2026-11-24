@@ -324,7 +324,7 @@ export class Shark {
     for(const q of this.tornadoes)q.m.visible=false;this.tornadoes.length=0;
     for(const s of this.shots)this.fx.free(s.m);this.shots.length=0;this.fish.count=0;
   }
-  recover(){this.clearWarning();this.phase='rest';this.elapsed=0;this.model.visible=true;this.fin.visible=false;this.lift=0;this.crouch=0;this.model.position.y=.15*K;this.model.rotation.x=-.4;}
+  recover(){this.clearWarning();this.phase='rest';this.elapsed=0;this.model.visible=true;this.fin.visible=false;this.lift=0;this.crouch=0;this.settle=Math.max(this.settle,.75);}
   updateWater(dt,player){
     const a=this.def.skills.arrival,U=this.water.material.uniforms;
     this.flooded=clamp((this.arrivalT-a.barrier-a.breach)/a.flood,0,1);
@@ -386,7 +386,7 @@ export class Shark {
     const turn=Math.atan2(player.position.x-this.position.x,player.position.z-this.position.z);
     const delta=Math.atan2(Math.sin(turn-this.heading),Math.cos(turn-this.heading));
     const headTurn=clamp(delta,-.38,.38);
-    this.settle=Math.max(0,this.settle-dt*3.5);
+    this.settle=Math.max(0,this.settle-dt*2.4);
     this.sway=mix(this.sway,clamp(delta,-1,1),1-Math.exp(-6*dt));
     const walking=this.phase==='rest'&&this.position.distanceTo(player.position)>.42;
     this.walkBlend=mix(this.walkBlend,walking?1:0,1-Math.exp(-8*dt));
@@ -396,7 +396,7 @@ export class Shark {
     tailSwing+=this.sway*.52;
     roll=this.sway*.15+stride*.095*this.walkBlend+Math.sin(this.t*1.8)*.03;
     headPitch=Math.sin(this.t*2.4)*.05;
-    coil=this.settle*.75;stretch=-this.settle*.6;
+    coil=this.settle*.75;stretch=-this.settle*.55;
     this.lift=Math.abs(stride)*.015*this.walkBlend;
 
     if(!this.ready){
@@ -424,25 +424,26 @@ export class Shark {
       const sk=this.skill(), progress=clamp(this.elapsed/sk.windup,0,1), ep=ease(progress);
       const difference=Math.atan2(Math.sin(this.aimHeading-this.heading),Math.cos(this.aimHeading-this.heading));
       this.heading+=clamp(difference,-dt*4,dt*4);
-      // Coiled anticipation + tension tremor near peak + wide-eyed lock snap at >0.88
-      const quiver=!calm&&progress>.65?Math.sin(this.t*46)*(progress-.65)*2.2:0;
-      gape=ep*1.05;tilt-=Math.sin(progress*Math.PI)*.28;
-      headPitch=-ep*.32+quiver*.04;headRoll=quiver*.08;
-      coil=ep*1.45;tailSwing=-Math.sin(progress*Math.PI)*.55+quiver*.15;
-      stretch=-Math.sin(progress*Math.PI)*.55;finFlare=ep*.65;
-      squint=progress>.88?-.65:ep*.85;
+      // Coiled anticipation: smooth pull-back, tense hold with quiver, wide-eyed lock snap at >0.86
+      const hold=ease(clamp(progress/.72,0,1));
+      const quiver=!calm&&progress>.62?Math.sin(this.t*46)*(progress-.62)*2.1:0;
+      gape=hold*1.12;tilt-=Math.sin(hold*Math.PI*.85)*.30;
+      headPitch=-hold*.34+quiver*.04;headRoll=quiver*.08;
+      coil=hold*1.5;tailSwing=-Math.sin(hold*Math.PI*.85)*.6+quiver*.15;
+      stretch=-Math.sin(hold*Math.PI*.85)*.55;finFlare=hold*.72;
+      squint=progress>.86?-.65:hold*.85;
       if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
         // Dramatic nose-dive arch with tail kicking high into the air before submerging
         tilt+=ep*1.35;headPitch=ep*.28;this.lift=-ep*.60;left=right=-ep*.75;tailCurl=ep*.8;
       }else if(this.state==='leap'){
         // Deep squashed plush crouch before torpedo launch
-        this.crouch=ep*.055;this.squash=Math.max(this.squash,ep*.55);left=right=-ep*.85;finFlare=ep*.9;
+        this.crouch=hold*.06;this.squash=Math.max(this.squash,hold*.58);left=right=-hold*.85;finFlare=hold*.9;
       }else if(this.state==='combo'&&this.beat===1){
         // Huge right-banked Haymaker wind-back for left flipper slap
-        left=-ep*1.45;right=ep*.45;roll=ep*.28;headRoll=-ep*.2;tailCurl=-ep*.8;
+        left=-hold*1.5;right=hold*.48;roll=hold*.30;headRoll=-hold*.22;tailCurl=-hold*.85;
       }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){
         // Tight counter-coil twisting back before the 360 whip-spin
-        roll=-Math.sin(progress*Math.PI)*.32;coil=ep*1.85;tailCurl=-ep*1.2;headRoll=ep*.24;
+        roll=-Math.sin(hold*Math.PI*.85)*.34;coil=hold*1.9;tailCurl=-hold*1.25;headRoll=hold*.24;
       }
       if(this.warning){this.warning.floor.material.progress=this.warning.volume.material.progress=progress;this.warning.floor.material.time=this.t;}
       if(progress>=1)this.release(player);
@@ -482,34 +483,38 @@ export class Shark {
         }}
     }else if(this.phase==='active'){
       const sk=this.skill(), p=clamp(this.elapsed/sk.active,0,1), sp=Math.sin(p*Math.PI);
+      const spinU=ease(p);   // smooth shark-like S-curve acceleration into whip & weighted coast-out
       gape=Math.max(.04,(1-p)*1.05);tailSwing+=sp*1.15;
       stretch=sp*.85;coil=-sp*.95;squint=-sp*.55;finFlare=sp*.6;
       if(['bite','rear','combo','spin'].includes(this.state)){
         const bite=this.state==='bite'||this.state==='rear'||(this.state==='combo'&&this.beat===0);
         const sweep=this.state==='spin'||(this.state==='combo'&&this.beat===2);
         if(bite){
-          // Snappy chomp: jaws slam shut at p=.33 with downward head-whip overshoot & plush rebound
-          gape=1.15*Math.max(0,1-p/.33);
-          this.crouch=Math.sin(Math.min(1,p/.66)*Math.PI)*.18;
-          tilt+=this.crouch*2.9;
-          headPitch=p<.33?-((1-p/.33)*.32):Math.sin(clamp((p-.33)/.67,0,1)*Math.PI)*.32;
-          this.position.copy(this.start).addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),sp*.10);this.clampIn(this.position);
+          // 3-beat predatory chomp: explosive lunge & jaw slam (0..0.28) -> clenched overshoot hold (0.28..0.52) -> smooth recoil settle (0.52..1)
+          const snap=clamp(p/.28,0,1), rec=clamp((p-.28)/.72,0,1);
+          gape=1.15*Math.max(0,1-snap*snap);
+          const lungeCurve=p<.28?ease(snap):1-ease(clamp((p-.45)/.55,0,1));
+          this.crouch=lungeCurve*.17;
+          tilt+=this.crouch*2.8;
+          headPitch=p<.28?-((1-snap)*.34):Math.sin(rec*Math.PI)*.34*(1-rec*.4);
+          coil=p<.28?mix(1.1,-.9,snap):mix(-.9,.2,ease(rec));
+          this.position.copy(this.start).addScaledVector(V(Math.sin(this.heading),0,Math.cos(this.heading)),lungeCurve*.11);this.clampIn(this.position);
         }
-        const contact=sweep?arcHits(this.warning.at,.08,this.warning.r,this.aimHeading+this.lastSpinProgress*Math.PI*2+Math.PI,this.aimHeading+p*Math.PI*2+Math.PI,this.warning.height,player.position,player.cfg):p>=(bite ? .33 : .5);
+        const contact=sweep?arcHits(this.warning.at,.08,this.warning.r,this.aimHeading+this.lastSpinProgress*Math.PI*2+Math.PI,this.aimHeading+spinU*Math.PI*2+Math.PI,this.warning.height,player.position,player.cfg):p>=(bite ? .28 : .42);
         if(!this.struck&&contact){
           // Damage callbacks can synchronously kill or stun the attacker.
           const warning=this.warning;this.struck=true;this.hit(player,warning.at,warning.r,warning.height,sk.dmg,bite);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};
-          this.burst(warning.at,warning.r);if(bite){this.headKickV+=5;sfx.sharkChomp();}else sfx.sharkSwish(1.2);
+          this.burst(warning.at,warning.r);if(bite){this.headKickV+=5.5;sfx.sharkChomp();}else sfx.sharkSwish(1.2);
           if(!sweep)this.clearWarning();
         }
-        this.lastSpinProgress=p;
+        this.lastSpinProgress=spinU;
       }
       if(this.state==='leap'){
-        // Torpedo nose-up launch -> nose-down predatory dive-bomb -> massive belly-flop splash!
+        // Torpedo nose-up launch -> buoyant apex -> nose-down predatory dive-bomb -> massive belly-flop splash!
         this.position.lerpVectors(this.start,this.target,ease(p));this.floor=mix(this.start.y,this.target.y,p);this.lift=sp*sk.apex;
         tilt=-.4+Math.cos(p*Math.PI)*-.85+.35;
-        headPitch=Math.cos(p*Math.PI)*-.26;
+        headPitch=Math.cos(p*Math.PI)*-.28;
         left=right=-sp*1.05;tailSwing*=.55;coil=sp*1.45;stretch=sp*1.1;finFlare=sp*.85;
         if(p>=1){const r=this.warning.r;this.burst(this.target,r,true);this.hit(player,this.target,r,sk.height,sk.dmg,false,false);if(this.dead||this.dying||this.phase!=='active')return{push:null};this.clearWarning();}
       }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
@@ -524,10 +529,11 @@ export class Shark {
           if(this.state==='tornado'||this.state==='maelstrom')this.hit(player,this.position,sk.radius,sk.height,sk.dmg,false,false);
           if(this.dead||this.dying||this.phase!=='active')return{push:null};}
       }else if(this.state==='spin'||(this.state==='combo'&&this.beat===2)){
-        this.heading=this.aimHeading+p*Math.PI*2;roll=sp*.36;coil=sp*1.65;tailCurl=sp*1.35;finFlare=sp*.9;
+        this.heading=this.aimHeading+spinU*Math.PI*2;roll=sp*.38;coil=sp*1.65;tailCurl=sp*1.4;finFlare=sp*.9;
       }else if(this.state==='combo'&&this.beat===1){
-        // Exaggerated left-flipper Haymaker sweep across the front!
-        left=sp*1.85;right=-sp*.55;roll=-sp*.32;headRoll=sp*.22;tailCurl=sp*.9;
+        // Fast accelerating left-flipper Haymaker slap (0..0.42) + weighted follow-through decel (0.42..1)
+        const swing=p<.42?ease(p/.42):1-ease(clamp((p-.55)/.45,0,1))*.85;
+        left=mix(-1.2,1.85,swing);right=-swing*.55;roll=-swing*.34;headRoll=swing*.24;tailCurl=swing*.95;
       }else this.lift=sp*.045;
       if(p>=1){
         if(this.state==='combo'&&this.beat<2){this.beat++;this.phase='windup';this.elapsed=0;this.aim(player);this.prepare(player);}
@@ -538,9 +544,9 @@ export class Shark {
     if(this.phase!=='active'&&(this.groundT-=dt)<=0){this.groundT=.15;this.floor=this.floorAt(this.position);}
     this.position.y=this.floor;this.holder.rotation.y=this.heading;
     this.model.rig.clipPlane.constant=-this.floor;
-    const blend=1-Math.exp(-16*dt);
+    const blend=1-Math.exp(-12*dt);
     this.visualTilt=mix(this.visualTilt,tilt,blend);this.visualRoll=mix(this.visualRoll,roll+this.flinch,blend);
-    // The jaw remains frame-exact; secondary body motion & plush springs ease between poses.
+    // The jaw remains frame-exact; secondary body motion & plush springs ease smoothly between poses.
     this.model.position.y=.15*K+this.lift-this.crouch;this.model.rotation.set(this.visualTilt,0,this.visualRoll);
     this.model.pose({
       gape,headTurn,headPitch:headPitch+this.headKick,headRoll:headRoll+this.flinch*.6,
