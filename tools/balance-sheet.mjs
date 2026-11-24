@@ -1671,7 +1671,7 @@ ASSUME.elitesBeaten = 2;   // Elites beaten in a cleared act, of 3: the run log 
 // What the mean cleared act on the run log earns, part by part (src/score.js actParts), and what a perfect one does
 export function meanAct(i) {
   const A = ACTS[i];
-  return actParts({ nightShare: 1, won: true, elites: ASSUME.elitesBeaten, bugsOut: 1, bugsCleared: RUN_LOG.cleared[i], damageTaken: RUN_LOG.healthLost[i], bossSeconds: RUN_LOG.bossSeconds[i] });
+  return actParts({ act: A.n, nightShare: 1, won: true, elites: ASSUME.elitesBeaten, bugsOut: 1, bugsCleared: RUN_LOG.cleared[i], damageTaken: RUN_LOG.healthLost[i], bossSeconds: RUN_LOG.bossSeconds[i] });
 }
 function sheetD1() {
   const flags = [], acts = ACTS.map((A, i) => meanAct(i)), keys = acts[0].map(([k]) => k);
@@ -1681,11 +1681,11 @@ function sheetD1() {
   const tot = acts.map((a) => a.reduce((s, [, v]) => s + v, 0)), fixed = ['night', 'bossDamage', 'bossBeaten'];
   const skillMax = perfect.filter(([k]) => !fixed.includes(k)).reduce((s, [, v]) => s + v, 0), fixedMax = perfect.filter(([k]) => fixed.includes(k)).reduce((s, [, v]) => s + v, 0);
   // clean play: the damage that pays nothing, against what the mean cleared act takes
-  const lost = RUN_LOG.healthLost, zero = lost.map((l, i) => (l >= SCORE.cleanGone ? i + 1 : 0)).filter(Boolean);
+  const lost = RUN_LOG.healthLost, zero = lost.map((l, i) => (l >= SCORE.cleanGone[i] ? i + 1 : 0)).filter(Boolean);
   if (zero.length) {
-    const want = Math.ceil(Math.max(...lost) / 0.75 / 50) * 50;
-    flags.push({ text: `Clean play pays nothing at ${SCORE.cleanGone} Health taken, and the mean cleared act loses ${lost.join(', ')} (acts 1 to 4): act${zero.length > 1 ? 's' : ''} ${zero.join(', ')} earn${zero.length > 1 ? '' : 's'} 0 of its ${r(SCORE.clean)}, so most of the part is out of reach.`,
-      knob: { at: at('src/score.js', /^ {2}cleanGone:/), change: `cleanGone: ${SCORE.cleanGone} → ${want}`, does: `the mean act in act 4 keeps ${pct(1 - Math.max(...lost) / want).slice(1)} of the part, and a clean run still takes all of it` } });
+    const want = SCORE.cleanGone.map((g, i) => Math.max(g, Math.ceil(lost[i] / 0.75 / 50) * 50));
+    flags.push({ text: `Clean play pays nothing at ${SCORE.cleanGone.join(' / ')} Health taken (acts 1 to 4), and the mean cleared act loses ${lost.join(', ')} (acts 1 to 4): act${zero.length > 1 ? 's' : ''} ${zero.join(', ')} earn${zero.length > 1 ? '' : 's'} 0 of its ${r(SCORE.clean)}, so most of the part is out of reach.`,
+      knob: { at: at('src/score.js', /^ {2}cleanGone:/), change: `cleanGone: [${SCORE.cleanGone.join(', ')}] → [${want.join(', ')}]`, does: `the mean act in act 4 keeps ${pct(1 - lost[3] / want[3]).slice(1)} of the part, and a clean run still takes all of it` } });
   }
   // pace: the mean Boss fight sits near the top of the range in acts 1 to 3
   const paceShare = RUN_LOG.bossSeconds.map((t) => Math.max(0, Math.min(1, (SCORE.paceNone - t) / (SCORE.paceNone - SCORE.paceFull))));

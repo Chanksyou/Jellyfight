@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import worker, { checkRun, WAVES, top, seasonOf } from '../worker/index.js';
 import { readFileSync } from 'node:fs';
 import { ACHIEVEMENTS } from '../src/achievements.js';
-import { SEASON, actScore } from '../src/score.js';
+import { SCORE, SEASON, actScore } from '../src/score.js';
 
 const sqlite = new DatabaseSync(':memory:');
 let rateBarrier = null;
@@ -39,22 +39,23 @@ const request = async (path, body) => {
 };
 // a score backed by a logged run: acts finished with those scores (the Worker checks them: checkRun) and, in each
 // act's details, score facts that add up to what the act earned (the Worker scores the run itself: src/score.js)
-function factsFor(points, won, time = 300) {
-  const f = won ? { nightShare: 0, bossShare: 1, bugsOut: 100, bugsCleared: 0, damageTaken: 100, bossSeconds: Math.max(10, Math.min(180, time)) }
-    : { nightShare: 0, bossShare: 0, bugsOut: 100, bugsCleared: 0, damageTaken: 0, bossSeconds: null };
+function factsFor(points, won, time = 300, act = 1) {
+  const gone = SCORE.cleanGone[act - 1];
+  const f = won ? { act, nightShare: 0, bossShare: 1, bugsOut: 100, bugsCleared: 0, damageTaken: gone, bossSeconds: Math.max(10, Math.min(180, time)) }
+    : { act, nightShare: 0, bossShare: 0, bugsOut: 100, bugsCleared: 0, damageTaken: 0, bossSeconds: null };
   let r = points - actScore({ ...f, won, elites: 0 }), elites = Math.max(0, Math.min(3, Math.floor(r / 500)));
   r -= elites * 500;
   const night = Math.max(0, Math.min(2000, Math.floor(r / 20) * 20)); f.nightShare = night / 2000; r -= night;
-  if (won) { const c = Math.max(0, Math.min(2000, Math.floor(r / 20) * 20)); f.damageTaken = 100 - c / 20; r -= c; }
+  if (won) { const c = Math.max(0, Math.min(2000, Math.floor(r / 20) * 20)); f.damageTaken = gone - c * gone / 2000; r -= c; }
   else { const b = Math.max(0, Math.min(3000, Math.floor(r / 30) * 30)); f.bossShare = b / 3000; r -= b; }
-  f.bugsCleared = r / 10;
-  if (actScore({ ...f, won, elites }) !== points || !Number.isInteger(f.bugsCleared) || f.bugsCleared > 100) throw new Error(`no act earns ${points}${won ? ' cleared' : ''}`);
+  f.bugsCleared = r / 10; delete f.act;
+  if (actScore({ ...f, act, won, elites }) !== points || !Number.isInteger(f.bugsCleared) || f.bugsCleared > 100) throw new Error(`no act earns ${points}${won ? ' cleared' : ''}`);
   return { facts: f, elites };
 }
 const logAct = (id, run, act, outcome, extra = {}) => {
   const before = sqlite.prepare('SELECT score FROM run_summaries WHERE player_id = ? AND run_id = ? AND act = ?').get(id, run, act - 1)?.score ?? 0;
   const time = extra.time ?? 300, score = extra.score ?? 0;
-  const made = extra.facts ? { facts: extra.facts, elites: 0 } : factsFor(score - before, outcome === 'next-act' || outcome === 'won', time);
+  const made = extra.facts ? { facts: extra.facts, elites: 0 } : factsFor(score - before, outcome === 'next-act' || outcome === 'won', time, act);
   const details = JSON.stringify({ season: SEASON, elitesBeaten: made.elites, ...(extra.details ? JSON.parse(extra.details) : {}), score: made.facts });
   sqlite.prepare(`INSERT OR REPLACE INTO run_summaries
   (player_id, run_id, act, at, updated_at, revision, finalized, outcome, score, time, level, treasures, details, boss_left)
@@ -455,7 +456,7 @@ test('a jelly type run with up to 4 Attack upgrades (one at the start, one per b
 
 // One logged act as checkRun reads it: `points` this act earned (facts made by factsFor), changed by `facts` / `details`
 const act = (n, outcome, score, points, { facts = {}, details = {}, time = 300 } = {}) => {
-  const made = factsFor(points, outcome === 'next-act' || outcome === 'won', time);
+  const made = factsFor(points, outcome === 'next-act' || outcome === 'won', time, n);
   return { act: n, outcome, finalized: 1, score, time, level: 10, treasures: '[]', boss_left: null,
     details: JSON.stringify({ season: SEASON, elitesBeaten: made.elites, ...details, score: { ...made.facts, ...facts } }) };
 };
