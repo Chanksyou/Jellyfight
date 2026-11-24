@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v689 makes Clean play last longer in later acts: it now pays down to nothing at 100, 250, 300 and 350 Health taken in acts 1 to 4, so a hard-fought clear in act 2 to 4 still earns part of it.
+
 v688 Chests are easier to grab: a golden chest now opens from about 8 cm away, instead of 4 cm, so a swim past or a rush through Warnings takes it. The Goodie Bag's second chest can no longer turn up inside a wall: it always lands on open floor beside the first, or on the same spot.
 
 v687 gives Act 3's Great White One shark weightier, smoother attack timings (lengthening active/follow-through windows on bites, combo beats, spins, leaps, and breaches), adds non-linear strike/hold/recoil curves, and removes the hard rotation snap on recovery so attacks flow organically into swimming.
