@@ -1604,7 +1604,7 @@ export function buildDragonfly() {
   }
 
   let t = 0, dart = 0, glide = 0;
-  // its beam and whirlwind (attack-motion "throw", src/attack-motion.js). Charging the beam it draws back, its wings
+  // its beam and whirlwind (attack-motion "throw", src/attack-motion.js). Winding up the rotor, its wings
   // stop dead and its tail curls up and forward over its back, holding quivering; the beam snaps the tail straight,
   // stretched along it, then it rocks back (knocked back if it hit, nose dipping if it missed) and the wings restart,
   // fore pair first. Winding up the whirlwind its wings beat faster and sweep forward as it leans back, freezing

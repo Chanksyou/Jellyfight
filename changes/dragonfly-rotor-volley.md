@@ -1,0 +1,1 @@
+gives the Dragonfly a new attack and takes its beam away: it spins up a two-blade rotor two jelly radii across and flings it at you three times in a row, 0.3 s apart along the same line, with no pull on you.

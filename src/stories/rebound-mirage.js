@@ -88,22 +88,21 @@ story('treasures/decoy', {
 });
 
 story('evolutions/mirage-real-collisions', {
-  about: 'Pokes, beams, leaps, swats and whips hitting the ghost never damage the distant real jelly. Contact with the real jelly remains dangerous.',
+  about: 'Pokes, leaps, swats and whips hitting the ghost never damage the distant real jelly. Contact with the real jelly remains dangerous.',
   setup() { setupFight({ hurt: true, bubbles: false, lash: false }); evolve('mirage'); },
   play() {
     const { run, player, enemies } = G(), M = leaveGhost();
     player.position.x += 0.7;
     const e = spawn('roach', M.position.clone(), { still: true, hp: 100 });
-    e.pokeAt = M.center.clone(); e.beamDir = V(0, 0, 1); e.swatDir = V(0, 0, 1); e.whipDir = V(0, 0, 1);
+    e.pokeAt = M.center.clone(); e.swatDir = V(0, 0, 1); e.whipDir = V(0, 0, 1);
     const c = { pc: M.center, foot: M.position, realPc: player.position.clone().add(V(0, run.cfg.height * 0.5, 0)), realFoot: player.position };
     const log = record('damage_taken');
     enemies.poke(e, c, 2); enemies.slam(e, c, 0.08, 2);
-    enemies.beam(e, c, { reach: 0.1, width: 0.01, dmg: 2 });
     enemies.swat(e, c, { reach: 0.1, arc: 90, dmg: 2 });
     enemies.whip(e, c, { reach: 0.1, width: 0.01, dmg: 2 });
     const safe = !log.some(d => d.targetId === PLAYER);
-    e.beamDir.copy(c.realPc).sub(enemies.center(e)).normalize();
-    enemies.beam(e, c, { reach: 1, width: 0.01, dmg: 2 });
+    e.whipDir.copy(c.realPc).sub(enemies.center(e)).normalize();
+    enemies.whip(e, c, { reach: 1, width: 0.01, dmg: 2 });
     const lockedHit = log.some(d => d.targetId === PLAYER);
     log.length = 0;
     e.pos.copy(player.position); run.iFrames = 0; run.contactDamage();

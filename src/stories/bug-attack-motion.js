@@ -1,5 +1,5 @@
 // Stories: the basic bugs' attack animation (plan: enemy-attack-anim). Animation is drawn on a bug's body
-// group and never moves a hit: `attacks/animation-never-moves-a-hit` replays all 17 basic attacks on a
+// group and never moves a hit: `attacks/animation-never-moves-a-hit` replays all 16 basic attacks on a
 // fixed seed and compares, with bug-attack-hits.json (recorded from main before any animation work,
 // `node tools/record-bug-hits.mjs`), the frames from the attack's start to its hit test and where the
 // bug stood and aimed at that moment.
@@ -16,7 +16,6 @@ import { G, fresh, holdJelly, near, offs, ok, spawn, step, stub, story, tp } fro
 
 // Each attack: the bug, where it starts (m from the jelly, along +x and +z), what says its attack has
 // begun, and the enemies.js method that tests the hit (`aim` names the point it tests, if it has one).
-// The two Dragonfly attacks are told apart by switching the other off (`off`).
 const aimed = (e, at) => at;
 export const ATTACKS = [
   { id: 'roach', type: 'roach', at: [0.3, 0], begin: (e) => e.pos.distanceTo(G().player.position) < 0.2, hit: 'touch' },
@@ -27,8 +26,7 @@ export const ATTACKS = [
   { id: 'spider', type: 'spider', at: [0.5, 0], begin: (e) => e.aimT > 0, hit: 'spit', aim: aimed },
   { id: 'millipede', type: 'millipede', at: [0.3, 0], begin: (e) => e.state === 'curl', hit: 'ballGo' },
   { id: 'ladybug', type: 'ladybug', at: [0.3, 0], begin: (e) => e.state === 'aim', hit: 'launchMissile' },
-  { id: 'dragonfly-beam', type: 'dragonfly', at: [0.4, 0], begin: (e) => e.state === 'charge', hit: 'beam', off: 'whirlCd' },
-  { id: 'dragonfly-whirlwind', type: 'dragonfly', at: [0.4, 0], begin: (e) => e.state === 'whirl', hit: 'whirlFling', aim: aimed, off: 'beamCd' },
+  { id: 'dragonfly-whirlwind', type: 'dragonfly', at: [0.4, 0], begin: (e) => e.state === 'whirl', hit: 'whirlFling', aim: aimed },
   { id: 'mantis', type: 'mantis', at: [0.25, 0], begin: (e) => e.state === 'windup', hit: 'swat' },
   { id: 'worm', type: 'worm', at: [0.25, 0], begin: (e) => e.state === 'windup', hit: 'whip' },
   { id: 'beetle', type: 'beetle', at: [0.4, 0], begin: (e) => e.state === 'charge', hit: 'sparkShot', aim: aimed },
@@ -91,7 +89,7 @@ export function measure(a) {
 export const measureAll = () => Object.fromEntries(ATTACKS.map((a) => [a.id, measure(a)]));
 
 story('attacks/animation-never-moves-a-hit', {
-  about: 'All 17 basic bug attacks, played on a fixed seed with the jelly held still, test their hit on the same frame after the attack begins, and from the same spot, facing and aim as when bug-attack-hits.json was recorded: attack animation never moves a hit.',
+  about: 'All 16 basic bug attacks, played on a fixed seed with the jelly held still, test their hit on the same frame after the attack begins, and from the same spot, facing and aim as when bug-attack-hits.json was recorded: attack animation never moves a hit.',
   setup() {},
   async play() {
     const fixture = await (await fetch('src/stories/bug-attack-hits.json')).json();
@@ -202,11 +200,11 @@ story('vocabulary/every-basic-bug-has-an-attack-motion', {
 
 // the bugs converted to an attack-motion, each filmed through one attack
 const THROWS = ['ants', 'spider', 'firefly', 'ladybug', 'beetle'];   // (the throw style: aimed Shots)
-const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'butterfly', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-beam', 'dragonfly-whirlwind', ...THROWS];
+const CONVERTED = ['roach', 'mosquito', 'housefly', 'wasp', 'lanternfly', 'butterfly', 'cicada', 'mantis', 'worm', 'millipede', 'dragonfly-whirlwind', ...THROWS];
 // a Wasp that stings dies doing it, so only its miss has a recoil to film
 const filmed = (id, o = {}) => film(id, { miss: id === 'wasp', probe: PROBES[id], ...o });
 story('motion/attack-has-three-phases', {
-  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Monarch butterfly\'s prism, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s beam and whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
+  about: 'Each converted bug\'s attack (the Cockroach\'s nip, the Mosquito\'s bite, the House fly\'s poke, the Wasp\'s dive, the Spotted lanternfly\'s leap, the Monarch butterfly\'s prism, the Cicada\'s burrow, the Praying mantis\'s swat, the Horsehair worm\'s whip, the Giant millipede\'s roll, the Dragonfly\'s whirlwind, and the Ant, House spider, Firefly, Ladybug and Stag beetle throws) runs build-up, swing, recoil in that order on its attack clock, and its body\'s pose differs from its idle pose in each.',
   setup() {},
   play() {
     const out = {};
@@ -761,30 +759,16 @@ const spread = (F, i) => { const v = F.map((f) => f.p[i]); return Math.max(...v)
 const flapped = (F) => Math.max(...F.map((f) => f.p[1]));   // how far a fore wing is off flat, at most
 
 story('motion/dragonfly-charge-shows-on-its-body', {
-  about: 'With the sound off (the stage mutes it), a Dragonfly charging its beam changes its outline: it draws back, its tail curls up over its back past 15 degrees and its wings stop dead (they beat before and restart after); winding up its whirlwind its wings sweep forward past 15 degrees and freeze when the aim locks while it leans back. Neither moves it more than 0.35 of its radius, and the tell is a pose, never a colour.',
+  about: 'With the sound off (the stage mutes it), a Dragonfly winding up its rotor sweeps its wings forward past 15 degrees and freezes them when the aim locks while it leans back. That never moves it more than 0.35 of its radius, and the tell is a pose, never a colour.',
   setup() {},
   play() {
     const out = {}, deg15 = 15 * Math.PI / 180;
-    const B = film('dragonfly-beam', { probe: dragonflyProbe }), Bb = of(B, 'build'), Bl = Bb.filter((f) => f.k >= 0.8), Br = of(B, 'recoil');
-    out.beam = { tail: +Math.max(...Bl.map((f) => f.p[0])).toFixed(2), back: +Math.min(...Bl.map((f) => f.z)).toFixed(3), stopped: +flapped(Bl).toFixed(4), before: +flapped(B.slice(0, 1)).toFixed(2), restarted: +flapped(Br.filter((f) => f.k >= 0.8)).toFixed(2) };
-    const beam = out.beam.tail > deg15 && out.beam.back < -0.1 && out.beam.stopped < 0.01 && out.beam.restarted > 0.1;
     const W = film('dragonfly-whirlwind', { probe: dragonflyProbe }), Wb = of(W, 'build'), Wl = Wb.filter((f) => f.k >= 0.75), Wc = Wb.filter((f) => f.k >= 0.15 && f.k <= 0.5);
     out.whirl = { sweep: +Math.max(...Wl.map((f) => f.p[2])).toFixed(2), lean: +Math.min(...Wl.map((f) => f.rx)).toFixed(2), frozen: +spread(Wl, 1).toFixed(4), beating: +spread(Wc, 1).toFixed(2) };
     const whirl = out.whirl.sweep > deg15 && out.whirl.lean < -0.2 && out.whirl.frozen < 0.01 && out.whirl.beating > 0.1;
-    const reach = Math.max(...[...B, ...W].filter((f) => f.phase !== 'idle').map((f) => Math.abs(f.z)));
-    const recoloured = [...B, ...W].filter((f) => f.phase !== 'idle' && f.recolour).length;
-    return ok(beam && whirl && reach <= 0.35 && !recoloured, { ...out, reach: +reach.toFixed(3), recoloured });
-  },
-});
-
-story('motion/dragonfly-beam-hit-and-miss-differ', {
-  about: 'A Dragonfly whose beam lands is knocked back (and its eyes shut) while one that misses nods its nose down instead, so the moment to hit back shows on the bug; the beam counts as landed on the frame its charge runs out.',
-  setup() {},
-  play() {
-    const H = of(film('dragonfly-beam'), 'recoil'), M = of(film('dragonfly-beam', { miss: true }), 'recoil');
-    const most = (R, key, sign) => Math.max(...R.map((f) => f[key] * sign)) * sign;   // furthest it goes, in the direction `sign`
-    const h = { z: most(H, 'z', -1), rx: most(H, 'rx', -1) }, m = { z: most(M, 'z', 1), rx: most(M, 'rx', 1) };
-    return ok(H[0]?.hit === true && M[0] && M[0].hit === false && h.z < -0.1 && h.rx < -0.15 && m.rx > 0.08 && m.z > 0.03, { hit: { z: +h.z.toFixed(3), rx: +h.rx.toFixed(3), hit: H[0]?.hit }, miss: { z: +m.z.toFixed(3), rx: +m.rx.toFixed(3), hit: M[0]?.hit } });
+    const reach = Math.max(...W.filter((f) => f.phase !== 'idle').map((f) => Math.abs(f.z)));
+    const recoloured = W.filter((f) => f.phase !== 'idle' && f.recolour).length;
+    return ok(whirl && reach <= 0.35 && !recoloured, { ...out, reach: +reach.toFixed(3), recoloured });
   },
 });
 

@@ -91,28 +91,18 @@
   "yaw": 4143,
   "aim": null
  },
- "dragonfly-beam": {
-  "frames": 31,
-  "pos": [
-   3363,
-   62,
-   3078
-  ],
-  "yaw": -2014,
-  "aim": null
- },
  "dragonfly-whirlwind": {
   "frames": 42,
   "pos": [
-   3113,
-   123,
-   3180
+   2888,
+   65,
+   3026
   ],
-  "yaw": 2694,
+  "yaw": 1654,
   "aim": [
-   87,
-   -78,
-   -180
+   312,
+   -21,
+   -26
   ]
  },
  "mantis": {

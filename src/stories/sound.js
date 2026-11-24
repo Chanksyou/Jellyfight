@@ -73,13 +73,13 @@ story('sound/mixes-30-ms-ahead-so-a-busy-moment-does-not-crackle', {
 });
 
 story('sound/wobbling-sounds-fade-out-without-a-pop', {
-  about: "The sounds with a wobble in their loudness (the Vacuum's suck and brushes, the millipede's rev, the dragonfly's charge hum) end in silence: the wobble fades with the sound instead of playing on after it and being cut off with a pop.",
+  about: "The sounds with a wobble in their loudness (the Vacuum's suck and brushes, the millipede's rev) end in silence: the wobble fades with the sound instead of playing on after it and being cut off with a pop.",
   setup() { setupFight(); },
   async play() {
     const S = await freshSfx(), R = 16000, tails = {};
     for (const [name, play] of Object.entries({
       vacSuction: (s) => s.vacSuction(1.5), vacBrushes: (s) => s.vacBrushes(1.2),
-      milliRev: (s) => s.milliRev(1), beamCharge: (s) => { s.beamCharge(1); },
+      milliRev: (s) => s.milliRev(1),
     })) {
       const oc = new OfflineAudioContext(1, R * 2.5, R), { when } = S.preview(oc, oc.destination);
       when(0.05); play(S.sfx);

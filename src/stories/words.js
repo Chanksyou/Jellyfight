@@ -289,7 +289,7 @@ story('words/sortie', {
 });
 story('enemies/dragonfly-model', {
   about: 'The dragonfly (act 3) is about 3 radii long and 4 across its four wings, which beat as it flies about you.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.25, 0, 0.1)); e.beamCd = e.whirlCd = 99; },
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.25, 0, 0.1)); e.whirlCd = 99; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], box = new THREE.Box3(), size = new THREE.Vector3();
     let tall = 9, high = 0, close = 9;
@@ -318,7 +318,7 @@ const darts = (e, secs, each) => {
 };
 story('words/zip', {
   about: 'The dragonfly closes in by darting: it hangs still, then zips a short way in a new direction each time (sideways, up, down, even back), not straight at you.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.7, 0, 0.1)); e.beamCd = e.whirlCd = 99; },
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.7, 0, 0.1)); e.whirlCd = 99; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], pc = player.position, start = e.pos.distanceTo(pc);
     stub(player.avatar, 'update', () => {}); // cosmetic blink timing must not choose the dragonfly's random path
@@ -337,72 +337,10 @@ story('words/zip', {
     return ok(d.length >= 8 && turn > 0.6 && notAtYou >= n / 3 && still / frames > 0.25 && closest < start - 0.25, { darts: d.length, turn: +turn.toFixed(2), notAtYou: +(notAtYou / Math.max(1, n)).toFixed(2), still: +(still / frames).toFixed(2), start: +start.toFixed(2), closest: +closest.toFixed(2) });
   },
 });
-story('words/charge-beam-sound', {
-  about: 'The dragonfly\'s charge hum stays low (no tone above 600 Hz) and a swarm can\'t stack it into noise: at most 3 hum at once, and a slot frees when one is cut off.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
-  async play() {
-    unlockAudio();
-    await new Promise((r) => setTimeout(r, 200));
-    const { ctx } = audio() || {};
-    if (!ctx || ctx.state !== 'running') return ok(false, { audio: ctx?.state ?? 'none' });
-    let top = 0;
-    const make = ctx.createOscillator;
-    ctx.createOscillator = function () {
-      const o = make.call(this), ramp = o.frequency.exponentialRampToValueAtTime.bind(o.frequency);
-      o.frequency.exponentialRampToValueAtTime = (f, t) => { top = Math.max(top, f); return ramp(f, t); };
-      return o;
-    };
-    const hums = Array.from({ length: 6 }, () => sfx.beamCharge(1));
-    ctx.createOscillator = make;
-    const playing = hums.filter(Boolean).length;
-    hums[0]?.();
-    const again = sfx.beamCharge(1);
-    for (const h of [...hums, again]) h?.();
-    return ok(playing === 3 && !!again && top > 0 && top <= 600, { playing, again: !!again, top: Math.round(top) });
-  },
-});
 const S2 = new THREE.Vector3();
-story('words/charge-beam', {
-  about: 'Within reach the dragonfly faces you and holds dead still for half a second with only a building whine for a warning (nothing on screen), then its beam hits you instantly: 3 damage.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
-  play() {
-    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    let whined = 0;
-    const real = enemies.beamCharge;
-    enemies.beamCharge = function (x, dur) { whined = dur; return real.call(this, x, dur); };
-    step(60 * 3, () => e.state === 'charge');
-    const at = e.pos.clone();
-    let held = 0, shown = false, frames = 0;
-    step(60 * 3, () => {
-      frames++;
-      held = Math.max(held, e.pos.distanceTo(at));
-      if (enemies.pokeMarks.some((m) => m.visible) || enemies.chargeMarks.some((m) => m.visible)) shown = true;
-      return log.some((d) => d.source === 'dragonfly');
-    });
-    delete enemies.beamCharge;
-    const hit = log.find((d) => d.source === 'dragonfly'), secs = frames / 60;
-    return ok(whined === 0.5 && hit?.amount === 3 && held < 0.001 && !shown && secs > 0.4 && secs < 0.6, { whined, hit: hit?.amount, held: +held.toFixed(4), shown, secs: +secs.toFixed(2) });
-  },
-});
-story('enemies/dragonfly-beam-dodge', {
-  about: 'The dragonfly\'s beam goes the way it faced when it began to charge: moving off that line during the charge makes it miss.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08)); e.beamCd = 0; },
-  play() {
-    const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken');
-    step(60 * 3, () => e.state === 'charge');
-    const charged = e.state === 'charge';
-    step(15);
-    const side = V(-e.beamDir.z, 0, e.beamDir.x).normalize(), P = player.position;
-    tp(P.x + side.x * 0.2, P.y, P.z + side.z * 0.2);
-    let fired = false;
-    step(60 * 1.5, () => { if (e.state === 'rest') fired = true; return fired; });
-    const hit = log.some((d) => d.source === 'dragonfly');
-    return ok(charged && fired && !hit, { charged, fired, hit });
-  },
-});
 story('words/evade', {
   about: 'Hit the dragonfly and it darts away in a random direction, but only once every 5 s: a second hit soon after doesn\'t move it.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.35, 0, 0.08), { hp: 999 }); e.beamCd = e.whirlCd = 99; },
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.35, 0, 0.08), { hp: 999 }); e.whirlCd = 99; },
   play() {
     const { enemies } = G(), e = enemies.list[0];
     const hitAndWatch = () => {
@@ -421,48 +359,28 @@ story('words/evade', {
     return ok(first > 0.15 && second < 0.01 && third > 0.15, { first: +first.toFixed(3), second: +second.toFixed(3), third: +third.toFixed(3) });
   },
 });
-story('enemies/dragonfly-dodge-breaks-charge', {
-  about: 'Hitting a charging dragonfly makes it dodge, and the dodge breaks off its charge: no beam.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.3, 0, 0.08), { hp: 999 }); e.beamCd = 0; },
-  play() {
-    const { enemies } = G(), e = enemies.list[0], log = record('damage_taken');
-    step(60 * 3, () => e.state === 'charge');
-    const charged = e.state === 'charge';
-    step(15);
-    bus.emit('damage_taken', { targetId: e.id, amount: 1 });
-    step(5);
-    const broke = e.state === 'approach';
-    e.beamCd = e.whirlCd = 99;
-    step(60 * 2.5);
-    const hit = log.some((d) => d.source === 'dragonfly' && d.amount === 3);   // the beam (not a brush against it as it dodges)
-    return ok(charged && broke && !hit, { charged, broke, hit });
-  },
-});
 story('words/whirlwind', {
-  about: 'The dragonfly holds still while a whirlwind of spinning blades grows in front of its head, then flings it at the jelly: a slow Shot that sucks the jelly toward it as it comes (the jelly drifts in with no input), and hits for 2.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06)); e.beamCd = 99; e.whirlCd = 0; },
+  about: 'The dragonfly holds still while a two-blade rotor, two jelly radii across, grows in front of its head, then flings it at the jelly and two more in a row along the same line, 0.3 s apart: slow Shots, the first hit for 2.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06)); e.whirlCd = 0; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), P = player.position;
     step(60 * 3, () => e.state === 'whirl');
-    const at = e.pos.clone(), grew = [];
-    let moved = 0;
+    const at = e.pos.clone(), grew = [], flung = [], fling = enemies.whirlFling.bind(enemies);   // flung: the frame each is let go
+    let moved = 0, frame = 0, across = 0;
+    enemies.whirlFling = (...a) => { across = across || a[0].whirl.size; flung.push(frame); fling(...a); };
     step(60 * 2, () => { if (e.state === 'whirl') { grew.push(e.whirlK); moved = Math.max(moved, e.pos.distanceTo(at)); } return e.state !== 'whirl'; });
-    const flung = enemies.whirls?.filter((w) => w.live && !w.held).length || 0;
-    const start = P.clone(), to = e.pos.clone().sub(P).setY(0).normalize();
-    let pulled = 0, sucking = false;
-    step(60 * 3, () => {
-      if (enemies.pull) sucking = true;
-      if (!log.some((d) => d.source === 'dragonfly')) pulled = P.clone().sub(start).setY(0).dot(to);
-      return log.some((d) => d.source === 'dragonfly');
-    });
-    const hit = log.find((d) => d.source === 'dragonfly');
+    step(60 * 2, () => { frame++; return flung.length >= 3; });
+    const gaps = flung.slice(1).map((f, i) => (f - flung[i]) / 60);
+    const seen = flung.length;
     const growing = grew.length > 20 && grew[0] < 0.1 && grew[grew.length - 1] > 0.9 && grew.every((k, i) => !i || k >= grew[i - 1]);
-    return ok(growing && moved < 0.005 && flung === 1 && sucking && pulled > 0.005 && hit?.amount === 2, { growing, moved: +moved.toFixed(4), flung, sucking, pulled: +pulled.toFixed(3), hit: hit?.amount });
+    step(60 * 4, () => log.some((d) => d.source === 'dragonfly'));
+    const hit = log.find((d) => d.source === 'dragonfly');
+    return ok(growing && moved < 0.005 && Math.abs(across - 2 * CONFIG.player.radius) < 0.003 && seen === 3 && gaps.every((g) => Math.abs(g - 0.3) < 0.05) && hit?.amount === 2, { growing, moved: +moved.toFixed(4), across: +across.toFixed(3), seen, gaps, hit: hit?.amount });
   },
 });
 story('enemies/dragonfly-whirlwind-dodge', {
   about: 'The whirlwind\'s aim locks part way through the wind-up: stepping well aside after that, it flies past and breaks up on whatever it meets, the jelly unhurt; a dodge (hitting the dragonfly) during the wind-up breaks it apart before it\'s flung.',
-  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06), { hp: 999 }); e.beamCd = 99; e.whirlCd = 0; },
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); const e = spawn('dragonfly', near(0.4, 0, 0.06), { hp: 999 }); e.whirlCd = 0; },
   play() {
     const { enemies, player } = G(), e = enemies.list[0], log = record('damage_taken'), P = player.position;
     step(60 * 3, () => e.state === 'whirl');
@@ -1061,11 +979,8 @@ feelStory('poke', 'A house fly\'s poke lands with a jab and a wet slap: it squas
 feelStory('ball-charge', 'A millipede\'s ball rolling into the jelly flashes in its amber where they meet, squashes, and leaves the jelly\'s drops on the floor with a crunch and a slap.',
   () => { spawn('millipede', near(0, -0.32)).ballCd = 0.3; },
   () => { const r = feelOfHit('millipede', 6, 5); return ok(r.contact && r.near && hitFelt(r, 'milliRoll').ok, { ...r, e: undefined }); });
-feelStory('charge-beam', 'A dragonfly\'s beam hitting the jelly: a flash on it, the dragonfly rocks back, a crack with a sizzle and the jelly\'s drops splat.',
-  () => { spawn('dragonfly', near(0.3, 0, 0.08)).beamCd = 0; },
-  () => { const r = feelOfHit('dragonfly', 4); return ok(r.near && hitFelt(r, 'beamFire').ok, { ...r, e: undefined }); });
 feelStory('whirlwind', 'A dragonfly\'s whirlwind: a whirr rising as it grows, a flash and a whoosh as it\'s flung (the dragonfly rocks back), then a flash and a gusty thump on the jelly, which is shoved on; the jelly\'s drops splat.',
-  () => { const e = spawn('dragonfly', near(0.3, 0, 0.06)); e.beamCd = 99; e.whirlCd = 0; },
+  () => { const e = spawn('dragonfly', near(0.3, 0, 0.06)); e.whirlCd = 0; },
   () => { const r = feelOfHit('dragonfly', 5, 2); return ok(r.near && hitFelt(r, 'whirlCharge', 'whirlFling', 'whirlEnd').ok, { ...r, e: undefined }); });
 feelStory('swat', 'A mantis\'s swat landing: a flash on the jelly, a snap and a wet slap, the mantis squashes, the jelly\'s drops splat.',
   () => { stub(G().run, 'contactDamage', () => {}); spawn('mantis', near(0.12, 0)).swatCd = 0.3; },   // (its touch alone, contact-feel, would keep the jelly's i-frames up)
