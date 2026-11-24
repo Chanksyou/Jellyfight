@@ -89,7 +89,7 @@ elite "bull" name="The Bull" icon="🐂" hp=800 aggro=1.0 angry=0.65 {
 //              strike, then locks, and the lid slams down there as a Blast
 //   tongue:    its mouth opens for open= s, then the tongue shoots to you in shoot= s and latches on:
 //              it can't miss. For hold= s it pulls you toward its mouth at pull= m/s (base swim speed
-//              is 0.42 m/s: config.js walkSpeed, so it takes over 143% move speed to get away, 167% angry);
+//              is 0.42 m/s: config.js walkSpeed, so at 0.36 a swimming jelly gets away at base speed; only one that stops is dragged);
 //              brought within bite= m of its middle its jaws slam shut on you (dmg=), it chews chews= times
 //              (chew= s each) and spits you back out (knock= knocks you away)
 //              and it lets go; else it lets go at the end

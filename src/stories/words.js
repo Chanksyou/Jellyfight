@@ -879,7 +879,7 @@ story('words/on-beat', {
   },
 });
 story('words/bleeds', {
-  about: 'bleeds: a mosquito\'s bite that lands makes you bleed 1 Health a second for 3 s, and a second bite stacks another on top.',
+  about: 'bleeds: a mosquito\'s bite that lands makes you bleed 1 Health a second for 2 s, and a second bite stacks another on top.',
   setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mosquito', near(0.4, 0, 0.1), { still: true }).hold = true; },
   play() {
     const e = G().enemies.list[0];
@@ -893,7 +893,7 @@ story('words/bleeds', {
     const two = bled - one;
     step(60 * 3);
     const total = bled, drips = G().run.bleeds.length;
-    return ok(Math.abs(one - 1) < 0.05 && Math.abs(two - 2) < 0.05 && Math.abs(total - 6) < 0.05 && drips === 0, { one: +one.toFixed(3), two: +two.toFixed(3), total: +total.toFixed(3), left: drips });
+    return ok(Math.abs(one - 1) < 0.05 && Math.abs(two - 2) < 0.05 && Math.abs(total - 4) < 0.05 && drips === 0, { one: +one.toFixed(3), two: +two.toFixed(3), total: +total.toFixed(3), left: drips });
   },
 });
 story('words/leap', {
