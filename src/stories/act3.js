@@ -167,9 +167,9 @@ act3('shark-water-slows-grounded-feet-by-15-percent',{
     return ok(wet.length===1&&wet[0].strength===.15&&wet[0].duration===1/60&&!log.some(e=>e.targetId===PLAYER&&e.status==='slow'),{wet,unwanted:log.length});},
 });
 act3('shark-pools-are-murky-and-the-fish-stay-visible',{
-  about:'Piranha pools have subdued brown rippling water and a faint honest boundary instead of a luminous orange fill.',setup(){},
+  about:'Feeding-frenzy fish pools have a churning crimson-indigo vortex surface, a crisp honest boundary, and 8 breaching predatory fish.',setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly();B.pool(P.position);B.hazards(.02,P);const p=B.pools[0],U=p.surface.material.uniforms;
-    return ok(U.uMurky.value===1&&U.uTime.value>0&&p.floor.material.opacity<=.12&&p.volume.material.opacity<=.12&&B.fish.count===5&&p.surface.position.y<P.position.y+.018,{murky:U.uMurky.value,warning:p.floor.material.opacity,fish:B.fish.count});},
+    return ok(U.uMurky.value===1&&U.uTime.value>0&&p.floor.material.opacity<=.14&&p.volume.material.opacity<=.14&&B.fish.count===8&&p.surface.position.y<P.position.y+.018,{murky:U.uMurky.value,warning:p.floor.material.opacity,fish:B.fish.count});},
 });
 act3('shark-jaws-and-fins-are-articulated',{
   about:'The connected chin rotates around its cheek hinge, the head leads, and the fins and tail have independent poses.',setup(){},
@@ -538,3 +538,29 @@ act3('dust-drifts-in-the-moonlight', {
     return ok(M.isPoints && shown > 20 && held && drifts && lowHides && M.visible, { shown, held, drifts, lowHides });
   },
 });
+act3('shark-living-motion-and-frenzy-pools', {
+  about: 'The Great White One has plush bounce springs, reactive hit flinch, a sinuous stalking fin, and churning feeding-frenzy fish vortex pools (8 leaping fish per pool); Reduce effects stills the vortex spin and flinch springs.',
+  setup() {},
+  play() {
+    const B = sharkFight({ hurt: false }), P = holdJelly(), wasCalm = juice.calm;
+    juice.calm = false; B.elapsed = -1e6;
+    B.damage(50);
+    const flinched = Math.abs(B.squashV) > 2 && Math.abs(B.headKickV) > 2 && Math.abs(B.flinchV) > 2;
+    B.pool(B.position);
+    step(20);
+    const pool = B.pools[0];
+    const vortexLive = pool && pool.surface.material.uniforms.uTime.value > 0 && B.fish.count >= 8;
+    // stalking dorsal fin banks and sways while buried
+    B.begin('dive', P); B.release(P);
+    let finSway = 0;
+    step(25, () => { finSway = Math.max(finSway, Math.abs(B.fin.rotation.z)); });
+    // Reduce effects stills vortex spin and flinch springs
+    juice.calm = true;
+    B.recover(); B.damage(50);
+    step(5);
+    const calmStill = B.flinch === 0 && B.headKick === 0 && (!B.pools[0] || B.pools[0].surface.material.uniforms.uTime.value === 0);
+    juice.calm = wasCalm;
+    return ok(flinched && vortexLive && finSway > 0.05 && calmStill, { flinched, vortexLive, fish: B.fish.count, finSway: +finSway.toFixed(3), calmStill });
+  },
+});
+
