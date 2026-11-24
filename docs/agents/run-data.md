@@ -152,3 +152,48 @@ Check D1 Metrics → Row Metrics for actual reads/writes and storage; indexes an
 Run reports on demand or on a modest schedule rather than scanning the full history for every page view.
 No queue service, recurring server job, automatic deletion, or aggregate cache is added until measured usage warrants it.
 Before raw history needs pruning, export it and preserve daily aggregates grouped by build, act, device, and outcome; do not silently discard balancing data.
+
+## Balance facts: offers, level-up picks, damage dealt, stats at the Boss door
+
+Four more per-act fields in `details`, all small and clamped by the Worker (`offers`, `cards`, `dealt`, `bossDoor`).
+Older reports have none; null means unknown.
+
+- `offers`: `[kind, seconds, [offered ids], picked id]` per pick, in order, up to 48. `kind` is `chest` (a room chest or Elite Treasure), `legendary` (the Boss reward, evolutions included) or `upgrade` (an Attack upgrade).
+- `cards`: `[seconds, [stat-rarity shown], stat-rarity picked]` per level-up, up to 48. A reroll shows new cards; only the set the player chose from is kept.
+- `dealt`: damage the jelly's sources dealt this act, by `source` (`bubble`, `tentacle`, `fire`, `lightning`, each gadget's label…). It is the amount as the event sent it, before marks, Brittle and the like, and includes overkill. Boss and Elite hits count.
+- `bossDoor`: the jelly's `level` and every base stat (as the Treasures and cards made them, rounded to 2 places) as the Boss fight begins. Absent if the act ended before the Boss.
+
+Pick rate when offered, by build (a Treasure's id appears in `offers` each time it was shown):
+
+```sql
+SELECT o.value ->> 1 AS kind, i.value AS item,
+       COUNT(*) AS offered,
+       SUM(i.value = (o.value ->> 3)) AS taken,
+       ROUND(100.0 * SUM(i.value = (o.value ->> 3)) / COUNT(*), 1) AS pick_pct
+FROM run_summaries r, json_each(r.details, '$.offers') o, json_each(o.value, '$[2]') i
+WHERE r.build = 'vNNN' AND r.finalized = 1
+GROUP BY kind, item
+ORDER BY pick_pct DESC;
+```
+
+Level-up card pick rate (same shape, on `$.cards` with `$[1]` shown and `$[2]` picked), and each source's share of damage:
+
+```sql
+SELECT r.act, j.key AS source, ROUND(SUM(j.value), 0) AS dealt
+FROM run_summaries r, json_each(r.details, '$.dealt') j
+WHERE r.build = 'vNNN' AND r.finalized = 1
+GROUP BY r.act, j.key ORDER BY r.act, dealt DESC;
+```
+
+Stats at the Boss door, by act and how it ended:
+
+```sql
+SELECT act, outcome, COUNT(*) AS n,
+       ROUND(AVG(json_extract(details, '$.bossDoor.level')), 1) AS level,
+       ROUND(AVG(json_extract(details, '$.bossDoor.fireRate')), 2) AS fire_rate,
+       ROUND(AVG(json_extract(details, '$.bossDoor.bubbleDamage')), 2) AS attack_damage,
+       ROUND(AVG(json_extract(details, '$.bossDoor.health')), 1) AS health
+FROM run_summaries
+WHERE build = 'vNNN' AND json_extract(details, '$.bossDoor') IS NOT NULL
+GROUP BY act, outcome;
+```
