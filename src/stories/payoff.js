@@ -131,6 +131,32 @@ story('payoff/picked-treasure-flies-to-its-row-slot', {
   },
 });
 
+story('payoff/legendary-and-attack-upgrade-picks-can-be-skipped', {
+  about: 'The Legendary pick and the Attack upgrade pick each have a Skip button: it takes nothing (no Treasure, evolution or Attack upgrade added), closes the cards and carries on. Level-up and chest picks have none.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { run } = G();
+    let carried = 0;
+    const before = { owned: run.owned.size, evolved: run.evolved.length, upgrades: run.upgrades.length };
+    run.pickLegendary('A Legendary treasure', 'x', () => carried++);
+    const legendary = !!modal().querySelector('[data-skip]');
+    modal().querySelector('[data-skip]').click();
+    step(60);
+    const closed1 = modal().hidden;
+    run.pickUpgrade({ id: 2 }, () => carried++);
+    const upgrade = !!modal().querySelector('[data-skip]');
+    modal().querySelector('[data-skip]').click();
+    step(60);
+    const closed2 = modal().hidden;
+    run.pickTreasure();
+    const chest = !modal().querySelector('[data-skip]');
+    [...modal().querySelectorAll('.jf-pick .jf-card')][0].click();
+    step(60);
+    const after = { owned: run.owned.size, evolved: run.evolved.length, upgrades: run.upgrades.length };
+    return ok(legendary && upgrade && chest && closed1 && closed2 && carried === 2 && after.evolved === before.evolved && after.upgrades === before.upgrades && after.owned === before.owned + 1, { legendary, upgrade, chest, closed1, closed2, carried, before, after });
+  },
+});
+
 story('payoff/death-numbers-wait-for-the-sag', {
   about: 'On a death the jelly sags into its puddle in `death-dry-time` (0.8 s), fast at first and settling with no overshoot, and the end screen\'s numbers wait for it: its rows start arriving only once it has settled.',
   setup() { fresh({ elites: false }); },
