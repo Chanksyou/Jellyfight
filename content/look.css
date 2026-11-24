@@ -1189,6 +1189,12 @@
   --sun-dry-rough: 0.7;          /* how dull the clear bell goes (its gloss: roughness) */
   --sun-dry-tint: #5e4b32;       /* the dull dry-leather colour it fades toward (half way, fully dried) */
   --beetle-arc: #eef2ff;         /* the white-hot core of its ball and the arcs crackling round it (white, a breath of blue: never the friendly cyan) */
+  --beetle-ball-deep: #c41a00;   /* the dark red of the swirl in the stag beetle's ball (its bright bands are --hostile-beetle, its heart --beetle-fire, its rim --beetle-arc) */
+  --beetle-ball-spin: 7;         /* the stag beetle's ball in flight (energy-ball.js): how fast its bands turn round the line of flight (rad/s; Reduce effects holds them) */
+  --beetle-ball-twist: 5;        /* how tightly those bands wind along it */
+  --beetle-ball-rim: 4.5;        /* how thin its white-blue rim is (higher = thinner, hugging the edge) */
+  --beetle-ball-glow: 0.6;      /* how bright the ball is (bloom picks it up) */
+  --beetle-ball-pulse: 0.07;     /* how much it swells and shrinks, as a share of its size (looks only: the hit sphere never changes) */
   --beetle-scorch: #2a1a12;      /* the scorch its ball leaves where it bursts on the floor (fades: harmless) */
   --beetle-fire: #ffd060;        /* the yellow heart of the fireball when its ball explodes, round the orange */
   --beetle-iridescence: 1;      /* how strongly the stag beetle's green-black shell shimmers (0 = plain gloss) */

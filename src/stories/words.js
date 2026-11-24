@@ -507,6 +507,21 @@ story('words/charge-shot-blast', {
     return ok(out[0.05].hurt === 3 && out[0.05].shoved && !out[0.15].hurt && !out[0.15].shoved, out);
   },
 });
+story('enemies/stag-beetle-ball-is-an-energy-ball', {
+  about: 'The stag beetle\'s ball in flight is a shaded energy ball (its own swirling, rimmed sphere, not the flat white core): it rides the shot, pulses without changing the hit sphere, and goes back to the pool when it bursts.',
+  setup() { fresh({ hurt: true, elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); beetleAt().shotCd = 99; },
+  play() {
+    const { enemies, player, APT } = G(), scene = APT.scene, e = enemies.list[0], P = player.position;
+    enemies.sparkShot(e, V(P.x, P.y + 0.03, P.z + 0.5), { speed: 0.3, dmg: 5, size: 0.08, blast: 0.3, knock: 0.6, life: 2 });
+    step(20);
+    const s = enemies.sparkShots[0], b = s?.ball;
+    const rides = !!b && b.parent === scene && b.position.distanceTo(s.m.position) < 1e-6 && s.m.scale.x === 0;
+    const swells = !!b && b.scale.x > 0.07 && b.scale.x < 0.09 && s.size === 0.08;
+    const shaded = !!b && b.material.onBeforeCompile.toString().includes('fres') && !b.material.isMeshStandardMaterial;
+    step(60 * 4, () => !enemies.sparkShots.length);
+    return ok(rides && swells && shaded && !b.parent && enemies.energyBalls.pool.includes(b), { rides, swells, shaded, freed: !b?.parent });
+  },
+});
 story('words/hatch', {
   about: 'When the mantis dies, the worm that was inside it takes its place: where it fell, facing the same way, the mantis gone.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); spawn('mantis', near(0.4, 0), { still: true }); },
