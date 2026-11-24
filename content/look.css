@@ -1120,6 +1120,8 @@
   /* Light moving on the floor (floor-light.js) and a living city (skyline.js) */
   --floor-light-opacity: 0.28;   /* how strong a screen's pool on the floor is (the jelly's own glow stays brighter) */
   --floor-light-rate: 0.2094;    /* rad/s: how fast a screen's colours drift (2 * pi * 20 / 600, so the clock's wrap is invisible) */
+  --strip-light-colour: #ff4fd0;  /* the LED strip behind act 1's media console */
+  --strip-light-opacity: 0.6;     /* how strong its wash on the wall is */
   --floor-light-lift: 0.015;     /* m: how far above the floor a pool sits */
   --floor-light-screen: 0.32;    /* how bright the TV's own screensaver is */
   --city-windows: 0.12;          /* share of the city's lit windows that switch on and off */

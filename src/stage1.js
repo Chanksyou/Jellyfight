@@ -28,7 +28,8 @@ export const STAGE1 = {
   // Dendi asleep in his box by the cat scratcher all night (cat.js addDendi; he gets up only to finish the boss)
   cat: { at: [4.155, 0.006, 4.53], yaw: Math.PI + 0.06 },
   // Light on the floor (floor-light.js): the TV's colours on the rug in front of the media console, the monitor's by the desk
-  floorLight: [{ at: [1.62, 3.8], r: 0.7, kind: 'screen' }, { at: [1.0, 3.2], r: 0.55, kind: 'screen' }],
+  floorLight: [{ at: [1.62, 3.8], r: 0.7, kind: 'screen' }, { at: [1.0, 3.2], r: 0.55, kind: 'screen' },
+    { at: [1.65, 4.815], wall: { y: 0.72, w: 1.7, h: 1.1 }, kind: 'strip' }],   // the pink LED strip behind the media console washing the wall above it
   // The powered apartment (powered.js): the little lights on what is plugged in, and the smoke off what burns
   status: [
     { at: [0.822, 0.46, 2.85], colour: 'green', pattern: 'pulse', period: 6 },                    // the PC tower, breathing
