@@ -215,12 +215,12 @@ story('ambient/dendi-breathes-in-view-and-costs-nothing-out-of-it', {
     const withCat = calls(); d.group.visible = false; const without = calls(); d.group.visible = true;
     // out of view: no posing, no draw
     look(0, 3.5, 3.0);
-    const b = spine(); drawn(60); const still = b.angleTo(spine()) < 1e-9;
+    const b = spine(); drawn(60); const still = b.equals(spine());   // (equals, not angleTo: a quaternion that isn't exactly unit is a tiny angle from itself)
     const awayWith = calls(); d.group.visible = false; const awayWithout = calls(); d.group.visible = true;
     // Reduce effects: one pose, held
     look(Math.PI);
     juice.calm = true; drawn(5);
-    const c = spine(); drawn(40); const calm = c.angleTo(spine()) < 1e-9;
+    const c = spine(); drawn(40); const calm = c.equals(spine());
     juice.calm = false;
     return ok(breathes && still && awayWith === awayWithout && withCat > without && calm,
       { breathes, still, drawsInView: withCat - without, drawsAway: awayWith - awayWithout, calm });
