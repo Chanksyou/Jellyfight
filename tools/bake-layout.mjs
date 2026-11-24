@@ -46,6 +46,7 @@ if (acts[4]) {
 }
 let out = fs.readFileSync(FILE, 'utf8').split('\n');
 const changed = [];
+let anyChange = false;
 for (const act of Object.keys(acts).sort()) {
   const baked = BAKED_LAYOUT[act] || {};
   const n = { moved: 0, added: 0, vent: 0, deleted: 0, hidden: 0, same: 0 };
@@ -67,11 +68,13 @@ for (const act of Object.keys(acts).sort()) {
   const did = Object.entries(n).filter(([k, v]) => v && k !== 'same').map(([k, v]) => `${v} ${k}`);
   console.log(`act ${act}: ${did.length ? did.join(', ') : 'no changes'}${n.same ? ` (${n.same} already baked)` : ''}`);
   if (did.some((d) => !d.endsWith(' vent'))) changed.push(act);   // vents aren't in the shadows
+  if (did.length) anyChange = true;
 }
 if (check) { console.log('--check: nothing written.'); process.exit(0); }
-if (!changed.length) process.exit(0);
+if (!anyChange) process.exit(0);
 if (changed.includes('1') && !changed.includes('4')) changed.push('4');   // act 4 is act 1's room
 fs.writeFileSync(FILE, out.join('\n'));
+if (!changed.length) { console.log('wrote src/layout-baked.js (vents only: no shadows or light to bake)'); process.exit(0); }
 console.log(`wrote src/layout-baked.js; baking shadows for act ${changed.join(', ')}`);
 const r = spawnSync('node', ['tools/bake-ao.mjs', ...changed], { cwd: ROOT, stdio: 'inherit' });
 if (r.status) process.exit(r.status);
