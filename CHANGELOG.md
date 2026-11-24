@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v666 gives the corduroy sofa, the kitchen, desk and sideboard wood, the bathroom's tiles and the kitchen counter and backsplash real photo textures in place of the drawn ones.
+
 v665 tells a player on the run-complete screen when a dev run's score isn't going on the leaderboard, instead of just hiding Submit score.
 
 v664 the dragonfly's whirlwind is bigger, comes sooner and hits for 3, and the monarch butterfly's prism ball flies higher and longer, lands 6 beats later, and its bolts are slower and last 2.5 s.
