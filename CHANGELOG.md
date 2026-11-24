@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v663 gives every room's floor a scanned laminate in place of the drawn planks, and adds a fine grain up close on Medium and High: wood pores, a weave on bedding and upholstery, a paint stipple on walls (it replaces the old close-up bumps, which only showed in the jelly's glow). The soundtrack also skips what it missed after a page sat idle, instead of playing it all at once.
+
 v662 the Range level-up card now reads just "Range" (it still stretches Tentacle reach).
 
 v661 removes the wristband rings, the cord and the console cables from Act 4's floor.
