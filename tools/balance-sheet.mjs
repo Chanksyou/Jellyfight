@@ -1449,6 +1449,7 @@ export function jumpArc(dt = 1 / 240) {
   return { air: t, top: Math.max(...pts.map((p) => p[1])), above };
 }
 // The walls you jump: each passes under you for (band + the jelly's width) / its speed; a jump clears it when the feet stay above its height that long
+// (the Vacuum's lane runs from where the charge started to its front, vacuum.js laneHits: once the front reaches you, you stand in it until the charge ends)
 const WALLS = () => {
   const C = CONTENT.elites, B = CONTENT.bosses, R2 = 2 * JELLY_R;
   return [
@@ -1457,7 +1458,9 @@ const WALLS = () => {
     { name: 'Singing Bowl ring, angry', h: C.bowl.skills.ring.height, pass: (C.bowl.skills.ring.band + R2) / C.bowl.skills.ring.angrySpeed, src: kdl('content/elites.kdl', 'elite', 'bowl') },
     { name: 'Headphones shove wave', h: C.headphones.skills.shove.height, pass: R2 / C.headphones.skills.shove.speed, src: kdl('content/elites.kdl', 'elite', 'headphones') },
     { name: 'Clog pinball ring', h: B.clog.skills.pinball.ringH, pass: R2 / B.clog.skills.pinball.ringSpeed, src: kdl('content/bosses.kdl', 'boss', 'clog') },
-    { name: 'Vacuum charge lane', h: num('src/vacuum.js', /this\.h = ([\d.]+);/), pass: (2 * 0.17 + R2) / B.vacuum.skills.charge.speed, src: at('src/vacuum.js', /this\.h = /) },
+    { name: 'Vacuum charge lane', h: num('src/vacuum.js', /this\.h = ([\d.]+);/), pass: B.vacuum.skills.charge.time - ASSUME.near / B.vacuum.skills.charge.speed, src: at('src/vacuum.js', /this\.h = /),
+      // already low: the knob is how long you stand in the lane
+      long: (win) => ({ at: `content/bosses.kdl:${nodeOf('bosses', 'vacuum').children.find((c) => c.name === 'charge').line}`, change: `charge time=${B.vacuum.skills.charge.time} → ${r(win / 1.5 + ASSUME.near / B.vacuum.skills.charge.speed, 2)}`, does: `the lane is under you for ${r(win / 1.5, 2)} s, two thirds of a jump` }) },
     { name: 'Wall Clock sweeping hand', h: num('src/elites.js', /sweepH: ([\d.]+)/), pass: 0.03 / (Math.PI * 0.42 / (0.55 / TEMPO)) + R2 / (Math.PI * 0.42 / (0.55 / TEMPO)), src: at('src/elites.js', /const CLOCK_HITS = /) },
   ];
 };
@@ -1486,7 +1489,7 @@ function sheetC5() {
   // walls you jump: is the hang long enough?
   const walls = WALLS().map((w) => ({ ...w, win: J.above(w.h) }));
   for (const w of walls) if (w.win.long < w.pass * 1.5) flags.push({ text: `The ${w.name} is ${r(w.h * 100, 1)} cm tall and passes under you in ${r(w.pass, 2)} s; a full jump keeps the jelly over it for ${r(w.win.long, 2)} s, ${w.win.long < w.pass ? 'too short: it can\'t be cleared' : 'under 1.5x: the timing is tight'}.`,
-    knob: { at: w.src, change: `height ${w.h} → ${r(J.top * 0.6, 3)}`, does: `a jump clears it for ${r(J.above(J.top * 0.6).long, 2)} s` } });
+    knob: w.long && w.h <= J.top * 0.6 ? w.long(w.win.long) : { at: w.src, change: `height ${w.h} → ${r(J.top * 0.6, 3)}`, does: `a jump clears it for ${r(J.above(J.top * 0.6).long, 2)} s` } });
   // what Move speed buys: the share of dodge-able Health (step-out attacks) the reference jelly can step out of, by Move speed
   const steps = [1, 1.1, 1.2, 1.3, 1.5, 1.75, 2], sh = (m) => { const all = N.filter((o) => !o.pull), tot = all.reduce((s, o) => s + o.dmg, 0); return all.filter((o) => o.need <= base * m).reduce((s, o) => s + o.dmg, 0) / tot; };
   return {
@@ -1564,7 +1567,7 @@ export function rollRun(type, seed, { policy = 'best', weights = CHEST_WEIGHTS, 
   };
   const legend = (M) => {
     const can = (t) => t.rarity === 'legendary' && (owned[t.id] || 0) < t.stack && (!t.needs || owned[t.needs]) && !(t.notFor?.includes(attack) || t.retired) && (!t.needsStat || live(M)[t.needsStat] > 0) && (!t.needsChance || mods.chancy);
-    const left = shuffled([...CONTENT.treasures.filter(can).map((t) => ['treasure', t]), ...CONTENT.evolutions.filter((e) => !evos.includes(e.id) && !e.notFor?.includes(attack)).map((e) => ['evolution', e])], R.legendary).slice(0, n3('legendary'));
+    const left = shuffled([...CONTENT.treasures.filter(can).map((t) => ['treasure', t]), ...CONTENT.evolutions.filter((e) => !evos.includes(e.id) && !e.notFor?.includes(attack) && !e.retired).map((e) => ['evolution', e])], R.legendary).slice(0, n3('legendary'));
     if (!left.length) return;
     const [k, x] = choose(left, ([k2, y]) => pickPrice(k2, y, type, M, owned[y.id] || 0));
     if (k === 'evolution') evos.push(x.id); else owned[x.id] = (owned[x.id] || 0) + 1;
