@@ -297,11 +297,11 @@
   --death-fade-time: 0.25;
   --death-max-life: 2.8;
   --death-skid: 0.055;
-  --death-fall-gravity: 1.85;
+  --death-fall-gravity: 5.5;
   --death-fly-spin: 7;
-  --death-shell-lift: 0.28;
-  --death-hang-time: 0.055;
-  --death-bounce: 0.42;
+  --death-shell-lift: 0.65;
+  --death-hang-time: 0.03;
+  --death-bounce: 0.36;
   --death-overkill-boost: 1.45;
   --death-zap-time: 0.22;
   --death-pancake-y: 0.07;

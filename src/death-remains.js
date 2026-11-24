@@ -39,8 +39,9 @@ function makeBodySlot() {
   return {
     active: false, root: null, mesh: null, style: 'crumple', cause: 'normal', weight: 1,
     r: 0.03, floor: 0, t: 0, settleT: 0, landed: false, splatted: false,
-    life: 1.8, hang: 0.055, yaw: 0, boost: 1, splatColor: null,
-    localMinY: 0, boundR: 0.5, grounded: false, squash: 0,
+    life: 1.8, hang: 0.03, yaw: 0, boost: 1, splatColor: null,
+    localCenter: new THREE.Vector3(), localHalf: new THREE.Vector3(0.5, 0.5, 0.5),
+    grounded: false, squash: 0,
     zapMatOn: 0, popped: false, sliced: false,
     origin: new THREE.Vector3(), pos: new THREE.Vector3(), dir: new THREE.Vector3(),
     vel: new THREE.Vector3(),
@@ -56,7 +57,7 @@ function makePartSlot() {
   return {
     active: false, mesh: null, owner: null, mode: 'pop',
     t: 0, delay: 0, settleT: 0, landed: false, splatted: false,
-    life: 1.8, floor: 0, radius: 0.008, bounce: 0.42, splatColor: null,
+    life: 1.8, floor: 0, radius: 0.008, bounce: 0.36, splatColor: null,
     bounces: 0, stuck: false, stuckAt: 0, squash: 0, seed: 0,
     origin: new THREE.Vector3(), vel: new THREE.Vector3(),
     rot: new THREE.Euler(), rotVel: new THREE.Vector3(),
@@ -81,8 +82,8 @@ export class DeathRemains {
     this.settleTime = LOOK.num('death-settle-time', 0.95);
     this.fadeTime = LOOK.num('death-fade-time', 0.25);
     this.maxLife = LOOK.num('death-max-life', 2.8);
-    this.hangTime = LOOK.num('death-hang-time', 0.055);
-    this.bounce = LOOK.num('death-bounce', 0.42);
+    this.hangTime = LOOK.num('death-hang-time', 0.03);
+    this.bounce = LOOK.num('death-bounce', 0.36);
     this.overkillBoost = LOOK.num('death-overkill-boost', 1.45);
     this.zapTime = LOOK.num('death-zap-time', 0.22);
     this.pancakeY = LOOK.num('death-pancake-y', 0.07);
@@ -100,8 +101,8 @@ export class DeathRemains {
   get maxParts() { return this.isLow() ? this.partCapLow : this.partCap; }
   get quiet() { return juice.calm || this.reducedMotion.matches; }
 
-  // Measure a model's local Y bounds once at death spawn (replaces per-frame Box3 traversal).
-  measureLocal(mesh) {
+  // Measure a model's local AABB center & half-extents once at death spawn (replaces per-frame Box3 traversal).
+  measureLocal(mesh, outCenter, outHalf) {
     _box.makeEmpty();
     mesh.updateMatrixWorld(true);
     _inv.copy(mesh.matrixWorld).invert();
@@ -111,11 +112,9 @@ export class DeathRemains {
       _pbox.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(_inv);
       _box.union(_pbox);
     });
-    if (_box.isEmpty()) return { minY: -0.5, boundR: 0.7 };
-    const maxX = Math.max(Math.abs(_box.min.x), Math.abs(_box.max.x));
-    const maxY = Math.max(Math.abs(_box.min.y), Math.abs(_box.max.y));
-    const maxZ = Math.max(Math.abs(_box.min.z), Math.abs(_box.max.z));
-    return { minY: _box.min.y, boundR: Math.hypot(maxX, maxY, maxZ) * 1.02 };
+    if (_box.isEmpty()) { outCenter.set(0, 0, 0); outHalf.set(0.5, 0.5, 0.5); return; }
+    _box.getCenter(outCenter);
+    _box.getSize(outHalf).multiplyScalar(0.5);
   }
 
   // Adaptive detached-part allowance so mass AoE kills never spike CPU or instance counts.
@@ -183,33 +182,33 @@ export class DeathRemains {
       slot.vel.set(0, 0, 0);
       slot.rotVel.set(0, 0, 0);
     } else if (mode === 'stick') {
-      slot.vel.set(ca * spd * 0.45 + dx * 0.12, (0.58 + (seed % 0.18)) * boost, sa * spd * 0.45 + dz * 0.12);
-      slot.rotVel.set(12 * boost, 2, 3);
+      slot.vel.set(ca * spd * 0.55 + dx * 0.18, (0.95 + (seed % 0.25)) * boost, sa * spd * 0.55 + dz * 0.18);
+      slot.rotVel.set(14 * boost, 2, 3);
     } else if (mode === 'flutter') {
-      slot.vel.set(ca * spd * 0.8 + dx * 0.16, (0.3 + (seed % 0.14)) * boost, sa * spd * 0.8 + dz * 0.16);
+      slot.vel.set(ca * spd * 0.85 + dx * 0.18, (0.45 + (seed % 0.2)) * boost, sa * spd * 0.85 + dz * 0.18);
       slot.rotVel.set(ca * 4, (7 + (seed % 4)) * (index % 2 ? 1 : -1), sa * 5);
     } else if (mode === 'corkscrew') {
-      slot.vel.set(ca * 0.3 + dx * 0.2, 0.62 * boost, sa * 0.3 + dz * 0.2);
+      slot.vel.set(ca * 0.35 + dx * 0.22, 0.85 * boost, sa * 0.35 + dz * 0.22);
       slot.rotVel.set(14, 10, 18);
     } else if (mode === 'float-sink') {
       slot.vel.set(ca * 0.04, 0.12, sa * 0.04);
       slot.rotVel.set(1.5, 3, 1.5);
     } else if (mode === 'slipstream') {
-      slot.vel.set(dx * 0.65 + ca * 0.18, 0.44 + (seed % 0.15), dz * 0.65 + sa * 0.18);
+      slot.vel.set(dx * 0.75 + ca * 0.22, 0.72 + (seed % 0.2), dz * 0.75 + sa * 0.22);
       slot.rotVel.set(10, 14, 12);
     } else if (mode === 'pinata') {
-      slot.vel.set(ca * spd * 1.25, (0.52 + (seed % 0.25)) * boost, sa * spd * 1.25);
+      slot.vel.set(ca * spd * 1.35, (0.88 + (seed % 0.3)) * boost, sa * spd * 1.35);
       slot.rotVel.set(12, 16, 12);
     } else if (mode === 'pancake-pop') {
-      slot.vel.set(ca * spd * 1.35 + dx * 0.15, 0.22 * boost, sa * spd * 1.35 + dz * 0.15);
+      slot.vel.set(ca * spd * 1.45 + dx * 0.18, 0.42 * boost, sa * spd * 1.45 + dz * 0.18);
       slot.rotVel.set(9, 12, 9);
     } else if (mode === 'ice') {
-      slot.vel.set(ca * spd * 1.15 + dx * 0.18, (0.44 + (seed % 0.2)) * boost, sa * spd * 1.15 + dz * 0.18);
+      slot.vel.set(ca * spd * 1.25 + dx * 0.22, (0.78 + (seed % 0.25)) * boost, sa * spd * 1.25 + dz * 0.22);
       slot.rotVel.set(15, 13, 16);
     } else {
-      const lift = LOOK.num('death-shell-lift', 0.28) * (1.55 + (seed % 0.45)) * boost;
-      slot.vel.set(ca * spd + dx * 0.22, lift, sa * spd + dz * 0.22);
-      slot.rotVel.set((7 + (seed % 6)) * (index % 2 ? 1 : -1), 5 + (seed % 4), (6 + (seed % 5)) * (index % 2 ? -1 : 1));
+      const lift = LOOK.num('death-shell-lift', 0.65) * (1.1 + (seed % 0.45)) * boost;
+      slot.vel.set(ca * spd * 1.15 + dx * 0.25, lift, sa * spd * 1.15 + dz * 0.25);
+      slot.rotVel.set((8 + (seed % 6)) * (index % 2 ? 1 : -1), 5 + (seed % 4), (7 + (seed % 5)) * (index % 2 ? -1 : 1));
     }
 
     this.detached.push(slot);
@@ -260,7 +259,7 @@ export class DeathRemains {
     const isOverkill = crit || overkill > 0.5;
     const boost = (isOverkill ? this.overkillBoost : 1) * wMult;
 
-    const { minY, boundR } = this.measureLocal(mesh);
+    this.measureLocal(mesh, c.localCenter, c.localHalf);
     const airborne = cause === 'whip' || cause === 'bowl' || cause === 'wall-splat' || (cause === 'normal' && AIRBORNE_STYLES.has(style));
     c.active = true;
     c.root = root;
@@ -279,8 +278,6 @@ export class DeathRemains {
     c.yaw = root.rotation.y;
     c.boost = boost;
     c.splatColor = splatColor;
-    c.localMinY = minY;
-    c.boundR = boundR;
     c.grounded = !airborne;
     c.squash = 0;
     c.zapMatOn = 0;
@@ -295,22 +292,22 @@ export class DeathRemains {
 
     const isFlyer = FLYER_STYLES.has(style);
     if (cause === 'whip') {
-      c.vel.copy(c.dir).multiplyScalar(0.95 * boost);
-      c.vel.y = 0.42 * boost;
+      c.vel.copy(c.dir).multiplyScalar(1.05 * boost);
+      c.vel.y = 0.72 * boost;
     } else if (cause === 'bowl') {
-      c.vel.copy(c.dir).multiplyScalar(0.75 * boost);
-      c.vel.y = 0.6 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.85 * boost);
+      c.vel.y = 0.92 * boost;
     } else if (cause === 'wall-splat' || cause === 'pancake' || cause === 'zap' || cause === 'slice') {
       c.vel.set(0, 0, 0);
     } else if (style === 'belly-up' || style === 'curl-pop' || style === 'skin-shed') {
-      c.vel.copy(c.dir).multiplyScalar(0.24 * boost);
-      c.vel.y = (style === 'skin-shed' ? 0.52 : 0.42) * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.32 * boost);
+      c.vel.y = (style === 'skin-shed' ? 0.82 : 0.62) * boost;
     } else if (isFlyer) {
-      c.vel.copy(c.dir).multiplyScalar(0.16 * boost);
-      c.vel.y = 0.06 * boost;
+      c.vel.copy(c.dir).multiplyScalar(0.18 * boost);
+      c.vel.y = 0.08 * boost;
     } else {
       c.vel.copy(c.dir).multiplyScalar(0.18 * boost);
-      c.vel.y = 0.12 * boost;
+      c.vel.y = 0.15 * boost;
     }
 
     const limbSrc = rig?.limbs?.length ? rig.limbs : (style === 'crumple' ? parts : []);
@@ -351,7 +348,7 @@ export class DeathRemains {
     for (let i = 0; i < detachList.length && c.fragments.length < allow; i++) {
       const item = detachList[i];
       if (!item.mesh.visible && item.mode !== 'husk') continue;
-      const delay = item.mode === 'husk' || (style === 'shell' && i === 0) ? 0 : Math.min(0.045, i * 0.014);
+      const delay = item.mode === 'husk' || (style === 'shell' && i === 0) ? 0 : Math.min(0.035, i * 0.01);
       this.detachOne(item.mesh, {
         owner: c, floor, dir: c.dir, r, mode: item.mode, delay, life: c.life,
         boost: boost * (cause === 'whip' || cause === 'bowl' ? 1.25 : 1), index: i, splatColor,
@@ -363,32 +360,38 @@ export class DeathRemains {
     return true;
   }
 
+  // Exact O(1) lowest world Y of the rotated local AABB (no traversal, no mid-air levitation).
   clampBodyFloor(c, dt) {
     const { root, mesh } = c;
-    const tilt = Math.min(1, (Math.abs(root.rotation.x) + Math.abs(root.rotation.z)) / 0.75);
-    const maxS = Math.max(mesh.scale.x, mesh.scale.y, mesh.scale.z);
-    const uprightLift = Math.max(0, -c.localMinY) * mesh.scale.y;
-    const tiltLift = c.boundR * maxS;
-    const minY = c.floor + 0.002 + uprightLift * (1 - tilt) + tiltLift * tilt;
-    if (root.position.y < minY) {
+    root.updateMatrix();
+    const m = root.matrix.elements;
+    const sx = mesh.scale.x, sy = mesh.scale.y, sz = mesh.scale.z;
+    const cx = c.localCenter.x * sx, cy = c.localCenter.y * sy, cz = c.localCenter.z * sz;
+    const hx = c.localHalf.x * sx, hy = c.localHalf.y * sy, hz = c.localHalf.z * sz;
+    const bottomOffset = -(m[1] * cx + m[5] * cy + m[9] * cz) + Math.abs(m[1]) * hx + Math.abs(m[5]) * hy + Math.abs(m[9]) * hz;
+    const minY = c.floor + 0.0018 + bottomOffset;
+    if (root.position.y <= minY) {
       root.position.y = minY;
       if (dt > 0) {
         if (!c.landed) {
           c.landed = true;
           c.settleT = 0;
         }
-        if (!c.splatted && c.vel.y < -0.1) {
+        if (!c.splatted && c.vel.y < -0.18) {
           c.splatted = true;
           this.onLand?.(_v.set(root.position.x, c.floor, root.position.z), c.r, true, c.splatColor, c.style);
         }
-        if (c.vel.y < -0.1) {
+        if (c.vel.y < -0.22) {
           c.vel.y = -c.vel.y * this.bounce;
-          c.vel.x *= 0.65;
-          c.vel.z *= 0.65;
-          c.squash = 0.55;
-        } else if (c.vel.y < 0) {
+          c.vel.x *= 0.72;
+          c.vel.z *= 0.72;
+          c.squash = 0.5;
+        } else if (c.vel.y <= 0) {
           c.vel.y = 0;
           c.grounded = true;
+          const drag = Math.exp(-10 * dt);
+          c.vel.x *= drag;
+          c.vel.z *= drag;
         }
       }
     }
@@ -514,10 +517,10 @@ export class DeathRemains {
       }
 
       if (cause === 'whip' || cause === 'bowl') {
-        c.vel.y -= grav * 1.35 * dt;
+        c.vel.y -= grav * dt;
         c.pos.addScaledVector(c.vel, dt);
         root.position.copy(c.pos);
-        const smear = u < 0.06 ? 1.55 : 1;
+        const smear = u < 0.05 ? 1.5 : 1;
         const invSm = 1 / Math.sqrt(smear);
         const sq = 1 - c.squash * 0.45, sw = 1 / Math.sqrt(Math.max(0.3, sq));
         mesh.scale.set(r * shrink * invSm * sw, r * shrink * invSm * sq, r * shrink * smear * sw);
@@ -541,11 +544,11 @@ export class DeathRemains {
       mesh.scale.set(r * shrink * sw, r * shrink * sq, r * shrink * sw);
 
       if (style === 'belly-up') {
-        c.vel.y -= grav * 1.35 * dt;
+        c.vel.y -= grav * dt;
         c.pos.addScaledVector(c.vel, dt);
         root.position.copy(c.pos);
-        const flip = Math.min(1, u / 0.18);
-        root.rotation.set(0, c.yaw + move * 0.6, flip * Math.PI + Math.sin(u * 16) * 0.18 * (1 - move * 0.6));
+        const flip = Math.min(1, u / 0.16);
+        root.rotation.set(0, c.yaw + move * 0.6, flip * Math.PI + Math.sin(u * 16) * 0.14 * (1 - move * 0.6));
         mesh.scale.y *= 1 - move * 0.58;
         const kick = Math.sin(u * 38) * Math.max(0, 1 - c.settleT * 1.1);
         for (let k = 0; k < c.parts.length; k++) {
@@ -560,17 +563,17 @@ export class DeathRemains {
         mesh.scale.z *= 1 + move * 0.22;
         for (const p of c.parts) p.mesh.rotation.z = p.rotation.z - Math.sign(p.pos.x) * move * 1.35;
       } else if (style === 'curl-pop') {
-        c.vel.y -= grav * 1.35 * dt;
-        c.pos.addScaledVector(c.vel, dt);
-        root.position.copy(c.pos);
-        const flip = Math.min(1, u / 0.2);
-        root.rotation.set(0, c.yaw + move * 0.8, flip * Math.PI);
-        for (const p of c.parts) p.mesh.rotation.z = p.rotation.z + Math.sign(p.pos.x) * move * 1.45;
-      } else if (style === 'flutter' || style === 'eye-pop' || style === 'lantern-pop') {
         c.vel.y -= grav * dt;
         c.pos.addScaledVector(c.vel, dt);
         root.position.copy(c.pos);
-        root.position.x += Math.sin(u * 18) * move * r * 0.85 * (c.grounded ? 0.1 : 1);
+        const flip = Math.min(1, u / 0.18);
+        root.rotation.set(0, c.yaw + move * 0.8, flip * Math.PI);
+        for (const p of c.parts) p.mesh.rotation.z = p.rotation.z + Math.sign(p.pos.x) * move * 1.45;
+      } else if (style === 'flutter' || style === 'eye-pop' || style === 'lantern-pop') {
+        c.vel.y -= grav * 0.75 * dt;
+        c.pos.addScaledVector(c.vel, dt);
+        root.position.copy(c.pos);
+        root.position.x += Math.sin(u * 18) * move * r * 0.65 * (c.grounded ? 0.05 : 1);
         if (!c.grounded) root.rotation.set(move * 1.35, c.yaw + u * flySpin * 1.25, Math.sin(u * 21) * 0.75);
       } else if (style === 'shell' || style === 'pop-shell') {
         root.position.copy(c.origin).addScaledVector(c.dir, move * skidDist * 1.15);
@@ -583,12 +586,12 @@ export class DeathRemains {
         root.rotation.set(move * 0.5, c.yaw + u * 5, move * 1.6);
         mesh.scale.y *= 1 - move * 0.55;
       } else if (style === 'skin-shed') {
-        c.vel.y -= grav * 1.35 * dt;
+        c.vel.y -= grav * dt;
         c.pos.addScaledVector(c.vel, dt);
         root.position.copy(c.pos);
         if (!c.grounded) root.rotation.set(u * 9, c.yaw + u * 6, u * 7);
       } else if (style === 'paper-crush') {
-        c.vel.y -= grav * 1.4 * dt;
+        c.vel.y -= grav * dt;
         c.pos.addScaledVector(c.vel, dt);
         root.position.copy(c.pos);
         const cr = 1 - Math.exp(-u * 10);
@@ -650,25 +653,26 @@ export class DeathRemains {
         continue;
       }
 
-      // Ballistic / flutter / corkscrew physics — ALL modes descend to hit the floor!
+      // Ballistic / flutter / corkscrew physics — realistic parabolic motion!
       if (p.mode === 'corkscrew') {
-        const a = u * 18 + p.seed;
         if (!p.landed) {
-          m.position.x += (p.vel.x + Math.cos(a) * 0.22) * dt;
-          m.position.z += (p.vel.z + Math.sin(a) * 0.22) * dt;
+          const spiral = u < 0.16 ? 0.18 : 0; // brief sputter spiral, then clean ballistic dive
+          const a = u * 22 + p.seed;
+          p.vel.y -= grav * dt;
+          m.position.x += (p.vel.x + Math.cos(a) * spiral) * dt;
+          m.position.z += (p.vel.z + Math.sin(a) * spiral) * dt;
           m.position.y += p.vel.y * dt;
-          p.vel.y -= grav * 1.15 * dt;
         }
       } else if (p.mode === 'flutter') {
         if (!p.landed) {
-          p.vel.multiplyScalar(Math.exp(-3.5 * dt));
-          p.vel.y -= grav * 0.52 * dt;
-          m.position.x += (p.vel.x + Math.sin(u * 11 + p.seed) * 0.08) * dt;
-          m.position.z += (p.vel.z + Math.cos(u * 9 + p.seed) * 0.08) * dt;
+          p.vel.multiplyScalar(Math.exp(-5.5 * dt));
+          p.vel.y -= grav * 0.28 * dt;
+          m.position.x += (p.vel.x + Math.sin(u * 11 + p.seed) * 0.06) * dt;
+          m.position.z += (p.vel.z + Math.cos(u * 9 + p.seed) * 0.06) * dt;
           m.position.y += p.vel.y * dt;
         }
       } else {
-        p.vel.y -= grav * 1.35 * dt;
+        p.vel.y -= grav * dt;
         m.position.addScaledVector(p.vel, dt);
       }
 
@@ -689,15 +693,17 @@ export class DeathRemains {
         } else if (p.mode === 'corkscrew') {
           p.vel.set(0, 0, 0); p.rotVel.multiplyScalar(0.15);
           p.squash = 0.55;
-        } else if (Math.abs(p.vel.y) > 0.08 && p.bounces < 2) {
+        } else if (Math.abs(p.vel.y) > 0.2 && p.bounces < 2) {
           p.vel.y = -p.vel.y * p.bounce;
-          p.vel.x *= 0.66; p.vel.z *= 0.66;
+          p.vel.x *= 0.72; p.vel.z *= 0.72;
           p.rotVel.multiplyScalar(0.55);
           p.bounces++;
-          p.squash = 0.5;
+          p.squash = 0.45;
         } else {
-          p.vel.set(0, 0, 0);
-          p.rotVel.multiplyScalar(Math.exp(-12 * dt));
+          p.vel.y = 0;
+          const drag = Math.exp(-10 * dt);
+          p.vel.x *= drag; p.vel.z *= drag;
+          p.rotVel.multiplyScalar(drag);
         }
       }
 
