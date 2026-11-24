@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { angryEyes, standOut } from './enemies.js';
 import { LOOK } from './look.js';
 import { hostile } from './vfx.js';
-import { coil, eyes, heavy, knobs, lockBeat, mixPose, quiver, settle, snap, stretch } from './attack-motion.js';
+import { coil, eyes, heavy, heavyKick, knobs, lockBeat, mixPose, quiver, recoilBell, recoilKick, settle, snap, stretch } from './attack-motion.js';
 import { spring } from './swim.js';
 import { prismFacets } from './prism-balls.js';
 import { loft, segmentedAbdomen, taperedLimb, paintWithUV, bugNormalMap } from './critter-kit.js';
@@ -315,7 +315,7 @@ export function buildAnts() {
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
     t += dt * (3 + 16 * k);
     const A = e.atk, ph = A ? A.phase : 'idle';
-    let brace = 0, coilK = 0, thrust = 0, dip = 0, shake = 0, len = 1;
+    let brace = 0, coilK = 0, thrust = 0, dip = 0, shake = 0, len = 1, bell = 0, rk = 1;
     if (ph === 'build') {
       const c = coil(A.k, A.style.hold, A.style.over) * A.vary;
       brace = Math.min(1, c * 1.6); coilK = c;
@@ -325,24 +325,31 @@ export function buildAnts() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       brace = Math.max(0, 1 - s); coilK = A.vary * Math.max(0, 1 - s); thrust = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') thrust = (1 + A.tier.over) * settle(Math.min(1, A.k / A.tier.end), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
+    } else if (ph === 'recoil') {
+      const u = Math.min(1, A.k / A.tier.end); rk = knobs().recoilKick;
+      thrust = (1 + A.tier.over) * recoilKick(u, 0.95 * rk);       // whips hard backward past neutral, then rebounds cleanly home
+      bell = recoilBell(u);
+      brace = 0.65 * bell;
+      len = 1 - A.tier.squash * bell;                              // volume-preserving squash as the kick hits the rear legs
+    }
     // the throw (the spit word's firedT): the pin goes the frame it is thrown, then a new one swells into its jaws
     if ((e.firedT || 0) > fired) since = 0;
     fired = e.firedT || 0;
     since += dt;
-    const bodyY = Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.08 + coilK * 0.03;
-    body.position.set(shake * 0.02, bodyY, coilK * -0.16 + thrust * 0.26);
-    body.rotation.x = coilK * -0.18 + thrust * 0.2 + dip * 0.1;      // rears back, then drives its head down
-    body.rotation.z = Math.sin(t) * 0.03 * k + shake * 0.05;
+    const kickBack = Math.max(0, -thrust);
+    const bodyY = Math.abs(Math.sin(t)) * 0.02 * k - brace * 0.11 + coilK * 0.03 + bell * 0.08 * rk;
+    body.position.set(shake * 0.02, bodyY, coilK * -0.16 + thrust * 0.30);
+    body.rotation.x = coilK * -0.18 + thrust * 0.22 + dip * 0.1 - bell * 0.34 * rk;   // catapult wheelie nose-up on kickback
+    body.rotation.z = Math.sin(t) * 0.03 * k + shake * 0.05 + (A ? A.side : 1) * bell * 0.22 * rk;
     stretch(body, len);
-    gait.update(dt, e, { bodyY, bend: brace * 0.5, skidZ: -thrust * 0.14, trigPhase: t, trigAmp: k });
-    // flexible waist: gaster lags in turns and tucks/bobs on throws
-    spring(gasterYaw, -gait.turnRate * 0.055, 0.07, 2.2, dt);
-    spring(gasterPitch, Math.sin(t * 0.5) * 0.04 * k + coilK * 0.18 - thrust * 0.22, 0.08, 2.4, dt);
+    gait.update(dt, e, { bodyY, bend: brace * 0.7, skidZ: -thrust * 0.26, pitchLift: bell * 0.65 * rk, trigPhase: t, trigAmp: k });
+    // flexible waist: gaster lags in turns and whips hard under/up to counterbalance the pin throw
+    spring(gasterYaw, -gait.turnRate * 0.055 + (A ? A.side : 1) * bell * 0.22, 0.07, 2.2, dt);
+    spring(gasterPitch, Math.sin(t * 0.5) * 0.04 * k + coilK * 0.18 - thrust * 0.28 + bell * 0.48 * rk, 0.07, 2.1, dt);
     gaster.rotation.set(gasterPitch.x, gasterYaw.x, 0);
     for (let j = 0; j < antennae.length; j++) {
       const p = antennae[j];
-      spring(p.sp, Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.4 - dip * 0.45, 0.06, 2.2, dt);   // lagging the head, a beat late
+      spring(p.sp, Math.sin(t * 0.7 + j) * 0.25 - brace * 0.3 + thrust * 0.45 - dip * 0.45 - kickBack * 0.65 * rk, 0.06, 2.0, dt);
       p.rotation.x = p.sp.x;
       p.rotation.y = Math.sin(t * 0.9 + j * 2) * 0.2 - gait.turnRate * 0.03;
     }
@@ -865,7 +872,7 @@ export function buildSpider() {
     const speed = Math.hypot(e.vel.x, e.vel.z);
     k += (Math.min(1, speed * 7) - k) * (1 - Math.exp(-8 * dt));
     const A = e.atk, ph = A ? A.phase : 'idle';
-    let rearUp = 0, flick = 0, rock = 0, bend = 0, len = 1, shake = 0, dip = 0;
+    let rearUp = 0, flick = 0, rock = 0, bend = 0, len = 1, shake = 0, dip = 0, bell = 0, rk = 1;
     if (ph === 'build') {
       rearUp = coil(A.k, A.style.hold, A.style.over) * A.vary;
       dip = lockBeat(A) ? 1 : 0;
@@ -875,25 +882,27 @@ export function buildSpider() {
       rearUp = A.vary * Math.max(0, 1 - s); flick = s; rock = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
-      const b = settle(Math.min(1, A.k / A.tier.end), 1, 1);   // (one bounce, home by the last fifth: its recoil is a quarter second)
-      flick = rock = (1 + A.tier.over) * b;
-      bend = 1 - A.k;                                              // its knees bend to take the throw, then straighten
+      const u = Math.min(1, A.k / A.tier.end); rk = knobs().recoilKick;
+      flick = rock = (1 + A.tier.over) * recoilKick(u, 1.1 * rk);   // slams backward into haunches, then springs cleanly home
+      bell = recoilBell(u);
+      bend = 1.25 * bell + (1 - u) * 0.35;                          // deep 8-leg knee compression to absorb the lob
+      len = 1 - A.tier.squash * bell;
     }
     _rearUp = rearUp;
     drum += dt * (6 + 14 * rearUp);
-    spring(frontUp, ph === 'build' || !A ? 0.55 * rearUp : -0.25 * flick, 0.07, 2.4, dt);   // the front legs lead in, flick down, and are last up or down
-    spring(spread, dip, 0.05, 2, dt);
+    spring(frontUp, ph === 'build' || !A ? 0.55 * rearUp : -0.32 * flick + 0.38 * bell * rk, 0.07, 2.2, dt);
+    spring(spread, dip + bell * 1.15 * rk, 0.05, 1.9, dt);
     const step = t * (3 + 11 * k) + e.phase;
-    const bodyY = Math.abs(Math.sin(step)) * 0.02 * k * (A?.still ? 0 : 1) - bend * 0.03;
-    // the body: a slight bob with each step set, nose up and drawn back when it rears, a kick back when it throws
-    body.position.set(shake * 0.02, bodyY, -0.14 * rearUp + 0.1 * rock);
-    body.rotation.z = shake * 0.04;
+    const bodyY = Math.abs(Math.sin(step)) * 0.02 * k * (A?.still ? 0 : 1) - bend * 0.09;
+    // the body: nose up and drawn back when it rears, slings forward then kicks hard back into its haunches
+    body.position.set(shake * 0.02, bodyY, -0.14 * rearUp + 0.24 * rock);
+    body.rotation.z = shake * 0.04 + (A ? A.side : 1) * bell * 0.20 * rk;
     stretch(body, len);
-    gait.update(dt, e, { bodyY, bend, trigPhase: step, trigAmp: k, raiseFn, spreadFn });
-    spring(waistYaw, -gait.turnRate * 0.06, 0.08, 2.2, dt);
-    front.rotation.x = -rearUp * 0.16 + rock * 0.1 + dip * 0.05;
-    rear.rotation.set(-rearUp * 0.35 - flick * 0.3, waistYaw.x, 0);          // abdomen tucked, whipped to aim, and lags in turns
-    for (const p of palps) p.rotation.x = Math.sin(drum + e.phase) * 0.15 + rearUp * -0.4;   // palps drum, lift when it rears
+    gait.update(dt, e, { bodyY, bend, skidZ: -rock * 0.28, trigPhase: step, trigAmp: k, raiseFn, spreadFn });
+    spring(waistYaw, -gait.turnRate * 0.06 + (A ? A.side : 1) * bell * 0.32 * rk, 0.08, 2.0, dt);
+    front.rotation.x = -rearUp * 0.16 + rock * 0.16 - bell * 0.24 * rk + dip * 0.05;
+    rear.rotation.set(-rearUp * 0.35 - flick * 0.36 + bell * 0.48 * rk, waistYaw.x, 0);   // abdomen whips back & rebounds high
+    for (const p of palps) p.rotation.x = Math.sin(drum + e.phase) * 0.15 + rearUp * -0.4 - bell * 0.55 * rk;
     if (A) eyes(face, A);
   };
   anim.reset = () => {
@@ -1511,7 +1520,7 @@ export function buildLadybug() {
     fly += ((e.flyK ?? 0) - fly) * (1 - Math.exp(-9 * dt));
     flap += ((e.wingK ?? 0) - flap) * (1 - Math.exp(-12 * dt));
     const A = e.atk, ph = A ? A.phase : 'idle', key = A ? A.key : '';
-    let squash = 0, brace = 0, shake = 0, flare = 0, jump = 0, shove = 0, hop = 0, crouch = 0, len = 1;
+    let squash = 0, brace = 0, shake = 0, flare = 0, jump = 0, shove = 0, hop = 0, crouch = 0, len = 1, bell = 0, rk = 1;
     if (A) {
       if (ph === 'build') {
         if (key === 'raise') squash = 0.15 * settle(Math.min(1, A.st / 0.4), 1, 2);   // touching down: squashed, then springing up
@@ -1522,34 +1531,40 @@ export function buildLadybug() {
         len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
       } else if (ph === 'recoil') {
         const u = Math.min(1, Math.max(0, A.pt - A.style.follow) / 0.36);        // the kick: 0.36 s after the follow-through hold
+        rk = knobs().recoilKick;
         shove = (1 + A.tier.over) * settle(u, A.style.bounces, A.style.damp);
+        bell = recoilBell(u);
+        squash = 0.28 * bell * rk;                                               // rocket exhaust slams it into the floor
+        brace = 0.85 * bell;
+        flare = 0.55 * bell * rk + Math.sin(u * 28) * 0.16 * (1 - u) * (1 - u);  // elytra flare & rattle from exhaust
         if (key === 'close') hop = Math.sin(Math.PI * Math.min(1, Math.max(0, A.st - 0.2) / 0.2)) * 0.07;   // the cases snap shut: a small hop
         else if (key === 'rest') crouch = THREE.MathUtils.smoothstep(1 - (A.len - A.st) / 0.15, 0, 1);       // the last 0.15 s: down before it takes off
       }
     }
     spring(tilt, A && A.still ? 1 : 0, 0.05, 2, dt);
     // elytra: the back lifts on the front hinge and the outer edges swing up and out
-    for (const E of elytra) E.pivot.rotation.set(shell * 1.15, -E.s * shell * 0.2, E.s * (shell * 0.7 + flare * 0.26), 'YXZ');
+    for (const E of elytra) E.pivot.rotation.set(shell * 1.15, -E.s * shell * 0.2, E.s * (shell * 0.7 + flare * 0.34), 'YXZ');
     // hind wings: unfold sideways and back, beating as a blur
     for (const W of wings) {
       W.pivot.scale.setScalar(Math.max(0.001, flap));
       W.pivot.rotation.set(0.15, -W.s * (0.2 + 0.9 * flap), 0);
       W.flap.rotation.z = W.s * (0.2 + Math.sin(t * 90 + (W.s > 0 ? 0 : 0.5)) * 0.85) * flap;
     }
-    const slide = -0.2 * shove;
-    // legs: a shuffle on the ground, tucked up in flight, wide when it braces, dragging as it slides back
+    const slide = -0.36 * rk * shove;
+    // legs: a shuffle on the ground, tucked up in flight, wide when it braces, dragging hard as it skids back
     for (const L of legs) {
-      L.hip.rotation.set(fly * 0.9, Math.sin(t * 9 + L.pair * 2.1 + (L.s > 0 ? Math.PI : 0)) * 0.12 * (1 - fly) * (e.stepK ?? 0), L.s * (fly * 0.5 + brace * 0.3));
-      L.hip.position.z = L.z0 - slide * 0.7;
+      L.hip.rotation.set(fly * 0.9, Math.sin(t * 9 + L.pair * 2.1 + (L.s > 0 ? Math.PI : 0)) * 0.12 * (1 - fly) * (e.stepK ?? 0), L.s * (fly * 0.5 + brace * 0.42));
+      L.hip.position.z = L.z0 - slide * 0.85;
     }
-    for (const a of antennae) a.rotation.y = Math.sin(t * 5 + e.phase) * 0.15 + (A ? shake * 0.3 : e.state === 'aim' ? Math.sin(t * 30) * 0.1 : 0);
-    // the body: nose up in flight with a wobble; a kick back as the missile goes
-    body.rotation.x = -fly * 0.35 + Math.sin(t * 7 + e.phase) * 0.05 * fly - (A ? 0.17 * shove : 0.5 * Math.max(0, e.firedT || 0)) + 0.08 * brace + 0.1 * crouch;
-    body.position.set(0, Math.sin(t * 6 + e.phase) * 0.06 * fly - 0.1 * brace - 0.1 * crouch + hop, slide);
+    for (const a of antennae) a.rotation.y = Math.sin(t * 5 + e.phase) * 0.15 + (A ? shake * 0.3 + bell * 0.45 : e.state === 'aim' ? Math.sin(t * 30) * 0.1 : 0);
+    // the body: nose up in flight with a wobble; a big wheelie kick back as the rocket ignites
+    body.rotation.x = -fly * 0.35 + Math.sin(t * 7 + e.phase) * 0.05 * fly - (A ? 0.32 * rk * shove : 0.5 * Math.max(0, e.firedT || 0)) + 0.08 * brace + 0.1 * crouch;
+    body.rotation.z = (A ? A.side : 1) * 0.18 * bell * rk;
+    body.position.set(0, Math.sin(t * 6 + e.phase) * 0.06 * fly - 0.1 * brace - 0.12 * bell * rk - 0.1 * crouch + hop, slide);
     stretch(body, len);
     if (squash) { body.scale.x *= 1 + squash * 0.5; body.scale.y *= 1 - squash; body.scale.z *= 1 + squash * 0.5; }
     pod.visible = shell > 0.55 && e.loaded !== false;
-    pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3 + jump * 0.1;
+    pod.position.y = 0.3 + Math.max(0, shell - 0.4) * 0.3 + jump * 0.1 - bell * 0.14;
     pod.rotation.x = -0.25 * tilt.x;
     if (A) eyes(face, A);
   };
@@ -1775,12 +1790,18 @@ export function buildDragonfly() {
       if (whirl) { sweep = 0.6 * (1 - s) - 0.8 * s; back = 0.2 * s * A.vary; lean = -0.26 * (1 - s) * A.vary; }
       else { back = -0.15 * (1 - s) * A.vary; curl = 1.1 * (1 - s) * A.vary; }
     } else if (ph === 'recoil') {
-      const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.05);
+      const u = Math.min(1, A.k / A.tier.end), rk = knobs().recoilKick;
+      const b = settle(u, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.05);
+      const bell = recoilBell(u);
       restart = Math.min(1, A.k * 2.5); hindRestart = Math.min(1, Math.max(0, A.k * 2.5 - 0.4)); held = 1 - restart;
-      if (whirl) { back = -0.25 * b; up = 0.25 * b; lean = -0.3 * b; curl = 0.3 * b; sweep = -0.5 * b; }
-      else if (A.hit) { back = -0.2 * b; lean = -0.35 * b; curl = 0.3 * b; }
+      if (whirl) {
+        back = -0.23 * rk * b; up = 0.36 * rk * b; lean = -0.52 * rk * b; curl = 0.72 * rk * b; sweep = -0.78 * rk * b;
+        fast = Math.max(fast, bell * 1.4);
+        len = 1 - A.tier.squash * bell;
+      } else if (A.hit) { back = -0.2 * b; lean = -0.35 * b; curl = 0.3 * b; }
       else { lean = 0.2 * b; curl = 0.3 * b; back = 0.1 * b; }
     }
+    const roll = ph === 'recoil' && whirl ? A.side * 0.28 * knobs().recoilKick * recoilBell(Math.min(1, A.k / A.tier.end)) : 0;
     const g = ph === 'idle' && Math.sin(t * 0.9 + e.phase) > 0.8 ? 1 : 0;   // every few seconds it holds its wings out flat and glides for a moment
     glide += (g - glide) * (1 - Math.exp(-10 * dt));
     const speed = Math.hypot(e.vel.x, e.vel.z);
@@ -1801,7 +1822,7 @@ export function buildDragonfly() {
     const kick = A ? 0 : Math.max(0, e.firedT || 0, e.whirlKick || 0) * 1.6;   // (a model with no attack clock, a preview: its beam or whirlwind fired, it rocks back, tail flicking)
     body.rotation.x = 0.1 * dart * idle + Math.sin(t * 2.3 + e.phase) * 0.03 * idle + lean - kick + shake * 0.04;   // nose down to dart
     tail.rotation.x += kick * 0.8;
-    body.rotation.z = Math.sin(t * 1.1 + e.phase) * 0.04 * idle + shake * 0.03;
+    body.rotation.z = (ph === 'recoil' ? 0 : Math.sin(t * 1.1 + e.phase) * 0.04 * idle) + shake * 0.03 + roll;
     stretch(body, len);
     if (A) eyes(face, A);
   };
@@ -2179,7 +2200,7 @@ export function buildBeetle() {
     t += dt * (2.5 + 9 * k);
     const A = e.atk, ph = A ? A.phase : 'idle';
     const charge = e.state === 'charge' ? e.ballK || 0 : 0;
-    let plant = 0, dip = 0, shove = 0, len = 1, still = 0, kick = A ? 0 : Math.max(0, (e.firedT || 0) / 0.3);
+    let plant = 0, dip = 0, shove = 0, len = 1, still = 0, kick = A ? 0 : Math.max(0, (e.firedT || 0) / 0.3), bell = 0, rattle = 0, rk = knobs().recoilKick;
     if (ph === 'build') {
       plant = THREE.MathUtils.smoothstep(A.pt / 0.2, 0, 1);
       dip = lockBeat(A) ? 1 : 0;
@@ -2188,21 +2209,26 @@ export function buildBeetle() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       plant = 1; shove = kick = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') { const u = Math.min(1, A.k / A.tier.end); plant = 1 - u; shove = kick = heavy(u); }   // (it stands up as it eases home)
-    const slide = A ? -0.15 * shove : -0.12 * kick;
-    const bodyY = Math.abs(Math.sin(t)) * 0.012 * k * (1 - still) - 0.08 * plant;
-    // the charge: its jaws part and tremble round the growing ball, its head rearing a little; the
-    // shot: they snap wide and it rocks back
+    } else if (ph === 'recoil') {
+      const u = Math.min(1, A.k / A.tier.end);
+      plant = 1 - u; shove = kick = heavyKick(u);                        // strictly monotonic tank drag home, zero forward bounce
+      bell = recoilBell(u);
+      len = 1 - A.tier.squash * bell;                                    // heavy cannon compression squash
+      rattle = Math.sin(u * 38) * 0.14 * (1 - u) * (1 - u);
+    }
+    const slide = A ? -0.34 * rk * shove : -0.12 * kick;
+    const bodyY = Math.abs(Math.sin(t)) * 0.012 * k * (1 - still) - 0.11 * plant;
+    // the charge: its jaws part and tremble round the growing ball; the shot: massive cannon kick, jaws snap wide & rattle
     open += (charge * 0.27 - open) * (1 - Math.exp(-10 * dt));
     pump += dt * (8 + charge * 24);
     const tremble = charge > 0 && !still ? Math.sin(t * 50 + e.phase) * 0.03 * charge * (A ? A.quiet : 1) : 0;
-    for (const J of jaws) J.hinge.rotation.y = J.s * (open * (1 - 0.1 * dip) + tremble + kick * 0.35 + Math.sin(t * 0.8) * 0.02);
-    shell.scale.y = 1 + Math.sin(pump) * 0.012 * charge;
-    body.rotation.x = -0.06 * charge + dip * 0.06 - (A ? 0.14 * kick : 0.1 * kick);
+    for (const J of jaws) J.hinge.rotation.y = J.s * (open * (1 - 0.1 * dip) + tremble + kick * 0.55 + rattle + Math.sin(t * 0.8) * 0.02);
+    shell.scale.y = 1 + Math.sin(pump) * 0.012 * charge + bell * 0.08;
+    body.rotation.x = -0.06 * charge + dip * 0.06 - (A ? 0.28 * rk * kick : 0.1 * kick);
     body.position.set(0, bodyY, slide);
-    body.rotation.z = Math.sin(t) * 0.02 * k;
+    body.rotation.z = Math.sin(t) * 0.02 * k + (A ? A.side : 1) * bell * 0.12 * rk;
     stretch(body, len);
-    gait.update(dt, e, { bodyY, bend: plant * 0.6, skidZ: -slide * 0.7, trigPhase: t, trigAmp: k });
+    gait.update(dt, e, { bodyY, bend: plant * 0.7 + bell * 0.5, skidZ: -slide * 0.85, pitchLift: bell * 0.7 * rk, trigPhase: t, trigAmp: k });
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; k = 0; open = 0; pump = 0; gait.reset(); stretch(body, 1); shell.scale.y = 1; body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-shot)
@@ -2988,7 +3014,7 @@ export function buildButterfly() {
     // the flight: 2 to 4 beats, then a glide (each butterfly on its own count)
     const n = 2 + Math.floor((ph0 * 7) % 3), cyc = n * beatT + glideT, c = (t + ph0 * 3) % cyc;
     const flap = c < n * beatT ? Math.sin((c / beatT) * Math.PI * 2) : 0;   // up, then down through the glide angle
-    let lift = 0, clap = 0, down = 0, len = 1, shake = 0, glow = 0;
+    let lift = 0, clap = 0, down = 0, len = 1, shake = 0, glow = 0, bell = 0, rk = 1;
     if (ph === 'build') {
       lift = coil(A.k, A.style.hold, A.style.over) * A.vary; clap = S(A.k, 0, 0.3);
       shake = A.still ? 0 : quiver(A.k, A.t, ph0) * A.quiet; glow = A.k;
@@ -2996,18 +3022,24 @@ export function buildButterfly() {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
       lift = A.vary * Math.max(0, 1 - s); clap = 1 - s; down = s;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-    } else if (ph === 'recoil') down = settle(A.k, A.style.bounces, A.style.damp);
+    } else if (ph === 'recoil') {
+      const u = Math.min(1, A.k / A.tier.end); rk = knobs().recoilKick;
+      down = recoilKick(u, 0.9 * rk);                              // hard fling snaps back into a big wing-billow catch
+      bell = recoilBell(u);
+      len = 1 - A.tier.squash * bell;
+    }
     if (ph === 'idle') lift = held *= Math.exp(-12 * dt); else held = lift;   // (broken off: it settles, not pops)
-    const still = Math.max(clap, Math.min(1, down * 1.5));
+    const still = Math.max(clap, Math.min(1, Math.abs(down) * 1.4));
     for (const W of wings) {
       const f = W.hind ? Math.sin(((c - 0.025) / beatT) * Math.PI * 2) * (c < n * beatT ? 1 : 0) : flap;   // the hindwing trails
       let a = V0 + 0.85 * f;
-      a += (1.45 + shake * 0.08 - a) * clap;           // clapped high over its back, quivering
-      a += (-0.55 - a) * Math.min(1, down * 1.2);      // the fling: one hard downstroke
-      W.hinge.rotation.set(0, W.s * (0.08 * f + (W.hind ? -0.18 : 0.05) - down * 0.25), W.s * a);
+      a += (1.45 + shake * 0.08 - a) * clap;                       // clapped high over its back, quivering
+      a += (-0.65 - a) * Math.min(1, Math.max(0, down) * 1.25);    // the fling: one hard downstroke
+      a += Math.max(0, -down) * (W.hind ? 0.95 : 0.72);            // overlapping sail-billow catch on recoil (hindwings trail higher)
+      W.hinge.rotation.set(0, W.s * (0.08 * f + (W.hind ? -0.18 : 0.05) - down * (W.hind ? 0.34 : 0.25)), W.s * a);
     }
-    body.position.set(shake * 0.02, -0.08 * flap * (1 - still) - 0.05 * (c >= n * beatT ? (c - n * beatT) / glideT : 0) + 0.12 * lift, 0);
-    body.rotation.set(0.12 * (c < n * beatT ? 1 : 0.3) - lift * 0.5 + down * 0.45, 0, shake * 0.05);
+    body.position.set(shake * 0.02, -0.08 * flap * (1 - still) - 0.05 * (c >= n * beatT ? (c - n * beatT) / glideT : 0) + 0.12 * lift + 0.28 * rk * bell, -0.44 * rk * bell);
+    body.rotation.set(0.12 * (c < n * beatT ? 1 : 0.3) - lift * 0.5 + down * 0.45 - 0.32 * rk * bell, 0, shake * 0.05 + (A ? A.side : 1) * 0.24 * rk * bell);
     stretch(body, len);
     // the ball between its forelegs: grows and spins as it winds up; gone as it's thrown
     const b = ph === 'build' ? 0.06 + 0.16 * glow : 0.001;
@@ -3147,13 +3179,7 @@ export function buildFirefly() {
     hot.copy(hostile('firefly')).multiplyScalar(LOOK.num('firefly-glow', 2.4));
     lamp.userData.color.copy(dim).lerp(hot, k * k);
     const A = e?.atk, ph = A ? A.phase : 'idle', still = A?.still ? 1 : 0;
-    const beatW = Math.sin(t * 95 + (e?.phase || 0));
-    for (const C of covers) C.pivot.rotation.set(0.6 + beatW * 0.03 * (1 - still), -C.s * 0.25, C.s * 0.6, 'YXZ');
-    for (const W of wings) {
-      W.pivot.rotation.set(0.1, -W.s * 1.05, 0);
-      W.flap.rotation.z = W.s * (0.15 + Math.sin(t * 95 + (W.s > 0 ? 0 : 0.4) + (e?.phase || 0)) * 0.9);
-    }
-    let lift = wind, jolt = kick * kick, tumble = kick * 0.54, len = 1, shake = 0;   // (without an attack clock: the word's own blends)
+    let lift = wind, jolt = kick * kick, tumble = kick * 0.54, len = 1, shake = 0, bell = 0, rk = 1;   // (without an attack clock: the word's own blends)
     if (A) {
       lift = jolt = tumble = 0;
       if (ph === 'build') {
@@ -3163,17 +3189,28 @@ export function buildFirefly() {
         const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
         lift = (A.vary + 0.17) * Math.max(0, 1 - s); jolt = s; tumble = s;
         len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
-      } else if (ph === 'recoil') jolt = tumble = (1 + A.tier.over) * settle(A.k, A.style.bounces, A.style.damp);
+      } else if (ph === 'recoil') {
+        const u = Math.min(1, A.k / A.tier.end); rk = knobs().recoilKick;
+        jolt = tumble = (1 + A.tier.over) * settle(u, A.style.bounces, A.style.damp);
+        bell = recoilBell(u);
+        len = 1 - A.tier.squash * bell;
+      }
       if (ph === 'idle') lift = held *= Math.exp(-14 * dt);   // broken off (frozen, stunned): the tail comes down, not pops
       else held = lift;
     }
+    const beatW = Math.sin(t * (95 + 45 * bell) + (e?.phase || 0));
+    for (const C of covers) C.pivot.rotation.set(0.6 + beatW * 0.03 * (1 - still) + bell * 0.25 * rk, -C.s * 0.25, C.s * (0.6 + bell * 0.38 * rk), 'YXZ');
+    for (const W of wings) {
+      W.pivot.rotation.set(0.1, -W.s * 1.05, 0);
+      W.flap.rotation.z = W.s * (0.15 + Math.sin(t * (95 + 45 * bell) + (W.s > 0 ? 0 : 0.4) + (e?.phase || 0)) * (0.9 + 0.15 * bell));
+    }
     const calm = 1 - Math.max(wind, still);                  // it stops bobbing as it aims
     const speed = e?.vel ? Math.hypot(e.vel.x, e.vel.z) : 0;
-    body.position.set(shake * 0.03, (Math.sin(t * 3 + (e?.phase || 0)) * 0.1 + beatW * 0.012) * calm, jolt * 0.3);   // the throw jolts it forward, off its tail
-    body.rotation.x = -0.35 * calm + Math.min(0.25, speed * 1.2) * calm + lift * 0.55 - tumble * 0.65;   // hanging tail down, leaning in as it goes; lifting its tail (nose down) to throw; the throw flicks it up and over
-    body.rotation.z = shake * 0.06 + Math.sin(t * 1.7 + (e?.phase || 0)) * 0.06 * calm;
+    body.position.set(shake * 0.03, (Math.sin(t * 3 + (e?.phase || 0)) * 0.1 + beatW * 0.012) * calm + bell * 0.24 * rk, jolt * 0.48 * rk);   // mortar pop blasts it forward & up off its tail
+    body.rotation.x = -0.35 * calm + Math.min(0.25, speed * 1.2) * calm + lift * 0.55 - tumble * 0.92 * rk;   // exaggerated cork-pop nose-up tumble
+    body.rotation.z = shake * 0.06 + Math.sin(t * 1.7 + (e?.phase || 0)) * 0.06 * calm + (A ? A.side : 1) * bell * 0.28 * rk;
     stretch(body, len);
-    lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15);  // the lamp swells as it aims, and squeezes as the glow leaves it
+    lamp.scale.setScalar(1 + wind * 0.25 - kick * 0.15 - bell * 0.30);  // the lamp swells as it aims, pinches down hard on mortar pop
     if (A) eyes(face, A);
   };
   anim.reset = () => { t = 0; wind = 0; held = 0; stretch(body, 1); body.position.set(0, 0, 0); body.rotation.set(0, 0, 0); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };   // (a pooled model killed mid-throw)
