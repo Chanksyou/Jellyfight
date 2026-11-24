@@ -265,12 +265,12 @@ const pools = () => G().APT.root.children.filter((o) => o.name.startsWith('Floor
 const tvScreen = () => { let m; G().APT.scene.traverse((o) => { if (o.name === 'TV screen') m = o; }); return m; };
 
 story('ambient/floor-pools-are-one-soft-draw-each', {
-  about: "Act 1's TV and monitor pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
+  about: "Act 1's TV, monitor and media console strip pools are one draw each (twice over when the frame draws the room for its AO and its picture), soft (the Treasure glow's soft kind: no ring, fading to nothing at the edge, dimmer than the jelly's glow), no light, and they drift in colour but hold a steady one under Reduce effects.",
   setup() { fresh({ elites: false }); tp(1.6, 0.05, 3.4, Math.PI); step(2); },
   play() {
     const { ambient, floorLight } = G(), found = pools(), was = found.map((p) => p.visible);
-    if (found.length !== 2 || !floorLight) return ok(false, { pools: found.length });
-    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= 0.4);
+    if (found.length !== 3 || !floorLight) return ok(false, { pools: found.length });
+    const soft = found.every((p) => !p.isLight && p.material.uniforms.uKind.value === GLOW_KIND.soft && p.material.uniforms.uOpacity.value <= (p.name.endsWith('strip') ? 0.7 : 0.4));
     const calm = ambient.calm, colour = (t) => { ambient.uniforms.ambientTime.value = t; floorLight.update(); return found[0].material.uniforms.uColor.value.getHex(); };
     let moves, still;
     try {
@@ -284,6 +284,17 @@ story('ambient/floor-pools-are-one-soft-draw-each', {
     found.forEach((p, i) => (p.visible = was[i]));
     const delta = calls() - without;
     return ok(soft && moves && still && delta <= found.length * 2, { soft, moves, still, delta });
+  },
+});
+
+story('ambient/console-strip-washes-the-wall-pink', {
+  about: "Act 1 has a steady pink wash on the wall behind the media console (the LED strip), standing upright against the wall; act 4 has none.",
+  setup() { fresh({ elites: false }); step(2); },
+  play() {
+    const w = pools().find((p) => p.name === 'Floor light strip');
+    if (!w) return ok(false, { found: false });
+    const hex = w.material.uniforms.uColor.value;
+    return ok(w.visible && Math.abs(w.rotation.x + Math.PI / 2) < 1e-6 && hex.r > hex.g && hex.b > hex.g && w.position.y > 0.5, { y: w.position.y, hex: hex.getHexString() });
   },
 });
 

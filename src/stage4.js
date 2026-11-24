@@ -103,7 +103,7 @@ export const STAGE4 = {
   noCollide: [],
   status: STAGE1.status,              // the same room: the same lights and smoke (powered.js)
   smoke: STAGE1.smoke,
-  floorLight: STAGE1.floorLight.slice(1),   // the monitor's glow only: the concert dressing owns the TV
+  floorLight: STAGE1.floorLight.filter((s) => s.kind === 'screen').slice(1),   // the monitor's glow only: the concert dressing owns the TV
   cat: STAGE1.cat,                    // the same room: Dendi still asleep in his box at dawn
   hide: STAGE1.hide,
   decor: [HALL_CLOCK],
