@@ -1853,7 +1853,7 @@ export class Elites {
           }
         } else if (e.attack === 1) {
           // Victory's wreath: a line on the bench to you and one from her hand to your middle (mid-jump
-          // included), locking halfway; then the wreath is a Shot out along it and back
+          // included), locking 0.3 of the way through its wind-up; then the wreath is a Shot out along it and back
           const wind = 0.8;
           if (s < wind) {
             if (s < wind * 0.3 || !e.aim) e.aim = shotTarget(P, cfg, null, P.y, e.aim || new THREE.Vector3());
