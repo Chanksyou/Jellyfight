@@ -24,7 +24,7 @@ test('the night, the level curve and the reference jelly', () => {
 });
 test('every number and every knob cites a line that exists', () => {
   const sheets = B.buildSheets();
-  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7']);
+  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2']);
   const real = (src) => {
     const m = /^([\w./-]+):(\d+)$/.exec(src);
     if (!m) return /^(src|content|tools|docs)\//.test(src);
@@ -55,4 +55,11 @@ test('growth reads kills, levels and picks from the night model and the run log'
   const trophy = B.growthWorth(B.nodeOf('treasures', 'trophy'), 0, 3), late = B.growthWorth(B.nodeOf('treasures', 'trophy'), 3, 3);
   assert.ok(trophy.pts > late.pts && late.pts > 0);
   assert.ok(trophy.add.bubbleDamage > 0 && Math.abs(trophy.add.bubbleDamage - 0.25 * Math.floor(B.FLOW.reduce((s, f) => s + f.kills, 0) / 10)) < 0.5);
+});
+
+test('Wave C reads the bugs and the night', () => {
+  const fly = B.attackOf('housefly');
+  assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.3);
+  assert.equal(B.attackOf('roach').hits[0].word, 'touch');
+  B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [11.7, 16.2, 19.3, 20.6][i]) < 1, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the run log's levels
 });

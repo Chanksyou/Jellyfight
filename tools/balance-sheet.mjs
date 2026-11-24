@@ -978,6 +978,118 @@ the Boss fight is ${ACTS.map((A, i) => `${r(100 * bossShare[i])}%`).join(', ')} 
   };
 }
 
+// ================================================================== Wave C: what fights back (C1 and C2)
+// ------------------------------------------------------------------ C1: bugs
+// Each bug's attack words, read from content/enemies.kdl: damage a hit, seconds between hits, and the warning before it lands.
+const ATTACK_WORDS = ['spit', 'bite', 'leap', 'poke', 'ball-charge', 'sortie', 'whirlwind', 'prism', 'lob', 'swat', 'whip', 'charge-shot', 'burrow', 'dive'];
+ASSUME.contact = 1;   // a bug with no attack word hurts by touch about this often a second (an assumption: the touch gap is in run.js)
+export function attackOf(id) {
+  const node = nodeOf('enemies', id), E = CONTENT.enemies[id], hits = [];
+  for (const w of node.children.filter((c) => ATTACK_WORDS.includes(c.name))) {
+    const p = w.props, cycle = p.every ?? (w.name === 'sortie' ? p.fly + p.land + p.rest : (p.windup ?? 0) + (p.rest ?? 1));
+    const dmg = p.dmg * (w.name === 'whirlwind' ? p.count : w.name === 'prism' ? p.most : 1), warn = p.windup ?? p.charge ?? p.curl ?? p.warn ?? p.aim ?? 0;
+    hits.push({ word: w.name, dmg, cycle, warn });
+  }
+  if (!hits.length) hits.push({ word: 'touch', dmg: E.dmg, cycle: 1 / ASSUME.contact, warn: 0 });
+  return { hits, dps: hits.reduce((s, h) => s + h.dmg / h.cycle, 0), warn: Math.min(...hits.filter((h) => h.warn > 0).map((h) => h.warn), Infinity), line: node.line };
+}
+const BUGS = () => [...new Set(CONTENT.waves.bugs.map((b) => b.id))].map((id) => ({ id, act: CONTENT.waves.bugs.find((b) => b.id === id).act })).concat([{ id: 'nest', act: 3 }]);
+// seconds to clear one bug of this kind at the act's door, with the reference jelly's cards only and with what the run log shows Treasures add
+export function clearTime(id, A) {
+  const M = MOMENTS[A.n], paper = offence('normal', refStats('normal', M.level)), E = CONTENT.enemies[id];
+  return { paper: E.hp * A.toughness / paper, real: E.hp * A.toughness / (M.real || paper) };
+}
+function sheetC1() {
+  const flags = [], rows = [], per = [];
+  for (const { id, act } of BUGS()) {
+    const A = ACTS[act - 1], E = CONTENT.enemies[id], T = attackOf(id), C = clearTime(id, A), xpPerHp = E.xp * A.xpMult / (E.hp * A.toughness), N = night(A).per[id] || 0;
+    const hit = Math.max(...T.hits.map((h) => h.dmg)) * A.power;
+    per.push({ id, act, A, E, T, C, xpPerHp, N, hit });
+    rows.push([E.name, act, r(E.hp * A.toughness), r(C.paper), r(C.real), r(T.dps * A.power, 2), r(hit, 1), Number.isFinite(T.warn) ? r(T.warn, 2) : 'touch', r(1000 * xpPerHp, 1), r(N)]);
+  }
+  for (const act of [1, 2, 3, 4]) {
+    const mine = per.filter((x) => x.act === act && x.id !== 'nest'), tot = mine.reduce((s, x) => s + x.N, 0);
+    const med = (f) => median(mine.map(f)), medReal = med((x) => x.C.real), mClear = med((x) => x.C.paper), mXp = med((x) => x.xpPerHp), mDps = med((x) => x.T.dps);
+    for (const x of mine) {
+      const hpKnob = { at: kdl('content/enemies.kdl', 'enemy', x.id), do: (v) => `hp=${x.E.hp} → hp=${Math.round(x.E.hp * v)}` };
+      if (x.C.real > 2.5 * medReal && x.C.real > 6) flags.push({ text: `${x.E.name} (act ${act}) takes ${r(x.C.paper)} s to clear at the ${x.A.boss} door on the reference jelly (${r(x.C.real)} s with what Treasures add), ${r(x.C.paper / mClear, 1)}x the act's middle bug (${r(mClear)} s).`,
+        knob: { at: hpKnob.at, change: hpKnob.do(3 * mClear / x.C.paper), does: `a clear time of about three of the act's middle bug` } });
+      else if (x.xpPerHp > 2.5 * mXp && x.T.dps < mDps) flags.push({ text: `${x.E.name} (act ${act}) pays ${r(1000 * x.xpPerHp, 1)} XP per 1000 Health, ${r(x.xpPerHp / mXp, 1)}x the act's middle bug, and deals ${r(x.T.dps * x.A.power, 2)} a second against the middle ${r(mDps * x.A.power, 2)}: free XP.`,
+        knob: { at: kdl('content/enemies.kdl', 'enemy', x.id), change: `xp=${x.E.xp} → xp=${Math.max(1, Math.round(x.E.xp * 2 * mXp / x.xpPerHp))}`, does: 'about twice the act\'s middle XP per Health' } });
+      if (x.hit >= 3 && x.T.warn < 0.4) flags.push({ text: `${x.E.name} (act ${act}) hits for ${r(x.hit, 1)} with ${r(x.T.warn, 2)} s of warning: under a phone thumb's reaction.`,
+        knob: { at: x.T.line ? `content/enemies.kdl:${nodeOf('enemies', x.id).children.find((c) => ATTACK_WORDS.includes(c.name)).line}` : hpKnob.at, change: 'windup → 0.5', does: 'half a second to step aside' } });
+    }
+  }
+  // paper damage if nothing is dodged, against what the run log says was lost
+  const act = ACTS.map((A, i) => { const tot = per.filter((x) => x.act === A.n).reduce((s, x) => s + x.N * x.T.dps * A.power * x.C.real, 0); return [A.n, tot, RUN_LOG.healthLost[i]]; });
+  return {
+    id: 'C1', title: 'Bugs',
+    lede: 'Each bug on paper: how long it takes to clear, how hard it hits if nothing is dodged, how long you have to dodge, and what it pays.',
+    numbers: per.map((x) => [`${x.E.name} (act ${x.act}): Health, damage, XP`, `${x.E.hp}, ${x.E.dmg}, ${x.E.xp}; ${x.T.hits.map((h) => `${h.word} ${h.dmg} every ${r(h.cycle, 2)} s`).join(', ')}`, kdl('content/enemies.kdl', 'enemy', x.id)])
+      .concat([['Acts: toughness, power, xpMult', ACTS.map((A) => `${A.toughness}, ${A.power}, ${A.xpMult}`).join('; '), 'src/stage*.js'], ['Touch rate when a bug has no attack word', ASSUME.contact + ' a second', 'tools/balance-sheet.mjs ASSUME']]),
+    model: `clear time = Health x act toughness / the reference Normal jelly's Offence at the act's Boss door (cards only); "with Treasures" divides by the run log's real damage a second instead
+damage a second sent = sum over its attack words of (hits x damage) / seconds between hits, times the act's power (never dodged, never killed); a bug with no attack word touches ${ASSUME.contact} a second
+warning = the wind-up, charge, curl or aim before the hit lands; XP per Health = XP x act xpMult / (Health x toughness)
+bugs out is the night model's count (alive cap ignored)`,
+    tables: [{ head: ['Bug', 'Act', 'Health', 'Clear (s), cards', 'Clear (s), with Treasures', 'Damage a second sent', 'Biggest hit', 'Warning (s)', 'XP per 1000 Health', 'Bugs out'], rows },
+      { head: ['Act', 'Paper threat: bugs out x damage a second x clear time (Health)', 'Run log: Health lost', 'Implied dodged or never hit'], rows: act.map(([n, t, l]) => [n, r(t), r(l), pct(1 - l / t).slice(1)]) }],
+    charts: [bars('Seconds to clear one, with Treasures (blue acts 1 and 3, green acts 2 and 4)', per.map((x) => [x.E.name, x.C.real, x.act % 2 ? '' : 'b']), { fmt: (v) => r(v), left: 130 }),
+      bars('Damage a second sent, never dodged (with the act\'s power)', per.map((x) => [x.E.name, x.T.dps * x.A.power, x.act % 2 ? '' : 'b']), { fmt: (v) => r(v, 2), left: 130 })],
+    flags,
+    notes: ['The run log has Health lost per act, not per bug, so a bug-by-bug check of paper threat against play (House fly, Ladybug) waits for the run log additions (damage by source).', 'The threat column is a ceiling: a bug alive for its whole clear time, attacking without pause, never dodged. The implied dodged share is how far play falls under it.'],
+  };
+}
+
+
+// ------------------------------------------------------------------ C2: waves and act knobs
+// Bug Health arriving a second against the reference jelly's Offence, through the night. The jelly levels on the XP the bugs bring,
+// from where the last act's Boss door left it; Offence is the cards-only jelly times what Treasures add at this act's door (the run log).
+export function pressure(A, dt = 5, scale = {}) {
+  const W = CONTENT.waves, list = W.bugs.filter((b) => b.act === A.n), tough = A.toughness * (scale.toughness ?? 1), bugs = A.bugs * (scale.bugs ?? 1), M = MOMENTS[A.n];
+  const k = (M.real || 1) / offence('normal', refStats('normal', M.level)), x0 = xpFor(RUN_LOG.level[A.n - 2] ?? 1), out = [];
+  let xp = 0;
+  for (let t = 0; t < A.night; t += dt) {
+    const rate = (W.rate + t * W.grow) * bugs, live = list.filter((b) => t >= b.from), sw = live.reduce((s, b) => s + b.weight, 0);
+    const hp = rate * live.reduce((s, b) => s + b.weight * CONTENT.enemies[b.id].hp * tough, 0) / sw;
+    xp += rate * live.reduce((s, b) => s + b.weight * Math.round(CONTENT.enemies[b.id].xp * A.xpMult), 0) / sw * dt;
+    const level = levelAt(x0 + xp), off = offence('normal', refStats('normal', level)) * k;
+    out.push({ t, hp, off, load: hp / off, level });
+  }
+  return out;
+}
+const peak = (P) => Math.max(...P.map((x) => x.load));
+function sheetC2() {
+  const flags = [], P = ACTS.map((A) => pressure(A)), peaks = P.map(peak), mean = (p) => p.reduce((s, x) => s + x.load, 0) / p.length, means = P.map(mean);
+  const rows = ACTS.map((A, i) => [A.n, ...[60, 120, 180, 240].map((s) => (s < A.night ? r(P[i].find((x) => x.t >= s - 5).load, 2) : '')), r(peaks[i], 2), r(means[i], 2), r(P[i][P[i].length - 1].level)]);
+  const ref = means[0];
+  ACTS.forEach((A, i) => {
+    if (i && (means[i] > 1.5 * ref || means[i] < ref / 1.5)) {
+      const t = A.toughness * ref / means[i];
+      flags.push({ text: `Act ${A.n}'s bugs arrive at ${r(means[i], 2)} of the jelly's Offence over the night (act 1: ${r(ref, 2)}), ${r(means[i] / ref, 1)}x act 1's pressure.`,
+        knob: { at: knob(A, 'toughness'), change: `toughness: ${A.toughness} → ${r(t, 2)}`, does: `act ${A.n} loads the jelly as hard as act 1 does (bugs: ${A.bugs} → ${r(A.bugs * ref / means[i], 2)} does the same, with fewer bugs)` } });
+    }
+  });
+  // act 4 carries its bugs' Health in enemies.kdl, acts 2 and 3 in the stage's toughness
+  const tough4 = ACTS[3].toughness;
+  if (tough4 === 1 && ACTS[1].toughness > 1 && ACTS[2].toughness > 1) flags.push({ text: `Acts 2 and 3 scale a bug's Health with the stage's toughness (${ACTS[1].toughness}, ${ACTS[2].toughness}); act 4's toughness is ${tough4}, and its bugs carry the Health themselves (Firefly ${CONTENT.enemies.firefly.hp}, Monarch ${CONTENT.enemies.butterfly.hp}, Cicada ${CONTENT.enemies.cicada.hp}, against a Dragonfly's ${CONTENT.enemies.dragonfly.hp}).`,
+    knob: { at: knob(ACTS[3], 'toughness'), change: `toughness: 1 → 4, and hp 700 / 1000 / 1200 → 175 / 250 / 300 (Firefly, Monarch butterfly, Cicada)`, does: `the same Health, written the way acts 2 and 3 write it, so a later act's knob is one number (the Encore arena's own toughness, ${ENCORE.toughness ?? 3.5}, would need x4 to keep its bugs as they are)` } });
+  const waves = ACTS.map((A) => CONTENT.waves.bugs.filter((b) => b.act === A.n));
+  return {
+    id: 'C2', title: 'Waves and act knobs',
+    lede: 'Bug Health arriving a second against the jelly\'s Offence, minute by minute: where the line crosses, the room starts to fill. The four act knobs (toughness, power, bugs, xpMult) set it.',
+    numbers: [['Spawn rate, growth a second; alive cap start, every, max', `${CONTENT.waves.rate}, ${CONTENT.waves.grow}; 6, 15, 20`, at('content/waves.kdl', /^spawning/)],
+      ...ACTS.map((A) => [`Act ${A.n}: toughness, power, bugs, xpMult, night s`, `${A.toughness}, ${A.power}, ${A.bugs}, ${A.xpMult}, ${A.night}`, A.n === 1 ? A.file : knob(A, 'toughness')]),
+      ...ACTS.map((A, i) => [`Act ${A.n} bugs: id weight from`, waves[i].map((b) => `${b.id} ${b.weight} ${b.from ?? 0}`).join('; '), at('content/waves.kdl', new RegExp(`^bug "${waves[i][0].id}"`))])],
+    model: `arriving Health a second = (spawn rate + growth x t) x act bugs x the weighted mean of (bug Health x act toughness) over the bugs out by t
+the jelly's level follows the XP that arrives, from the last Boss door's level; Offence = cards-only Normal jelly at that level x what Treasures add at this act's door (run log)
+load = arriving Health a second / Offence: above 1 the jelly cannot keep up and the room fills (the alive cap and the time bugs take to reach you are ignored)`,
+    tables: [{ head: ['Act', 'Load at 1:00', '2:00', '3:00', '4:00', 'Peak', 'Mean over the night', 'Level at the Boss door'], rows }],
+    charts: [bars('Mean load over the night (arriving Health a second / Offence)', ACTS.map((A, i) => [`Act ${A.n}`, means[i]]), { fmt: (v) => r(v, 2), ref: ref })],
+    flags,
+    notes: ['Load is not difficulty: a bug that hits hard and dies fast loads little. It says how much of your Offence each act asks for just to keep the room clear.', 'No target is set yet. Say what mean load you want in each act, and the knob lines above give the toughness that matches it.'],
+  };
+}
+
 // ------------------------------------------------------------------ charts (inline SVG, no libraries)
 const W = 460, ROW = 22;
 const xmlesc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -997,7 +1109,7 @@ function grouped(title, groups, series, fmt = String) {
 }
 
 // ------------------------------------------------------------------ the page
-export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7()];
+export const buildSheets = () => [sheetS0(), sheetA1(), sheetA2(), sheetA3(), sheetA4(), sheetA5(), sheetB1(), sheetB2(), sheetB3(), sheetB4(), sheetB5(), sheetB6(), sheetB7(), sheetC1(), sheetC2()];
 function page(sheets) {
   const rev = (() => { try { return fs.readFileSync(path.join(ROOT, '.git/HEAD'), 'utf8').trim(); } catch { return ''; } })();
   const table = (t) => `<div class="scroll"><table><tr>${t.head.map((h) => `<th>${xmlesc(h)}</th>`).join('')}</tr>${t.rows.map((row) => `<tr>${row.map((c) => `<td>${xmlesc(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
