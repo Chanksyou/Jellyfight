@@ -96,7 +96,7 @@ A knob is a suggestion; nothing changes until the owner picks it.
 - A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
 - B1: chests and rarity odds. B2: stat Treasures. B3: gadget Treasures. B4: growing and economy Treasures. B5: Attack upgrades. B6: Legendary Treasures and evolutions. B7: status effects.
 - C1: bugs. C2: waves and act knobs. C3: Elites. C4: Bosses. C5: moving and dodging.
-- D3: the spread of builds (the dice-only roller).
+- D1: score. D2: first run and Easy. D3: the spread of builds (the dice-only roller).
 
 ## What you pick up (Wave B)
 
@@ -140,3 +140,9 @@ The player's part is fixed (the pick the sheets price highest, or one at random)
 Each build is priced at each Boss door as its Offence and Defence over the reference jelly's at the same level; gadgets count at `ASSUME.gadgetHit` of their paper damage a second.
 `node tools/balance-sheet.mjs` rolls 10,000 (under two minutes); the test rolls 160.
 To see what a change does to the gap, make it and run the script again.
+
+## What wraps it (Wave D)
+
+The score (D1) prices each part of `src/score.js` for the run log's mean cleared act, and splits a run into finishing parts (night, Boss damage, Boss beaten) and skill parts (Elites, bugs, clean play, pace).
+The run log has means only, so a part that pays everyone the same shows up here, but how far players spread around it needs the per-run rows.
+First run and Easy (D2) sizes what a first-timer's jelly can spend in act 1 against what a cleared act costs, and what Easy's x2 dealt and x0.5 taken do on paper.

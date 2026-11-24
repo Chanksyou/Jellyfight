@@ -24,7 +24,7 @@ test('the night, the level curve and the reference jelly', () => {
 });
 test('every number and every knob cites a line that exists', () => {
   const sheets = B.buildSheets({ runs: 160 });
-  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2', 'C3', 'C4', 'C5', 'D3']);
+  assert.deepEqual(sheets.map((s) => s.id), ['S0', 'A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2', 'C3', 'C4', 'C5', 'D1', 'D2', 'D3']);
   const real = (src) => {
     const m = /^([\w./-]+):(\d+)$/.exec(src);
     if (!m) return /^(src|content|tools|docs)\//.test(src);
