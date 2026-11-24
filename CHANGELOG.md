@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v672 keeps the Encore's attacks steady: a phone's speaker latency moving no longer throws its whole set away (attacks vanishing mid-Warning and starting late), and a track that finishes loading mid-fight picks up at the fight's beat instead of restarting the set.
+
 v671 takes the loading screen out of the page once it has faded, so its looping animations stop redrawing over the game, and keeps the game's canvas out of the story runner's page picture, which had been crashing the act 1 test shard.
 
 v670 Applies Chan's layout edits: Act 1 (and Act 4, which follows it) loses the wooden bowl, cutting board, glass dish, dish cloth and glass cup and hides the red hardcover; the striped snake plant and pothos are placed, the pilea, knife strip and ultrawide monitor nudged. Act 2 loses the toilet spray and bath mat, gets a striped snake plant and pothos, and the duck rug, round rug and step stool move. Shadows and light re-baked.
