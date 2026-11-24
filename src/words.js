@@ -308,7 +308,7 @@ export const ENEMY_WORDS = {
         // the aim locks on half way through the warning, so the line shows where it will really go
         if (e.aimT > p.aim * 0.5) (e.aimAt ||= new THREE.Vector3()).copy(c.pc);
         if (p.shot === 'pin' && e.aimAt && e.aimT > 0 && e.aimT <= p.aim * 0.5) en.pinLine(e, e.aimAt, 1 - e.aimT / (p.aim * 0.5), p.speed * p.life);
-        if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.25; }
+        if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.65; }
         else if (e.shootT <= 0) e.shootT = 0.5;
         if (e.firedT > 0) e.firedT -= c.dt;
         if (p.still && (e.aimT > 0 || e.firedT > 0)) c.speed = 0;

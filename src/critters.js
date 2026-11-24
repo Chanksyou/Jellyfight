@@ -1530,13 +1530,13 @@ export function buildLadybug() {
         brace = Math.max(0, 1 - s); flare = s; jump = s; shove = s;
         len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
       } else if (ph === 'recoil') {
-        const u = Math.min(1, Math.max(0, A.pt - A.style.follow) / 0.36);        // the kick: 0.36 s after the follow-through hold
+        const u = Math.min(1, Math.max(0, A.pt - A.style.follow) / 0.62);        // long juicy rocket blast kick after follow-through hold
         rk = knobs().recoilKick;
         shove = (1 + A.tier.over) * settle(u, A.style.bounces, A.style.damp);
         bell = recoilBell(u);
-        squash = 0.28 * bell * rk;                                               // rocket exhaust slams it into the floor
-        brace = 0.85 * bell;
-        flare = 0.55 * bell * rk + Math.sin(u * 28) * 0.16 * (1 - u) * (1 - u);  // elytra flare & rattle from exhaust
+        squash = 0.30 * bell * rk;                                               // rocket exhaust slams it into the floor
+        brace = 0.95 * bell;
+        flare = 0.62 * bell * rk + Math.sin(u * 28) * 0.18 * (1 - u) * (1 - u);  // elytra flare & rattle from exhaust
         if (key === 'close') hop = Math.sin(Math.PI * Math.min(1, Math.max(0, A.st - 0.2) / 0.2)) * 0.07;   // the cases snap shut: a small hop
         else if (key === 'rest') crouch = THREE.MathUtils.smoothstep(1 - (A.len - A.st) / 0.15, 0, 1);       // the last 0.15 s: down before it takes off
       }
@@ -1795,7 +1795,7 @@ export function buildDragonfly() {
       const bell = recoilBell(u);
       restart = Math.min(1, A.k * 2.5); hindRestart = Math.min(1, Math.max(0, A.k * 2.5 - 0.4)); held = 1 - restart;
       if (whirl) {
-        back = -0.23 * rk * b; up = 0.36 * rk * b; lean = -0.52 * rk * b; curl = 0.72 * rk * b; sweep = -0.78 * rk * b;
+        back = -0.19 * rk * b; up = 0.38 * rk * b; lean = -0.52 * rk * b; curl = 0.72 * rk * b; sweep = -0.78 * rk * b;
         fast = Math.max(fast, bell * 1.4);
         len = 1 - A.tier.squash * bell;
       } else if (A.hit) { back = -0.2 * b; lean = -0.35 * b; curl = 0.3 * b; }

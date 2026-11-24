@@ -58,13 +58,13 @@ export function recoilKick(k, over = 0.85) {
   const u = clamp01(k), p = 1 - u;
   return p * p * (Math.cos(Math.PI * 2.5 * u) - over * Math.sin(Math.PI * Math.min(1, u * 2)));
 }
-// fast impulse bell (peaks at 1.0 around k = 0.19, strictly 0 for k >= 0.455): recoil squash, wheelie lift, blast flare
+// fast-rise, slow-settle impulse bell (peaks at 1.0 around k = 0.15, hangs through mid-recoil, strictly 0 by k >= 0.92)
 export function recoilBell(k) {
   WORK.n++;
   const u = clamp01(k);
-  if (u >= 0.455) return 0;
-  const p = 1 - u;
-  return 1.56 * Math.sin(Math.PI * u * 2.2) * p * p;
+  if (u >= 0.92) return 0;
+  const t = u / 0.92, p = 1 - t;
+  return 1.49 * Math.sin(Math.PI * Math.sqrt(t)) * p * p;
 }
 // recoil for heavy bugs: no bounce, a slow ease from 1 to 0
 export function heavy(k) { WORK.n++; k = clamp01(k); return 1 - k * k * (3 - 2 * k); }
