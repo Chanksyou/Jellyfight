@@ -1,1 +1,0 @@
-draws the stag beetle's released ball as a shaded energy ball: a hot orange swirl turning round its line of flight, a pale rim and a quick pulse, instead of a flat white disc (same size, hit sphere, timing and Damage).

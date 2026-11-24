@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v679 draws the stag beetle's released ball as a shaded energy ball: a hot orange swirl turning round its line of flight, a pale rim and a quick pulse, instead of a flat white disc (same size, hit sphere, timing and Damage).
+
 v678 smooths the level-up curve: levels 1 to 7 cost what they did, then each level needs 30 XP more than the last (54, 84, 114…), so later acts keep giving level-ups.
 
 v677 Exaggerated projectile recoil animations for all seven ranged bugs (Wood Ant, Giant House Spider, Ladybug, Dragonfly, Stag Beetle, Firefly, and Monarch Butterfly) with impulse kickback, recoil squash, front-leg wheelie/skid, and overlapping wing/appendage follow-through.
