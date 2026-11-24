@@ -1,0 +1,96 @@
+# Balance model
+
+How the game's numbers are priced on paper, so a change can be judged before anyone plays it.
+`node tools/balance-sheet.mjs` applies this model to the content files and writes the balance sheets to `.wrangler/balance-sheets.html` (`--out=` for elsewhere), with every flag and its knob on stdout.
+It reads `content/*.kdl` through the game's own loader (`src/content.js`), `src/stats.js`, the stage files and the run's constants, so the sheets redraw whenever a number changes.
+It changes nothing and plays nothing; the balance bot and the clear test (`docs/agents/balance-tools.md`) still measure what paper can't.
+
+## Units
+
+One **point** is 1% of a level 1 Normal jelly.
+
+- **Offence**: damage a second on one bug. A level 1 Normal jelly does 6 x 1.76 = 10.56, so 1 point is 0.106 damage a second.
+- **Defence**: Health the jelly can spend in an act. A level 1 Normal jelly has 25 in act 1, so 1 point is 0.25 Health.
+- **Levels**: XP in all, run through `xpToNext`, as a fraction (12.4 is level 12 and 40% of the way to 13).
+
+## Offence
+
+```
+Offence = Attack damage line x Fire rate line x Attacks share
+        x (1 + Crit chance x (Crit mult - 1))      Crit
+        x (1 + mark)                               Marks
+        x (1 + status bonus)                       Status bonus
+        x (1 + conditional)                        Conditional
+        x (1 + Elite damage)                       Elite damage (Elites and Bosses only)
+        + gadgets: Attack damage x 1.8 x their multiple / period x targets
+        + damage over time: Burn, Poison, Bleed
+```
+
+Bonuses on the same line add.
+Lines multiply.
+A flat stat (Lemon Slice's +2) and a percent (Shot Glass's +50%) are both on the Attack damage line, because `Run.S` adds `base + add + base x pct`.
+
+Each jelly type's attack (`content/jellies.kdl`, `src/bubbles.js` `ELEMENT`):
+
+- one bug: Attack damage x `hit` x Fire rate, plus Fire's Burn (Attack damage x 4.5 x 0.17 a second, lit while hits come faster than its 3 s) and Poison's stacks (up to 5, each 20% of Attack damage a second).
+- a clump of 5 adds, on the other four: Lightning's 3 arcs, Glitter's splash, the Poison burst's stacks, Wind's pierce, one sting per extra tentacle.
+- a Boss counts as one bug.
+
+**The rule for a new damage bonus:** say which line it joins before picking its number.
+A bonus on its own line multiplies every other line, so it is worth more than its number says; a new line needs a reason written next to it.
+
+## Defence
+
+```
+Defence = (Health + Shield x refills + Health regen x act seconds + heals)
+        / ((1 - Dodge) x damage taken)
+```
+
+Act seconds are the night plus the run log's mean Boss fight.
+The Shield refills once every 20 s for a careful player and every 60 s for a brawler (assumed, not measured: it needs 5 s clear and 2 s to fill).
+Hits are multiplied by the act's `power` before they land, so Defence is compared with the run log's Health lost per act, which already includes it.
+
+## Levels
+
+```
+bugs out    = ∫ (rate + grow x t) x act bugs dt        (content/waves.kdl; the alive cap is ignored)
+XP on offer = Σ bugs x round(XP x act xpMult)        (+ act 3's wasp nests)
+level       = XP in all through xpToNext(L) = round(base x growth^(L-1))
+```
+
+This predicts the run log's end-of-act levels to within about half a level.
+
+## The reference jelly
+
+Items are priced against a reference jelly at five moments: the start, and each Boss door at the run log's mean level there.
+The reference jelly is its type's starting stats plus an average card for each level: each card by its weight, each rarity by its odds, applied with `applyCard`.
+It holds no Treasures.
+The run log's real Boss damage a second (Boss Health over the mean fight time) divided by the reference jelly's is what Treasures, upgrades and evolutions add by that door.
+
+## Budgets
+
+Starting values from the balance plan, to be argued with:
+
+| Source | Budget |
+|---|---|
+| Level-up card, Common / Rare / Epic | 12 / 18 / 24 points (Fire rate's own cards) |
+| Common Treasure | 15 per copy, 60 at full stack |
+| Rare Treasure | 25 per copy |
+| Epic Treasure | 40 |
+| Legendary Treasure or evolution | 70, and a cost worth at least 20 |
+| Attack upgrade | 40 |
+
+## Measured numbers
+
+The only numbers typed into the tool are `RUN_LOG` in `tools/balance-sheet.mjs`: levels, Treasures held, Boss fight times, Health lost and bugs cleared per act, from the run log (D1 `run_summaries`).
+Update them, with the date range, when the run log grows.
+
+## Sheets
+
+Each sheet has the same parts: the numbers it reads (each with its file and line), the model, charts, flags, and one knob per flag (a value, where it lives, and what changing it would do).
+A knob is a suggestion; nothing changes until the owner picks it.
+
+- S0: the yardstick (units, moments, the reference jelly).
+- A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
+
+`tests/balance-sheet.test.mjs` (run by `node tests/check.mjs`) checks the model reproduces the damage each type's note in `content/jellies.kdl` works out by hand, and that every number and knob cites a line that exists.
