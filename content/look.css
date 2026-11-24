@@ -1125,6 +1125,23 @@
   --city-windows: 0.12;          /* share of the city's lit windows that switch on and off */
   --city-window-dim: 0.12;       /* how dark a window goes when it is off, 0..1 */
   --city-beacon-dim: 0.2;        /* how dim a red beacon goes between blinks, 0..1 */
+  /* The powered apartment (powered.js): little lights on what is plugged in, smoke and mist off what burns or steams */
+  --status-green: #6fe0a0;       /* a status light's colours: soft, never the hostile red or orange */
+  --status-blue: #7fb4ff;
+  --status-amber: #f0c878;
+  --status-white: #e8eef5;
+  --status-level: 1;             /* how bright they are, 0..1 (they glint, they don't glow) */
+  --status-size: 3;              /* a light's size in screen px at 1 m (smaller with distance, kept between --status-min and 9 px) */
+  --status-min: 2.5;             /* px: the smallest a light gets */
+  --smoke-colour: #d9d9dc;       /* neutral grey-white, drawn with normal blending, never additive */
+  --smoke-opacity: 0.2;          /* how thick a thread is where it is thickest */
+  --smoke-spread: 2.4;           /* how far it fans out as it rises (a vent's air is 1.6) */
+  --smoke-wisps: 2;              /* long curls a source sends up... */
+  --smoke-puffs: 2;              /* ... and short ones near its base */
+  --smoke-thread-radius: 0.008;  /* m: how far from its tip a thin curl winds */
+  --smoke-mist-radius: 0.03;     /* m: ... a humidifier's wide plume */
+  --smoke-steam-radius: 0.05;    /* m: ... steam over water */
+  --smoke-calm-speed: 0.3;       /* Reduce effects: how fast it drifts then (0: it stops) */
   /* Rain on the windows, act 1 only (rain.js; act 4 is the same room at dawn, dry) */
   --rain-cell: 0.02;             /* m: one still drop per cell at most */
   --rain-drops: 0.4;             /* share of cells with a drop */
