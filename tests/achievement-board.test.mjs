@@ -82,13 +82,18 @@ test('run details retain Elite defeats, pickup order and fatal attribution with 
   const row = { run: 'run-abcdefgh', act: 1, revision: 1, outcome: 'died', details: {
     elitesBeaten: 2, elites: [['mug', 75.35], ['<clock>', -5]], treasuresObtained: 3,
     pickups: [['candle', 10.25, 1], ['candle', 40, 2], ['bad', 'invalid', 1]],
+    offers: [['chest', 12.34, ['candle', '<x>', 'rug', 'a', 'b', 'c', 'd'], 'candle'], ['bogus', 1, ['a'], ''], 'bad'],
+    cards: [[20, ['fireRate-rare', 'health-common'], 'fireRate-rare']], dealt: { bubble: 6.54, '<x>': 1, tentacle: 'no' }, bossDoor: { level: 9, fireRate: 2.345 },
     killedBy: { unit: '<ladybug>', source: 'missile', extra: 'discard' }, extra: 'discard',
   } };
   const save = async r => { clearRates(); return request('/api/runs', { id: 'player-one', rows: [r] }); };
   assert.equal((await save(row)).data.saved, true);
   const read = () => JSON.parse(sqlite.prepare('SELECT details FROM run_summaries').get().details);
   assert.deepEqual(read(), { jelly: 'normal', upgrades: [], elitesBeaten: 2, elites: [['mug', 75.4], ['clock', 0]], treasuresObtained: 3,
-    pickups: [['candle', 10.3, 1], ['candle', 40, 2]], killedBy: { unit: 'ladybug', source: 'missile' } });
+    pickups: [['candle', 10.3, 1], ['candle', 40, 2]],
+    offers: [['chest', 12.3, ['candle', 'x', 'rug', 'a', 'b', 'c'], 'candle'], ['chest', 1, ['a'], '']],
+    cards: [[20, ['fireRate-rare', 'health-common'], 'fireRate-rare']], dealt: { bubble: 6.5, x: 1 }, bossDoor: { level: 9, fireRate: 2.3 },
+    killedBy: { unit: 'ladybug', source: 'missile' } });
   await save({ ...row, revision: 2, details: undefined });
   assert.equal(read().elitesBeaten, 2);   // an older client cannot erase recorded detail
   await save({ ...row, revision: 3, details: { ...row.details, elites: Array(40).fill(['mug', 1]), pickups: Array(140).fill(['candle', 1, 2]) } });

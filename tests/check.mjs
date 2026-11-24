@@ -115,7 +115,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'assets')).filter((f) => /^(apart
 }
 if (bad) process.exit(1);
 
-const unit = spawnSync(process.execPath, ['--test', path.join(ROOT, 'tests/random.test.mjs'), path.join(ROOT, 'tests/balance.test.mjs'), path.join(ROOT, 'tests/achievement-board.test.mjs'), path.join(ROOT, 'tests/run-log.test.mjs')], { stdio: 'inherit' });
+const unit = spawnSync(process.execPath, ['--test', path.join(ROOT, 'tests/random.test.mjs'), path.join(ROOT, 'tests/balance.test.mjs'), path.join(ROOT, 'tests/achievement-board.test.mjs'), path.join(ROOT, 'tests/run-log.test.mjs'), path.join(ROOT, 'tests/balance-sheet.test.mjs')], { stdio: 'inherit' });
 if (unit.status !== 0) process.exit(unit.status ?? 1);
 
 const r = spawnSync(process.execPath, [path.join(ROOT, 'tests/run.mjs'), 'content/,vocabulary/', '--no-mobile'], { stdio: 'inherit' });

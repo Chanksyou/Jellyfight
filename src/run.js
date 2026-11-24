@@ -210,6 +210,7 @@ export class Run {
     bus.on('enemy_killed', (k) => { if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
     bus.on('damage_taken', (d) => {
+      if (d.targetId !== PLAYER && d.amount > 0 && d.source) this.dealt[d.source] = (this.dealt[d.source] || 0) + d.amount;
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
@@ -393,6 +394,10 @@ export class Run {
     this.walked = 0; this.walkFrom = null;   // distance-xp (Pedometer): metres swum toward the next XP, and from where
     this.eliteLog = [];
     this.pickupLog = [];
+    this.offerLog = [];               // each Treasure, Legendary and Attack upgrade pick shown: [kind, seconds, [ids], picked id] (recordRun; balance facts)
+    this.cardLog = [];                // each level-up: [seconds, [stat-rarity shown], stat-rarity picked]
+    this.dealt = {};                  // damage the jelly's sources dealt this act, by source (as sent, before marks and the like)
+    this.bossDoor = null;             // the jelly's level and stats as the Boss fight begins
     this.treasuresObtained = 0;
     this.killedBy = null;
     this.logStarted = false;
@@ -484,7 +489,7 @@ export class Run {
       scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt, bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, taken: this.taken,
-      lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, treasuresObtained: this.treasuresObtained,
+      lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, offerLog: this.offerLog, cardLog: this.cardLog, dealt: this.dealt, bossDoor: this.bossDoor, treasuresObtained: this.treasuresObtained,
       treasureTimesLeft: this.treasureTimesLeft, bonusTreasureAt: [...this.bonusTreasureAt], recentTreasureSpots: this.recentTreasureSpots,
       chests: this.roomTreasures.filter((c) => c.active && c.opening === null)
         .map((c) => ({ at: c.pos.toArray(), facing: c.chest.rotation.y, stay: c.timed ? c.stay : null, left: c.timed ? c.left : null, slot: c.scheduledSlot })),
@@ -495,7 +500,7 @@ export class Run {
     this.t = M.t;
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt, bugsOut: M.bugsOut || 0, bugsCleared: M.bugsCleared || 0, taken: M.taken || 0,
-      lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], treasuresObtained: M.treasuresObtained || 0,
+      lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], offerLog: M.offerLog || [], cardLog: M.cardLog || [], dealt: M.dealt || {}, bossDoor: M.bossDoor || null, treasuresObtained: M.treasuresObtained || 0,
       pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
@@ -1417,6 +1422,8 @@ export class Run {
     this.ui.levelUp(this.level - this.pendingLevels, this.cardsOnOffer, this.S, this.rerolls, (card) => {
       const before = this.stats.health;
       this.choosingCard = false;
+      const tag = (c) => `${c.stat}-${c.rarity?.id || 'common'}`;
+      if (this.cardLog.length < 48) this.cardLog.push([Math.round(this.t * 10) / 10, this.cardsOnOffer.map(tag), tag(card)]);
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
       if (this.stats.health > before) this.heal(this.stats.health - before);
@@ -1509,9 +1516,11 @@ export class Run {
     const left = shuffle(pool).slice(0, 3).map((u) => ({ ...u, tier: UPGRADE_TIER }));
     if (!left.length) { then(); return; }
     sfx.treasure();
+    this.logOffer('upgrade', left);
     if (document.pointerLockElement) document.exitPointerLock();   // the mouse comes back to click a card with
     this.ui.choose('An Attack upgrade', next ? `Choose how your attack grows for act ${next.id}.` : 'Choose how your attack grows to start the run.', left, (u) => {
       const before = this.S.health;
+      this.pickedOffer(u.id);
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
       if (this.S.health > before) this.heal(this.S.health - before);
@@ -1527,11 +1536,19 @@ export class Run {
   found(kind, id, label = id) { if (!this.dev && discover(kind, id)) { this.newFinds.push(label); return true; } return false; }
 
   // spin: the reward spin's { kind, rollOne, odds, luck } (ui.choose), or none
+  // Balance facts: what a pick showed and what was taken (the entry's last item is filled in by the pick; a Skip leaves it empty)
+  logOffer(kind, choices) {
+    if (this.offerLog.length < 48) this.offerLog.push([kind, Math.round(this.t * 10) / 10, choices.map((c) => c.id), '']);
+  }
+  pickedOffer(id) { const o = this.offerLog.findLast((e) => !e[3]); if (o) o[3] = id; }
+
   // skip: true adds a Skip button (the Legendary pick): nothing taken, the run carries on
   offer(title, sub, choices, then = () => this.resume(), spin = null, skip = false) {
     if (document.pointerLockElement) document.exitPointerLock();
     sfx.treasure();
+    this.logOffer(spin?.kind === 'treasure' ? 'chest' : 'legendary', choices);
     this.ui.choose(title, sub, this.markNew('treasures', choices).map((c) => (c.evolution ? c : { ...c, changes: this.statChanges(c) })), (t) => {
+      this.pickedOffer(t.id);
       if (t.evolution) { this.evolve(t, then); return; }   // (jelly types: an evolution in the Legendary pick)
       const before = this.S.health;
       this.owned.add(t.id);
@@ -1759,6 +1776,7 @@ export class Run {
       this.fade.style.opacity = Math.min(1, this.liftT / 1.2);
     } else if (!this.bossStarted) {
       this.bossStarted = true;
+      this.bossDoor = { level: this.level, ...Object.fromEntries(Object.keys(BASE_STATS).map((k) => [k, Math.round(this.S[k] * 100) / 100])) };
       const B = this.stage.boss;
       this.enemies.clear();
       this.traversal.bossMode = true;
@@ -2057,7 +2075,7 @@ export class Run {
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
       details: { season: SEASON, easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
-        pickups: [...this.pickupLog], killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
+        pickups: [...this.pickupLog], offers: this.offerLog.map((o) => [...o]), cards: this.cardLog.map((c) => [...c]), dealt: Object.fromEntries(Object.entries(this.dealt).map(([k, v]) => [k, round(v)])), bossDoor: this.bossDoor, killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',
     };

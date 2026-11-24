@@ -368,12 +368,12 @@ story('content/every-treasure-has-a-rarity', {
   },
 });
 story('progression/regen-card-reads-every-5-seconds', {
-  about: 'The Health regen level-up card gives 0.1 / 0.2 / 0.3 Health a second (common / rare / epic) and reads as Health every 5 seconds: +0.5, +1, +1.5.',
+  about: 'The Health regen level-up card gives 0.1 / 0.2 / 0.3 Health a second (common / rare / epic) and reads as Health every 5 s: +0.5, +1, +1.5.',
   setup() {},
   play() {
     const amounts = CONTENT.levelups.cards.regen.amounts;
     const texts = amounts.map((amount) => cardText({ stat: 'regen', amount }));
-    const want = ['+0.5 Health every 5 seconds', '+1 Health every 5 seconds', '+1.5 Health every 5 seconds'];
+    const want = ['+0.5 Health every 5 s', '+1 Health every 5 s', '+1.5 Health every 5 s'];
     return ok(amounts.join() === '0.1,0.2,0.3' && texts.every((t, i) => t === want[i]), { amounts, texts });
   },
 });

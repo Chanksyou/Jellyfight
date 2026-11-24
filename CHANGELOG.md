@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v674 rewrites every Treasure, Attack upgrade, evolution and jelly type description to one short pattern (trigger, effect, cost): about 20% fewer words, no number or effect changed; the Health regen card reads "every 5 s", and two out-of-date death-screen tips about Elements are gone.
+
+v673 adds four balance facts to each act's private run log: what every Treasure and Attack upgrade pick offered, each level-up's cards, the damage dealt by source, and the jelly's stats as the Boss fight begins. Nothing changes in play.
+
 v672 keeps the Encore's attacks steady: a phone's speaker latency moving no longer throws its whole set away (attacks vanishing mid-Warning and starting late), and a track that finishes loading mid-fight picks up at the fight's beat instead of restarting the set.
 
 v671 takes the loading screen out of the page once it has faded, so its looping animations stop redrawing over the game, and keeps the game's canvas out of the story runner's page picture, which had been crashing the act 1 test shard.
