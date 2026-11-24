@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v667 moves Act 4's five floor vents (the TV, sofa, desk, lounge chair and stove) to the spots set in the layout editor, so each lands the jelly where the layout puts it.
+
 v666 gives the corduroy sofa, the kitchen, desk and sideboard wood, the bathroom's tiles and the kitchen counter and backsplash real photo textures in place of the drawn ones.
 
 v665 tells a player on the run-complete screen when a dev run's score isn't going on the leaderboard, instead of just hiding Submit score.
