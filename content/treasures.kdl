@@ -28,31 +28,31 @@
 // A new treasure that combines existing words needs no code: add it here and a story.
 
 // --- your bubbles (bubbles.js)
-treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true not-for="poison glitter tentacle" text="Attacks pierce, popping on up to 3 enemies in a line." {
+treasure "bobbyPin" name="Bobby Pin" icon="🧷" rarity="rare" attack=#true not-for="poison glitter tentacle" text="Attacks pierce up to 3 bugs." {
     pierce 3
-    level 2 text="Attacks pierce up to 5 enemies in a line." {
+    level 2 text="Attacks pierce up to 5 bugs." {
         pierce 5
     }
-    level 3 text="Attacks pierce up to 7 enemies in a line." {
+    level 3 text="Attacks pierce up to 7 bugs." {
         pierce 7
     }
 }
 // a payout, not a crit (Nail Clipper is the extra damage): works for every jelly type's attack
-treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10th attack is golden. A bug it finishes off drops a big gold XP gem worth 4x its XP." {
+treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10th attack: golden. Its kills drop an XP gem worth 4x." {
     golden-bubble every=10 mult=1 coin=4
-    level 2 text="Every 8th attack is golden. Its kills drop gold XP gems worth 5x their XP." {
+    level 2 text="Every 8th attack: golden. Its kills drop an XP gem worth 5x." {
         golden-bubble every=8 mult=1 coin=5
     }
-    level 3 text="Every 6th attack is golden. Its kills drop gold XP gems worth 6x their XP." {
+    level 3 text="Every 6th attack: golden. Its kills drop an XP gem worth 6x." {
         golden-bubble every=6 mult=1 coin=6
     }
 }
-treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter tentacle" text="Every 6th bubble brings a giant, slow one that pops for a big splash." {
+treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter tentacle" text="Every 6th bubble: a giant, slow one that bursts in a big splash." {
     giant-bubble every=6 size=2.5 dmg=5 speed=0.6
-    level 2 text="Every 5th bubble brings a giant, slow bubble that bursts in a wide splash." {
+    level 2 text="Every 5th bubble: a giant, slow one that bursts in a big splash." {
         giant-bubble every=5 size=2.5 dmg=5 speed=0.6
     }
-    level 3 text="Every 4th bubble brings a larger, slow bubble that bursts in a wide splash." {
+    level 3 text="Every 4th bubble: a bigger, slow one that bursts in a big splash." {
         giant-bubble every=4 size=2.8 dmg=4.5 speed=0.6
     }
 }
@@ -61,194 +61,194 @@ treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true no
 // your bubbles. They're Legendary: you pick one at the start of a run, and the Boss reward (a
 // Legendary pick) always offers at least one you don't have; never from treasures in the room. Attack damage, Fire rate, Range, Attack size and extra Attacks all
 // apply to them. Their numbers: ELEMENT_BASE in src/words.js.
-treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits does Critical (3x) damage." stack=3 {
+treasure "nailClipper" name="Nail Clipper" icon="✂️" rarity="common" text="1 in 5 hits: Crit for 3x damage." stack=3 {
     crit chance=0.2 mult=3 by="all"
 }
-treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Enemies you hit are marked for 3 s and take 30% more damage from everything." {
+treasure "stickyNote" name="Sticky Note" icon="🗒️" rarity="common" text="Hits mark bugs for 3 s: they take 30% more damage." {
     mark-on-hit 3 by="all" more=0.3
-    level 2 text="Enemies you hit are marked for 4 s and take 35% more damage from everything." {
+    level 2 text="Hits mark bugs for 4 s: they take 35% more damage." {
         mark-on-hit 4 by="all" more=0.35
     }
-    level 3 text="Enemies you hit are marked for 5 s and take 40% more damage from everything." {
+    level 3 text="Hits mark bugs for 5 s: they take 40% more damage." {
         mark-on-hit 5 by="all" more=0.4
     }
 }
 treasure "penSpring" name="Pen Spring" icon="🌀" rarity="rare" text="+1 mid-air jump." stack=3 {
     extra-jumps 1
 }
-treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="Land from a jump to send out a soft shockwave that stings." {
+treasure "cottonBall" name="Cotton Ball" icon="☁️" rarity="rare" attack=#true text="On landing: a shockwave stings nearby bugs." {
     landing-shockwave 0.2 dmg=2.5 drop=0.04
-    level 2 text="Landing sends out a wider shockwave that stings harder." {
+    level 2 text="On landing: a wider, stronger shockwave stings nearby bugs." {
         landing-shockwave 0.4 dmg=5 drop=0.04
     }
-    level 3 text="Landing sends out a large, powerful shockwave." {
+    level 3 text="On landing: a big, strong shockwave stings nearby bugs." {
         landing-shockwave 0.6 dmg=7 drop=0.04
     }
 }
 // pure control (no damage): Windowsill Cactus is the one that hurts back
-treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When hit, a squeak shoves nearby bugs back and Stuns them for 0.5 s. 4 s cooldown." {
+treasure "rubberDuck" name="Rubber Duck" icon="🦆" rarity="common" text="When hit: shove nearby bugs back and Stun them for 0.5 s. 4 s cooldown." {
     squeak-when-hit radius=0.25 push=0.15 dmg=0 stun=0.5 cooldown=4
-    level 2 text="When hit, a louder squeak shoves bugs back farther and Stuns them for 0.7 s. 4 s cooldown." {
+    level 2 text="When hit: shove nearby bugs farther back and Stun them for 0.7 s. 4 s cooldown." {
         squeak-when-hit radius=0.28 push=0.18 dmg=0 stun=0.7 cooldown=4
     }
-    level 3 text="When hit, a huge squeak shoves bugs far back and Stuns them for 0.9 s. 3 s cooldown." {
+    level 3 text="When hit: shove nearby bugs far back and Stun them for 0.9 s. 3 s cooldown." {
         squeak-when-hit radius=0.3 push=0.22 dmg=0 stun=0.9 cooldown=3
     }
 }
-treasure "whale" heals=#true name="Whale Bath Toy" icon="🐳" rarity="rare" text="Landing from a jump spouts water: +1.5 Health, at most once every 4 s." {
+treasure "whale" heals=#true name="Whale Bath Toy" icon="🐳" rarity="rare" text="On landing: +1.5 Health. 4 s cooldown." {
     land-heal 1.5 every=4
-    level 2 text="Landing from a jump: +2 Health, at most once every 3.5 s." {
+    level 2 text="On landing: +2 Health. 3.5 s cooldown." {
         land-heal 2 every=3.5
     }
-    level 3 text="Landing from a jump: +2.5 Health, at most once every 3 s." {
+    level 3 text="On landing: +2.5 Health. 3 s cooldown." {
         land-heal 2.5 every=3
     }
 }
-treasure "babyBottle" heals=#true name="Baby Bottle" icon="🍼" rarity="common" text="Every enemy you clear gives back a sip of health." {
+treasure "babyBottle" heals=#true name="Baby Bottle" icon="🍼" rarity="common" text="On a kill: +0.2 Health." {
     heal-on-kill 0.2
-    level 2 text="Restore 0.3 Health per enemy cleared." {
+    level 2 text="On a kill: +0.3 Health." {
         heal-on-kill 0.3
     }
-    level 3 text="Restore 0.4 Health per enemy cleared." {
+    level 3 text="On a kill: +0.4 Health." {
         heal-on-kill 0.4
     }
 }
-treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Enemies you finish off burst and hurt their neighbors." {
+treasure "bathSalt" name="Bath Salt" icon="🧂" rarity="epic" text="Kills burst, hurting nearby bugs." {
     burst-on-kill 0.035 dmg=1
-    level 2 text="Enemies you clear burst, hurting nearby enemies in a wider, stronger blast." {
+    level 2 text="Kills burst wider and harder, hurting nearby bugs." {
         burst-on-kill 0.04 dmg=1.2
     }
-    level 3 text="Enemies you clear burst in a large, powerful blast that hurts nearby enemies." {
+    level 3 text="Kills burst much wider and harder, hurting nearby bugs." {
         burst-on-kill 0.045 dmg=1.3
     }
 }
 
 // --- things that attack on their own (gadgets.js)
-treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true text="Every 5 s a chord rings out, stinging and pushing back everything close." {
+treasure "guitarPick" name="Guitar Pick" icon="🎸" rarity="rare" attack=#true text="Every 5 s: a chord stings and pushes back nearby bugs." {
     every 5 {
         ring 0.18 dmg=2 push=0.05 color="#c08aff" look="chord" show=0.45
     }
-    level 2 text="Every 4 s, a wide chord stings and pushes back nearby enemies." {
+    level 2 text="Every 4 s: a wider chord stings and pushes back nearby bugs." {
         every 4 {
             ring 0.22 dmg=3 push=0.07 color="#c08aff" look="chord" show=0.45
         }
     }
-    level 3 text="Every 3 s, a powerful, wide chord stings and pushes back nearby enemies." {
+    level 3 text="Every 3 s: a wide, strong chord stings and pushes back nearby bugs." {
         every 3 {
             ring 0.26 dmg=4 push=0.09 color="#c08aff" look="chord" show=0.45
         }
     }
 }
-treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s you lob a bath bomb onto the biggest crowd. It fizzes, then erupts: bugs on it take 2x Attack damage and are thrown into the air, Stunned until they land." {
+treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text="Every 6 s: a bath bomb hits the biggest crowd for 2x Attack damage and throws bugs up, Stunned until they land." {
     every 6 first=6 {
         geyser dmg=2 radius=0.1 lift=0.4
     }
-    level 2 text="Every 5 s you lob a bath bomb onto the biggest crowd: bugs on it take 3x Attack damage and are thrown into the air, Stunned until they land." {
+    level 2 text="Every 5 s: a bath bomb hits the biggest crowd for 3x Attack damage and throws bugs up, Stunned until they land." {
         every 5 first=5 {
             geyser dmg=3 radius=0.12 lift=0.45
         }
     }
-    level 3 text="Every 4 s you lob a bath bomb onto the biggest crowd: a wider eruption, 4x Attack damage, bugs thrown higher, Stunned until they land." {
+    level 3 text="Every 4 s: a wider bath bomb hits the biggest crowd for 4x Attack damage and throws bugs higher, Stunned until they land." {
         every 4 first=4 {
             geyser dmg=4 radius=0.14 lift=0.5
         }
     }
 }
-treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s an ice cube drops and melts into a slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.5 s; you swim 25% faster on it." {
+treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s: an ice puddle for 5 s. Bugs on it are Stunned for 0.5 s; you get +25% Move speed on it." {
     while "wet" "move-speed" 25 percent=#true
     every 6 {
         puddle radius=0.15 last=5 skid=0.5
     }
-    level 2 text="Every 5 s an ice cube melts into a slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.7 s; you swim 25% faster on it." {
+    level 2 text="Every 5 s: an ice puddle for 5 s. Bugs on it are Stunned for 0.7 s; you get +25% Move speed on it." {
         while "wet" "move-speed" 25 percent=#true
         every 5 {
             puddle radius=0.16 last=5 skid=0.7
         }
     }
-    level 3 text="Every 4 s an ice cube melts into a bigger slippery puddle for 5 s. Bugs that walk on skid and are Stunned for 0.9 s; you swim 25% faster on it." {
+    level 3 text="Every 4 s: a bigger ice puddle for 5 s. Bugs on it are Stunned for 0.9 s; you get +25% Move speed on it." {
         while "wet" "move-speed" 25 percent=#true
         every 4 {
             puddle radius=0.18 last=5 skid=0.9
         }
     }
 }
-treasure "remote" name="TV Remote" icon="📺" rarity="rare" attack=#true text="Every 7 s, zap the 3 nearest enemies for double damage." {
+treasure "remote" name="TV Remote" icon="📺" rarity="rare" attack=#true text="Every 7 s: zap the 3 nearest bugs for 2x damage." {
     every 7 {
         zap 3 range=0.45 dmg=2
     }
-    level 2 text="Every 6 s, zap the 4 nearest enemies for double damage." {
+    level 2 text="Every 6 s: zap the 4 nearest bugs for 2x damage." {
         every 6 {
             zap 4 range=0.45 dmg=2
         }
     }
-    level 3 text="Every 5 s, zap the 5 nearest enemies for 2.5x damage." {
+    level 3 text="Every 5 s: zap the 5 nearest bugs for 2.5x damage." {
         every 5 {
             zap 5 range=0.5 dmg=2.5
         }
     }
 }
-treasure "legoBrick" name="Lego Brick" icon="🧱" rarity="common" attack=#true text="Drop a big brick every 4 s. The first bug to step on it sets it off, hurting every bug close by." {
+treasure "legoBrick" name="Lego Brick" icon="🧱" rarity="common" attack=#true text="Every 4 s: drop a brick (up to 5). The first bug to step on it blasts bugs nearby." {
     every 4 {
         brick dmg=3 last=14 most=5 size=2 burst=0.024
     }
-    level 2 text="Drop a stronger brick every 3.5 s, up to 6 at once. A bug stepping on one blasts nearby bugs." {
+    level 2 text="Every 3.5 s: drop a stronger brick (up to 6). The first bug to step on it blasts bugs nearby." {
         every 3.5 {
             brick dmg=3.5 last=14 most=6 size=2 burst=0.024
         }
     }
-    level 3 text="Drop a powerful brick every 3 s, up to 7 at once. A bug stepping on one blasts nearby bugs." {
+    level 3 text="Every 3 s: drop a strong brick (up to 7). The first bug to step on it blasts bugs nearby." {
         every 3 {
             brick dmg=4 last=14 most=7 size=2 burst=0.024
         }
     }
 }
 // a pinball: the walls are what make it strong (Lightning's Ball Lightning drifts and ignores them)
-treasure "marble" name="Marble" icon="🔮" rarity="common" attack=#true text="Every 5 s a glowing marble shoots out like a pinball: each wall it bounces off makes it 20% faster and harder (up to 6 times), and it bowls through bugs again." {
+treasure "marble" name="Marble" icon="🔮" rarity="common" attack=#true text="Every 5 s: a pinball marble bowls through bugs, 20% faster and harder off each wall (up to 6)." {
     every 5 {
         marble dmg=1 speed=0.825 life=2.2 size=4 bounces=6 grow=0.2
     }
-    level 2 text="Every 4 s, a pinball marble that gets 20% faster and harder off each of up to 6 walls." {
+    level 2 text="Every 4 s: a pinball marble bowls through bugs, 20% faster and harder off each wall (up to 6)." {
         every 4 {
             marble dmg=1.15 speed=0.825 life=2.2 size=4 bounces=6 grow=0.2
         }
     }
-    level 3 text="Every 3 s, a pinball marble that gets 25% faster and harder off each of up to 8 walls." {
+    level 3 text="Every 3 s: a pinball marble bowls through bugs, 25% faster and harder off each wall (up to 8)." {
         every 3 {
             marble dmg=1.3 speed=0.825 life=2.2 size=4 bounces=8 grow=0.25
         }
     }
 }
-treasure "fairyLights" name="Fairy Lights" icon="💡" rarity="epic" attack=#true text="Three little bulbs circle you and sting whatever they touch." {
+treasure "fairyLights" name="Fairy Lights" icon="💡" rarity="epic" attack=#true text="3 bulbs circle you and sting bugs they touch." {
     orbit-lights 3 radius=0.1 dmg=2
-    level 2 text="Four bulbs circle you and sting enemies they touch." {
+    level 2 text="4 bulbs circle you and sting bugs they touch." {
         orbit-lights 4 radius=0.1 dmg=2.5
     }
-    level 3 text="Five stronger bulbs circle you and sting enemies they touch." {
+    level 3 text="5 stronger bulbs circle you and sting bugs they touch." {
         orbit-lights 5 radius=0.1 dmg=3
     }
 }
-treasure "magnifier" name="Magnifying Glass" icon="🔍" rarity="epic" attack=#true text="Focused moonlight burns the nearest enemy, nonstop." {
+treasure "magnifier" name="Magnifying Glass" icon="🔍" rarity="epic" attack=#true text="A moonlight beam burns the nearest bug." {
     beam range=0.35 dmg=0.3 tick=0.25
-    level 2 text="Focused moonlight continuously burns the nearest enemy, 40% hotter." {
+    level 2 text="A 40% hotter moonlight beam burns the nearest bug." {
         beam range=0.37 dmg=0.42 tick=0.25
     }
-    level 3 text="Focused moonlight continuously burns the nearest enemy, 80% hotter and reaching farther." {
+    level 3 text="An 80% hotter, longer moonlight beam burns the nearest bug." {
         beam range=0.4 dmg=0.54 tick=0.2
     }
 }
 // the "keep moving" sting (Lion's Mane is the fixed touch on a slow tank)
-treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true text="A glow around you stings anything inside it. Swim flat out to shake it brighter: it grows from 8 to 22 cm over 3 s and stings harder, then fades when you stop." {
+treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true text="A glow around you stings bugs inside. Swim at full speed to grow it from 8 to 22 cm." {
     aura 0.22 min=0.08 grow=3 dmg=0.2 tick=0.5
-    level 2 text="The glow grows from 9 to 25 cm and stings harder." {
+    level 2 text="A glow around you stings bugs inside. Swim at full speed to grow it from 9 to 25 cm." {
         aura 0.25 min=0.09 grow=3 dmg=0.24 tick=0.4
     }
-    level 3 text="The glow grows from 10 to 28 cm and stings hardest." {
+    level 3 text="A glow around you stings bugs inside. Swim at full speed to grow it from 10 to 28 cm." {
         aura 0.28 min=0.1 grow=2.5 dmg=0.28 tick=0.33
     }
 }
 
 // --- things that bend the rules
-treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Enemies drop 25% more XP." stack=5 {
+treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Bugs drop 25% more XP." stack=5 {
     xp-mult 1.25
 }
 treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up cards roll one rarity higher." {
@@ -256,179 +256,179 @@ treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up ca
 }
 
 // --- found later: more treasures
-treasure "handCream" heals=#true name="Hand Cream" icon="🧴" rarity="common" text="After 4 s without being hit, restore 0.5 Health per second." stack=5 {
+treasure "handCream" heals=#true name="Hand Cream" icon="🧴" rarity="common" text="After 4 s without a hit: +0.5 Health a second." stack=5 {
     while "unhurt" "health-regen" 0.5
 }
-treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="Slippery: 15% of hits miss you entirely (less for each more) and your most Dodge rises from 60% to 80%, and a bug you dodge slips, Stunned for 0.5 s." stack=5 {
+treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="+15% Dodge, and Dodge can reach 80%, not 60%. A bug you dodge is Stunned for 0.5 s." stack=5 {
     stat dodge 15
     dodge-cap 80
     dodge-slip 0.5
 }
-treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 enemies cleared, gain +1 max Health this run." stack=2 {
+treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 kills: +1 max Health." stack=2 {
     grow-on-kills health 1 kills=30
 }
-treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="Attacks fire 15% faster, and a caffeine kick after each Level-up: +40% Fire rate for 8 s." stack=5 {
+treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="+15% Fire rate. After each level-up: +40% Fire rate for 8 s." stack=5 {
     stat fire-rate 15 percent=#true
     stack-buff "level-up" "fire-rate" 40 percent=#true time=8 stacks=1
 }
-treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" not-for="tentacle" text="Blow through a straw: attacks reach 40% farther and fly 40% faster." stack=3 {
+treasure "straw" name="Drinking Straw" icon="🥤" rarity="common" not-for="tentacle" text="+40% Range, and attacks fly 40% faster." stack=3 {
     stat range 40 percent=#true
     shot-speed 40
 }
-treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="Sour attacks: +2 attack damage." stack=5 {
+treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true text="+2 Attack damage." stack=5 {
     stat bubble-damage 2
 }
 // behind you, at full damage (Double Bubble is the side-by-side one)
-treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true not-for="tentacle" text="Every volley also fires one more attack straight behind you, at full damage." stack=2 {
+treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true not-for="tentacle" text="You also fire one attack straight behind you, at full damage." stack=2 {
     rear-shot 1
 }
-treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flies to you from three times as far." {
+treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flies to you from 3x as far." {
     xp-reach 3
-    level 2 text="XP flies to you from six times as far." {
+    level 2 text="XP flies to you from 6x as far." {
         xp-reach 6
     }
-    level 3 text="XP flies to you from nine times as far." {
+    level 3 text="XP flies to you from 9x as far." {
         xp-reach 9
     }
 }
 
 // --- trade-offs and slow growers (in the spirit of Brotato's items)
-treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true text="Glass cannon: +50% attack damage, but hits take 25% more health." stack=3 {
+treasure "shotGlass" name="Shot Glass" icon="🥃" rarity="rare" attack=#true text="+50% Attack damage. You take 25% more damage." stack=3 {
     stat bubble-damage 50 percent=#true
     damage-taken 1.25
 }
-treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% attack damage and +15% fire rate, but attacks reach 30% less far." stack=3 {
+treasure "chili" name="Hot Chili" icon="🌶️" rarity="common" attack=#true text="+40% Attack damage and +15% Fire rate. -30% Range." stack=3 {
     stat bubble-damage 40 percent=#true
     stat fire-rate 15 percent=#true
     stat range -30 percent=#true
     stat tentacle-reach -30 percent=#true
 }
-treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="Swim 20% faster, and 40% faster while you're in the air." stack=2 {
+treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="+20% Move speed, +40% in the air." stack=2 {
     stat move-speed 20 percent=#true
     while "airborne" "move-speed" 20 percent=#true
 }
-treasure "fangs" heals=#true name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 attack hits gives back 1 health. -5 max health." stack=2 {
+treasure "fangs" heals=#true name="Plastic Fangs" icon="🦷" rarity="rare" text="1 in 10 hits: +1 Health. -5 max Health." stack=2 {
     heal-on-hit chance=0.1 health=1
     stat health -5
 }
-treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 enemies cleared, gain +0.25 Attack damage this run." stack=2 {
+treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 kills: +0.25 Attack damage." stack=2 {
     grow-on-kills bubble-damage 0.25 kills=10
 }
-treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 enemies cleared, gain +0.03 Fire rate this run." stack=2 {
+treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 kills: +0.03 Fire rate." stack=2 {
     grow-on-kills fire-rate 0.03 kills=12
 }
-treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 10 s it drips 3 XP at your feet." {
+treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 10 s: 3 XP drips at your feet." {
     every 10 {
         xp 3
     }
-    level 2 text="Drips 4 XP at your feet every 8 s." {
+    level 2 text="Every 8 s: 4 XP drips at your feet." {
         every 8 {
             xp 4
         }
     }
-    level 3 text="Drips 5 XP at your feet every 6 s." {
+    level 3 text="Every 6 s: 5 XP drips at your feet." {
         every 6 {
             xp 5
         }
     }
 }
-treasure "notebook" name="Notebook" icon="📓" rarity="legendary" text="Level-ups offer 4 cards instead of 3." {
+treasure "notebook" name="Notebook" icon="📓" rarity="legendary" text="Level-ups offer 4 cards, not 3." {
     card-choices 1
 }
-treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs crawl 20% slower, but so do you (-10% move speed)." stack=2 {
+treasure "snailShell" name="Snail Shell" icon="🐌" rarity="epic" text="Bugs move 20% slower. -10% Move speed." stack=2 {
     bug-speed 0.8
     stat move-speed -10 percent=#true
 }
-treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="Bait: 25% more bugs come out, and each drops 15% more XP." stack=2 {
+treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="25% more bugs come out, and each drops 15% more XP." stack=2 {
     more-bugs 1.25
     xp-mult 1.15
 }
 
 // --- converters (per): one stat grows with another, live
-treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Attack damage for every 10 max Health." stack=3 {
+treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Attack damage per 10 max Health." stack=3 {
     per "bubble-damage" 1 every=10 of="max-health"
 }
-treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% Fire rate for every 10% Move speed above your start." stack=3 {
+treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% Fire rate per 10% Move speed above your start." stack=3 {
     per "fire-rate" 3 every=10 of="move-speed-bonus" percent=#true
 }
-treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage for every Level gained this run." stack=3 retired=#true {
+treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage per Level gained." stack=3 retired=#true {
     per "tentacle-damage" 1 every=1 of="levels"
 }
-treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Attack damage for every treasure found this run." stack=5 {
+treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Attack damage per Treasure found." stack=5 {
     per "bubble-damage" 3 every=1 of="chests" percent=#true
 }
 
 // --- conditionals (while): a bonus only while something holds
-treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Attack damage while you're in the air." stack=3 {
+treasure "drySock" name="Dry Sock" icon="🧺" rarity="epic" text="+40% Attack damage in the air." stack=3 {
     while "airborne" "bubble-damage" 40 percent=#true
 }
 
 // --- on-kill: grows with every bug cleared, up to a cap per copy; or leaves something behind
 // swim through the fight to sweep them up (Little Trophy is the one that just counts kills)
-treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="1 in 4 bugs you clear leaves a dust bunny for 6 s. Swim over one to sweep it up: +8% Fire rate for 5 s, up to 5 stacks." stack=3 {
+treasure "dustpan" name="Dustpan" icon="🧹" rarity="rare" attack=#true text="1 in 4 kills leaves a dust bunny for 6 s. Swim over it: +8% Fire rate for 5 s, up to 5 stacks." stack=3 {
     leave-on-kill chance=0.25 last=6 look="dust" stat="fire-rate" amount=8 time=5 stacks=5
 }
 // a real snack you go and get (Baby Bottle is the sip on every kill)
-treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="1 in 10 bugs you clear leaves a meatball for 8 s. Swim over it to eat it: +3 Health and +20% Move speed for 3 s." stack=3 {
+treasure "meatball" name="Meatball, Leftover" icon="🍖" rarity="rare" text="1 in 10 kills leaves a meatball for 8 s. Swim over it: +3 Health and +20% Move speed for 3 s." stack=3 {
     leave-on-kill chance=0.1 last=8 look="meatball" health=3 stat="move-speed" amount=20 time=3 stacks=1
 }
 
 // --- when hit (when-hit): getting hurt hits back
-treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When you're hit, needles spray at every bug within 45 cm (up to 5 times a second)." stack=3 {
+treasure "cactus" name="Windowsill Cactus" icon="🌵" rarity="rare" text="When hit: needles hit every bug within 45 cm." stack=3 {
     when-hit cooldown=0.2 {
         ring 0.45 dmg=0.5 color="#8fffc8" look="needles" show=0.35
     }
 }
-treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When a bug hits you, a tentacle lashes back at it for twice your Tentacle damage (up to 5 times a second)." stack=3 retired=#true {
+treasure "kettleCord" name="Toaster Cord" icon="🍞" rarity="rare" attack=#true text="When hit: a tentacle lashes back for 2x Tentacle damage." stack=3 retired=#true {
     when-hit cooldown=0.2 {
         lash dmg=2 range=0.4
     }
 }
 
 // --- procs: now and then a hit does something more
-treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true not-for="lightning tentacle" text="20% chance per copy for attack hits to zap a bug within 30 cm, stunning it for 0.5 s." stack=2 {
+treasure "staticBalloon" name="Static Balloon" icon="🎈" rarity="rare" attack=#true not-for="lightning tentacle" text="1 in 5 hits: zap a bug within 30 cm and Stun it for 0.5 s." stack=2 {
     zap-on-pop chance=0.2 count=1 range=0.3 stun=0.5
 }
-treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="+5% crit chance, and critical hits pin the bug in place for 0.8 s." stack=1 {
+treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true text="+5% Crit chance. Crits pin the bug for 0.8 s." stack=1 {
     crit chance=0.05 mult=3
     pin-on-crit 0.8
 }
 
 // --- Legendary: rule-changers, one of a kind (the Boss reward offers these)
-treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="Every 8 s, the first hit you take shatters back: whatever dealt it takes a heavy hit, a shockwave hits and throws back everything close, and you can't be hurt for 1 s." {
+treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="When hit (8 s cooldown): the hit shatters back at its source, a shockwave throws nearby bugs back, and you can't be hurt for 1 s." {
     reflect every=8 invuln=1 dmg=8 burst=0.15 burstDmg=3 push=0.05
 }
-treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once a run, a hit that would take your last Health leaves you at half instead." {
+treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once per run: a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="A disco ball hangs over you. Every 4 s its spotlight picks the toughest bug close by (an Elite or the boss first): for 4 s everything you do hurts it twice as much." {
+treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every 4 s: a spotlight picks the toughest bug nearby (Elites and the Boss first). For 4 s it takes 2x damage." {
     spotlight every=4 time=4 more=1 range=0.4
 }
-treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s, a plain bubble bursts out from you in each of 8 directions." {
+treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s: a bubble bursts out in each of 8 directions." {
     every 5 {
         bubble-ring 8
     }
 }
-treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health you steam: +50% Fire rate, +40% Attack damage and +20% Move speed." {
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health: +50% Fire rate, +40% Attack damage and +20% Move speed." {
     while "low-health" "fire-rate" 50 percent=#true under=0.5
     while "low-health" "bubble-damage" 40 percent=#true under=0.5
     while "low-health" "move-speed" 20 percent=#true under=0.5
 }
-treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 5 s a big wind-up mouse trundles to the nearest bug and slams into it, hitting everything around it hard." {
+treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 5 s: a wind-up mouse runs to the nearest bug and slams it, hitting everything around it hard." {
     toy-mouse every=5 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
 }
-treasure "newtonsCradle" name="Newton's Cradle" icon="🎱" rarity="legendary" attack=#true text="When a hit finishes off a bug, the damage left over passes to the nearest bug within 12 cm, up to 3 times." {
+treasure "newtonsCradle" name="Newton's Cradle" icon="🎱" rarity="legendary" attack=#true text="A killing hit's leftover damage passes to the nearest bug within 12 cm, up to 3 times." {
     overkill reach=0.12 passes=3 least=1
 }
 
 // --- more combinations of the words above (no new code)
-treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 Luck for every treasure found this run." stack=3 {
+treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 Luck per Treasure found." stack=3 {
     per "luck" 3 every=1 of="chests"
 }
-treasure "teaBag" heals=#true name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen for every 2 Levels gained this run." stack=3 {
+treasure "teaBag" heals=#true name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen per 2 Levels gained." stack=3 {
     per "health-regen" 0.05 every=2 of="levels"
 }
-treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="Every 6 s a swatter slaps the nearest flying bug for 3x Attack damage and Stuns it for 1 s. No flyer close: the nearest bug, for 2x." stack=2 {
+treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="Every 6 s: swat the nearest flying bug for 3x Attack damage and Stun it for 1 s. No flyer near: the nearest bug, for 2x." stack=2 {
     every 6 {
         swatter mult=3 plain=2 stun=1 range=0.3
     }
@@ -438,7 +438,7 @@ treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true 
 treasure "insole" name="Spring Insole" icon="👟" rarity="common" text="+50% Jump height." stack=3 {
     stat jump-height 50 percent=#true
 }
-treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="common" attack=#true text="+2 Tentacles lash out at once." stack=5 retired=#true {
+treasure "spaghetti" name="Spaghetti Strand" icon="🍝" rarity="common" attack=#true text="+2 Tentacles." stack=5 retired=#true {
     stat tentacles 2
 }
 treasure "tapeMeasure" name="Tape Measure" icon="📏" rarity="common" attack=#true text="+60% Tentacle reach." stack=3 retired=#true {
@@ -452,82 +452,82 @@ treasure "nettle" name="Stinging Nettle" icon="🌿" rarity="common" attack=#tru
 }
 
 // --- timers and big targets
-treasure "windUpKey" name="Wind-Up Key" icon="🔑" rarity="rare" text="20% more treasures appear in the room." stack=3 {
+treasure "windUpKey" name="Wind-Up Key" icon="🔑" rarity="rare" text="20% more Treasures turn up in the room." stack=3 {
     more-treasures 20
 }
-treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="Everything you do hurts Elites and the Boss 15% more." stack=3 {
+treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="+15% damage to Elites and the Boss." stack=3 {
     elite-damage 15
 }
-treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits that leave a bug under 15% Health finish it off. Elites go under 8%. Never the Boss." stack=1 {
+treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits finish off bugs under 15% Health (Elites under 8%, never the Boss)." stack=1 {
     execute under=0.15 elites=0.08
 }
 treasure "rollingPin" name="Rolling Pin" icon="🫓" rarity="common" text="+40% damage to anything above 90% Health." stack=3 {
     fresh-damage 40 above=0.9
 }
-treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Every hit takes 1 less Health, but never less than 0.5." stack=2 {
+treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Hits take 1 less Health, never under 0.5." stack=2 {
     hit-less 1 least=0.5
 }
-treasure "fishFood" name="Fish Food" icon="🐟" rarity="rare" text="When an act's Boss falls, 2 of your treasures that can level up go up a level." stack=2 {
+treasure "fishFood" name="Fish Food" icon="🐟" rarity="rare" text="When a Boss falls: 2 of your Treasures level up." stack=2 {
     boss-levels 2
 }
-treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each Level-up plugs in a night-light where you are (up to 3). Ordinary bugs are afraid of its glow and won't come in; Elites, the boss and shots still do." stack=1 {
+treasure "nightLight" name="Night-Light" icon="🌛" rarity="rare" text="Each level-up plugs in a night-light where you are (up to 3). Bugs won't enter its glow; Elites, the Boss and Shots still do." stack=1 {
     night-light radius=0.3 most=3 safe=#true
 }
-treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 20 s a far-off bug gets a gold target. Clear it for +0.25 Attack damage this run." stack=3 {
+treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 20 s: a far-off bug gets a gold target. Kill it for +0.25 Attack damage." stack=3 {
     bounty "bubble-damage" 0.25 every=20 far=0.4
 }
 // Megabonk-inspired (Chan, Nov 14): XP for distance, a fast glass cannon that bleeds, a tornado on attack
-treasure "pedometer" name="Pedometer" icon="📟" rarity="rare" text="Every 2 m you swim, it clicks over: +1 XP." {
+treasure "pedometer" name="Pedometer" icon="📟" rarity="rare" text="Every 2 m you swim: +1 XP." {
     distance-xp 1 every=2
 }
-treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="You lose 1 Health a second (never your last), but swim 25% faster, attack 50% faster and get +1 mid-air jump." {
+treasure "bloodyFangs" name="Bloody Fangs" icon="🩸" rarity="legendary" text="+25% Move speed, +50% Fire rate and +1 mid-air jump. Lose 1 Health a second (never your last)." {
     health-drain 1 least=1
     adorn "fangs"
     stat move-speed 25 percent=#true
     stat fire-rate 50 percent=#true
     extra-jumps 1
 }
-treasure "luckyCat" name="Lucky Cat" icon="🐱" rarity="legendary" needs-chance=#true text="Every '1 in N' chance of yours is rolled twice, and the better roll counts." {
+treasure "luckyCat" name="Lucky Cat" icon="🐱" rarity="legendary" needs-chance=#true text="Every '1 in N' chance rolls twice; the better roll counts." {
     lucky-rolls 2
 }
-treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks sets off a mini tornado by the nearest bug: for 4 s it sucks every bug round it hard into its middle and stings them a little." {
+treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack=#true text="1 in 10 attacks: a mini tornado by the nearest bug pulls bugs into it and stings them for 4 s." {
     on-attack chance=0.1 {
         whirl radius=0.3 time=4 pull=0.9 range=0.9 dmg=0.15 most=3
     }
 }
-treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 bugs you clear rises as a glowing ghost for 8 s, slamming into other bugs." stack=2 {
+treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 kills: the bug rises as a ghost for 8 s, slamming into other bugs." stack=2 {
     ghosts chance=0.1 time=8 dmg=0.6 speed=0.5 rest=0.5 most=5
 }
 
 // --- the Shield (shield.js): offered only once you have a Shield bar (needs-stat)
-treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Your Shield refills 50% faster." {
+treasure "crankFlashlight" name="Crank Flashlight" icon="🔦" rarity="common" needs-stat="shield" text="Shield refills 50% faster." {
     shield-recharge faster=0.5
-    level 2 text="Your Shield refills twice as fast and starts refilling 1 s sooner." {
+    level 2 text="Shield refills 2x as fast and starts 1 s sooner." {
         shield-recharge faster=1 sooner=1
     }
-    level 3 text="Your Shield refills 2.5x as fast and starts refilling 1.5 s sooner." {
+    level 3 text="Shield refills 2.5x as fast and starts 1.5 s sooner." {
         shield-recharge faster=1.5 sooner=1.5
     }
 }
 // retired: folded into Crank Flashlight's levels (both just made the Shield come back quicker)
-treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shield" text="Your Shield starts refilling 1 s sooner." stack=3 retired=#true {
+treasure "eggTimer" name="Egg Timer" icon="🥚" rarity="rare" needs-stat="shield" text="Shield starts refilling 1 s sooner." stack=3 retired=#true {
     shield-recharge sooner=1
 }
-treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full, you deal 30% more damage." stack=2 {
+treasure "ovenMitt" name="Oven Mitt" icon="🧤" rarity="rare" needs-stat="shield" text="While your Shield is full: +30% damage." stack=2 {
     shield-full-damage 30
 }
-treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks, a ring of little pops goes off all round you, one after another, for 200% of your Attack damage." stack=3 {
+treasure "bubbleWrap" name="Bubble Wrap" icon="🎁" rarity="epic" needs-stat="shield" text="When your Shield breaks: a ring of pops goes off around you for 2x Attack damage." stack=3 {
     shield-burst dmg=2 radius=0.3 look="pops"
 }
-treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 of your max Health becomes Shield. You can no longer gain Health." {
+treasure "potLid" name="Pot Lid" icon="🥘" rarity="legendary" needs-stat="shield" text="All but 1 max Health becomes Shield. You can't gain Health." {
     health-to-shield
 }
-treasure "goodieBag" name="Goodie Bag" icon="🛍️" rarity="legendary" text="Every second Elite you beat leaves two Treasures instead of one." {
+treasure "goodieBag" name="Goodie Bag" icon="🛍️" rarity="legendary" text="Every 2nd Elite you beat drops 2 Treasures." {
     elite-bonus every=2
 }
-treasure "racket" name="Badminton Racket" icon="🏸" rarity="legendary" attack=#true text="Your attacks swat bug Shots out of the air: a swatted Shot flies back at the bug that fired it for 3x your Attack damage." {
+treasure "racket" name="Badminton Racket" icon="🏸" rarity="legendary" attack=#true text="Attacks swat Shots back at their shooter for 3x Attack damage." {
     swat back=3 reach=0.02
 }
-treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 4x Attack damage and spring back up. Each stomp in a row before you touch the floor hits 1x harder, up to 8x." {
+treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 4x Attack damage and spring back up. Each stomp in a row adds 1x, up to 8x." {
     stomp dmg=4 step=1 most=8 stun=1 safe=0.3 reach=0.02 drop=0.03
 }

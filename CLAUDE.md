@@ -7,6 +7,8 @@ The game is meant to be changed by short requests to agents that have never seen
 works because every kind of change has **one home**, things are described in **plain-text
 content** with a small **vocabulary**, and **stories** prove behaviour. Keep it that way.
 
+Descriptions (Treasures, Attack upgrades, evolutions, jelly types, cards, tips) follow [Writing descriptions](docs/agents/descriptions.md): trigger, effect, cost, in the GLOSSARY's words.
+
 Words: `GLOSSARY.md` is the game's vocabulary (Health, XP, Treasure, Element, Elite…), the same in player text, code and content. The story `vocabulary/no-retired-words` fails if player text uses a word it lists under _Avoid_.
 
 ## Ponytail methods

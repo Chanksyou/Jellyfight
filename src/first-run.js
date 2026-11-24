@@ -20,11 +20,7 @@ export const PLAYED_KEY = 'jellyrun.played';
 const JUMP_TIP_AT = 12;         // seconds into a first run
 
 // Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
-// (with jelly types on, the Element hints give way to TYPE_HINTS)
-const ELEMENT_HINTS = [
-  'Your first Element is your second attack for the whole run. Pick treasures that fit it.',
-  'Every 3rd treasure pick offers an Element upgrade. It is usually worth taking.',
-];
+// (with jelly types on, TYPE_HINTS join them)
 export const TYPE_HINTS = [
   'Each jelly type has its own attack. Pick treasures that fit the way yours hits.',
   'Finish acts and defeat Elites to unlock new jelly types. Each one plays differently.',
@@ -32,7 +28,6 @@ export const TYPE_HINTS = [
 export const DEATH_HINTS = [
   'You attack on your own. Keep swimming and let bugs come into range instead of standing still.',
   'Grab XP droplets as you go. An early Level makes the rest of the act easier.',
-  ...ELEMENT_HINTS,
   'Every beaten Elite drops a treasure, and those are rarer than the ones in the room.',
   'You get one reroll per act. Save it for a Level-up where no card helps.',
   'Watch the Warnings. Step out of the shape before it fills, or jump over a low Blast.',
@@ -41,7 +36,7 @@ export const DEATH_HINTS = [
   'Mosquito bites Bleed 1 Health a second for 3 s, and each bite stacks. Kill them first.',
 ];
 export const deathHint = (types = false) => {
-  const list = types ? [...DEATH_HINTS.filter((h) => !ELEMENT_HINTS.includes(h)), ...TYPE_HINTS] : DEATH_HINTS;
+  const list = types ? [...DEATH_HINTS, ...TYPE_HINTS] : DEATH_HINTS;
   return list[Math.floor(Math.random() * list.length)];
 };
 
