@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v670 Applies Chan's layout edits: Act 1 (and Act 4, which follows it) loses the wooden bowl, cutting board, glass dish, dish cloth and glass cup and hides the red hardcover; the striped snake plant and pothos are placed, the pilea, knife strip and ultrawide monitor nudged. Act 2 loses the toilet spray and bath mat, gets a striped snake plant and pothos, and the duck rug, round rug and step stool move. Shadows and light re-baked.
+
 v669 makes the candles in Act 1, Act 2 and Act 4 open tumblers with white wax inside, a wick and a small flickering flame, so the smoke curling off them makes sense.
 
 v668 removes the leftover plant pieces that floated in the air above Act 1's and Act 4's sofa and by the lounge chair (leaves, a berry cluster and a bead string that were part of the room's walls-and-floor mesh).
