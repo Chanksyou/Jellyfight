@@ -100,7 +100,7 @@ function roachGeometry() {
 
   // Sweeping tapered antennae (built at their base on the head so each can whip on a spring)
   const antenna = (s) => taperedLimb([
-    V(0, 0, 0), V(s * 0.26, 0.16, 0.38), V(s * 0.62, 0.14, 0.68), V(s * 1.08, 0.06, 0.64), V(s * 1.38, -0.04, 0.36),
+    V(0, 0, 0), V(s * 0.26, 0.16, 0.32), V(s * 0.62, 0.14, 0.50), V(s * 1.08, 0.06, 0.44), V(s * 1.38, -0.04, 0.18),
   ], [0.022, 0.017, 0.013, 0.009, 0.004], edge, 5);
 
   // Shared 2-bone leg segments along +X (femur L1=0.48, spiny tibia+tarsus L2=0.62)
@@ -160,10 +160,10 @@ export function buildRoach() {
     t += dt * (3 + 14 * k);                                           // legs cycle ~2.5 steps/s at full run
     const A = e.atk, ph = A ? A.phase : 'idle';
     let head = 0, jab = 0, len = 1;
-    if (ph === 'build') head = 0.2 * coil(A.k, A.style.hold, A.style.over) * A.vary;
+    if (ph === 'build') head = 0.28 * coil(A.k, A.style.hold, A.style.over) * A.vary;
     else if (ph === 'swing') {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
-      head = 0.2 * A.vary * (1 - s) + 0.07 * s; jab = 0.18 * A.vary * s; len = 1 + (A.tier.stretch - 1) * Math.min(1, s);
+      head = 0.28 * A.vary * (1 - s) + 0.07 * s; jab = 0.18 * A.vary * s; len = 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
       const b = settle(A.k, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.04);
       jab = -0.15 * b; head = -0.12 * b * A.side;
@@ -2157,9 +2157,8 @@ export function buildBeetle() {
   const legs = [];
   for (const s of [-1, 1]) BEETLE_LEGS.forEach((P, i) => {
     const hip = new THREE.Group();
-    hip.name = 'leg';
     hip.position.set(s * 0.28, 0.30, P.z);
-    const swing = new THREE.Group(); hip.add(swing);
+    const swing = new THREE.Group(); swing.name = 'leg'; hip.add(swing);
     const femur = new THREE.Group(); swing.add(femur);
     femur.add(new THREE.Mesh(G.femur, M.stag));
     const knee = new THREE.Group(); knee.position.x = 0.52; femur.add(knee);
