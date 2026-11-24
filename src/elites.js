@@ -8,9 +8,9 @@
 //                     at a time in the order its buttons light, in low prisms: step into a spent one.
 //     Rumble:         it buzzes while a red circle fills around it, then a shockwave knocks
 //                     you back off the console if you're inside.
-//     Arrow drop:     a big pad arrow hovers by you (above, to your left or right; below if you're
-//                     in the air) while a circle and dome fill where you are; once it has gone off
-//                     the follow, it flies in and strikes there: step out of it.
+//     Arrow drop:     a pad arrow hovers a little way off you (above, to your left or right; below
+//                     if you're in the air), tip pointing at you and following you; it locks, then
+//                     flies the way it points and strikes where you were: step out of its way.
 //   mug         on the standing desk.
 //     Coffee lob:     a brown circle fills where you stand; hot coffee lands there and scalds.
 //     Spill:          it tips toward you while a lane fills along the line; then it pours a wave
@@ -1509,8 +1509,8 @@ export class Elites {
         } else if (e.attack === 2) {
           // Arrow drop: a pad arrow hovers `reach` m off you, flying the way it points: down from above,
           // or in from your left or right (right and left are the camera's); `up` only if you're already in
-          // the air. A circle and dome fill where you stand for `warn` s (following you until `lock` of
-          // it), then it flies in and lands as a Blast there. Step out, or jump a floor one
+          // the air. It tracks you for `warn` s (until `lock` of it), then flies the way its tip points and
+          // lands as a Blast where you were. No floor shape: the arrow's line is the warning. Step aside
           const D = SK.arrow, w = s / CONTENT.elites.pace.tempo, R = D.radius, H = cfg.height, mid = this._to;
           const floorY = this.surfaceBelow(P), at = e.arrowAt ||= new THREE.Vector3();
           if (!e.arrowDir) {
@@ -1519,16 +1519,13 @@ export class Elites {
             e.arrowSide = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ).setY(0).normalize();
             e.arrowMesh = new THREE.Mesh(this.arrowGeo, this.arrowMat); e.arrowMesh.renderOrder = 3; this.scene.add(e.arrowMesh); e.tele.push(e.arrowMesh);
             at.copy(P);
-            e.tele.push(this.warnCircle(at, R, this.T.red), this.volume(hostile('controller'), e.arrowAir ? 'sphere' : 'dome', at, R));
             sfx.controllerCharge(false, D.warn);
           }
-          const [, circle, vol] = e.tele, k = Math.min(1, w / D.warn);
+          const k = Math.min(1, w / D.warn);
           if (w < D.warn * D.lock) {                                           // still following you
             at.set(P.x, e.arrowAir ? P.y + H / 2 : floorY, P.z);
             if (!e.arrowAir) this.platformTarget(e, at, R);
-            circle.position.set(at.x, floorY + 0.002, at.z); vol.position.copy(at);
           } else if (!e.locked) { e.locked = true; sfx.controllerLock(); }
-          circle.userData.fill(k); vol.material.progress = k;
           // where the arrow is: hovering reach m out, then flying in to the Blast's centre
           const dir = e.arrowDir, side = dir === 'left' ? -1 : 1, fly = Math.min(1, Math.max(0, (w - D.warn) / D.strike));
           mid.set(at.x, e.arrowAir ? at.y : at.y + H / 2, at.z);
@@ -1544,9 +1541,6 @@ export class Elites {
             if (struck) hit(D.dmg, 'controller', at);
             this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', 0.03), LOOK.num('controller-symbol-sparks', 8));
             this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', 0.002), 0.1, floorY);
-            const pulse = this.volume(hostile('controller'), e.arrowAir ? 'sphere' : 'dome', at, R);
-            pulse.material.progress = 1;
-            this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
             sfx.controllerFire(); sfx.controllerContact(); if (struck) sfx.controllerHit(); juice.feel('impact-big');
             e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
             for (const key of ['arrowDir', 'arrowAt', 'arrowAir', 'arrowSide', 'arrowMesh']) delete e[key];

@@ -615,7 +615,7 @@ function startArrow(roll, up = 0) {
   return { e, player };
 }
 story('elites/controller-arrow-drop-warns-then-strikes', {
-  about: 'The arrow hovers beside you for about 1 s while its circle and dome fill where you stand; then it flies in and hits for 3 Health. Down hangs above you; left and right sit to the side, level with you. Standing in it hurts; stepping out of the circle does not.',
+  about: 'The arrow hovers a little way off you for about 1 s with no circle or dome (the arrow is the whole warning); then it flies the way it points and hits for 3 Health. Down hangs above you; left and right sit to the side, level with you. Standing where it lands hurts; stepping aside does not.',
   setup() { fresh(); },
   play() {
     const out = {};
@@ -624,11 +624,11 @@ story('elites/controller-arrow-drop-warns-then-strikes', {
       step(400, () => e.state === 'windup' && e.stateT / tempo > D.warn * 0.5);
       const { arrow, floor, volume } = arrowParts(e), P = player.position;
       const rel = arrow ? [arrow.position.x - P.x, arrow.position.y - P.y, arrow.position.z - P.z] : [9, 9, 9];
-      const shape = e.arrowDir === dir && !!floor && !!volume && floor.material.progress > 0.3 && Math.abs(floor.material.progress - volume.material.progress) < 1e-6;
+      const shape = e.arrowDir === dir && !!arrow && !floor && !volume;   // just the arrow: no circle, no dome
       const where = dir === 'down' ? rel[1] > 0.1 && Math.hypot(rel[0], rel[2]) < 0.01 : Math.hypot(rel[0], rel[2]) > 0.1 && Math.abs(rel[1] - CONFIG.player.height / 2) < 0.01;
       const t0 = e.stateT; step(400, () => e.state === 'idle'); const total = (e.stateT - t0) / tempo;
       out[dir] = { shape, where, hit: hits.length === 1 && hits[0].amount === D.dmg, gone: !arrow.parent && !e.tele.length };
-      // the same attack again, but out of the circle by the time it lands
+      // the same attack again, but out of the way by the time it lands
       e.next = 2; e.cool = 0; hits.length = 0;
       step(400, () => e.state === 'windup' && e.stateT / tempo > D.warn * 0.9);
       player.position.x += 0.3;
