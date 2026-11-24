@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v660 adds a soft pink glow on the wall behind Act 1's media console, like an LED strip washing the wall above it.
+
 v659 makes the Controller's arrow drop plainer: no circle or dome under you, and the arrow hovers smaller and farther out, then flies the way it points to hit where you were.
 
 v658 adds the powered apartment: little status lights glint on what is plugged in (the PC tower and the game console; act 3's air purifier) and thin grey smoke drifts off what burns or steams (the incense and candle, act 2's candle, oil burner and tub, act 3's humidifier plume). Act 4, the same room, has act 1's. Reduce effects keeps the lights on without blinking and slows the smoke, and Low draws no smoke.
