@@ -216,7 +216,7 @@ story('treasures/levels', {
     }
     const before = cards.length; run.pickTreasure(undefined, undefined, 'elite');
     const offeredPast3 = cards.length > before && cards[cards.length - 1].includes('Fairy');
-    const lv2 = /Lv 2/.test(cards[1]) && /four bulbs/i.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /five .*bulbs/i.test(cards[2]);
+    const lv2 = /Lv 2/.test(cards[1]) && /4 bulbs/.test(cards[1]), lv3 = /Lv 3/.test(cards[2]) && /5 .*bulbs/.test(cards[2]);
     return ok(bulbs.join() === '3,4,5' && lv2 && lv3 && /Lv 1/.test(cards[0]) && !offeredPast3, { bulbs, cards, offeredPast3 });
   },
 });
@@ -753,8 +753,8 @@ story('treasures/pause-lists-what-you-carry', {
     overlay.hidden = true;
     return ok(shown && run.level === 1
       && trophy.includes('Little Trophy') && trophy.includes('So far: +0.25 Attack damage') && trophy.includes('Next +0.25 Attack damage in 7 bugs')
-      && lemon.includes('×2') && lemon.includes('+2 attack damage')
-      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce, popping on up to 3') && pin.includes('Next level: Attacks pierce up to 7')
+      && lemon.includes('×2') && lemon.includes('+2 Attack damage')
+      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce up to 3') && pin.includes('Next level: Attacks pierce up to 7')
       && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2'),
     { shown, trophy, lemon, pin, clip });
   },
@@ -976,7 +976,7 @@ story('treasures/upgrades-show-current-effect-once', {
     const name = card?.querySelector('.ui-card-name').textContent, text = card?.querySelector('.ui-card-body').textContent, delta = card?.querySelector('.ui-card-count').textContent;
     card?.click();
     const toast = ui.pop.textContent;
-    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 5 enemies in a line.' && delta === 'Lv 1 → Lv 2'
+    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 5 bugs.' && delta === 'Lv 1 → Lv 2'
       && toast.includes('Bobby Pin') && toast.includes('Level 2') && !toast.includes('pierce');
     step(45);
     return ok(good, { name, text, delta, toast });

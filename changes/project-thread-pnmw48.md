@@ -1,0 +1,1 @@
+rewrites every Treasure, Attack upgrade, evolution and jelly type description to one short pattern (trigger, effect, cost): about 20% fewer words, no number or effect changed; the Health regen card reads "every 5 s", and two out-of-date death-screen tips about Elements are gone.

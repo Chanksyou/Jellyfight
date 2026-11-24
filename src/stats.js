@@ -107,7 +107,7 @@ export const bubbleShare = (n) => (1 - BUBBLE_PENALTY) ** Math.max(0, n - 1);
 export function cardText(card) {
   const info = STAT_INFO[card.stat];
   const v = CARD_FLAGS[card.stat] || {};
-  if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} seconds`;
+  if (v.per) return `+${+(card.amount * v.per).toFixed(2)} Health every ${v.per} s`;
   const amount = v.pct ? `${card.amount}%` : `${card.amount}${v.suffix || ''}`;
   if (card.stat === 'bubbles') return `+${amount} ${card.amount === 1 ? 'Attack' : 'Attacks'} side by side · ${Math.round((1 - bubbleShare(card.amount + 1)) * 100)}% less damage each`;
   return `+${amount} ${info.name}`;
