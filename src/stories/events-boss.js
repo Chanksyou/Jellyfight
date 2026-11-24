@@ -220,8 +220,8 @@ story('boss/vacuum-enrages-at-half', {
   },
 });
 
-story('boss/vacuum-two-shields-max', {
-  about: 'The Vacuum raises its lanternfly shield twice a fight at most.',
+story('boss/vacuum-one-shield-max', {
+  about: 'The Vacuum raises its lanternfly shield once a fight at most.',
   setup() { fresh({ bubbles: false, lash: false, hurt: false }); G().run.startBossIntro(); },
   play() {
     const { run, enemies } = G();
@@ -234,7 +234,7 @@ story('boss/vacuum-two-shields-max', {
       V.pick();
       if (V.state === 'flies') { flies++; V.launch(); }
     }
-    return ok(V.shields === 2 && flies === 2, { shields: V.shields, flies });
+    return ok(V.shields === 1 && flies === 1, { shields: V.shields, flies });
   },
 });
 
