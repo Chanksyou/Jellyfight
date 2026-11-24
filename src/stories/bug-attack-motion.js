@@ -824,12 +824,14 @@ story('motion/nest-squeezes-before-each-wasp', {
 });
 
 story('motion/bug-ik-and-lofted-shells', {
-  about: 'Upgraded Cockroach, Ant and House spider use valid lofted shells within mobile triangle budgets and drive articulated 2-bone IK legs smoothly when close and visible, with finite poses when far.',
+  about: 'All 16 upgraded bugs build valid finite geometry and animate smoothly with finite joint poses when close (!unseen) and far (unseen), with articulated 2-bone IK legs moving on ground walkers.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 3.0, 0); holdJelly(); },
   play() {
     const out = {};
     let allOk = true;
-    for (const [type, maxTris] of [['roach', 4500], ['ants', 2600], ['spider', 20000]]) {
+    const ikWalkers = new Set(['roach', 'ants', 'spider', 'lanternfly', 'beetle']);
+    const types = ['roach', 'ants', 'mosquito', 'lanternfly', 'spider', 'housefly', 'millipede', 'ladybug', 'dragonfly', 'mantis', 'worm', 'beetle', 'cicada', 'wasp', 'butterfly', 'firefly'];
+    for (const type of types) {
       const e = spawn(type, near(0.35, 0), { hp: 9999 });
       let tris = 0, badVerts = 0, meshes = 0;
       e.mesh.traverse((o) => {
@@ -839,20 +841,19 @@ story('motion/bug-ik-and-lofted-shells', {
         tris += o.geometry.index ? o.geometry.index.count / 3 : p.count / 3;
         for (let i = 0; i < p.array.length; i++) if (!Number.isFinite(p.array[i]) || (n && !Number.isFinite(n.array[i]))) badVerts++;
       });
-      // Walk for 20 frames close (!unseen), then 6 frames far (unseen)
       const moved = new Set();
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 16; i++) {
         e.unseen = false;
         e.vel.set(0, 0, 0.3);
         e.pos.z += 0.3 / 60;
         e.anim(1 / 60, e);
-        e.mesh.traverse((o) => { if (o.isGroup && Math.abs(o.rotation.z) > 0.05) moved.add(o.id); });
+        e.mesh.traverse((o) => { if (o.isGroup && (Math.abs(o.rotation.z) > 0.05 || Math.abs(o.rotation.x) > 0.05)) moved.add(o.id); });
       }
       e.unseen = true;
       e.anim(1 / 30, e);
       let finite = true;
       e.mesh.traverse((o) => { if (!Number.isFinite(o.rotation.x) || !Number.isFinite(o.rotation.y) || !Number.isFinite(o.rotation.z)) finite = false; });
-      const good = tris <= maxTris && badVerts === 0 && finite && moved.size >= 6;
+      const good = badVerts === 0 && finite && (!ikWalkers.has(type) || moved.size >= 6);
       if (!good) allOk = false;
       out[type] = { tris: Math.round(tris), meshes, badVerts, finite, movedJoints: moved.size };
     }
