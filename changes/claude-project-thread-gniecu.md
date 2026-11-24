@@ -1,0 +1,1 @@
+Shield level-up card is 1 smaller at every rarity (+2 Common, +3 Rare, +4 Epic); Health is unchanged. Hot Water Bottle works below 65% Health, Little Trophy stops at +5 Attack damage a copy, and Piggy Bank stops at +30% Attack damage a copy.

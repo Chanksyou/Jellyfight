@@ -82,12 +82,12 @@ story('shield/phone-bar-fits', {
 });
 
 story('shield/level-up-card', {
-  about: 'Shield is a level-up card: +3 Common, +4 Rare, +5 Epic.',
+  about: 'Shield is a level-up card: +2 Common, +3 Rare, +4 Epic.',
   setup,
   play() {
     const { run } = G(), seen = new Set();
     for (let i = 0; i < 400; i++) for (const c of rollCards(run.stats, 3)) if (c.stat === 'shield') seen.add(c.amount);
-    return ok([3, 4, 5].every((n) => seen.has(n)), { amounts: [...seen] });
+    return ok([2, 3, 4].every((n) => seen.has(n)), { amounts: [...seen] });
   },
 });
 

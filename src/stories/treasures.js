@@ -527,9 +527,11 @@ story('treasures/per', {
     give('piggyBank');
     run.chestsOpened = 5;                                      // five treasures found: +15%
     const piggy = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
+    run.chestsOpened = 20;                                     // capped at 10 treasures: +30%, not +60%
+    const piggyCap = (S().bubbleDamage - bd1) / BASE_STATS.bubbleDamage * 100;
     const near = (a, b) => Math.abs(a - b) < 1e-6;
-    return ok(near(ball, hp / 10) && near(ballAfterCard, (hp + 10) / 10) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 6) && near(piggy, 15),
-      { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3) });
+    return ok(near(ball, hp / 10) && near(ballAfterCard, (hp + 10) / 10) && clip0 === 0 && clip2 === 2 && skate0 === 0 && near(skate, 6) && near(piggy, 15) && near(piggyCap, 30),
+      { ball, ballAfterCard, clip0, clip2, skate0, skate: +skate.toFixed(3), piggy: +piggy.toFixed(3), piggyCap: +piggyCap.toFixed(3) });
   },
 });
 story('treasures/while', {
@@ -546,14 +548,14 @@ story('treasures/while', {
   },
 });
 story('treasures/while-low-health', {
-  about: 'while low-health under=0.5 (Hot Water Bottle): +50% Fire rate, +40% Attack damage and +20% Move speed only while under half your max Health; steam pours off you while it holds.',
+  about: 'while low-health under=0.65 (Hot Water Bottle): +50% Fire rate, +40% Attack damage and +20% Move speed only while under 65% of your max Health; steam pours off you while it holds.',
   setup() { setupFight({ lash: false }); give('hotWaterBottle'); },
   play() {
     const { run } = G(), g = run.gadgets, pct = (k) => (run.S[k] - run.stats[k]) / BASE_STATS[k] * 100;
     const read = () => [pct('fireRate'), pct('bubbleDamage'), pct('moveSpeed')];
     run.health = run.S.health;
     const full = read(); step(5); const dry = !g.steamOn;
-    run.health = run.S.health * 0.55;
+    run.health = run.S.health * 0.7;
     const above = read();
     run.health = run.S.health * 0.45;
     const low = read(); step(20); const steam = g.steamOn && g.looks.pools.foam.some((p) => p.alive);
