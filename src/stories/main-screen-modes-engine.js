@@ -1175,6 +1175,23 @@ story('engine/floor-is-a-photo-texture', {
     return ok(floors.length >= 4 && other.length === 0 && photo && m.userData.detail === 'wood', { floors: floors.length, other, photo, detail: m?.userData.detail });
   },
 });
+story('engine/furniture-and-tile-are-photo-textures', {
+  about: 'The corduroy sofa, the wood veneers (kitchen, oak, walnut), the bathroom\'s tiles, the kitchen counter and its backsplash wear their photo textures (src/surfaces.js, assets/textures), each loaded as its own file at 512 px, so the apartment model and its bakes are untouched.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const want = { sofa: 'sofa-corduroy', 'veneer-kitchen': 'veneer-kitchen', 'veneer-oak': 'veneer-oak', 'veneer-walnut': 'veneer-walnut', 'tile-white': 'tile-white', 'tile-dark': 'tile-dark', counter: 'counter-stone', backsplash: 'backsplash' };
+    const got = {};
+    G().APT.root.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of [].concat(o.material)) {
+        const k = m.userData.surface;
+        if (k in want) (got[k] ||= []).push(new RegExp(`${want[k]}\\.webp$`).test(m.map?.image?.src || '') && m.map.image.width === 512);
+      }
+    });
+    const missing = Object.keys(want).filter((k) => !got[k]?.length || got[k].some((v) => !v));
+    return ok(!missing.length, { missing, counts: Object.fromEntries(Object.entries(got).map(([k, v]) => [k, v.length])) });
+  },
+});
 story('engine/fine-grain-on-medium-not-low', {
   about: 'The rooms\' fine grain (src/surfaces.js): one tile, each pattern averaging no change; Medium\'s floor, walls and bedding read it (a texture read in their shader), and Low\'s plain materials have it out of theirs, building no shader in play either way.',
   setup() { fresh({ elites: false }); },

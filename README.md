@@ -577,5 +577,9 @@ The bosses only go *doomed* on their own (`dying` in `src/vacuum.js` / `src/clog
 ## Credits
 
 The floor's laminate texture (`assets/textures/floor-laminate.webp`) is ["Laminate Floor 02"](https://polyhaven.com/a/laminate_floor_02) from Poly Haven, CC0; `tools/textures.py` resized it and matched its colour to the drawn floor.
+The wood furniture's veneers (`veneer-kitchen`, `veneer-oak`, `veneer-walnut`) are ["Oak Veneer 03"](https://polyhaven.com/a/oak_veneer_03), ["Oak Veneer 01"](https://polyhaven.com/a/oak_veneer_01) and ["Natural Walnut Veneer"](https://polyhaven.com/a/natural_walnut_veneer) from Poly Haven, CC0.
+The bathroom's wall tile (`tile-white`) is ["Long White Tiles"](https://polyhaven.com/a/long_white_tiles), its floor tile (`tile-dark`) is ["Granite Tile"](https://polyhaven.com/a/granite_tile), the kitchen's backsplash is ["Rounded Square Tiled Wall"](https://polyhaven.com/a/rounded_square_tiled_wall) and its counter (`counter-stone`) is ["Granite Tile 03"](https://polyhaven.com/a/granite_tile_03), all from Poly Haven, CC0.
+The corduroy sofa's texture (`sofa-corduroy`) is drawn in code by `tools/textures.py`, so it needs no credit.
+`tools/textures.py` resized each one and matched its colour to the drawn texture it replaces.
 
 The marble-pot snake plant prop (`tools/props-src/marble-snake.glb`) is made from ["Snake Plant 1 Low Poly"](https://sketchfab.com/3d-models/snake-plant-1-low-poly-19ab859398904931bbe42406230e4fe0) by THEAPPXR, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/); `tools/prop-import.mjs` cut its triangles, baked its pot texture and shading into vertex colours and shrank its leaf texture.
