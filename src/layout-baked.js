@@ -113,7 +113,6 @@ export const BAKED_LAYOUT = {
     // (the other three are stage1.js's).
     'Singing_bowl#1': { p: [1.1266, -0.165, -3.5821], q: [0, 0, 0, 1] },
     'Mushroom_pillow#1': { p: [0.0145, 0, -0.0681], q: [0, 0, 0, 1] },
-    'Headphones#1': { p: [1.195, -0.3, -0.785], q: [0, 0, 0, 1] },
     // act 1 has these where the Singing Bowl and Mushroom Pillow stand (ELITES4 clears)
     'Glass_shade_floor_lamp#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'Mustard_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
