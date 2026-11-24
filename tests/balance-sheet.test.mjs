@@ -54,7 +54,7 @@ test('chest odds are seeded, and a Common is likelier than a Rare', () => {
 test('growth reads kills, levels and picks from the night model and the run log', () => {
   const trophy = B.growthWorth(B.nodeOf('treasures', 'trophy'), 0, 3), late = B.growthWorth(B.nodeOf('treasures', 'trophy'), 3, 3);
   assert.ok(trophy.pts > late.pts && late.pts > 0);
-  assert.ok(trophy.add.bubbleDamage > 0 && Math.abs(trophy.add.bubbleDamage - 0.25 * Math.floor(B.FLOW.reduce((s, f) => s + f.kills, 0) / 10)) < 0.5);
+  assert.ok(trophy.add.bubbleDamage > 0 && Math.abs(trophy.add.bubbleDamage - Math.min(5, 0.25 * Math.floor(B.FLOW.reduce((s, f) => s + f.kills, 0) / 10))) < 0.5);  // cap=5 per copy
 });
 
 test('Wave C reads the bugs and the night', () => {

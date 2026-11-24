@@ -311,8 +311,8 @@ treasure "fangs" heals=#true name="Plastic Fangs" icon="🦷" rarity="rare" text
     heal-on-hit chance=0.1 health=1
     stat health -5
 }
-treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 kills: +0.25 Attack damage." stack=2 {
-    grow-on-kills bubble-damage 0.25 kills=10
+treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true text="Every 10 kills: +0.25 Attack damage, up to +5 a copy." stack=2 {
+    grow-on-kills bubble-damage 0.25 kills=10 cap=5
 }
 treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 kills: +0.03 Fire rate." stack=2 {
     grow-on-kills fire-rate 0.03 kills=12
@@ -354,8 +354,8 @@ treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% F
 treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage per Level gained." stack=3 retired=#true {
     per "tentacle-damage" 1 every=1 of="levels"
 }
-treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Attack damage per Treasure found." stack=5 {
-    per "bubble-damage" 3 every=1 of="chests" percent=#true
+treasure "piggyBank" name="Piggy Bank" icon="🐷" rarity="common" text="+3% Attack damage per Treasure found, up to +30% a copy." stack=5 {
+    per "bubble-damage" 3 every=1 of="chests" percent=#true most=10
 }
 
 // --- conditionals (while): a bonus only while something holds
@@ -409,10 +409,10 @@ treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#
         bubble-ring 8
     }
 }
-treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below half Health: +50% Fire rate, +40% Attack damage and +20% Move speed." {
-    while "low-health" "fire-rate" 50 percent=#true under=0.5
-    while "low-health" "bubble-damage" 40 percent=#true under=0.5
-    while "low-health" "move-speed" 20 percent=#true under=0.5
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below 65% Health: +50% Fire rate, +40% Attack damage and +20% Move speed." {
+    while "low-health" "fire-rate" 50 percent=#true under=0.65
+    while "low-health" "bubble-damage" 40 percent=#true under=0.65
+    while "low-health" "move-speed" 20 percent=#true under=0.65
 }
 treasure "toyMouse" name="Cat Toy Mouse" icon="🐭" rarity="legendary" attack=#true text="Every 5 s: a wind-up mouse runs to the nearest bug and slams it, hitting everything around it hard." {
     toy-mouse every=5 dmg=9 speed=0.3 size=3.5 splash=0.24 push=0.025
