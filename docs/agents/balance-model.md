@@ -95,6 +95,7 @@ A knob is a suggestion; nothing changes until the owner picks it.
 - S0: the yardstick (units, moments, the reference jelly).
 - A1: the eight attacks. A2: XP and levels. A3: level-up cards. A4: the multiplier lines. A5: staying alive.
 - B1: chests and rarity odds. B2: stat Treasures. B3: gadget Treasures. B4: growing and economy Treasures. B5: Attack upgrades. B6: Legendary Treasures and evolutions. B7: status effects.
+- C1: bugs. C2: waves and act knobs.
 
 ## What you pick up (Wave B)
 
@@ -114,3 +115,8 @@ They are guesses until play measures them, so a flag that rests on one says so.
 Budgets from the balance plan (points a pick should be worth): Common 15 a copy, Rare 25, Epic 40, Legendary 70 (and a cost worth at least 20), Attack upgrade 40.
 
 `tests/balance-sheet.test.mjs` (run by `node tests/check.mjs`) checks the model reproduces the damage each type's note in `content/jellies.kdl` works out by hand, and that every number and knob cites a line that exists.
+
+## What fights back (Wave C)
+
+A bug's attack is read from its words in `content/enemies.kdl`: damage a hit, seconds between hits (its `every`, or wind-up plus rest), and the wind-up as its warning; a bug with no attack word touches about once a second (`ASSUME.contact`).
+The night's pressure (C2) is Health arriving a second against the reference jelly's Offence, with the jelly levelling on the XP that arrives; it reproduces the run log's end-of-act levels to within a level.
