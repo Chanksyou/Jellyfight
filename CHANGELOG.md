@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v665 tells a player on the run-complete screen when a dev run's score isn't going on the leaderboard, instead of just hiding Submit score.
+
 v664 the dragonfly's whirlwind is bigger, comes sooner and hits for 3, and the monarch butterfly's prism ball flies higher and longer, lands 6 beats later, and its bolts are slower and last 2.5 s.
 
 v663 gives every room's floor a scanned laminate in place of the drawn planks, and adds a fine grain up close on Medium and High: wood pores, a weave on bedding and upholstery, a paint stipple on walls (it replaces the old close-up bumps, which only showed in the jelly's glow). The soundtrack also skips what it missed after a page sat idle, instead of playing it all at once.
