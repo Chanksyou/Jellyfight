@@ -1,40 +1,25 @@
 // Act 4's room dressed as a show about to start: a stage's `dressing` block (stage4.js).
-//   - cables run along the floor from the media console's front (`cables`): one merged mesh,
-//     one draw call, painted flat on the floor
 //   - the lit props (`pulse`: the LED cove strip, the Corner LED and the Spotlight floor lamps) and the
 //     TV flash on the song's beat (run.beat): their emissive only, never a light added or removed
 //   - the stage door moment: at time-up the bugs go, the TV flares and the media console lights up for
 //     a few beats on the music, then the door opens (Run.showStageDoor). A jump skips it; with Reduce
 //     effects it is shorter and the glow is steady.
-// Nothing here is solid or in anyone's way: no collider, and everything lies within a few millimetres
-// of the floor. Both draws are built once per page and kept shown (a bare opacity of 0 until the door
+// Nothing here is solid or in anyone's way: no collider. The glow plate is built once per page and kept shown (a bare opacity of 0 until the door
 // moment), so no program compiles while it plays. Look values: --dress-*.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
 import { sfx } from './sfx.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
-const VENT_GAP = 0.17;                   // m kept clear round a vent's floor mouth and a chest spot on the floor
-const FLOOR = 0.03;                      // m: a floor hit above this is furniture, and the dressing skips it
-
-const paint = (geo, hex) => {
-  const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
-  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
-  return geo;
-};
 
 export class ConcertDressing {
   constructor(run) {
     this.run = run;
     this.D = null;               // the stage's dressing block, or null
-    this.mesh = null;            // the barrier and the cables
     this.glow = null;            // the media console lighting up
     this.lamps = [];             // { m: material, base: its emissive intensity }
     this.tv = null;              // { m, hex, base }
-    this.vents = [];
     this.state = 'idle';         // idle -> moment (the door is warming up) -> open
   }
   get calm() { return juice.calm || !!this.run.fx.reducedMotion?.matches; }
@@ -44,13 +29,12 @@ export class ConcertDressing {
     this.restore();
     this.D = stage.dressing || null;
     this.state = 'idle'; this.from = 0;
-    if (!this.D) { if (this.mesh) this.mesh.visible = this.glow.visible = false; return; }
+    if (!this.D) { if (this.glow) this.glow.visible = false; return; }
     this.K = { amp: LOOK.num('dress-pulse', 0.7), decay: LOOK.num('dress-decay', 4), tv: LOOK.num('dress-tv-glow', 0.35), tvBeat: LOOK.num('dress-tv-beat', 0.5),
       flare: LOOK.num('dress-tv-flare', 3), door: LOOK.num('dress-door-glow', 0.55), doorBeat: LOOK.num('dress-door-beat', 0.35),
       beats: LOOK.num('dress-door-beats', 8), beatsCalm: LOOK.num('dress-door-beats-calm', 2) };
-    this.vents = [...stage.vents.map((v) => v.at), ...stage.spots.map((sp) => sp.at).filter((a) => a[1] < 0.05)];   // floor vents and floor chest spots
-    if (!this.mesh) this.build(stage);
-    this.mesh.visible = this.glow.visible = true;
+    if (!this.glow) this.build(stage);
+    this.glow.visible = true;
     this.glow.material.opacity = 0;
     const seen = new Set();
     this.lamps = [];
@@ -71,36 +55,8 @@ export class ConcertDressing {
     this.lamps = []; this.tv = null;
   }
 
-  // the floor under (x, z): its height, or null where furniture stands (or nothing does)
-  floorAt(x, z) {
-    if (this.vents.some((v) => Math.hypot(v[0] - x, v[2] - z) < VENT_GAP)) return null;   // a gap round every floor vent and chest spot
-    const h = this.run.world.castAll(_o.set(x, 0.3, z), DOWN, 0.4);
-    return h && h.point.y < FLOOR ? h.point.y : null;
-  }
-
   build(stage) {
-    const { world, scene } = this.run, D = this.D, lift = LOOK.num('dress-lift', 0.003);
-    const W = LOOK.num('dress-cable-width', 0.018);
-    const cable = LOOK.color('dress-cable', '#44444f');
-    const parts = [];
-    // cables off the media console's front: a gentle wander from `from` to `to`, a segment at a time
-    for (const { from, to } of D.cables) {
-      const n = Math.max(6, Math.round(Math.hypot(to[0] - from[0], to[1] - from[1]) / 0.06));
-      let last = null;
-      for (let i = 0; i <= n; i++) {
-        const t = i / n, bend = Math.sin(t * Math.PI * 2.2) * 0.05 * Math.sin(t * Math.PI);
-        const x = from[0] + (to[0] - from[0]) * t - (to[1] - from[1]) * bend, z = from[1] + (to[1] - from[1]) * t + (to[0] - from[0]) * bend;
-        const y = this.floorAt(x, z), p = y === null ? null : [x, y, z];
-        if (p && last) parts.push(this.ribbon(last, p, W, cable, lift));
-        last = p;
-      }
-    }
-    this.mesh = new THREE.Mesh(mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g))),
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.1 }));
-    this.mesh.name = 'Concert dressing';
-    this.mesh.userData.noCollide = true;
-    this.mesh.frustumCulled = false;
-    scene.add(this.mesh);
+    const { world, scene } = this.run;
     // the media console lighting up: a flat additive plate on its top, the stage door's footprint
     const door = stage.stageDoor, top = world.castAll(_o.set((door.min[0] + door.max[0]) / 2, 1.2, (door.min[2] + door.max[2]) / 2), DOWN, 1.2);
     const y = (top ? top.point.y : door.min[1]) + 0.004, inset = 0.03;
@@ -111,17 +67,6 @@ export class ConcertDressing {
     this.glow.userData.noCollide = true;
     this.glow.renderOrder = 3;
     scene.add(this.glow);
-  }
-
-  // a flat strip lying on the floor from a to b ([x, y, z])
-  ribbon(a, b, w, hex, lift) {
-    const dx = b[0] - a[0], dz = b[2] - a[2], len = Math.hypot(dx, dz) || 1, nx = -dz / len * w / 2, nz = dx / len * w / 2;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute([
-      a[0] - nx, a[1] + lift, a[2] - nz, a[0] + nx, a[1] + lift, a[2] + nz, b[0] + nx, b[1] + lift, b[2] + nz, b[0] - nx, b[1] + lift, b[2] - nz], 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
-    g.setIndex([0, 1, 2, 0, 2, 3]);   // facing up
-    return paint(g, hex);
   }
 
   // time's up: the door warms up for a few beats before it opens. False when this stage has no dressing

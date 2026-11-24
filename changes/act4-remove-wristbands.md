@@ -1,1 +1,1 @@
-removes the wristband barrier (the coloured rings and the cord they were strung on) from Act 4's floor; the console cables stay.
+removes the wristband rings, the cord and the console cables from Act 4's floor.

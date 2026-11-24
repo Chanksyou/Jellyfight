@@ -5,27 +5,17 @@ import { juice } from '../juice.js';
 import { G, fresh, night4, ok, step, tp } from './kit.js';
 
 const lightCount = (scene) => { let n = 0; scene.traverse((o) => { if (o.isLight) n++; }); return n; };
-const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
 
 night4('the-room-is-dressed-as-a-show-and-nothing-is-in-the-way', {
-  about: 'The console cables (no wristband barrier any more) are one flat mesh of a few thousand triangles (the console\'s glow plate the one other draw, not drawn until the door moment lights it), lying within centimetres of the floor with no collider; no vent landing, chest spot, Elite stand or vent floor spot has dressing on it, and it sits behind where the sun stops.',
+  about: 'Act 4 has no wristband barrier or console cables on the floor; the one draw dressing adds is the console\'s glow plate (not drawn until the door moment lights it), flat on the console top with no collider.',
   setup() { fresh(); },
   play() {
-    const { run } = G(), D = run.dress, m = D.mesh, g = D.glow;
+    const { run } = G(), D = run.dress, g = D.glow;
     step(2);
-    if (!m || !g) return ok(false, { built: !!m });
-    const pos = m.geometry.attributes.position, n = tris(m) + tris(g);
-    let maxY = 0, near = 0; const hit = new Set();
-    const taken = [...STAGE4.vents.map((v) => v.at), ...STAGE4.spots.map((s) => s.at)].filter((a) => a && a[1] < 0.05);
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-      maxY = Math.max(maxY, y);
-      if (taken.some((a) => Math.hypot(a[0] - x, a[2] - z) < 0.12)) { near++; hit.add(taken.findIndex((a) => Math.hypot(a[0] - x, a[2] - z) < 0.12)); }
-    }
-    const solid = run.world.colliders.includes(m) || run.world.colliders.includes(g);
-    const behindSun = pos.count > 0 && Array.from({ length: pos.count }, (_, i) => pos.getZ(i)).filter((z) => z > STAGE4.sun.to).length > pos.count * 0.5;
-    return ok(m.visible && !g.visible && m.userData.noCollide && !solid && n < 15000 && n > 100 && !STAGE4.dressing.wristbands && maxY < 0.05 && near === 0 && behindSun && g.material.opacity === 0 && g.position.y > STAGE4.stageDoor.min[1] && g.position.y < 0.75,
-      { glowY: g.position.y, tris: n, maxY, near, hit: [...hit].map((i) => taken[i]), solid, behindSun, glow: g.material.opacity });
+    if (!g) return ok(false, { built: false });
+    const solid = run.world.colliders.includes(g);
+    return ok(!D.mesh && !STAGE4.dressing.wristbands && !STAGE4.dressing.cables && g.userData.noCollide && !solid && g.material.opacity === 0 && g.position.y > STAGE4.stageDoor.min[1] && g.position.y < 0.75,
+      { glowY: g.position.y, solid, glow: g.material.opacity });
   },
 });
 

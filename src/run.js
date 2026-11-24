@@ -120,7 +120,7 @@ export class Run {
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
     this.sunrise = new Sunrise(this);   // a stage's sun (act 4's room): the line creeping across, drying you out (sunrise.js)
-    this.dress = new ConcertDressing(this);   // a stage's dressing: the barrier, the cables, the lit props on the beat, the stage door moment (concert-dressing.js)
+    this.dress = new ConcertDressing(this);   // a stage's dressing: the lit props on the beat, the stage door moment (concert-dressing.js)
     this.crumbs = new XpDrops(ctx.scene, ctx.world, 'health-crumb');   // Health crumbs bugs drop (crumb-on-kill)
     this.left = { dust: new XpDrops(ctx.scene, ctx.world, 'left-dust'), meatball: new XpDrops(ctx.scene, ctx.world, 'left-meatball') };   // leave-on-kill: they wait, you swim to them
     this.adorn = new Adornments(ctx.scene, ctx.player, { ...ctx.cfg, height: ctx.cfg.height * drawScale() });          // what evolutions add to the jelly's look

@@ -130,14 +130,8 @@ export const STAGE4 = {
 
   // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
   // painted flat, never a collider or a light.
-  //   cables: runs along the floor from the media console's front (from) to the room's edge (to), x z
   //   pulse: the lit props that flash on the song's beat (their emissive, by the apartment's names)
   dressing: {
-    cables: [
-      { from: [1.0, 4.33], to: [0.28, 3.78] },
-      { from: [1.6, 4.33], to: [3.0, 3.86] },
-      { from: [2.25, 4.33], to: [4.15, 4.3] },
-    ],
     pulse: ['LED_cove_strip', 'Corner_LED_floor_lamp', 'Spotlight_floor_lamp'],
   },
 
