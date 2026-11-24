@@ -288,11 +288,12 @@ function sheetA2() {
   const total = xp, step = (s) => (L) => Math.round(LV.xp.base + s * (L - 1));
   const solve = (want) => { let lo = 0.1, hi = 40; for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (levelAt(total, step(m)) > want) lo = m; else hi = m; } return (lo + hi) / 2; };
   const sA = solve(ends[3]), sB = solve(ends[3] + 5);
-  const curves = [['Today', xpToNext], [`Steady +${r(sA)}, same end`, step(sA)], [`Steady +${r(sB)}, 5 more`, step(sB)]];
+  const before = (L) => Math.round(LV.xp.base * LV.xp.growth ** (L - 1));
+  const curves = [['Before (x' + LV.xp.growth + ' every level)', before], ['Today', xpToNext], [`Steady +${r(sA)} from level 1, same end`, step(sA)], [`Steady +${r(sB)}, 5 more`, step(sB)]];
   const perAct = curves.map(([label, cost]) => { let x = 0; const e = nights.map((N) => levelAt(x += N.xp, cost)); return [label, e.map((L, i) => L - (i ? e[i - 1] : 1))]; });
   const flags = [];
   if (gained[3] < gained[0] / 4) flags.push({ text: `Levels run out: ${gained.map((v) => r(v)).join(', ')} level-ups in acts 1 to 4. Each level costs ${r((LV.xp.growth - 1) * 100)}% more than the last, and each act's XP grows less than that.`,
-    knob: { at: at('src/stats.js', /export const xpToNext/), change: `each level costs a steady ${r(sA)} XP more than the last, in place of x${LV.xp.growth}`, does: `level-ups per act become ${perAct[1][1].map((v) => r(v)).join(', ')}, ending at the same level` } });
+    knob: { at: at('src/stats.js', /export const xpToNext/), change: `each level costs a steady ${r(sA)} XP more than the last, in place of x${LV.xp.growth}`, does: `level-ups per act become ${perAct[2][1].map((v) => r(v)).join(', ')}, ending at the same level` } });
   // XP Treasures: levels over a whole run, taken at the start of act 1 (all copies)
   const runXp = (mult = 1, more = 1, from = 0) => nights.reduce((s, N, i) => s + (i >= from ? night(ACTS[i], mult, more).xp : N.xp), 0);
   const houseplant = (from = 0) => { const w = read('content/treasures.kdl').match(/treasure "houseplant"[\s\S]*?every (\d+) \{\s*xp (\d+)/); return ACTS.slice(from).reduce((s, A) => s + Math.floor(A.night / +w[1]) * +w[2], 0); };
@@ -318,7 +319,7 @@ function sheetA2() {
     id: 'A2', title: 'XP and levels',
     lede: 'XP on offer per act, the level it buys, and what each XP source is worth in levels.',
     numbers: [
-      ['XP to level up: base, growth', `${LV.xp.base}, x${LV.xp.growth}`, at('content/levelups.kdl', /^xp /)],
+      ['XP to level up: base, growth, steady from, step', `${LV.xp.base}, x${LV.xp.growth}, level ${LV.xp.steadyFrom}, +${LV.xp.step}`, at('content/levelups.kdl', /^xp /)],
       ['Spawning: rate, grow a second', `${CONTENT.waves.rate}, ${CONTENT.waves.grow}`, at('content/waves.kdl', /^\s+rate /)],
       ...ACTS.map((A) => [`Act ${A.n}: night, bugs, xpMult`, `${A.night} s, x${A.bugs}, x${A.xpMult}`, A.n === 1 ? at(A.file, /duration:/) : knob(A, 'xpMult')]),
       ...Object.values(CONTENT.enemies).filter((E) => E.xp > 0 && E.id !== 'hair').map((E) => [`${E.name}: XP, Health`, `${E.xp}, ${E.hp}`, kdl('content/enemies.kdl', 'enemy', E.id)]),
@@ -326,15 +327,15 @@ function sheetA2() {
     model: `bugs out in a night = ∫ (rate + grow x t) x act bugs dt   (alive cap ignored: a ceiling)
 each bug picked by weight among those already out (waves.kdl from=)
 XP on offer = Σ bugs x round(XP x act xpMult)        (+ act 3's wasp nests)
-level = XP in all through xpToNext(L) = round(${LV.xp.base} x ${LV.xp.growth}^(L-1)), as a fraction
+level = XP in all through xpToNext(L) = round(${LV.xp.base} x ${LV.xp.growth}^(L-1)) up to level ${LV.xp.steadyFrom}, then ${LV.xp.step} more each level, as a fraction
 real players clear ${RUN_LOG.cleared.map((c) => pct(c).slice(1)).join(', ')} of the bugs yet reach about the paper level: XP left on the floor is collected after the Boss.`,
     tables: [{ head: ['Act', 'Night', 'Bugs out', 'XP on offer', 'Paper level at the end', 'Real level', 'Level-ups in the act'], rows },
       { head: ['Curve', 'Act 1', 'Act 2', 'Act 3', 'Act 4'], rows: perAct.map(([l, v]) => [l, ...v.map((x) => r(x))]) },
       { head: ['XP Treasure', 'Copies', 'Levels over a run from act 1', 'From act 2'], rows: xpRows.map((x) => [x[1], x[2], r(x[3], 2), r(x[4], 2)]) }],
-    charts: [grouped(`Level-ups in each act: today (x${LV.xp.growth} a level) and two steady steps (XP more per level)`, ['Act 1', 'Act 2', 'Act 3', 'Act 4'], perAct.map(([l, v]) => [l, v]), (v) => r(v)),
+    charts: [grouped(`Level-ups in each act: the old x${LV.xp.growth} curve, today's, and two steady steps (XP more per level)`, ['Act 1', 'Act 2', 'Act 3', 'Act 4'], perAct.map(([l, v]) => [l, v]), (v) => r(v)),
       bars('XP per 100 Health of bug (act in brackets)', bugRows.map(([l, v]) => [l, v]), { fmt: (v) => r(v) })],
     flags,
-    notes: ['The Pedometer and the Magnet need distance swum and pickup reach from play; they are left to Wave B4.', 'A steady step is a change to xpToNext in src/stats.js, not a number in levelups.kdl.'],
+    notes: ['The Pedometer and the Magnet need distance swum and pickup reach from play; they are left to Wave B4.', 'The curve: levels 1 to 7 as before, then +30 XP a level (steady-from and step in levelups.kdl), picked Nov 24.'],
   };
 }
 

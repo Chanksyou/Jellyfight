@@ -1,10 +1,10 @@
-// Level-ups (src/stats.js): the XP curve, how often each card rarity rolls, and what each
+// Level-ups (src/stats.js): the XP curve (x growth a level up to steady-from, then step more XP each level), how often each card rarity rolls, and what each
 // level-up card gives at Common / Rare / Epic. weight= is how likely a card is to be offered
 // next to the others (1 = as likely as any; 0 = won't be offered). not-for= names the attacks
 // (content/jellies.kdl) a card does nothing for: it isn't offered to those jelly types. How an amount applies (a percent of the base
 // stat, per second, percentage points) stays with the stat's definition in stats.js.
 
-xp base=4 growth=1.35
+xp base=4 growth=1.35 steady-from=7 step=30
 
 rarities common=65 rare=25 epic=10
 
