@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { G, V, fresh, ok, record, step, story, tp } from './kit.js';
+import { BAKED_LAYOUT } from '../layout-baked.js';
 
 const air = () => G().traversal.air;
 // the scene drawn once into a tiny target, as the frame story does; returns the draws the vents' group added
@@ -184,3 +185,21 @@ const LAMPS = {
 };
 story('vents/no-lamp-halo-in-a-vents-air', LAMPS);
 for (const act of [2, 3, 4]) story(`act${act}/no-lamp-halo-in-a-vents-air`, { ...LAMPS, act });
+
+// Act 4's vents stand where the layout editor put them (layout-baked.js, the act 4 `vent:` entries).
+story('act4/vents-stand-where-the-layout-puts-them', {
+  act: 4,
+  about: 'Every act 4 vent is at the spot and landing its layout-baked entry gives (the editor export, bake-layout.mjs), so a vent moved in the editor is the one the jelly rides.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const near = (a, b) => a.every((x, i) => Math.abs(x - b[i]) < 1e-3);
+    const vents = G().traversal.vents;
+    // a vent with no baked entry (the coffee table's) keeps its stage.js spot, so only the baked ones are checked
+    const baked = vents.filter((v) => BAKED_LAYOUT[4][`vent:${v.name}`]);
+    const seen = baked.map((v) => {
+      const e = BAKED_LAYOUT[4][`vent:${v.name}`];
+      return { name: v.name, ok: near(v.at, e.at) && near(v.land, e.land) };
+    });
+    return ok(seen.length === 5 && seen.every((s) => s.ok), { seen });
+  },
+});

@@ -675,6 +675,13 @@
   --motes-from: 0.12;          /* the baked light (the grid's, from the beam's side) where a mote starts to show */
   --motes-full: 0.45;          /* and where it shows fully */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
+  /* the fine grain multiplied into the rooms' colours up close (src/surfaces.js): how far each pattern
+     swings a surface's colour either way (0 = none), and the metres one tile of it covers. Medium and High; Low has none */
+  --detail-wood: 0.12;
+  --detail-cloth: 0.10;
+  --detail-paint: 0.06;
+  --detail-stone: 0.10;
+  --detail-size: 0.25;
 
   /* --- the jelly ------------------------------------------------------------- */
   --phone-jelly-draw: 1.15;    /* a phone draws the jelly this much bigger (picture only: hit size, camera and effects stay) */
@@ -1214,12 +1221,6 @@
   --warning-volume-glow: 1.1;    /* brightness boost (was 1.5: Elite Warnings read too bright and busy, Chan Nov 18) */
   --warning-floor-glow: 1.45;    /* the floor Warning's (src/vfx.js TeleMaterial) brightness boost: lights up a dark stove, still covers a pale floor (was 1.7) */
   /* act 4's concert dressing (src/concert-dressing.js): painted flat on the room, lit props flashing on the song's beat */
-  --dress-wristbands: #ff5ca8 #38d6ff #ffd34a #8cff5a #b78bff;   /* the crowd barrier's wristbands */
-  --dress-cord: #202026;         /* the cord the wristbands are strung on */
-  --dress-cable: #666672;        /* the cables from the media console: charcoal, light enough to read on the floorboards */
-  --dress-band-radius: 0.032;    /* m: a wristband lying flat (outer radius; its inner is 70% of it) */
-  --dress-cable-width: 0.018;    /* m */
-  --dress-lift: 0.003;           /* m they float over the floor (a barrier on furniture or a rug's edge is left out) */
   --dress-pulse: 0.7;            /* how much brighter a lit prop is on the beat (x its own glow); Reduce effects: steady */
   --dress-decay: 4;              /* how fast that flash dies away (per beat) */
   --dress-tv: #6f9bff;           /* the TV's glow: a screen on, cool, until the door flare */

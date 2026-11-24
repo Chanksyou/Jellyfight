@@ -117,9 +117,11 @@ export const BAKED_LAYOUT = {
     // act 1 has these where the Singing Bowl and Mushroom Pillow stand (ELITES4 clears)
     'Glass_shade_floor_lamp#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
     'Mustard_pillow#1': { p: [0, 0, 0], q: [0, 0, 0, 1], hidden: true },
-    'vent:Vent by the lounge chair': { at: [3.517, 0, 1.483], land: [3.36, 0.435, 1.27] },
-    'vent:Vent by the sofa': { at: [1.0, 0, 2.25], land: [1.35, 0.511, 1.75] },
-    'vent:Vent by the stove': { at: [4.221, 0.013, 2.78], land: [4.5, 0.94, 2.35] },
+    'vent:Vent by the lounge chair': { at: [3.555, 0, 1.286], land: [3.36, 0.435, 1.27] },
+    'vent:Vent by the sofa': { at: [1.86, 0, 1.789], land: [1.35, 0.511, 1.75] },
+    'vent:Vent by the stove': { at: [4.308, 0, 2.172], land: [4.5, 0.94, 2.35] },
+    'vent:Vent by the TV': { at: [2.387, 0, 4.43], land: [2.324, 0.6, 4.428] },
+    'vent:Vent by the desk': { at: [0.803, 0, 4.069], land: [0.574, 0.752, 3.51] },
   },
 };
 

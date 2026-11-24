@@ -76,8 +76,8 @@ export const ELITES4 = [
 // Keep the dawn layout's floor vents tied to its own furniture placements.
 const VENT_PLACEMENTS = {
   'Vent by the coffee table': { at: [2.696, 0, 2.639], land: [2.357, 0.465, 2.405] },
-  'Vent by the TV': { at: [2.384, 0, 4.225], land: [2.324, 0.6, 4.428] },
-  'Vent by the desk': { at: [0.927, 0, 3.661], land: [0.574, 0.752, 3.51] },
+  'Vent by the TV': { at: [2.387, 0, 4.43], land: [2.324, 0.6, 4.428] },
+  'Vent by the desk': { at: [0.803, 0, 4.069], land: [0.574, 0.752, 3.51] },
 };
 
 // The living room at dawn: the act's first scene, and the act as STAGES lists it
@@ -130,16 +130,8 @@ export const STAGE4 = {
 
   // The room dressed as a show about to start (concert-dressing.js): small pieces on the real props,
   // painted flat, never a collider or a light.
-  //   wristbands: a low crowd barrier of Festival wristbands strung along z, behind where the sun stops
-  //   cables: runs along the floor from the media console's front (from) to the room's edge (to), x z
   //   pulse: the lit props that flash on the song's beat (their emissive, by the apartment's names)
   dressing: {
-    wristbands: { z: 3.42, across: [0.2, 4.85], gap: 0.055 },
-    cables: [
-      { from: [1.0, 4.33], to: [0.28, 3.78] },
-      { from: [1.6, 4.33], to: [3.0, 3.86] },
-      { from: [2.25, 4.33], to: [4.15, 4.3] },
-    ],
     pulse: ['LED_cove_strip', 'Corner_LED_floor_lamp', 'Spotlight_floor_lamp'],
   },
 
