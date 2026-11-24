@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v684 Shield level-up card is 1 smaller at every rarity (+2 Common, +3 Rare, +4 Epic); Health is unchanged. Hot Water Bottle works below 65% Health, Little Trophy stops at +5 Attack damage a copy, and Piggy Bank stops at +30% Attack damage a copy.
+
+v683 overhauls Act 3's Great White One shark boss animations and feeding-frenzy fish pools: adds a churning crimson-indigo ocean vortex shader with boiling froth and crisp coral danger rim, upgrades pool fish into stylized predatory bait-fish that breach and bank in 3D arcs (8 per pool), and gives the plush shark progressive S-wave spine/tail swimming, underdamped plush bounce springs, reactive hit flinch, sinuous stalking dorsal fin, and exaggerated anticipation/snap/recoil across all attacks.
+
 v682 makes Act 2's Clog boss much more alive and fluid across every part: GPU vertex-shader hair flow, writhing, bristle, spin flare and churning core; 4 braided physics hair ropes via `stepChain` (cutting 28 draw calls) with per-attack choreography; underdamped spring jiggle, banking and wet hit flinch; bobbling springs on caught debris (plus a comb fragment and gold ring); staggered eye blinks, pupil tracking, windup squint/lock-beat pop, gnashing teeth and floating face lag; and gravity-stretching slime drips.
 
 v681 upgrades bug death animations across all 17 bugs with multi-part flying/bouncing bug parts, 3-beat comedic motion, and cause-of-death treatments (lightning X-ray zap, stomp/brick pancake, wind wall-slam, tentacle whip launch, Pizza Cutter real-half slice, poison melt, fire charcoal hop, ice/glitter/wind part ejection) using pooled analytical floor physics and bounded phone caps with zero new draw calls or shaders.
