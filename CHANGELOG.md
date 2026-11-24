@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v677 Exaggerated projectile recoil animations for all seven ranged bugs (Wood Ant, Giant House Spider, Ladybug, Dragonfly, Stag Beetle, Firefly, and Monarch Butterfly) with impulse kickback, recoil squash, front-leg wheelie/skid, and overlapping wing/appendage follow-through.
+
 v676 adds a shared procedural insect geometry and micro-normal kit, LOD-gated 2-bone leg IK foot planting, and a hybrid CC0 GLB hero-bug import tool, upgrading all 16 bug models and animations while keeping draw calls and triangles lean on phones.
 
 v675 adds a Skip button to the Legendary pick and the Attack upgrade pick: it takes nothing and the run carries on.
