@@ -1791,7 +1791,7 @@ export function buildDragonfly() {
       else { back = -0.15 * (1 - s) * A.vary; curl = 1.1 * (1 - s) * A.vary; }
     } else if (ph === 'recoil') {
       const u = Math.min(1, A.k / A.tier.end), rk = knobs().recoilKick;
-      const b = settle(u, A.style.bounces, A.style.damp) * Math.min(1, A.pt / 0.05);
+      const b = settle(u, A.style.bounces, A.style.damp) * (whirl ? 1 : Math.min(1, A.pt / 0.05));
       const bell = recoilBell(u);
       restart = Math.min(1, A.k * 2.5); hindRestart = Math.min(1, Math.max(0, A.k * 2.5 - 0.4)); held = 1 - restart;
       if (whirl) {
@@ -3020,7 +3020,7 @@ export function buildButterfly() {
       shake = A.still ? 0 : quiver(A.k, A.t, ph0) * A.quiet; glow = A.k;
     } else if (ph === 'swing') {
       const s = snap(Math.min(1, A.pt / A.style.strike), A.tier.over);
-      lift = A.vary * Math.max(0, 1 - s); clap = 1 - s; down = s;
+      lift = A.vary * Math.max(0, 1 - s); clap = 1 - s; down = s; bell = 0.65 * Math.min(1, s); rk = knobs().recoilKick;
       len = A.smear ? knobs().smear : 1 + (A.tier.stretch - 1) * Math.min(1, s);
     } else if (ph === 'recoil') {
       const u = Math.min(1, A.k / A.tier.end); rk = knobs().recoilKick;

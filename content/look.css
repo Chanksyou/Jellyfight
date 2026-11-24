@@ -518,7 +518,7 @@
      getting there), strike (s the swing takes to reach full stretch), bounces and damp (its settle in recoil),
      follow (s the follow-through holds before it recovers) */
   --bug-attack-lunge-hold: 0.34;  --bug-attack-lunge-over: 0.08;  --bug-attack-lunge-strike: 0.06;  --bug-attack-lunge-bounces: 2;  --bug-attack-lunge-damp: 2;  --bug-attack-lunge-follow: 0.06;
-  --bug-attack-throw-hold: 0.35;  --bug-attack-throw-over: 0.1;   --bug-attack-throw-strike: 0.06;  --bug-attack-throw-bounces: 2;  --bug-attack-throw-damp: 2;  --bug-attack-throw-follow: 0.08;
+  --bug-attack-throw-hold: 0.35;  --bug-attack-throw-over: 0.1;   --bug-attack-throw-strike: 0.05;  --bug-attack-throw-bounces: 2;  --bug-attack-throw-damp: 2;  --bug-attack-throw-follow: 0;
   --bug-attack-pounce-hold: 0.4;  --bug-attack-pounce-over: 0.08; --bug-attack-pounce-strike: 0.1;  --bug-attack-pounce-bounces: 2; --bug-attack-pounce-damp: 2; --bug-attack-pounce-follow: 0.06;
   --bug-attack-swipe-hold: 0.4;   --bug-attack-swipe-over: 0.1;   --bug-attack-swipe-strike: 0.05;  --bug-attack-swipe-bounces: 2;  --bug-attack-swipe-damp: 2;  --bug-attack-swipe-follow: 0.1;
   --bug-attack-roll-hold: 0.4;    --bug-attack-roll-over: 0.05;   --bug-attack-roll-strike: 0.1;    --bug-attack-roll-bounces: 1;   --bug-attack-roll-damp: 3;   --bug-attack-roll-follow: 0.08;

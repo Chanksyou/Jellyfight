@@ -52,19 +52,19 @@ export function snap(k, over = 0.15) {
 }
 // recoil for light bugs: from 1 to 0 with `bounces` swings through zero, dying away as (1 - k)^damp
 export function settle(k, bounces = 2, damp = 2) { WORK.n++; k = clamp01(k); return (1 - k) ** damp * Math.cos(Math.PI * bounces * k); }
-// exaggerated projectile recoil: starts at 1 (handoff from swing), whips strongly negative (kickback), then rebounds cleanly to 0 by k = 1
+// exaggerated projectile recoil: hands off from swing at k=0, snaps immediately into backward kickback by frame 2, settles cleanly to 0 by k=1
 export function recoilKick(k, over = 0.85) {
   WORK.n++;
   const u = clamp01(k), p = 1 - u;
-  return p * p * (Math.cos(Math.PI * 2.5 * u) - over * Math.sin(Math.PI * Math.min(1, u * 2)));
+  return p * p * (Math.cos(Math.PI * 3 * u) - over * Math.sin(Math.PI * Math.min(1, u * 2.4)));
 }
-// fast-rise, slow-settle impulse bell (peaks at 1.0 around k = 0.15, hangs through mid-recoil, strictly 0 by k >= 0.92)
+// instant-rise, slow-settle impulse bell (peaks at 1.0 around k = 0.08 right on release, hangs through mid-recoil, strictly 0 by k >= 0.92)
 export function recoilBell(k) {
   WORK.n++;
   const u = clamp01(k);
   if (u >= 0.92) return 0;
   const t = u / 0.92, p = 1 - t;
-  return 1.49 * Math.sin(Math.PI * Math.sqrt(t)) * p * p;
+  return 1.32 * Math.sin(Math.PI * Math.pow(t, 0.35)) * p * p;
 }
 // recoil for heavy bugs: no bounce, a slow ease from 1 to 0
 export function heavy(k) { WORK.n++; k = clamp01(k); return 1 - k * k * (3 - 2 * k); }
