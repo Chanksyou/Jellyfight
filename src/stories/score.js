@@ -34,6 +34,17 @@ story('score/each-part-earns-its-ceiling-or-nothing', {
   },
 });
 
+story('score/clean-play-runs-out-later-in-later-acts', {
+  about: 'Clean play falls to nothing at 100 / 250 / 300 / 350 Health taken in acts 1 to 4: the same 200 damage pays nothing in act 1 and 20% of it in act 2, and a missing act counts as act 1.',
+  setup: () => {},
+  play() {
+    const at = (act, damageTaken) => part({ ...PERFECT, act, damageTaken }, 'clean');
+    const gone = [100, 250, 300, 350].every((d, i) => at(i + 1, d) === 0 && at(i + 1, d - 10) > 0 && at(i + 1, 0) === SCORE.clean);
+    const same = at(1, 200) === 0 && at(2, 200) === SCORE.clean * 0.2 && at(undefined, 50) === at(1, 50);
+    return ok(gone && same, { gone, same });
+  },
+});
+
 story('score/clean-play-and-boss-pace-only-for-a-cleared-act', {
   about: 'Clean play, Boss pace and the boss beaten pay only when the act is cleared: an act lost untouched, with a fast fight, earns none of them.',
   setup: () => {},
@@ -57,7 +68,7 @@ story('score/shield-soaked-damage-lowers-clean-play', {
     run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 30, source: 'story' });
     const dodged = Math.abs(run.taken - 40 * k) < 1e-6;
     const clean = actParts({ ...PERFECT, damageTaken: run.scoreFacts().damageTaken }).find(([key]) => key === 'clean')[1];
-    return ok(soaked && dodged && clean === Math.round(SCORE.clean * (1 - 40 * k / SCORE.cleanGone)), { soaked, dodged, taken: run.taken, clean, health: run.health });
+    return ok(soaked && dodged && clean === Math.round(SCORE.clean * (1 - 40 * k / SCORE.cleanGone[0])), { soaked, dodged, taken: run.taken, clean, health: run.health });
   },
 });
 

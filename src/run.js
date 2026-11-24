@@ -1937,7 +1937,7 @@ export class Run {
   scoreFacts() {
     const B = this.boss, round = (n, k = 100) => Math.round(n * k) / k;
     return {
-      nightShare: round(Math.min(1, this.t / STAGES[this.stage.id - 1].duration)),   // the act's night (in act 4's arena, the room's)
+      act: this.stage.id, nightShare: round(Math.min(1, this.t / STAGES[this.stage.id - 1].duration)),   // the act's night (in act 4's arena, the room's)
       bossShare: round(B ? 1 - Math.max(0, B.hp) / B.maxHp : 0), won: this.bossWon, elites: this.elitesBeaten,
       bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, damageTaken: round(this.taken, 10), bossSeconds: this.bossTime == null ? null : round(this.bossTime, 10),
     };
@@ -2085,7 +2085,7 @@ export class Run {
       score: this.score(), time: Math.round(this.t), level: this.level, kills: this.kills, body: this.playerBody?.() || '',
       treasures: [...this.owned].map((id) => [id, this.owned.count(id)]), evolutions: [...this.evolved],
       lost: Object.fromEntries(Object.entries(this.lost).map(([k, v]) => [k, round(v)])),
-      details: { season: SEASON, easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
+      details: { season: SEASON, easy: this.easy, jelly: this.jelly, upgrades: [...this.upgrades], elitesBeaten: this.elitesBeaten, score: (({ won, elites, act, ...f }) => f)(this.scoreFacts()), elites: [...this.eliteLog], treasuresObtained: this.treasuresObtained,
         pickups: [...this.pickupLog], offers: this.offerLog.map((o) => [...o]), cards: this.cardLog.map((c) => [...c]), dealt: Object.fromEntries(Object.entries(this.dealt).map(([k, v]) => [k, round(v)])), bossDoor: this.bossDoor, killedBy: outcome === 'died' ? this.killedBy : null, perf: field?.perf, settings: field?.settings },
       bossLeft: B && !this.bossWon ? Math.round((100 * Math.max(0, B.hp)) / B.maxHp) : null,
       device: typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 'phone' : 'desktop',

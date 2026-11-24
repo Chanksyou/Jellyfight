@@ -13,6 +13,7 @@
 //   damageTaken  Health the act's hits would have taken with no Shield, until the boss falls (each damage-over-time
 //                tick counts; a Treasure's own Health drain, Bloody Fangs, is a price you chose and doesn't)
 //   bossSeconds  how long the boss fight took
+//   act          which act (1-4; read by Clean play, default 1)
 // The board's season: rows are kept per season (worker/index.js `board`), and the game sends this with every
 // run-log act and score post. Ending a season is bumping this number, only when the owner asks.
 export const SEASON = 1;
@@ -25,7 +26,7 @@ export const SCORE = {
   elites: 3,
   bugs: 1000,           // Bugs cleared: all of it for every bug that came out
   clean: 2000,          // Clean play (a cleared act only): all of it with no damage taken,
-  cleanGone: 100,       //   none at this much damage taken
+  cleanGone: [100, 250, 300, 350],   //   none at this much damage taken, in acts 1 to 4 (later acts hit harder)
   pace: 1000,           // Boss pace (a cleared act only): all of it at `paceFull` s or less,
   paceFull: 60,         //   none at `paceNone` s
   paceNone: 180,
@@ -43,7 +44,7 @@ export function actParts(f) {
     ['bossBeaten', won ? S.bossBeaten : 0],
     ['elites', S.elite * Math.max(0, Math.min(S.elites, Math.floor(f.elites || 0)))],
     ['bugs', out ? S.bugs * share((f.bugsCleared || 0) / out) : 0],
-    ['clean', won ? S.clean * share(1 - Math.max(0, f.damageTaken || 0) / S.cleanGone) : 0],
+    ['clean', won ? S.clean * share(1 - Math.max(0, f.damageTaken || 0) / S.cleanGone[Math.max(0, Math.min(S.acts, f.act || 1) - 1)]) : 0],
     ['pace', won ? S.pace * share((S.paceNone - (f.bossSeconds ?? S.paceNone)) / (S.paceNone - S.paceFull)) : 0],
   ].map(([k, v]) => [k, Math.round(v)]);
 }

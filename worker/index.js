@@ -215,7 +215,7 @@ function actFacts(a) {
   if (!within(f.damageTaken, 0, Infinity) || !within(f.nightShare, 0, 1) || !within(f.bossShare, 0, 1) || !within(elites, 0, SCORE.elites)) return null;
   if (f.bossSeconds != null && !within(f.bossSeconds, 0, a.time + 1)) return null;   // the fight is part of the act's time (rounded)
   if (won(a) && !within(f.bossSeconds, MIN_BOSS_SECONDS, Infinity)) return null;
-  return { ...f, elites, won: won(a) };
+  return { ...f, elites, won: won(a), act: a.act };
 }
 // What the board shows of a run the Worker has checked: its score from the log, the act it reached, and
 // how many acts it cleared taking no damage
