@@ -796,6 +796,25 @@ story('engine/music-renders-and-builds', {
   },
 });
 
+story('engine/music-never-runs-away', {
+  about: 'Music that fell a minute behind (a page not updated for a while) skips the steps it missed instead of playing them all at once, and an intensity out of range or a step back in time keeps it in range.',
+  setup() { fresh({ elites: false }); },
+  async play() {
+    const { Music } = await import('../music.js');
+    const ctx = new OfflineAudioContext(1, 16000, 16000), m = new Music(ctx, ctx.destination);
+    m.play('drift', 0.05);
+    m.nextT = -60;
+    let ticks = 0;
+    const tick = m.song.tick;
+    m.song.tick = function (...a) { ticks++; return tick.apply(this, a); };
+    try { m.schedule(0.3); } finally { m.song.tick = tick; }
+    m.update(-5, 1e9);
+    const highI = m.I;
+    m.update(1, NaN);
+    return ok(ticks < 10 && m.nextT >= 0.3 && m.target === 0 && highI <= 1.1 && Number.isFinite(m.I), { ticks, nextT: m.nextT, highI, I: m.I });
+  },
+});
+
 story('engine/act-4-song-holds-the-kick-back', {
   about: 'Act 4\'s exploring song "Sunrise Set" (E minor, 128 BPM like the Encore recording) is a soundcheck: no kick until the fuller layer, then four on the floor; it renders, gets louder with intensity and answers the beat.',
   setup() { fresh({ elites: false }); },

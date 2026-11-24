@@ -399,6 +399,10 @@ export class Music {
   schedule(until) {
     if (!this.song) return;
     const S = this.song;
+    // a page that wasn't updated for a while (a background tab, stories stepping their own clock)
+    // skips the steps it missed instead of playing them all at once, in the past
+    const late = this.ctx.currentTime - this.nextT;
+    if (late > 1) { const k = Math.ceil(late / this.stepDur); this.step += k; this.nextT += k * this.stepDur; }
     while (this.nextT < until) {
       const s = this.step % S.steps, bar = Math.floor(this.step / S.steps);
       if (s === 0) for (const [k, th] of Object.entries(S.layers)) this.L[k] = th < 0 ? 1 : clamp01((this.I - th) / 0.1);   // layers change on the bar
@@ -410,8 +414,8 @@ export class Music {
 
   // realtime: called every frame with the intensity the game wants
   update(dt, target) {
-    if (target != null) this.target = target;
-    this.I += (this.target - this.I) * (1 - Math.exp(-dt / 3));       // eases over a few seconds
+    if (target != null) this.target = Math.min(1.1, Math.max(0, target)) || 0;   // kept in range, so the filters stay in hearing range
+    this.I += (this.target - this.I) * (1 - Math.exp(-Math.max(0, dt) / 3));      // eases over a few seconds (a step back in time eases nothing)
     this.schedule(this.ctx.currentTime + 0.3);
   }
 

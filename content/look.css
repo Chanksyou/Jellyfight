@@ -675,6 +675,13 @@
   --motes-from: 0.12;          /* the baked light (the grid's, from the beam's side) where a mote starts to show */
   --motes-full: 0.45;          /* and where it shows fully */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
+  /* the fine grain multiplied into the rooms' colours up close (src/surfaces.js): how far each pattern
+     swings a surface's colour either way (0 = none), and the metres one tile of it covers. Medium and High; Low has none */
+  --detail-wood: 0.12;
+  --detail-cloth: 0.10;
+  --detail-paint: 0.06;
+  --detail-stone: 0.10;
+  --detail-size: 0.25;
 
   /* --- the jelly ------------------------------------------------------------- */
   --phone-jelly-draw: 1.15;    /* a phone draws the jelly this much bigger (picture only: hit size, camera and effects stay) */

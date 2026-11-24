@@ -17,8 +17,7 @@ import { BalanceEditor } from './balance-editor.js';
 import { Creator } from './creator.js';
 import { MainMenu } from './main-menu.js';
 import { ADORNMENTS } from './words.js';
-import { Hud, inPoly } from './hud.js';
-import { addSurfaceDetail } from './detail.js';
+import { Hud } from './hud.js';
 import { STAGES, currentStage, carried, forgetRun, goToAct, keptRun, pendingAction, peekAction, stageOf } from './stages.js';
 import { prepareApartment, addStageWalls, Traversal, meshesNamed } from './traversal.js';
 import { updateForceFields } from './forcefield.js';
@@ -303,10 +302,6 @@ if (stage.details === 'bathroom') {   // after the collision world: decoration o
 const catHome = !ARENA && EXPERIMENTS.ambient !== 0 ? stage.cat : null;
 const dendi = addDendi(scene, catHome ? new THREE.Vector3(...catHome.at) : new THREE.Vector3(), catHome?.yaw || 0,
   { hidden: !catHome, asleep: !!catHome, calm: () => juice.calm || fx.reducedMotion.matches });
-// fine close-up texture on the stage's surfaces (walls sit on the room outlines, so look around them)
-if (!ARENA) addSurfaceDetail(world.colliders, {
-  inside: (c) => [[0, 0], [0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dz]) => plan.some(([, poly]) => inPoly(c.x + dx, c.z + dz, poly))),
-});
 if (APT.bakedAO || APT.bakedLight || stage.sun) shadeWithBakedAO(APT.root);   // corners shadowed from the bake (baked-ao.js): Low and Medium skip N8AO; the patch also lights a stage's sun and the shell's baked light (baked-light.js)
 const raining = !!stage.rain && !ARENA && EXPERIMENTS.ambient !== 0;   // rain on the windows (rain.js): act 1 only
 if (raining) addRain(APT.root);   // (after the bake's patch, which it wraps)

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { markMoved } from './static-batch.js';
+import { dressSurfaces } from './surfaces.js';
 
 // The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
 // the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
@@ -53,6 +54,7 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
       window.createImageBitmap = bitmap;
     }
     prepareMeshes(gltf.scene, meta, renderer);
+    await dressSurfaces(gltf.scene);   // photo textures in place of drawn ones, and each material's fine grain (surfaces.js)
     const from = gltf.scene.getObjectByName('Apartment');
     if (!apt.root) {
       apt.root = gltf.scene;
