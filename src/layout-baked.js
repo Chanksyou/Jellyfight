@@ -8,7 +8,7 @@
 // Loose plants (leaves, stalks, hanging air plants) that are part of the apartment's walls-and-floor
 // piece ("Shell"), so the editor can't select them: hidden at load and not solid. Same room in
 // acts 1 and 4. Names are the Shell's meshes (Shell_125 ...).
-const LIVING_ROOM_PLANTS = [125, 126, 129, 130, 131, 132, 136, 137, 139, 140, 141, 142, 143, 144, 145, 146, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165].map((n) => `Shell_${n}`);
+const LIVING_ROOM_PLANTS = [125, 126, 129, 130, 131, 132, 136, 137, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 169, 170].map((n) => `Shell_${n}`);
 export const HIDDEN_SHELL = { 1: LIVING_ROOM_PLANTS, 4: LIVING_ROOM_PLANTS };
 
 export const BAKED_LAYOUT = {
