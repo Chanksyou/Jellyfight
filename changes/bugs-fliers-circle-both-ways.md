@@ -1,0 +1,1 @@
+makes the Wasp, Firefly and Monarch butterfly each circle you their own way and change it now and then, so a crowd no longer all turns the same way, and gives the Wasp straight runs and sudden turns like a fly.
