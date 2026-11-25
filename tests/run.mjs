@@ -164,10 +164,14 @@ if (shardArg) {
   // already plays costs no boot: its parts play on one page). A page is split into as many parts as
   // brings the slowest shard down. The same deal on every runner.
   const deal = (parts) => {
-    const js = [...solo.map((j) => ({ ...j })), ...byPage.flatMap(({ P, names }) => Array.from({ length: parts.get(P) }, (_, i) => {
-      const mine = names.slice(Math.floor(i * names.length / parts.get(P)), Math.floor((i + 1) * names.length / parts.get(P)));
-      return { P, names: mine, n: mine.length };
-    }))].sort((a, b) => b.n - a.n);
+    const js = [...solo.map((j) => ({ ...j })), ...byPage.flatMap(({ P, names }) => {
+      const n = parts.get(P);
+      // Interleave round-robin so GPU/readPixels-heavy story files spread evenly across shards
+      return Array.from({ length: n }, (_, i) => {
+        const mine = names.filter((_, idx) => idx % n === i);
+        return { P, names: mine, n: mine.length };
+      });
+    })].sort((a, b) => b.n - a.n);
     const load = Array(shardCount).fill(0), plays = Array.from({ length: shardCount }, () => new Set());
     const cost = (j, s) => j.n + (plays[s].has(j.P) ? 0 : BOOT_COST);
     const put = (j, s) => { load[s] += cost(j, s); plays[s].add(j.P); j.shard = s; };
