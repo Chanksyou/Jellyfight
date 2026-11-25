@@ -144,6 +144,8 @@ verification across all player attack families.
    # one with `phone: true` (phone/...) in a page that looks like a phone
    ```
 
+   A story that reads pixels back (`readPixels`, `changedPixels`) takes `readback: true` so `tests/run.mjs` plays it first: drawing is queued for the software GPU, and a read waits for every frame drawn before it (minutes, late in a page). A story over 4 minutes (`--story-timeout=SECONDS`) is stopped, fails, and the rest play on a fresh page.
+
    `node tests/check.mjs` is the fast check (modules parse, guard stories pass); the pre-push hook
    (`.githooks/pre-push`) runs it on every push and refuses a push to `main` whose commit hasn't
    passed a full run. The session start hook sets up three.js and the hooks in cloud sessions.

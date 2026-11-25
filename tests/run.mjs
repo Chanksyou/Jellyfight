@@ -78,6 +78,10 @@ const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith
 // two at a time (--boots=N): more at once starve each other's shader building past openGame's wait.
 const num = (flag, d) => Math.max(1, Number((args.find((a) => a.startsWith(flag)) || '').slice(flag.length)) || d);
 const JOBS = num('--jobs=', 3), BOOTS = num('--boots=', 2);
+// A story that takes longer than this has hung: it fails, and the rest play on a fresh page (--story-timeout=SECONDS).
+// The slowest honest story is about a minute in CI; without a limit a hung page sat until the job's own timeout.
+const STORY_MS = num('--story-timeout=', 240) * 1000;
+class StoryHang extends Error {}
 let free = BOOTS; const waiting = [];
 const gate = async (f) => {
   if (free > 0) free--; else await new Promise((r) => waiting.push(r));
@@ -104,18 +108,31 @@ const firstKey = (s) => FIRST[s % FIRST.length];
 const first = !shardArg ? PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'))
   : firstKey(shardIndex) === FIRST_RUN.key ? FIRST_RUN : PAGES.find((P) => P.key === firstKey(shardIndex));
 let listing = await boot(env, first.opts);
-const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1']));
+const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1', !!s.readback]));
+const readback = new Set(all.filter((a) => a[2]).map((a) => a[0]));
 const reuse = (P) => { if (!listing || P !== first) return null; const got = listing; listing = null; return got; };
 // one task per page, then the two checks that need a page of their own. A page that crashes (the browser's
 // "Target crashed", not a story failing) is replayed once per run on a fresh page from the story it was
 // playing; a second crash fails the run.
-let crashed = false;
-const pageTask = (P, names) => async (e) => {
+let crashed = false, hangs = 0;
+// Stories that read the picture back play first: drawing is queued for the software GPU and any story that reads pixels
+// waits for every frame the stories before it drew (6 minutes in CI behind act 1's first 150 stories, against 5 seconds alone).
+const pageTask = (P, played) => async (e) => {
+  const names = [...played.filter((n) => readback.has(n)), ...played.filter((n) => !readback.has(n))];
   let got = reuse(P) || await boot(e, P.opts);
   const out = [];
   while (out.length < names.length) {
     try { await playAll(got.page, got.errors, names.slice(out.length), out); }
     catch (err) {
+      if (err instanceof StoryHang) {
+        const note = `${err.message} took over ${STORY_MS / 1000} s and was stopped: it fails, and the rest play on a fresh page`;
+        console.log(process.env.GITHUB_ACTIONS ? `::error::${note}` : `✗ ${note}`);
+        out.push(result(false, err.message, STORY_MS, { hung: true }));
+        if (++hangs > 3) throw new Error('Four stories hung in one run: stopping');
+        await got.page.close().catch(() => {});
+        got = await boot(e, P.opts);
+        continue;
+      }
       if (crashed || !/Target crashed/.test(String(err))) throw err;
       crashed = true;
       const note = `The ${P.key} page crashed during ${names[out.length]}: replaying it and the rest on a fresh page (a second crash fails the run)`;
@@ -196,7 +213,11 @@ await Promise.all(envs.slice(1).map((e) => e.close()));
 async function playAll(page, errors, names, out = []) {
   for (const name of names) {
     const before = errors.length;
-    const r = await page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED });
+    let timer;
+    const r = await Promise.race([
+      page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED }),
+      new Promise((_, no) => { timer = setTimeout(() => no(new StoryHang(name)), STORY_MS); }),
+    ]).finally(() => clearTimeout(timer));
     const newErrors = errors.slice(before);
     const good = r.ok && !newErrors.length;
     if (!good) {

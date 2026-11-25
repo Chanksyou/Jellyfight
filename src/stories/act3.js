@@ -520,6 +520,7 @@ act3('final-health-by-act',{
 });
 
 act3('dust-drifts-in-the-moonlight', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'Dust drifts in the moonlight from the bedroom window (air-light.js, stage3.js motes): one draw of points that show only where the baked light grid says the moon comes through, so the room seen from the door shows some. Low graphics draws none; Reduce effects holds them still.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(0.2, 0.05, 9.6, 1.57); step(10); },
   async play() {

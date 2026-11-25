@@ -826,6 +826,7 @@ story('engine/frame-cap-60', {
   },
 });
 story('engine/no-black-frame-when-the-pixel-ratio-changes', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'A frame where the governor changes the pixel ratio is still drawn: the change goes in before the frame is drawn, because resizing the canvas clears it (made after drawing, that frame showed whole black).',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); step(2); },
   play() {
@@ -1151,6 +1152,7 @@ for (const phone of [false, true]) story((phone ? 'phone/' : 'modes/') + 'cosmet
   },
 });
 story('engine/bloom-glows-without-black-squares', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'On Medium a bright light glows past its edge (the half-resolution bloom), and a broken pixel the scene draws (NaN) stays where it is instead of smearing black squares over the glow. The dev switches turn AO and bloom off and back on.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   async play() {
@@ -1388,6 +1390,7 @@ function changedPixels(change, undo) {
   return n;
 }
 story('engine/bugs-and-jelly-take-the-baked-light', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The jelly and the bugs take a little of the baked light where they stand (baked-light.js tintShader, --baked-tint): every lit material of the jelly and the bugs reads the furniture\'s light grid, so turning the tint up changes how they are drawn, and it is a number, not a new shader.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
@@ -1427,6 +1430,7 @@ story('engine/baked-light-maps-the-big-pieces', {
   },
 });
 story('engine/baked-light-lights-the-shell', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The floor shows Blender\'s baked light in place of its lamps\' diffuse: switching every lamp off barely changes it, while with the bake switched off (the dev panel\'s Baked light) the same floor darkens a lot. The jelly\'s glow stays live on the baked floor, on Medium and on Low (whose plain materials skip the lamp maths there). Switching the bake builds no shader (it is a number, not a new program).',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); step(3); },
   async play() {
@@ -1468,6 +1472,7 @@ story('engine/baked-light-lights-the-shell', {
   },
 });
 story('engine/baked-light-lights-the-furniture', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'Furniture reads the light grid Blender baked through the rooms (the light from 6 directions at points every 10 cm): with the bake on, switching every lamp off barely changes a piece of furniture; with the bake off (the dev panel\'s Baked light) the same piece darkens a lot. --baked-light-furniture 0 hands it back to the live lamps.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.6, Math.PI * 0.85); step(3); },
   async play() {
