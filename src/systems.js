@@ -137,9 +137,11 @@ function softShadow() {
   return softDisc;
 }
 
-// Soft blob shadows under the player and the bugs. The game draws no real shadows (no shadow maps: too costly
-// on phones with this many lamps), so these blobs are what ground them on the baked floor. The bugs' are one
-// instanced draw (--bug-shadow-*), each on the surface the bug stands on; a bug in the air has none.
+// Soft blob shadows under the player, the bugs, the Elites and the bosses. The game draws no real shadows (no shadow
+// maps: too costly on phones with this many lamps), so these blobs are what ground them on the baked floor. The
+// bugs', Elites' and bosses' are one instanced draw (--bug-shadow-*, --elite-shadow-*), each on the surface straight
+// below it; one in the air (a flyer, a thrown bug) has a wider, fainter one at the height of that surface, found
+// by a few casts a frame in turn and remembered, so the cost stays the same however big the crowd.
 export class ShadowSystem {
   constructor({ state, scene, world, player, cfg, enemies }) {
     Object.assign(this, { state, world, player, cfg, enemies });
@@ -148,23 +150,41 @@ export class ShadowSystem {
       new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('jelly-shadow', 0.5), depthWrite: false }),
     );
     this.blobOpacity = this.blob.material.opacity;
+    this.blobFloor = LOOK.num('jelly-shadow-floor', 0.22);   // the faintest it gets, high in a jump: it stays the landing cue
     const MAX = 160;
-    this.bugs = new THREE.InstancedMesh(
-      new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2),   // round, not square: no see-through pixels past the shadow's edge
-      new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: LOOK.num('bug-shadow', 0.45), depthWrite: false }),
-      MAX,
-    );
+    const geo = new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2);   // round, not square: no see-through pixels past the shadow's edge
+    this.shade = new THREE.InstancedBufferAttribute(new Float32Array(MAX).fill(1), 1).setUsage(THREE.DynamicDrawUsage);   // how dark each one is
+    geo.setAttribute('shade', this.shade);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: softShadow(), transparent: true, opacity: 1, depthWrite: false });
+    mat.onBeforeCompile = (sh) => {   // one program for every instance: its own darkness rides a per-instance number
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float shade;\nvarying float vShade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvShade = shade;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vShade;').replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= vShade;');
+    };
+    mat.customProgramCacheKey = () => 'cast-shadow';
+    this.bugs = new THREE.InstancedMesh(geo, mat, MAX);
     this.bugs.count = 0;
     this.bugs.frustumCulled = false;   // its instances are everywhere; it is one draw either way
     this.bugs.renderOrder = 1;
+    this.bugDark = LOOK.num('bug-shadow', 0.75);
     this.bugSize = LOOK.num('bug-shadow-size', 1.3);
-    this.bugReach = LOOK.num('bug-shadow-reach', 0.8) ** 2;   // only round the jelly, where the eye is: a far crowd's shadows would be layers for little
+    this.bugReach = LOOK.num('bug-shadow-reach', 1.6) ** 2;   // what the camera shows round the jelly: further out is layers for little
+    this.eliteDark = LOOK.num('elite-shadow', 0.7);
+    this.eliteSize = LOOK.num('elite-shadow-size', 1.1);
+    this.airWiden = LOOK.num('bug-shadow-air-widen', 3);       // per metre of height, as the jelly's
+    this.airFade = LOOK.num('bug-shadow-air-fade', 6);         // darkness / (1 + this * height)
+    this.airFloor = LOOK.num('bug-shadow-air-floor', 0.3);     // never fainter than this share of its grounded darkness
+    this.airDrop = LOOK.num('bug-shadow-air-drop', 3);         // no surface within this far below: no shadow
+    this.casts = LOOK.num('bug-shadow-casts', 6);              // casts a frame, for the ones in the air and the big ones
+    this.castEvery = LOOK.num('bug-shadow-cast-every', 6);     // frames a found surface is trusted for
+    this.under = new WeakMap();                                // enemy -> { y: the surface below it, at: the frame it was found, has }
+    this.frame = 0;
     this._m = new THREE.Matrix4();
     scene.add(this.bugs);
     this.blob.renderOrder = 1;
     scene.add(this.blob);
     this.down = new THREE.Vector3(0, -1, 0);
     this.hit = hitSpot();
+    this.hit2 = hitSpot();
     this.from = new THREE.Vector3();
     // the jelly is fluorescent: a small light of its own tints the floor and anything close
     this.glow = new THREE.PointLight(0x2ff0c4, LOOK.num('jelly-light', 0.9), LOOK.num('jelly-light-reach', 0.4), 2);
@@ -178,27 +198,58 @@ export class ShadowSystem {
     if (this.glowHex !== this.state.look.color) { this.glowHex = this.state.look.color; this.glow.color.set(this.glowHex); }
     const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3, null, false, this.hit);
     blob.visible = !!hit;
-    if (!hit) return;
-    const h = P.y - hit.point.y;
-    blob.position.set(P.x, hit.point.y + 0.0008, P.z);
-    blob.scale.setScalar(this.state.look.size * (1 + h * 4));
-    blob.material.opacity = this.blobOpacity / (1 + h * 20);
+    if (hit) {
+      const h = P.y - hit.point.y;
+      blob.position.set(P.x, hit.point.y + 0.0008, P.z);
+      blob.scale.setScalar(this.state.look.size * (1 + h * 4));
+      blob.material.opacity = Math.max(this.blobFloor, this.blobOpacity / (1 + h * 20));
+    }
     this.bugShadows();
   }
+  // the surface straight below `e` (its y; null: none in reach). On the ground it is where it stands; in the air it is cast for, at most
+  // `casts` of them a frame, and trusted `castEvery` frames
+  below(e, x, y, z, grounded, st) {
+    let c = this.under.get(e);
+    if (!c) this.under.set(e, c = { y: 0, at: -1e9, has: false });
+    if (grounded) { c.y = y; c.at = this.frame; c.has = true; return y; }
+    if (this.frame - c.at >= this.castEvery || (c.has && y < c.y - 0.01)) {   // time for a fresh look, or it dropped below what it was last over
+      if (st.left <= 0) return c.has ? c.y : null;
+      st.left--;
+      const hit = this.world.cast(this.from.set(x, y, z), this.down, this.airDrop, null, false, this.hit2);
+      c.at = this.frame; c.has = !!hit; if (hit) c.y = hit.point.y;
+    }
+    return c.has ? c.y : null;
+  }
   bugShadows() {
-    const list = this.enemies?.list || [], m = this._m, inst = this.bugs, max = inst.instanceMatrix.count, P = this.player.position;
+    const list = this.enemies?.list || [], m = this._m, inst = this.bugs, max = inst.instanceMatrix.count, P = this.player.position, shade = this.shade.array;
+    const st = { left: this.casts };
+    this.frame++;
     let n = 0;
     for (const e of list) {
       if (n >= max) break;
-      if (e.dead || e.proxy || e.under || !e.grounded || !e.root.visible) continue;
-      const dx = e.pos.x - P.x, dz = e.pos.z - P.z;
-      if (dx * dx + dz * dz > this.bugReach) continue;
-      const s = e.r * this.bugSize * Math.min(1, e.mesh.scale.x / (e.baseScale || 1));   // grows in with the bug
-      m.makeScale(s, 1, s).setPosition(e.pos.x, e.pos.y + 0.0015, e.pos.z);
+      if (e.dead || e.under) continue;
+      const o = e.proxy, { x, y, z } = e.pos;
+      let s, dark, grounded;
+      if (o) {   // an Elite or a boss: awake, on show and standing in the room (not hung on its wall, not a floating trap bubble)
+        const hold = o.holder;
+        if (!hold || !hold.visible || o.decor || (o.awake === false && o.state === 'idle') || (o.hangY != null && hold.position.y > (o.fightY ?? 0) + 0.03)) continue;
+        s = e.r * this.eliteSize; dark = this.eliteDark; grounded = false;
+      } else {
+        if (!e.root.visible) continue;
+        const dx = x - P.x, dz = z - P.z;
+        if (dx * dx + dz * dz > this.bugReach) continue;
+        s = e.r * this.bugSize * Math.min(1, e.mesh.scale.x / (e.baseScale || 1)); dark = this.bugDark;   // grows in with the bug
+        grounded = e.grounded;
+      }
+      const floor = this.below(e, x, y + (o ? 0.01 : 0), z, grounded, st);
+      if (floor == null) continue;
+      const h = Math.max(0, y - floor);   // how far above its surface: wider and fainter, as the jelly's
+      m.makeScale(s * (1 + h * this.airWiden), 1, s * (1 + h * this.airWiden)).setPosition(x, floor + 0.0015, z);
+      shade[n] = Math.max(dark * this.airFloor, dark / (1 + h * this.airFade));
       inst.setMatrixAt(n++, m);
     }
     inst.count = n;
-    if (n) inst.instanceMatrix.needsUpdate = true;
+    if (n) { inst.instanceMatrix.needsUpdate = true; this.shade.needsUpdate = true; }
   }
 }
 

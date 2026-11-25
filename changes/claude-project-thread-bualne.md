@@ -1,0 +1,1 @@
+gives every bug, awake Elite and boss a soft shadow on the surface below it: bugs out to about what the camera shows, flyers and thrown bugs wider and fainter by their height, and the jelly's shadow never fades below a floor, so a jump still shows where it will land.
