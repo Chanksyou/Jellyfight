@@ -144,7 +144,7 @@ story('treasures/lucky-rolls-not-dodge', {
     stub(run.fx, 'number', (pos, text) => { if (text === 'DODGE') dodged.push(text); });
     randoms(0.9, 0.1);
     run.hit(1);
-    return ok(!dodged.length && run.iFrames === 1, { dodged: dodged.length, iFrames: run.iFrames });
+    return ok(!dodged.length && run.iFrames === 0.25, { dodged: dodged.length, iFrames: run.iFrames });
   },
 });
 story('treasures/lucky-rolls-offer', {

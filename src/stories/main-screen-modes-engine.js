@@ -910,12 +910,12 @@ story('engine/low-draws-plain-materials', {
       own.emissiveIntensity = 3.5;   // what act 4's beat does to a lamp's own material
       const follows = lamp.material.emissiveIntensity === 3.5 && lamp.material.emissive === own.emissive;
       own.emissiveIntensity = glowWas;
-      const low = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, inBatches: statics.count, follows, built: lowNew };
+      const low = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, liteEnv: BAKED_AO.uniforms.liteEnv.value, inBatches: statics.count, follows, built: lowNew };
       gfx.setQuality('medium');
       const backNew = await drawn();
       const restored = pieces().every((o) => o.material === mats.get(o));
       const back = { standard: standard(), shiny: shiny(), spots: lights('isSpotLight').filter((l) => l.visible).length, hemi: lights('isHemisphereLight')[0].intensity / hemi, restored, built: backNew };
-      const pass = medium.standard > 100 && medium.spots > 0 && low.standard === 0 && low.shiny === 0 && low.spots === 0 && low.hemi > 1 && low.inBatches > 100 && follows && lowNew === 0
+      const pass = medium.standard > 100 && medium.spots > 0 && low.standard === 0 && low.shiny === 0 && low.spots === 0 && low.hemi > 1 && low.liteEnv > 0 && low.inBatches > 100 && follows && lowNew === 0
         && restored && back.standard === medium.standard && back.shiny === medium.shiny && back.spots === medium.spots && back.hemi === 1 && backNew === 0;
       return ok(pass, { medium, low, back });
     } finally { gfx.setQuality(was); await gfx.ready; }

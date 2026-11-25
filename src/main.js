@@ -40,7 +40,7 @@ import { jellyPortrait } from './jelly-portrait.js';
 import { AuraPainter } from './pick-auras/painter.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
-import { shadeWithBakedAO } from './baked-ao.js';
+import { BAKED_AO, shadeWithBakedAO } from './baked-ao.js';
 import { BAKED_LIGHT, followGlow, setBakedLight } from './baked-light.js';
 import { mapPieces } from './piece-light.js';
 import { wireFeedback } from './feedback.js';
@@ -50,7 +50,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v702';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v706';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -268,6 +268,7 @@ if (!ARENA) await applyLayout(APT.root, stage.id);   // your saved furniture edi
 const actNum = (n, d) => LOOK.num(`${n}-act${stage.id}`, LOOK.num(n, d));
 const actColor = (n, d) => LOOK.color(`${n}-act${stage.id}`, LOOK.color(n, d));
 scene.environmentIntensity = actNum('night-fill', 0.12);
+BAKED_AO.uniforms.liteEnv.value = scene.environmentIntensity * LOOK.num('lite-env', 1);
 scene.background = new THREE.Color(ARENA ? LOOK.color('arena-background', '#030611') : actColor('night-sky', '#05060c'));
 scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'), LOOK.num('arena-haze', 0.3))
   : new THREE.FogExp2(actColor('haze-color', '#0c0604'), actNum('haze', 0.14));
@@ -284,6 +285,7 @@ function skyNow(t) {
   BAKED_LIGHT.uniforms.lbDayK.value = mix('daylight', 0);   // act 4's baked daylight picture (baked-light.js)
   tint(SKY_STEP.sky, 'sky'); tint(SKY_STEP.hazeColor, 'haze-color');
   scene.environmentIntensity = SKY_STEP.fill;
+  BAKED_AO.uniforms.liteEnv.value = SKY_STEP.fill * LOOK.num('lite-env', 1);
   scene.background.copy(SKY_STEP.sky);
   scene.fog.density = SKY_STEP.haze; scene.fog.color.copy(SKY_STEP.hazeColor);
   setMist(mix('mist', 0), SKY_STEP.mistColor.set(LOOK.color(`${SKY}-mist-color`, '#000000')).lerp(SKY_STEP.mistLate.set(LOOK.color(`${SKY}-mist-color-late`, '#000000')), t));   // the mist thins and warms with the dawn
@@ -1051,7 +1053,7 @@ async function warmUp() {
   try {
     await prepareGraphics((f) => JF_LOAD.step(0.65 + 0.3 * f, 'Preparing the graphics…'));
     await JF_LOAD.step(0.97, 'Almost ready…');
-    uploadAll(true);
+    uploadAll(false);
   } catch (e) {
     reportError(e, 'preparing graphics');
   }
@@ -1083,6 +1085,13 @@ async function warmUp() {
   xpDrops.clear();
   fx.clear();
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
+  // Warm the composer's passes (N8AO, DOF, bloom) once on the clean scene with culling & HIDDEN restored
+  if (gfx.composer) {
+    await JF_LOAD.step(0.99, 'Almost ready…');
+    const mask = camera.layers.mask;
+    camera.layers.enable(0);
+    try { gfx.render(); } catch (e) { reportError(e, 'preparing graphics'); } finally { camera.layers.mask = mask; }
+  }
   await mapped;
   playBtn.disabled = false;
   playBtn.textContent = 'Play';
@@ -1114,11 +1123,11 @@ async function prepareGraphics(progress) {
   const waiting = [...programs], total = waiting.length || 1;
   while (waiting.length) {
     const until = performance.now() + 40;
-    while (waiting.length && performance.now() < until) {
-      const program = waiting[0];
-      if (program && !program.isReady()) break;   // still building: look again next time
+    for (let i = 0; i < waiting.length && performance.now() < until; ) {
+      const program = waiting[i];
+      if (program && !program.isReady()) { i++; continue; }   // don't head-of-line block behind one slow shader
       program?.getUniforms();
-      waiting.shift();
+      waiting.splice(i, 1);
     }
     await progress(1 - waiting.length / total);
   }
@@ -1187,15 +1196,19 @@ function uploadAll(gamePasses = false) {
   scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
   const was = renderer.getRenderTarget();
   try {
-    if (gamePasses) camera.layers.enable(0);   // the home portrait may already have isolated its own layer
+    camera.layers.enable(0);   // the home portrait may already have isolated its own layer
     camera.layers.enable(HIDDEN);   // and the batched pieces' own meshes, drawn by themselves when the camera fades one (static-batch.js)
     renderer.setRenderTarget(drawnInto());   // Low: the screen, under the loading screen or menu
     renderer.render(scene, camera);
-    if (gamePasses && gfx.composer) { renderer.setRenderTarget(was); gfx.render(); }   // and the composer's own passes (AO, bloom), not at the first frame
   } finally {
     renderer.setRenderTarget(was);
     culled.forEach((o) => { o.frustumCulled = true; });
     camera.layers.mask = cameraMask;
+  }
+  // Composer passes (N8AO, DOF, bloom) run after culling & HIDDEN are restored, never on duplicate off-screen geometry
+  if (gamePasses && gfx.composer) {
+    camera.layers.enable(0);
+    try { gfx.render(); } finally { camera.layers.mask = cameraMask; }
   }
 }
 

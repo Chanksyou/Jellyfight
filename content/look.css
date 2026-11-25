@@ -104,13 +104,22 @@
   --shark-fish-belly: #e8f3fa;
   --shark-illusion-opacity: 0.35;   /* the half-Health illusion (src/shark.js): how see-through it is */
   --shark-illusion-glow: 0.18;      /* and its faint hostile glow, so it reads as a threat, not scenery */
-  --shark-water: #304c51;
+  --shark-water: #254854;
+  --shark-water-deep: #0e2433;      /* Beer-Lambert deep absorption tint in troughs & grazing angles */
+  --shark-water-sss: #3b8a99;       /* moonlit subsurface scatter through raised wave crests */
+  --shark-water-wave-amp: 0.018;    /* m: max physical vertical displacement of interactive water waves */
   --shark-pool-deep: #0b1326;       /* deep abyssal ocean-indigo vortex eye of a feeding-frenzy pool */
   --shark-pool-shallow: #c42830;    /* crimson-coral chum churn inside the vortex */
-  --shark-water-foam: #b1bca4;
-  --shark-water-glint: 0.16;
+  --shark-water-foam: #c8d8dc;
+  --shark-water-glint: 0.34;
   --shark-pool-warning-opacity: 0.11;
   --shark-pool-boundary: #ff5a42;   /* crisp hostile coral rim around each feeding-frenzy pool */
+  --shark-wall-height: 0.095;       /* m: height of the carved stone basin walls rising around the bed */
+  --shark-wall-thick: 0.052;        /* m: thickness of the stone blocks framing the shark arena */
+  --shark-wall-stone: #2b3340;      /* moonlit dark slate base of the tide-pool stone walls */
+  --shark-wall-highlight: #526072;  /* chiseled bevel & coping edge highlight */
+  --shark-wall-moss: #1d3a3a;       /* damp tide-pool lichen tint near the wet waterline */
+  --shark-wall-rune: #6ec6d4;       /* moonlit wet waterline & central spring glow */
   --shark-motion-jiggle-k: 130;     /* plush squash-and-stretch spring stiffness (1/s^2) */
   --shark-motion-jiggle-c: 7.5;     /* plush squash-and-stretch spring damping (bouncy stuffed-toy settle) */
   --shark-camera-distance: 1.15;     /* the fight view: about the Vacuum fight's angle (--camera-tilt) */
@@ -1539,6 +1548,7 @@
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
   --desktop-lights: 0;
   --lite-fill: 1.6;            /* Low graphics: the spotlights are off, the room's fill light is this many times brighter (lite-materials.js) */
+  --lite-env: 1;               /* Low graphics: plain materials skip scene.environment IBL; this much of the room's fill (night-fill / dawn-fill) replaces it (baked-ao.js) */
   --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
   --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
   --batch-cull-move: 0.05;     /* meters the camera moves before the furniture batches re-check what's in view (src/static-batch.js) */

@@ -151,13 +151,31 @@ act3('shark-arena-stops-at-the-pillows',{
     return ok(pillowFront>=A.arenaMax[2]-.005&&Math.abs(head-pillowFront)<.05&&rise<.06,{pillowFront:+pillowFront.toFixed(3),head:+head.toFixed(3),edge:A.arenaMax[2],rise:+rise.toFixed(3)});},
 });
 act3('shark-arrival-raises-the-barrier-then-floods-the-bed',{
-  about:'The bed barrier rises first, the shark surfaces through the quilt, then a 1 cm sheet spreads before attacks begin.',setup(){fresh({bubbles:false,lash:false,elites:false});},
-  play(){const {run}=G();run.startBossIntro();step(180,()=>run.phase==='boss'&&run.boss);const B=run.boss,fields=run.bossWalls.map(m=>m.userData.field);holdJelly();
-    step(30);const barrier=fields.every(f=>f.scale.y>0&&f.scale.y<1)&&B.rise===0&&B.flooded===0;
-    step(50);const emerging=B.rise>0&&B.rise<1&&B.flooded===0&&fields.every(f=>f.scale.y===1);
-    step(80);const flooding=B.rise===1&&B.flooded>0&&B.flooded<1&&B.phase==='rest';
-    step(120,()=>B.ready);const depth=B.water.geometry.parameters.height*B.water.scale.y;
-    return ok(barrier&&emerging&&flooding&&B.ready&&Math.abs(depth-.01)<1e-6&&Math.abs(B.water.position.y+.005-B.waterFloor-.01)<1e-6,{barrier,emerging,flooding,ready:B.ready,depth});},
+  about:'The carved stone walls rise first, then 3 cm water fills outward from the center of the bed, then the shark breaches out of it before attacks begin.',setup(){fresh({bubbles:false,lash:false,elites:false});},
+  play(){const {run}=G();run.startBossIntro();step(180,()=>run.phase==='boss'&&run.boss);const B=run.boss,fields=run.bossWalls.map(m=>m.userData.field),U=B.water.material.uniforms,A=B.arena;holdJelly();
+    const cx=(A.arenaMin[0]+A.arenaMax[0])/2,cz=(A.arenaMin[2]+A.arenaMax[2])/2;
+    step(35);const barrier=fields.every(f=>f.scale.y>0&&f.scale.y<1)&&B.wallRise>0&&B.wallRise<1&&B.flooded===0&&B.rise===0;
+    step(80);const flooding=B.wallRise===1&&fields.every(f=>f.scale.y===1)&&B.flooded>0&&B.flooded<1&&B.rise===0;
+    step(95);const emerging=B.flooded===1&&B.rise>0&&B.rise<1&&B.phase==='rest';
+    step(120,()=>B.ready);const depth=U.uDepth.value,centered=Math.hypot(U.uSource.value.x-cx,U.uSource.value.y-cz)<1e-5;
+    return ok(barrier&&flooding&&emerging&&B.ready&&centered&&Math.abs(depth-.03)<1e-6&&B.arenaWalls.wallMesh.visible,{barrier,flooding,emerging,ready:B.ready,centered,depth});},
+});
+act3('shark-water-reacts-to-jelly-and-shark',{
+  about:'The shark arena water simulates real propagating waves from the jelly swimming and the shark slamming, and dampens under Reduce effects.',setup(){},
+  play(){const B=sharkFight({hurt:false}),P=holdJelly(),wasCalm=juice.calm;B.elapsed=-1e6;
+    B.waterSim.curr.fill(0);B.waterSim.prev.fill(0);B.waterSim.foam.fill(0);B.waterSim.step(1/60);
+    const still=B.waterSim.energy();
+    P.position.set(B.water.position.x-.25,B.waterFloor+.003,B.water.position.z);P.grounded=true;B.updateWater(1/60,P);
+    for(let i=0;i<10;i++){P.position.x+=.03;B.updateWater(1/60,P);}
+    const jellyWave=B.waterSim.energy();
+    B.burst(B.water.position.clone(),.22,true);
+    for(let i=0;i<6;i++)B.waterSim.step(1/60,false);
+    const slamWave=B.waterSim.energy();
+    juice.calm=true;
+    for(let i=0;i<60;i++)B.waterSim.step(1/60,true);
+    const calmed=B.waterSim.energy();
+    juice.calm=wasCalm;
+    return ok(still<1e-4&&jellyWave>.005&&slamWave>jellyWave&&calmed<slamWave*.2,{still:+still.toFixed(4),jellyWave:+jellyWave.toFixed(4),slamWave:+slamWave.toFixed(4),calmed:+calmed.toFixed(4)});},
 });
 act3('shark-water-slows-grounded-feet-by-15-percent',{
   about:'Only feet touching the flooded bed receive 15% slow; jumping, below-bed positions and leaving the arena do not.',setup(){},
@@ -169,7 +187,7 @@ act3('shark-water-slows-grounded-feet-by-15-percent',{
 act3('shark-pools-are-murky-and-the-fish-stay-visible',{
   about:'Feeding-frenzy fish pools have a churning crimson-indigo vortex surface, a crisp honest boundary, and 8 breaching predatory fish.',setup(){},
   play(){const B=sharkFight({hurt:false}),P=holdJelly();B.pool(P.position);B.hazards(.02,P);const p=B.pools[0],U=p.surface.material.uniforms;
-    return ok(U.uMurky.value===1&&U.uTime.value>0&&p.floor.material.opacity<=.14&&p.volume.material.opacity<=.14&&B.fish.count===8&&p.surface.position.y<P.position.y+.018,{murky:U.uMurky.value,warning:p.floor.material.opacity,fish:B.fish.count});},
+    return ok(U.uMurky.value===1&&U.uTime.value>0&&p.floor.material.opacity<=.14&&p.volume.material.opacity<=.14&&B.fish.count===8&&p.surface.position.y<P.position.y+CONTENT.bosses.shark.skills.arrival.depth+.015,{murky:U.uMurky.value,warning:p.floor.material.opacity,fish:B.fish.count,y:+(p.surface.position.y-P.position.y).toFixed(4)});},
 });
 act3('shark-jaws-and-fins-are-articulated',{
   about:'The connected chin rotates around its cheek hinge, the head leads, and the fins and tail have independent poses.',setup(){},

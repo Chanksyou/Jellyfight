@@ -2,6 +2,14 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v706 brightens Low graphics to match Medium: Low's plain materials now receive an environment fill matching the room's night/dawn fill (respecting baked corner shadows) and light the ground mist with the room's already-sampled baked light instead of darkening the floor toward flat mist colour, with no extra draw calls or texture reads.
+
+v705 speeds up startup loading and removes the freeze at 97% by sharing WebGL programs across standOut/fireChurn uniforms, draining ready shaders without head-of-line blocking, and running the post-processing warm-up on the clean culled scene.
+
+v704 builds carved dark-stone tide-pool arena walls around Act 3's bed that rise first, then fills deeper 3 cm interactive moonlit water outward from the center before the shark breaches, with real-time waves reacting to the jelly, the shark, its fin, slams, illusion, and tornadoes.
+
+v703 shortens the jelly's no-hurt time after a hit from 1 s to 0.25 s, so bugs can land hits more often (Shield, Hand Mirror and Cryo Sleep times are unchanged).
+
 v702 the ground mist's flow round the jelly now eases in and out over half a second when it sets off, stops or turns back, so quick back-and-forth swimming no longer flicks the mist about.
 
 v701 - The ground mist is smoother and lower: its thin spots are now lighter mist that blends into the rest instead of open floor, it fades out by about 11 cm, a little above the jelly's height, and it is about a third lighter overall.

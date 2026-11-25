@@ -99,6 +99,25 @@ story('events/iframes-and-drain', {
     return ok(m1 === m0 - 3 && m2 === m1 && run.health === m2 - 1, { m0, m1, m2, m3: run.health });
   },
 });
+story('events/hurt-window-is-a-quarter-second', {
+  about: 'After a hit the jelly can\'t be hurt for 0.25 s: a hit 0.13 s later does nothing, and one 0.3 s later lands.',
+  setup() { fresh({ hurt: true, elites: false }); },
+  play() {
+    const { run } = G();
+    stub(run, 'contactDamage', () => {});
+    run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
+    const window0 = run.iFrames;
+    step(8);
+    const m1 = run.health;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
+    const blocked = run.health === m1;
+    step(10);
+    const m2 = run.health;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 3, source: 'story' });
+    return ok(window0 === 0.25 && blocked && run.health === m2 - 3, { window0, m1, m2, m3: run.health });
+  },
+});
 story('events/elite-defeat-leaves-a-treasure', {
   about: 'Beating an elite leaves a treasure (a golden chest) on its high ground, not a pick right away.',
   setup() { fresh(); },
