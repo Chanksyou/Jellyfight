@@ -71,8 +71,9 @@ export const ENEMY_WORDS = {
           c.dir.copy(h.set(Math.sin(a), 0, Math.cos(a)));
         }
         c.speed = speed * c.slow;
+        e.backing = false;
         if (!p.stop || c.flat > p.stop) return;
-        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
+        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; e.backing = true; }   // too close: back off
         else c.speed = 0;                                                      // in range: hold
       },
     }),

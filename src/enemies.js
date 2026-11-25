@@ -1624,7 +1624,11 @@ export class Enemies {
       // look at the player, pop when hit, grow in when spawned
       // turn smoothly toward the player (snapping every frame made them twitch up close)
       if (dist > e.r * 0.5 && !e.faceLock) {
-        let d = Math.atan2(aim.x - e.pos.x, aim.z - e.pos.z) - e.root.rotation.y;
+        // a walking ground bug faces where it is going; it faces you when in reach, mid-attack, backing off or nearly still
+        const vx = e.vel.x, vz = e.vel.z, sp2 = vx * vx + vz * vz, ax = aim.x - e.pos.x, az = aim.z - e.pos.z;
+        const walk = !e.T.fly && !e.elite && e.state === 'approach' && (!e.atk || e.atk.phase === 'idle') && dist - this.playerRadius - e.r > e.T.reach + LOOK.num('bug-face-reach', 0.05)
+          && sp2 > LOOK.num('bug-face-min-speed', 0.03) ** 2 && !e.backing;
+        let d = (walk ? Math.atan2(vx, vz) : Math.atan2(ax, az)) - e.root.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
       }
