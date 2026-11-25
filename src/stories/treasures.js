@@ -756,7 +756,7 @@ story('treasures/pause-lists-what-you-carry', {
     return ok(shown && run.level === 1
       && trophy.includes('Little Trophy') && trophy.includes('+0.25 / +5 Attack damage') && !trophy.includes('So far:')
       && lemon.includes('×2') && lemon.includes('+2 Attack damage')
-      && pin.includes('Level 2') && pin.includes('pierce up to 5') && !pin.includes('pierce up to 3') && pin.includes('Next level: Attacks pierce up to 7')
+      && pin.includes('Level 2') && pin.includes('pierce up to 8') && !pin.includes('pierce up to 4') && pin.includes('Next level: Attacks pierce up to 12')
       && clip.includes('Now: +0 Tentacle damage, from 0 Levels gained') && clip.includes('at Level 2'),
     { shown, trophy, lemon, pin, clip });
   },
@@ -778,7 +778,7 @@ story('treasures/crumb-on-kill', {
   },
 });
 story('treasures/leave-on-kill', {
-  about: 'leave-on-kill (Dustpan, Leftover Meatball): a cleared bug sometimes leaves a dust bunny or a meatball that stays put. Close by it doesn\'t drift to you; swim onto it to pick it up. A dust bunny gives a stack of +8% Fire rate for 5 s; a meatball +3 Health and +20% Move speed for 3 s. One not picked up is gone after its time.',
+  about: 'leave-on-kill (Dustpan, Leftover Meatball): a cleared bug sometimes leaves a dust bunny or a meatball that stays put. Close by it doesn\'t drift to you; swim onto it to pick it up. A dust bunny gives a stack of +15% Fire rate for 5 s; a meatball +3 Health and +20% Move speed for 3 s. One not picked up is gone after its time.',
   setup() { setupFight({ bubbles: false, lash: false }); give('dustpan', 'meatball'); },
   play() {
     const { run, player } = G(), real = Math.random, fire0 = run.S.fireRate, move0 = run.S.moveSpeed;
@@ -792,7 +792,7 @@ story('treasures/leave-on-kill', {
     player.position.x = dust.pos.x; player.position.z = dust.pos.z; step(20);
     player.position.x = meat.pos.x; player.position.z = meat.pos.z; step(20);
     const picked = !run.left.dust.list.length && !run.left.meatball.list.length;
-    const buffed = run.S.fireRate > fire0 * 1.079 && run.S.moveSpeed > move0 * 1.19 && Math.abs(run.health - 13) < 0.05;
+    const buffed = run.S.fireRate > fire0 * 1.149 && run.S.moveSpeed > move0 * 1.19 && Math.abs(run.health - 13) < 0.05;
     Math.random = () => 0.001;
     bus.emit('enemy_killed', { type: 'roach', pos: near(0.3, 0.3, 0.02), floor: player.position.y, r: 0.02, xp: 1 });
     Math.random = real;
@@ -878,12 +878,12 @@ story('treasures/ring', {
   },
 });
 story('treasures/zap', {
-  about: 'zap (TV Remote): every 7 s, the 3 nearest bugs get zapped.',
+  about: 'zap (TV Remote): every 5 s, the 3 nearest bugs get zapped.',
   setup() { setupFight({ bubbles: false, lash: false }); give('remote'); [0.2, -0.2, 0.3, -0.3].forEach((x) => roachAt(x, 0.1)); },
   play() { const log = record('damage_taken'); step(60 * 5); return ok(dmgBy(log, 'zap').length === 3, { zapped: dmgBy(log, 'zap').length }); },
 });
 story('treasures/brick', {
-  about: 'brick (Lego Brick): a dropped brick, twice the size, goes off when a bug steps on it and hurts every bug close by (not ones farther off).',
+  about: 'brick (Lego Brick): a dropped brick, three times the size, goes off when a bug steps on it and hurts every bug close by (not ones farther off).',
   setup() { setupFight({ bubbles: false, lash: false }); give('legoBrick'); },
   play() {
     const { gadgets } = G().run;
@@ -896,7 +896,7 @@ story('treasures/brick', {
       spawn('roach', b.m.position.clone().add(V(0.08, 0, 0)), { still: true, hp: 9999 });    // farther: not
     }
     step(5);
-    return ok(!!b && b.m.scale.x === 2 && dmgBy(log, 'brick').length === 2, { bricks: gadgets.bricks.length, size: b?.m.scale.x, hits: dmgBy(log, 'brick').length });
+    return ok(!!b && b.m.scale.x === 3 && dmgBy(log, 'brick').length === 2, { bricks: gadgets.bricks.length, size: b?.m.scale.x, hits: dmgBy(log, 'brick').length });
   },
 });
 story('treasures/brick-falls', {
@@ -978,7 +978,7 @@ story('treasures/upgrades-show-current-effect-once', {
     const name = card?.querySelector('.ui-card-name').textContent, text = card?.querySelector('.ui-card-body').textContent, delta = card?.querySelector('.ui-card-count').textContent;
     card?.click();
     const toast = ui.pop.textContent;
-    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 5 bugs.' && delta === 'Lv 1 → Lv 2'
+    const good = cards.length === 1 && name === 'Bobby Pin' && text === 'Attacks pierce up to 8 bugs.' && delta === 'Lv 1 → Lv 2'
       && toast.includes('Bobby Pin') && toast.includes('Level 2') && !toast.includes('pierce');
     step(45);
     return ok(good, { name, text, delta, toast });
@@ -990,7 +990,7 @@ story('treasures/tuned-level-effects', {
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const got = [], want = [
-      [2.5, .25, .15, 4, 1.5, .18, 2, .05, .1, 2, .3],
+      [1.2, .25, .15, 4, 1.5, .18, 2, .05, .1, 2, .3],
       [5, .28, .18, 4, 2, .22, 3, .07, .12, 3, .35],
       [7, .3, .22, 3, 2.5, .26, 4, .09, .14, 4, .4],
     ];
