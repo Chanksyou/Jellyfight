@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v696 lightens the ground mist by about a quarter in every act, and caps it lower at flat angles.
+
 v695 adds a thick, uneven ground mist to the floors of acts 1 to 4, lit by the room's baked light, with a little of it on the jelly and the bugs. It thins as act 4's sun comes up.
 
 v694 gives every bug, awake Elite and boss a soft shadow on the surface below it: bugs out to about what the camera shows, flyers and thrown bugs wider and fainter by their height, and the jelly's shadow never fades below a floor, so a jump still shows where it will land.
