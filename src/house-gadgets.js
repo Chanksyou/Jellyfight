@@ -47,7 +47,7 @@ export class HouseGadgets {
     });
     // Ice Cube: a beveled little cube that cracks apart as it melts into a wet puddle
     const wet = LOOK.color('treasure-iceCube', '#7cc8ff');
-    this.cubeMat = new THREE.MeshPhysicalMaterial({ color: 0xeaf8ff, roughness: 0.05, transmission: 0.4, transparent: true, opacity: 0.85 });
+    this.cubeMat = new THREE.MeshStandardMaterial({ color: 0xeaf8ff, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.82 });
     const cubeGeo = new RoundedBoxGeometry(0.014, 0.014, 0.014, 2, 0.0022).translate(0, 0.007, 0);
     this.puddlePool = Array.from({ length: 4 }, () => {
       const disc = glowPool('wet', wet);

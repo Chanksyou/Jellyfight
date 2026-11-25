@@ -10,14 +10,26 @@
 // every vector and matrix on the page in V8's slow form, and each write then allocates (tests/check.mjs).
 export const LOOK = {
   vars: {},
+  _ref: null, _num: null, _col: null,
+  _sync() { if (this._ref !== this.vars) { this._ref = this.vars; this._num = Object.create(null); this._col = Object.create(null); } },
   has(name) { return name in this.vars; },
   num(name, fallback) {
-    const v = parseFloat(this.vars[name]);
-    return Number.isFinite(v) ? v : fallback;
+    this._sync();
+    let v = this._num[name];
+    if (v === undefined) {
+      const p = parseFloat(this.vars[name]);
+      v = this._num[name] = Number.isFinite(p) ? p : NaN;
+    }
+    return Number.isNaN(v) ? fallback : v;
   },
   color(name, fallback) {
-    const v = this.vars[name];
-    return /^#[0-9a-f]{6}$/i.test(v || '') ? v : fallback;
+    this._sync();
+    let v = this._col[name];
+    if (v === undefined) {
+      const raw = this.vars[name];
+      v = this._col[name] = /^#[0-9a-f]{6}$/i.test(raw || '') ? raw : '';
+    }
+    return v || fallback;
   },
   list(name, fallback) {
     const v = this.vars[name];

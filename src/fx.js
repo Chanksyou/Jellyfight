@@ -483,9 +483,13 @@ export class Fx {
         n.flare.style.transform = `translate(-50%, -50%) rotate(${(f * 70).toFixed(1)}deg) scale(${(0.35 + f * 1.25).toFixed(3)})`;
         n.flare.style.opacity = ((1 - f) * 0.9).toFixed(3);
       } else n.flare.style.display = 'none';
-      n.accent.style.display = calm || crowded || n.tick || t > 0.35 ? 'none' : '';
-      n.accent.style.transform = `translate(${t * 12}px, ${t * (n.element === 'fire' ? 25 : -10)}px) rotate(${t * 35}deg)`;
-      n.accent.style.opacity = String(Math.max(0, 1 - t / 0.35));
+      if (calm || crowded || n.tick || t > 0.35) {
+        n.accent.style.display = 'none';
+      } else {
+        n.accent.style.display = '';
+        n.accent.style.transform = `translate(${t * 12}px, ${t * (n.element === 'fire' ? 25 : -10)}px) rotate(${t * 35}deg)`;
+        n.accent.style.opacity = String(Math.max(0, 1 - t / 0.35));
+      }
     }
     const so = LOOK.num('splat-opacity', 0.45);
     for (const s of this.splats) {

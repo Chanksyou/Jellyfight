@@ -20,8 +20,30 @@ export const QUALITY = ['low', 'medium', 'high'];
 export const CHOICES = QUALITY;
 const STORE = 'jellyrun.graphics';
 
-// Depth of field that reads the logarithmic depth buffer. Blur grows with how far a pixel's
-// depth is from the focus distance (the player), with a golden-angle disk of samples.
+// Keeps every pixel a real, sane number before anything spreads light around. N8AO now and
+// then writes a NaN on the top or bottom row (its normal reconstruction reads depth past the edge
+// of the screen), and a bright glint can overflow half-float to Inf on some GPUs. A blur or bloom
+// would smear either into a block of black squares for a frame, so: NaN -> black, and anything
+// brighter than MAX_LIGHT is capped (lamps peak around 16). DofShader, Bloom and the output pass
+// call it inline on what they read (saving a full-res pass on High).
+const FINITE = /* glsl */`
+  vec3 finite(vec3 c) {
+    // isnan can be optimised away by some drivers; a NaN also fails every comparison
+    bool ok = !any(isnan(c)) && all(greaterThanEqual(c, vec3(-1e4))) && all(lessThanEqual(c, vec3(1e30)));
+    return ok ? min(c, vec3(256.0)) : vec3(0.0);
+  }`;
+const QUAD_VERTEX = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+// Precomputed 24-tap golden-angle disk offsets (eliminates 72 cos/sin/sqrt ops per blurred pixel)
+const DOF_OFFSETS = Array.from({ length: 24 }, (_, i) => {
+  const fi = i + 0.5, a = fi * 2.39996, r = Math.sqrt(fi / 24);
+  return `vec2(${(Math.cos(a) * r).toFixed(6)}, ${(Math.sin(a) * r).toFixed(6)})`;
+}).join(', ');
+
+// Depth of field that reads the depth buffer. Blur grows with how far a pixel's depth is from the
+// focus distance (the player), with a golden-angle disk of samples.
 const DofShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -32,77 +54,43 @@ const DofShader = {
     near: { value: 0.005 },
     far: { value: 560 },
     focus: { value: 0.16 },            // meters from the camera
+    cocA: { value: 0 },                // linear focus/z slope for perspective & reversed depth (0 divisions)
+    cocB: { value: 0 },                // linear focus/z intercept
     strength: { value: 1.0 },
     maxBlur: { value: 9.0 },           // pixels
     vignette: { value: 0.25 },
   },
-  vertexShader: /* glsl */`
-    varying vec2 vUv;
-    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  vertexShader: QUAD_VERTEX,
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse, tDepth;
     uniform vec2 resolution;
-    uniform float logFar, focus, strength, maxBlur, vignette, depthMode, near, far;
+    uniform float logFar, focus, cocA, cocB, strength, maxBlur, vignette, depthMode, near, far;
     varying vec2 vUv;
-    float viewDist(vec2 uv) {
+    ${FINITE}
+    const vec2 OFFSETS[24] = vec2[24](${DOF_OFFSETS});
+    float cocAt(vec2 uv) {
       float d = texture2D(tDepth, uv).x;
-      if (depthMode > 1.5) return (near * far) / (d * (far - near) + near);   // reversed: 1 at near, 0 at far
-      if (depthMode > 0.5) return exp2(d * logFar) - 1.0;
-      return (near * far) / ((far - near) * d - far) * -1.0;   // perspective depth -> distance
-    }
-    float coc(float z) {
-      // circle of confusion in 0..1: (1/focus - 1/z) scaled so ~10x focus distance is fully soft
-      return clamp(abs(1.0 - focus / max(z, 1e-4)) * strength, 0.0, 1.0);
+      float fz = depthMode == 1.0 ? focus / max(exp2(d * logFar) - 1.0, 1e-4) : d * cocA + cocB;
+      return clamp(abs(1.0 - fz) * strength, 0.0, 1.0);
     }
     void main() {
       vec4 base = texture2D(tDiffuse, vUv);
-      float c0 = coc(viewDist(vUv));
-      vec3 col = base.rgb;
+      vec3 col = finite(base.rgb);
+      float c0 = cocAt(vUv);
       if (c0 > 0.02) {
-        float r = c0 * maxBlur;
-        vec3 acc = base.rgb; float wsum = 1.0;
+        vec2 scale = (c0 * maxBlur) / resolution;
+        vec3 acc = col; float wsum = 1.0;
         for (int i = 0; i < 24; i++) {
-          float fi = float(i) + 0.5;
-          float a = fi * 2.39996;
-          vec2 off = vec2(cos(a), sin(a)) * sqrt(fi / 24.0) * r / resolution;
-          vec2 uv = vUv + off;
+          vec2 uv = vUv + OFFSETS[i] * scale;
           // a sharp foreground sample shouldn't smear into the blurred background
-          float w = coc(viewDist(uv)) + 0.05;
-          acc += texture2D(tDiffuse, uv).rgb * w; wsum += w;
+          float w = cocAt(uv) + 0.05;
+          acc += finite(texture2D(tDiffuse, uv).rgb) * w; wsum += w;
         }
         col = acc / wsum;
       }
       vec2 p = vUv - 0.5;
       col *= 1.0 - vignette * smoothstep(0.35, 0.85, length(p * vec2(1.1, 1.0)) * 1.3);
       gl_FragColor = vec4(col, base.a);
-    }`,
-};
-
-// Keeps every pixel a real, sane number before anything spreads light around. N8AO now and
-// then writes a NaN on the top or bottom row (its normal reconstruction reads depth past the edge
-// of the screen), and a bright glint can overflow half-float to Inf on some GPUs. A blur or bloom
-// would smear either into a block of black squares for a frame, so: NaN -> black, and anything
-// brighter than MAX_LIGHT is capped (lamps peak around 16). Bloom and the output pass call it on
-// what they read; High also runs it as a pass of its own before depth of field.
-const FINITE = /* glsl */`
-  vec3 finite(vec3 c) {
-    // isnan can be optimised away by some drivers; a NaN also fails every comparison
-    bool ok = !any(isnan(c)) && all(greaterThanEqual(c, vec3(-1e4))) && all(lessThanEqual(c, vec3(1e30)));
-    return ok ? min(c, vec3(256.0)) : vec3(0.0);
-  }`;
-const QUAD_VERTEX = /* glsl */`
-  varying vec2 vUv;
-  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const FiniteShader = {
-  uniforms: { tDiffuse: { value: null } },
-  vertexShader: QUAD_VERTEX,
-  fragmentShader: /* glsl */`
-    uniform sampler2D tDiffuse;
-    varying vec2 vUv;
-    ${FINITE}
-    void main() {
-      vec4 c = texture2D(tDiffuse, vUv);
-      gl_FragColor = vec4(finite(c.rgb), c.a);
     }`,
 };
 
@@ -233,9 +221,9 @@ export class BloomOutputPass extends Pass {
           #ifdef TONE
             c.rgb = TONE(c.rgb);
           #endif
-          c.rgb = clamp(c.rgb, 0.0, 1.0) * gradeGain + gradeLift * (1.0 - clamp(c.rgb, 0.0, 1.0));   // the act's grade
-          c.rgb = mix(vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), c.rgb, gradeSat);
-          c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), grey);   // the colour draining (juice.grey: Snooze Button's save)
+          vec3 cl = clamp(c.rgb, 0.0, 1.0);
+          c.rgb = cl * gradeGain + gradeLift * (1.0 - cl);   // the act's grade
+          c.rgb = mix(vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), c.rgb, gradeSat * (1.0 - grey));   // grade saturation + colour drain (juice.grey)
           #ifdef SRGB_TRANSFER
             c = sRGBTransferOETF(c);
           #endif
@@ -385,8 +373,7 @@ export class Graphics {
     }
 
     this.dof = null;
-    if (high && ao) {   // depth of field reads N8AO's depth
-      composer.addPass(new ShaderPass(FiniteShader));   // its blur would smear a NaN too
+    if (high && ao) {   // depth of field reads N8AO's depth (finite() is inline in DofShader)
       const dof = new ShaderPass(DofShader);
       dof.uniforms.tDepth.value = ao.beautyRenderTarget.depthTexture;
       composer.addPass(dof);
@@ -398,7 +385,7 @@ export class Graphics {
     composer.addPass(bloom);
     const output = new BloomOutputPass(bloom);
     output.shimmer = this.shimmer;
-    if (msaa) output.needsSwap = false;   // it draws to the screen: nothing reads the buffer it would swap
+    output.needsSwap = false;   // it draws to the screen: nothing reads the buffer it would swap
     composer.addPass(output);
     this.bloom = bloom;
 
@@ -409,7 +396,7 @@ export class Graphics {
 
   resize() {
     if (!this.composer) return;
-    const size = this.renderer.getSize(new THREE.Vector2());
+    const size = this.renderer.getSize(this._size ||= new THREE.Vector2());
     this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(size.x, size.y);
     if (this.dof) {
@@ -436,13 +423,15 @@ export class Graphics {
       return;
     }
     if (this.dof) {
-      const u = this.dof.uniforms;
-      u.focus.value = this.focus;
-      u.logFar.value = Math.log2(this.camera.far + 1);
-      const caps = this.renderer.capabilities;
-      u.depthMode.value = caps.reversedDepthBuffer ? 2 : caps.logarithmicDepthBuffer ? 1 : 0;
-      u.near.value = this.camera.near;
-      u.far.value = this.camera.far;
+      const u = this.dof.uniforms, n = this.camera.near, f = this.camera.far, foc = this.focus;
+      const caps = this.renderer.capabilities, mode = caps.reversedDepthBuffer ? 2 : caps.logarithmicDepthBuffer ? 1 : 0;
+      u.focus.value = foc;
+      u.logFar.value = Math.log2(f + 1);
+      u.depthMode.value = mode;
+      u.near.value = n;
+      u.far.value = f;
+      if (mode === 2) { u.cocA.value = foc * (1 / n - 1 / f); u.cocB.value = foc / f; }
+      else if (mode === 0) { u.cocA.value = -foc * (1 / n - 1 / f); u.cocB.value = foc / n; }
     }
     this.composer.render();
   }

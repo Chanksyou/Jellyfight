@@ -333,10 +333,14 @@ export class VentAir {
       if (k === 0) this.gustT = -1;
     }
     const off = LOOK.num('vent-off-time', 0.5);
-    U.uFlow.value = THREE.MathUtils.clamp(U.uFlow.value + (env.on === false ? -dt : dt) / off, 0, 1);
+    const flow = U.uFlow.value = THREE.MathUtils.clamp(U.uFlow.value + (env.on === false ? -dt : dt) / off, 0, 1);
     U.uCalm.value = calm;
     U.uPr.value = env.pixelRatio || 1;
     U.uPx.value = LOOK.num('vent-mote-size', 2.2) * U.uPr.value;
-    this.motes?.geometry.setDrawRange(0, env.low ? 0 : Infinity);
+    if (this.wisps) this.wisps.visible = flow > 0;
+    if (this.motes) {
+      this.motes.visible = flow > 0 && !env.low;
+      this.motes.geometry.setDrawRange(0, env.low ? 0 : Infinity);
+    }
   }
 }

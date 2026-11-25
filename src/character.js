@@ -1819,7 +1819,10 @@ export function buildCharacter(look, heightMeters) {
 
   function dispose() {
     rig?.dispose();
-    root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.bumpMap?.dispose(); o.material.dispose(); } });
+    root.traverse((o) => {
+      if (o.isMesh) { o.geometry.dispose(); o.material.map?.dispose(); o.material.bumpMap?.dispose(); o.material.dispose(); }
+      else if (o.isSprite) o.material?.dispose();
+    });
     Object.values(M).forEach((m) => { if (!m) return; m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
   }
 

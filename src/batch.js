@@ -123,7 +123,14 @@ export class Batcher {
       m.instanceMatrix.clearUpdateRanges();
       m.instanceMatrix.addUpdateRange(0, g.n * 16);
       m.instanceMatrix.needsUpdate = true;
-      if (g.per) { m.instanceColor.needsUpdate = true; op.needsUpdate = true; }
+      if (g.per) {
+        m.instanceColor.clearUpdateRanges();
+        m.instanceColor.addUpdateRange(0, g.n * 3);
+        m.instanceColor.needsUpdate = true;
+        op.clearUpdateRanges();
+        op.addUpdateRange(0, g.n);
+        op.needsUpdate = true;
+      }
       drawn += g.n;
     }
     this.drawn = drawn;

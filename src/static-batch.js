@@ -118,6 +118,7 @@ export class StaticBatches {
         if ((check || back) && inBatch && !o.matrixWorld.equals(p.matrix)) {
           p.matrix.copy(o.matrixWorld);
           batch.setMatrixAt(p.id, p.matrix);
+          p.sphere = null;
         }
       }
     }
@@ -142,13 +143,19 @@ export class StaticBatches {
     _f.setFromProjectionMatrix(_m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
     const sway = 2 * Math.sin(this.turn / 2);   // how far a turn of that much can move a view plane, per meter from the camera
     for (const { batch, pieces } of this.batches) {   // (the batches sit at the origin: their pieces' matrices are world matrices)
+      let anyVisible = false;
       for (const p of pieces) {
-        batch.getBoundingSphereAt(batch.getGeometryIdAt(p.id), _s).applyMatrix4(p.matrix);
+        if (!p.sphere) {
+          p.sphere = batch.getBoundingSphereAt(batch.getGeometryIdAt(p.id), new THREE.Sphere()).applyMatrix4(p.matrix);
+        }
+        _s.copy(p.sphere);
         _s.radius += this.move + sway * (_s.center.distanceTo(_v) + this.move);   // the camera may move and turn that much before the next cull
         const inView = _f.intersectsSphere(_s);
         if (inView !== p.inView) { p.inView = inView; if (p.inBatch) batch.setVisibleAt(p.id, inView); }
+        if (inView && p.inBatch) anyVisible = true;
       }
-      batch.sortObjects = batch.material.transparent;   // the shadow cards: back to front, from here
+      batch.visible = anyVisible;
+      batch.sortObjects = anyVisible && batch.material.transparent;   // the shadow cards: back to front, from here
     }
   }
 

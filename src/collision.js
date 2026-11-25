@@ -143,6 +143,7 @@ export class World {
       if (!column.size) this.sweepCells.delete(x);
     }
     b.matrix.copy(m.matrixWorld);
+    b.inv.copy(m.matrixWorld).invert();
     b.box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld);
     this.indexCollider(i);
     this.allSpheres = null;
@@ -210,10 +211,10 @@ export class World {
     for (let i = 0; i < this.nearby.length; i++) {
       const m = this.nearby[i], sp = this.nearbySpheres[i];
       if (structural && !m.userData.structural && !(structural === 2 && m.userData.noCameraFade)) continue;   // 2: the walls and the fixtures that never fade too (the kitchen)
+      if (skip && skip.has(m)) continue;
       if (ray.distanceSqToPoint(sp.center) > sp.radius * sp.radius) continue;
       if (sp.center.distanceTo(origin) - sp.radius > this._best) continue;   // entirely beyond the best hit
       if (!visibleChain(m)) continue;                                          // hidden since we collected it
-      if (skip && skip.has(m)) continue;
       const was = this._best;
       this.castMesh(m, origin);
       if (this._best < was) mesh = m;
@@ -229,7 +230,8 @@ export class World {
 
   castMesh(m, origin) {
     const mw = m.matrixWorld, lray = this._lray, g = m.geometry, bvh = g.boundsTree;
-    lray.copy(this._ray).applyMatrix4(this._inv.copy(mw).invert());
+    const inv = m.userData._invM && m.userData._invSrc?.equals(mw) ? m.userData._invM : this._inv.copy(mw).invert();
+    lray.copy(this._ray).applyMatrix4(inv);
     // world meters per local unit along this ray (meshes can be scaled)
     const k = this._p.copy(lray.direction).add(lray.origin).applyMatrix4(mw).distanceTo(origin);
     const mat = Array.isArray(m.material) ? null : m.material;
@@ -238,6 +240,7 @@ export class World {
     const pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
     R.ox = lray.origin.x; R.oy = lray.origin.y; R.oz = lray.origin.z;
     R.dx = lray.direction.x; R.dy = lray.direction.y; R.dz = lray.direction.z;
+    R.ix = R.dx ? 1 / R.dx : 0; R.iy = R.dy ? 1 / R.dy : 0; R.iz = R.dz ? 1 / R.dz : 0;
     const A = this._ta, B = this._tb, C = this._tc, P = this._p, stack = this._stack;
     let bestT = this._best / k;
     for (let ri = 0; ri < bvh._roots.length; ri++) {
@@ -245,11 +248,11 @@ export class World {
       let v = this._views.get(root);
       if (!v) this._views.set(root, v = { f: new Float32Array(root), u16: new Uint16Array(root), u32: new Uint32Array(root) });
       const { f, u16, u32 } = v;
+      if (enter(f, 0) > bestT) continue;
       let sp = 0;
       stack[sp++] = 0;
       while (sp) {
         const n = stack[--sp];
-        if (enter(f, n) > bestT) continue;
         if (u16[n * 2 + 15] === 0xFFFF) {
           // a leaf: test its triangles, straight from the typed arrays
           const off = u32[n + 6], count = u16[n * 2 + 14];
@@ -269,8 +272,14 @@ export class World {
           }
         } else {
           // visit the nearer child first so the best hit shrinks early and prunes more
-          const l = n + 8, r = u32[n + 6];
-          if (enter(f, l) <= enter(f, r)) { stack[sp++] = r; stack[sp++] = l; } else { stack[sp++] = l; stack[sp++] = r; }
+          const l = n + 8, r = u32[n + 6], dl = enter(f, l), dr = enter(f, r);
+          if (dl <= dr) {
+            if (dr <= bestT) stack[sp++] = r;
+            if (dl <= bestT) stack[sp++] = l;
+          } else {
+            if (dl <= bestT) stack[sp++] = l;
+            if (dr <= bestT) stack[sp++] = r;
+          }
         }
       }
     }
@@ -292,22 +301,31 @@ export class World {
     for (const mi of this.sweepNearby(s.box)) {
       const m = this.colliders[mi], bounds = this.sweepBounds[mi];
       if (!s.box.intersectsBox(bounds.box) || !visibleChain(m)) continue;   // (the box first: it rejects most, and costs less than the walk up)
-      s.localBox.copy(s.box).applyMatrix4(this._inv.copy(m.matrixWorld).invert());
+      s.localBox.copy(s.box).applyMatrix4(bounds.inv);
       const g = m.geometry, bvh = g.boundsTree, pos = g.attributes.position.array, idx = g.index?.array;
+      const lx0 = s.localBox.min.x, ly0 = s.localBox.min.y, lz0 = s.localBox.min.z;
+      const lx1 = s.localBox.max.x, ly1 = s.localBox.max.y, lz1 = s.localBox.max.z;
       for (const root of bvh._roots) {
         let v = this._views.get(root);
         if (!v) this._views.set(root, v = { f: new Float32Array(root), u16: new Uint16Array(root), u32: new Uint32Array(root) });
-        const { f, u16, u32 } = v, box = s.localBox, stack = this._stack;
+        const { f, u16, u32 } = v, stack = this._stack;
         let count = 0; stack[count++] = 0;
         while (count) {
           const n = stack[--count];
-          if (f[n] > box.max.x || f[n + 3] < box.min.x || f[n + 1] > box.max.y || f[n + 4] < box.min.y || f[n + 2] > box.max.z || f[n + 5] < box.min.z) continue;
+          if (f[n] > lx1 || f[n + 3] < lx0 || f[n + 1] > ly1 || f[n + 4] < ly0 || f[n + 2] > lz1 || f[n + 5] < lz0) continue;
           if (u16[n * 2 + 15] !== 0xFFFF) { stack[count++] = n + 8; stack[count++] = u32[n + 6]; continue; }
           for (let i = u32[n + 6], end = i + u16[n * 2 + 14]; i < end; i++) {
             const t = bvh.resolveTriangleIndex(i) * 3, tri = s.triangle;
-            tri.a.fromArray(pos, (idx ? idx[t] : t) * 3).applyMatrix4(m.matrixWorld);
-            tri.b.fromArray(pos, (idx ? idx[t + 1] : t + 1) * 3).applyMatrix4(m.matrixWorld);
-            tri.c.fromArray(pos, (idx ? idx[t + 2] : t + 2) * 3).applyMatrix4(m.matrixWorld);
+            const ia = (idx ? idx[t] : t) * 3, ib = (idx ? idx[t + 1] : t + 1) * 3, ic = (idx ? idx[t + 2] : t + 2) * 3;
+            const ax = pos[ia], bx = pos[ib], cx = pos[ic];
+            if ((ax > lx1 && bx > lx1 && cx > lx1) || (ax < lx0 && bx < lx0 && cx < lx0)) continue;
+            const ay = pos[ia + 1], by = pos[ib + 1], cy = pos[ic + 1];
+            if ((ay > ly1 && by > ly1 && cy > ly1) || (ay < ly0 && by < ly0 && cy < ly0)) continue;
+            const az = pos[ia + 2], bz = pos[ib + 2], cz = pos[ic + 2];
+            if ((az > lz1 && bz > lz1 && cz > lz1) || (az < lz0 && bz < lz0 && cz < lz0)) continue;
+            tri.a.set(ax, ay, az).applyMatrix4(m.matrixWorld);
+            tri.b.set(bx, by, bz).applyMatrix4(m.matrixWorld);
+            tri.c.set(cx, cy, cz).applyMatrix4(m.matrixWorld);
             const A = tri.a, B = tri.b, C = tri.c, W = s.box;   // a triangle wholly outside the swept box can't be touched: skip the exact test
             if (Math.min(A.x, B.x, C.x) > W.max.x || Math.max(A.x, B.x, C.x) < W.min.x || Math.min(A.y, B.y, C.y) > W.max.y || Math.max(A.y, B.y, C.y) < W.min.y || Math.min(A.z, B.z, C.z) > W.max.z || Math.max(A.z, B.z, C.z) < W.min.z) continue;
             tri.needsUpdate = true;
@@ -360,7 +378,9 @@ export class World {
 // Cache static scenery's world bounds; doors and other moving meshes refresh on transform changes.
 function sweepBounds(mesh) {
   if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-  return { matrix: mesh.matrixWorld.clone(), box: mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld) };
+  const matrix = mesh.matrixWorld.clone(), inv = matrix.clone().invert();
+  mesh.userData._invM = inv; mesh.userData._invSrc = matrix;
+  return { matrix, inv, box: mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld) };
 }
 
 // castMesh walks the BVH's node buffers itself, which only works with the node layout of the
@@ -412,22 +432,30 @@ function plainPositions(geo) {
 }
 
 // The local ray for the BVH walk (module scratch: no closure or object per call)
-const R = { ox: 0, oy: 0, oz: 0, dx: 0, dy: 0, dz: 0 };
+const R = { ox: 0, oy: 0, oz: 0, dx: 0, dy: 0, dz: 0, ix: 0, iy: 0, iz: 0 };
 // Entry distance of the ray into BVH node n's box (min xyz at f[n..n+2], max at f[n+3..n+5]),
 // clamped to 0 when it starts inside; Infinity when it misses.
 function enter(f, n) {
-  let lo = 0, hi = Infinity;
-  for (let a = 0; a < 3; a++) {
-    const o = a === 0 ? R.ox : a === 1 ? R.oy : R.oz, d = a === 0 ? R.dx : a === 1 ? R.dy : R.dz;
-    const min = f[n + a], max = f[n + 3 + a];
-    if (d === 0) {                       // parallel to this slab: inside it or a miss
-      if (o < min || o > max) return Infinity;
-      continue;
-    }
-    let t1 = (min - o) / d, t2 = (max - o) / d;
-    if (t1 > t2) { const s = t1; t1 = t2; t2 = s; }
-    if (t1 > lo) lo = t1;
-    if (t2 < hi) hi = t2;
+  let lo = 0, hi = Infinity, t1, t2;
+  if (R.dx === 0) { if (R.ox < f[n] || R.ox > f[n + 3]) return Infinity; }
+  else {
+    t1 = (f[n] - R.ox) * R.ix; t2 = (f[n + 3] - R.ox) * R.ix;
+    if (t1 > t2) { if (t2 > lo) lo = t2; if (t1 < hi) hi = t1; }
+    else { if (t1 > lo) lo = t1; if (t2 < hi) hi = t2; }
+    if (lo > hi) return Infinity;
+  }
+  if (R.dy === 0) { if (R.oy < f[n + 1] || R.oy > f[n + 4]) return Infinity; }
+  else {
+    t1 = (f[n + 1] - R.oy) * R.iy; t2 = (f[n + 4] - R.oy) * R.iy;
+    if (t1 > t2) { if (t2 > lo) lo = t2; if (t1 < hi) hi = t1; }
+    else { if (t1 > lo) lo = t1; if (t2 < hi) hi = t2; }
+    if (lo > hi) return Infinity;
+  }
+  if (R.dz === 0) { if (R.oz < f[n + 2] || R.oz > f[n + 5]) return Infinity; }
+  else {
+    t1 = (f[n + 2] - R.oz) * R.iz; t2 = (f[n + 5] - R.oz) * R.iz;
+    if (t1 > t2) { if (t2 > lo) lo = t2; if (t1 < hi) hi = t1; }
+    else { if (t1 > lo) lo = t1; if (t2 < hi) hi = t2; }
     if (lo > hi) return Infinity;
   }
   return lo;

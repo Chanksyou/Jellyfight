@@ -106,7 +106,7 @@ export class Bubbles {
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
     this.main = null;                  // the Element a jelly type's main attack fires (update), else null
     this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
-    this.geo = new THREE.SphereGeometry(1, 20, 14);
+    this.geo = new THREE.SphereGeometry(1, 12, 8);
     const film = (tint, glow, opacity = 0.6, boost = 0.6) => new THREE.MeshPhysicalMaterial({
       color: tint, transparent: true, opacity, roughness: 0.02, metalness: 0, clearcoat: 1,
       iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [150, 600],
@@ -421,14 +421,16 @@ export class Bubbles {
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
     const b = this.statePool.pop() || {};
     const hit = b.hit || new Set(), elems = b.elems || new Set();
-    for (const key of Object.keys(b)) delete b[key];
     for (const el of o.elems || []) elems.add(el);
-    Object.assign(b, {
-      m, target, r: RADIUS * o.size, dmg: o.dmg, pw: o.pw ?? o.dmg * 4.5, golden: o.golden, ep: o.ep || null, range: o.range || 0,
-      pierce: o.pierce, hit, splashed: false, travel: 0, t: 0, big: !!o.big, child: !!o.child, wobble: Math.random() * 6, strike: o.strike || null,
-      elems, tint: o.tint,
-      off: o.off || null,               // its place beside the others in its blow: it aims that far to the side of the target
-    });
+    b.m = m; b.target = target; b.r = RADIUS * o.size; b.dmg = o.dmg; b.pw = o.pw ?? o.dmg * 4.5;
+    b.golden = o.golden; b.ep = o.ep || null; b.range = o.range || 0; b.pierce = o.pierce;
+    b.hit = hit; b.splashed = false; b.travel = 0; b.t = 0; b.big = !!o.big; b.child = !!o.child;
+    b.wobble = Math.random() * 6; b.strike = o.strike || null; b.elems = elems; b.tint = o.tint;
+    b.off = o.off || null;               // its place beside the others in its blow: it aims that far to the side of the target
+    b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
+    b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
+    b.split = false; b.small = false;
+    b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
     b.speed = SPEED * (o.speed || 1) * (this.mods?.bubbles.speed || 1);   // shot-speed (Drinking Straw)

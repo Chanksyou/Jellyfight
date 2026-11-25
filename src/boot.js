@@ -101,14 +101,16 @@ try {
   const bakedAO = loadBakedAO(currentStage().id);   // its corner shadows (baked-ao.js), alongside
   const bakedLight = loadBakedLight(currentStage().id);   // and its shell's baked light (baked-light.js)
   const skylineAtlas = loadSkylineAtlas();
+  const lookReady = loadLook();                     // content/look.css: colours and render numbers
+  const contentReady = loadContent();               // content/*.kdl: the bugs and the waves
   const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts);
   apt.bakedAO = await bakedAO;
   apt.bakedLight = await bakedLight;
   apt.skylineAtlas = await skylineAtlas;
   const lights = scaleLightsOnRender(renderer, scene);
   window.APT = Object.assign(apt, { scene, renderer, camera, lights });
-  await loadLook();                 // content/look.css: colours and render numbers
-  await loadContent();              // content/*.kdl: the bugs and the waves
+  await lookReady;
+  await contentReady;
   await loading.step(0.55, 'Building the rooms…');
   await startGame();
   }

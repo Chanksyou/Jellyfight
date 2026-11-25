@@ -147,7 +147,7 @@ export class EncoreLasers {
         const [cx, cz] = CORNERS[c.corner], pos = plane.geometry.attributes.position;
         this.line(c, s);
         pos.setXYZ(0, cx, this.height, cz); pos.setXYZ(1, _a.x, 0.001, _a.z); pos.setXYZ(2, _b.x, 0.001, _b.z);
-        pos.needsUpdate = true; plane.geometry.computeBoundingSphere();
+        pos.needsUpdate = true;
         plane.material.uniforms.uOn.value = on; plane.material.uniforms.uTime.value = beat;
         lit = Math.max(lit, on);
       }

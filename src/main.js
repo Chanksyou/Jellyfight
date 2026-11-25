@@ -622,7 +622,8 @@ setCalm(reducedMotion.matches);
 reducedMotion.addEventListener?.('change', (e) => setCalm(e.matches));
 try { localStorage.removeItem('jellyrun.effects'); } catch {}   // the old button's pick
 function updateMusic(dt) {
-  if (!music) { const A = audio(); if (!A) return; music = new Music(A.ctx, A.master); }
+  const A = audio();
+  if (!A) return;
   const st = musicOn ? run.musicState() : { song: null, intensity: 0 };
   if (stage.arena) for (const name in TRACKS) trackFor(name);   // start decoding the act's recording early
   const rec = st.song ? trackFor(st.song) : null;
@@ -630,10 +631,14 @@ function updateMusic(dt) {
   song.playing = rec;
   if (rec?.state === 'ready') rec.track.play(run.boss?.music === st.song ? run.boss.clock : 0);   // (a boss that kept its own beat while it loaded: the song picks up there)
   rec?.track.duck(menuOpen() || run.paused);
-  music.play(TRACKS[st.song] ? null : st.song);   // a recorded song is never swapped for a synthesized one
-  music.duck(menuOpen() || run.paused);
-  music.suck(!!st.suck);              // the Vacuum sucking drags the music through a dub filter
-  music.update(dt, st.intensity);
+  const synthSong = TRACKS[st.song] ? null : st.song;
+  if (!music && synthSong) music = new Music(A.ctx, A.master);
+  if (music) {
+    music.play(synthSong);   // a recorded song is never swapped for a synthesized one
+    music.duck(menuOpen() || run.paused);
+    music.suck(!!st.suck);   // the Vacuum sucking drags the music through a dub filter
+    music.update(dt, st.intensity);
+  }
 }
 
 // The room tone (ambience.js): the act's bed and a few one-shots near their pieces, under the music. It plays through
@@ -804,6 +809,7 @@ const GAME = {
   step(dt) {
     updateMusic(dt);
     updateAmbience(dt);
+    if (picker.isOpen) return;   // the pick screen covers the whole game and renders its own preview
     systems.traversal.update(dt, { pixelRatio: renderer.getPixelRatio(), low: gfx.quality === 'low', calm: juice.calm });
     systems.fx.update(dt);
     run.gadgets.animate(dt,!bossScene && state.mode==='play' && !run.polypT && (run.phase==='explore'||run.phase==='boss'));
@@ -1189,18 +1195,25 @@ async function retier() {
 // view, and a turn of the camera that brings in a corner of the room stalls a phone for a frame.
 function uploadAll(gamePasses = false) {
   const cameraMask = camera.layers.mask;
+  const seenTex = new Set();
   scene.traverse((o) => {
-    for (const m of [].concat(o.material || [])) for (const k in m) if (m[k]?.isTexture) renderer.initTexture(m[k]);
+    for (const m of [].concat(o.material || [])) for (const k in m) {
+      const t = m[k];
+      if (t?.isTexture && !seenTex.has(t)) { seenTex.add(t); renderer.initTexture(t); }
+    }
   });
   const culled = [];
   scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
-  const was = renderer.getRenderTarget();
+  const was = renderer.getRenderTarget(), target = drawnInto();
+  const scissor = !target;
   try {
     camera.layers.enable(0);   // the home portrait may already have isolated its own layer
     camera.layers.enable(HIDDEN);   // and the batched pieces' own meshes, drawn by themselves when the camera fades one (static-batch.js)
-    renderer.setRenderTarget(drawnInto());   // Low: the screen, under the loading screen or menu
+    renderer.setRenderTarget(target);   // Low: the screen, under the loading screen or menu
+    if (scissor) { renderer.setScissorTest(true); renderer.setScissor(0, 0, 4, 4); }
     renderer.render(scene, camera);
   } finally {
+    if (scissor) renderer.setScissorTest(false);
     renderer.setRenderTarget(was);
     culled.forEach((o) => { o.frustumCulled = true; });
     camera.layers.mask = cameraMask;

@@ -55,21 +55,24 @@ export class AcidLooks {
   }
 
   update(dt) {
-    if (this.busy) {
+    if (!this.busy) {
+      this.mesh.visible = false;
+    } else {
       let any = false;
       this.list.forEach((d, i) => {
         if (!d.life) return;
-        any = true;
         d.life -= dt; d.v.y -= 2.4 * dt; d.p.addScaledVector(d.v, dt);
         if (d.p.y <= d.floor || d.life <= 0) {
           // it lands: a fizz and a little green spot that fades
           if (d.life > 0) { this.fx.splat(_v.set(d.p.x, d.floor, d.p.z), this.spot, d.size * 3.5); this.fx.glow.emit(_v, this.spotColor(), d.size * 4, d.size * 2, 0.25, 0.6); }
           d.life = 0; this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); return;
         }
+        any = true;
         // stretched along its fall, a teardrop
         const sp = d.v.length();
         this.mesh.setMatrixAt(i, _m.compose(d.p, _q.setFromUnitVectors(UP, _v.copy(d.v).divideScalar(sp || 1)), _s.set(d.size, d.size * (1 + Math.min(1.5, sp * 3)), d.size)));
       });
+      this.mesh.visible = any;
       this.mesh.instanceMatrix.needsUpdate = true;
       this.busy = any;
     }
