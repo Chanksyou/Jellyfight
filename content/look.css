@@ -795,8 +795,8 @@
   --bug-shadow-casts: 6;       /* surfaces looked for a frame, for the bugs in the air and the Elites and bosses, in turn */
   --bug-shadow-cast-every: 6;  /* frames a found surface is trusted for */
   --elite-shadow: 0.7;         /* the soft shadow under an awake Elite or a boss: how dark, at its middle */
-  --elite-shadow-size: 1.15;   /* its size against its model's real footprint (a boss with no model of its own: a round one, 1.1x its radius) */
-  --elite-shadow-reach: 1.4;   /* its shadow is cut off this far out, in its radius: a cord or a handle's tip costs a phone layers for little */
+  --elite-shadow-size: 1.05;   /* its size against its model's real footprint (a boss with no model of its own: a round one, 1.1x its radius) */
+  --elite-shadow-reach: 1.1;   /* its shadow is cut off this far out, in its radius: a cord or a handle's tip costs a phone layers for little */
   --jelly-shadow-floor: 0.22;  /* the faintest the jelly's shadow gets, high in a jump: it stays the landing cue */
   --jelly-shadow-size: 1.7;    /* its shape's half-width (the bell and the tentacles' soft tail), in the old round shadow's radius */
   --shadow-shape-pad: 1.15;     /* each model's cell is this much wider than the model, room for the blur (shadow-shapes.js) */

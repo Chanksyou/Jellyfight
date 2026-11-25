@@ -208,8 +208,8 @@ export class ShadowSystem {
     this.bugSize = LOOK.num('bug-shadow-size', 1);
     this.bugReach = LOOK.num('bug-shadow-reach', 1.6) ** 2;   // what the camera shows round the jelly: further out is layers for little
     this.eliteDark = LOOK.num('elite-shadow', 0.7);
-    this.eliteSize = LOOK.num('elite-shadow-size', 1.15);
-    this.eliteReach = LOOK.num('elite-shadow-reach', 1.4);   // an Elite's or boss's shadow is cut off this far out, in its radius (a cord, a handle: thin far bits cost layers for little)
+    this.eliteSize = LOOK.num('elite-shadow-size', 1.05);
+    this.eliteReach = LOOK.num('elite-shadow-reach', 1.1);   // an Elite's or boss's shadow is cut off this far out, in its radius (a cord, a handle: thin far bits cost layers for little)
     this.airWiden = LOOK.num('bug-shadow-air-widen', 3);       // per metre of height, as the jelly's
     this.airFade = LOOK.num('bug-shadow-air-fade', 6);         // darkness / (1 + this * height)
     this.airFloor = LOOK.num('bug-shadow-air-floor', 0.3);     // never fainter than this share of its grounded darkness
