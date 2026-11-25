@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v703 shortens the jelly's no-hurt time after a hit from 1 s to 0.25 s, so bugs can land hits more often (Shield, Hand Mirror and Cryo Sleep times are unchanged).
+
 v702 the ground mist's flow round the jelly now eases in and out over half a second when it sets off, stops or turns back, so quick back-and-forth swimming no longer flicks the mist about.
 
 v701 - The ground mist is smoother and lower: its thin spots are now lighter mist that blends into the rest instead of open floor, it fades out by about 11 cm, a little above the jelly's height, and it is about a third lighter overall.
