@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { BAKED_LIGHT, LIGHT_FRAGMENT } from './baked-light.js';
+import { MIST, MIST_GLSL } from './mist.js';
 import { AMBIENT, AMBIENT_VERTEX } from './ambient.js';
 import { detailUniforms, DETAIL_FRAGMENT } from './surfaces.js';
 
@@ -95,7 +96,7 @@ function lampLoops() {
 }
 
 function patch(shader) {
-  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms, AMBIENT.uniforms, detailUniforms(this.userData.detail));   // (and this material's grain: surfaces.js)
+  Object.assign(shader.uniforms, uniforms, BAKED_LIGHT.uniforms, AMBIENT.uniforms, MIST.uniforms, detailUniforms(this.userData.detail));   // (and this material's grain: surfaces.js)
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nvarying vec3 vAoPos, vAoNormal;\nattribute vec2 lightUv;\nvarying vec2 vLightUv;' + AMBIENT_VERTEX)
     .replace('#include <project_vertex>', `#include <project_vertex>
@@ -115,7 +116,7 @@ function patch(shader) {
       vLightUv = lightUv;
       vAoNormal = mat3(modelMatrix) * aoNormal;`);
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT + DETAIL_FRAGMENT)
+    .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT + MIST_GLSL + DETAIL_FRAGMENT)
     .replace('#include <color_fragment>', `#include <color_fragment>
       #ifndef LAMBERT
         if (detailMix != vec4(0.0)) diffuseColor.rgb *= surfaceDetail();   // the fine grain (surfaces.js); Low's plain materials leave it out
@@ -150,7 +151,11 @@ function patch(shader) {
         reflectedLight.indirectSpecular *= baked;
         if (lb.w < 1.5) reflectedLight.directDiffuse += lbKeep;   // (the shell's bake has its own shadows)
       }
-      #include <aomap_fragment>`);
+      #include <aomap_fragment>`)
+    .replace('#include <fog_fragment>', `#include <fog_fragment>
+      #ifdef USE_FOG
+        { vec4 mist = mistAt(vAoPos); gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a); }   // the ground mist (mist.js), over three.js's own fog
+      #endif`);
 }
 
 // the apartment's lit materials read the baked shadows, a stage's sun and their fine grain (one shared patch, so one program each)
