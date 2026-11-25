@@ -12,29 +12,19 @@ function changedPixels(change, undo) {
   return n;
 }
 
-story('mist/lies-on-the-floor-and-costs-no-program', {
-  about: 'The ground mist changes the room\'s picture (the floor reads mistier than with --mist at 0), and turning it up or off is a number: no shader is built in play.',
-  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.4, 0.05, 2.6, 0.8); step(10); },
-  async play() {
-    const U = MIST.uniforms, was = U.mistK.value, programs = G().APT.renderer.info.programs.length;
-    G().batcher.sync(); G().gfx.render();
-    const before = G().APT.renderer.info.programs.length;
-    const shown = changedPixels(() => { U.mistK.value = 0; }, () => { U.mistK.value = was; });
-    const built = G().APT.renderer.info.programs.length - before;
-    return ok(was > 0 && shown > 2000 && built === 0, { thickness: was, shown, built, programs });
-  },
-});
-
-story('mist/zero-is-no-mist', {
-  about: '--mist at 0 (or ?mist=0) draws nothing of it: the picture is the same as with the mist capped at nothing.',
+story('mist/lies-on-the-floor-and-zero-is-none', {
+  about: 'The ground mist changes the room\'s picture (the floor reads mistier than with it capped at nothing); --mist at 0 (or ?mist=0) draws none of it; and neither is a new shader in play, only a number.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.4, 0.05, 2.6, 0.8); step(10); },
   async play() {
     const U = MIST.uniforms, k = U.mistK.value, max = U.mistMax.value;
+    G().batcher.sync(); G().gfx.render();
+    const programs = G().APT.renderer.info.programs.length;
+    const shown = changedPixels(() => { U.mistMax.value = 0; }, () => { U.mistMax.value = max; });
     U.mistK.value = 0;
     const same = changedPixels(() => { U.mistMax.value = 0; }, () => { U.mistMax.value = max; });
     U.mistK.value = k;
-    const capped = changedPixels(() => { U.mistMax.value = 0; }, () => { U.mistMax.value = max; });
-    return ok(same === 0 && capped > 2000, { same, capped });
+    const built = G().APT.renderer.info.programs.length - programs;
+    return ok(k > 0 && shown > 2000 && same === 0 && built === 0, { thickness: k, shown, same, built });
   },
 });
 

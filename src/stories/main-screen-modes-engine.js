@@ -1362,11 +1362,13 @@ story('engine/baked-light-lights-the-shell', {
       setBakedLight(true);
       return { baked, bakedDark, live, liveDark, withGlow, noGlow, built };
     };
+    const mist = MIST.uniforms.mistK.value;
     try {
+      MIST.uniforms.mistK.value = 0;   // (this measures the lamps' light: the ground mist would wash the dark pictures)
       const medium = await measure('medium'), low = await measure('low');
       const good = (m) => m.bakedDark > m.baked * 0.8 && m.liveDark < m.live * 0.6 && m.withGlow > m.noGlow + 3 && m.built === 0;
       return ok(good(medium) && good(low), { medium, low });
-    } finally { setBakedLight(true); glow.visible = true; gfx.setQuality(was); await gfx.ready; }
+    } finally { MIST.uniforms.mistK.value = mist; setBakedLight(true); glow.visible = true; gfx.setQuality(was); await gfx.ready; }
   },
 });
 story('engine/baked-light-lights-the-furniture', {
