@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v708 tunes twelve Treasures' numbers: Bobby Pin pierces 4/8/12 bugs, Reed Stick's big bubble hits for 4 and comes every 3rd bubble at Level 3, Nail Clipper crits 10% of hits, Cotton Ball's shockwave hits for 1.2, Bath Salt's burst hits for 1.5/2 at Levels 2 and 3, Ice Cube's puddle is wider, TV Remote zaps every 5/4/3 s, Lego Brick's brick is bigger, Marble lasts 4 s, and Dustpan gives +15% Fire rate per dust bunny.
+
 v707 adds the bugs' floor map: 5 cm squares over each act's floor and the Clog's tub, marked at load with the same body test a walking bug makes, and a walking distance to the jelly that goes round furniture, flooded off the frame clock. No bug uses it yet; the dev panel's Bug map switch shows it.
 
 v706 brightens Low graphics to match Medium: Low's plain materials now receive an environment fill matching the room's night/dawn fill (respecting baked corner shadows) and light the ground mist with the room's already-sampled baked light instead of darkening the floor toward flat mist colour, with no extra draw calls or texture reads.
