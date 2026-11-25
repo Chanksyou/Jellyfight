@@ -65,7 +65,7 @@ export class BugNav {
     const most = Math.max(1, ...this.levels.map((L) => L.n));
     this.buckets = new Int32Array(8 * most);   // the flood's ring of 8 buckets (a square sits in one bucket at most once at a time)
     this.blen = new Int32Array(8);
-    this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
+    this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true; this.frame = 0;
     this.job = { L: null, s: 0, cur: 0, left: 0, x: 0, z: 0, up: false };   // the flood under way (floodOn)
     this.moves = moves; this.seen = 0; this.boxes = new Float64Array(0);
   }
@@ -186,7 +186,16 @@ export class BugNav {
   // stretch (NEAR) interest is simply the straight line to the jelly. Returns false, leaving `out`
   // alone, when the map has nothing for it (not built, another level, off the floor, no flood there)
   // or when the straight line will do: no bug close, and the way round no longer than the line (OPEN).
+  // Each bug works it out every other frame (half the bugs each frame) and keeps the answer between.
   steer(e, list, toward, out) {
+    const n = e.nav || (e.nav = { at: -9, ok: false, dir: out.clone() });
+    if ((this.frame + e.id) & 1 && n.at === this.frame - 1) { if (n.ok) out.copy(n.dir); return n.ok; }
+    n.at = this.frame; n.ok = this.way(e, list, toward, out);
+    if (n.ok) n.dir.copy(out);
+    return n.ok;
+  }
+
+  way(e, list, toward, out) {
     const p = e.pos, l = this.ready ? this.levelAt(p.x, p.y, p.z) : -1;
     if (l < 0) return false;
     const L = this.levels[l], k = this.cellOf(L, p.x, p.z);
@@ -198,15 +207,16 @@ export class BugNav {
     for (let n = 0; n < list.length; n++) {
       const o = list[n];
       if (o === e || o.dead || o.proxy || o.under || o.T.fly) continue;
-      const dx = o.pos.x - p.x, dz = o.pos.z - p.z, d = Math.hypot(dx, dz), reach = AVOID + o.r + e.r;
-      if (d >= reach || d < 1e-6 || Math.abs(o.pos.y - p.y) > 0.1) continue;
+      const dx = o.pos.x - p.x, dz = o.pos.z - p.z, reach = AVOID + o.r + e.r, d2 = dx * dx + dz * dz;   // (sqrt, not hypot: this runs for every pair)
+      if (d2 >= reach * reach || d2 < 1e-12 || Math.abs(o.pos.y - p.y) > 0.1) continue;
+      const d = Math.sqrt(d2);
       const w = 1 - d / reach;
       sx -= dx / d * w; sz -= dz / d * w;
       for (let m = 0; m < 8; m++) { const a = (UX[m] * dx + UZ[m] * dz) / d; if (a > 0 && a * w > danger[m]) danger[m] = a * w; }
     }
     const ways = L.steps[s][k], near = here <= NEAR || this.close(L, p), cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
     // alone, with nothing much in the way (the flood's way is about as long as the straight line), the jelly not up on furniture: the straight line, exactly as before the map
-    if (sx === 0 && sz === 0 && !L.up && (near || here / STRAIGHT * CELL <= Math.hypot(p.x - L.sx, p.z - L.sz) * OPEN + 2 * CELL)) return false;
+    if (sx === 0 && sz === 0 && !L.up && (near || here / STRAIGHT * CELL <= Math.sqrt((p.x - L.sx) ** 2 + (p.z - L.sz) ** 2) * OPEN + 2 * CELL)) return false;
     let bx = 0, bz = 0;
     for (let m = 0; m < 8; m++) {
       if (!(ways & (1 << m))) continue;
@@ -216,7 +226,7 @@ export class BugNav {
       const score = interest - danger[m];
       if (score <= 0) continue;
       // toward the middle of that square, not just its way: off the middle line a body clips the corner of a leg the map stepped past
-      const vx = cx + DX[m] * CELL - p.x, vz = cz + DZ[m] * CELL - p.z, vl = Math.hypot(vx, vz) || 1, w = score * score / vl;
+      const vx = cx + DX[m] * CELL - p.x, vz = cz + DZ[m] * CELL - p.z, vl = Math.sqrt(vx * vx + vz * vz) || 1, w = score * score / vl;
       bx += vx * w; bz += vz * w;
     }
     if (bx === 0 && bz === 0) return false;
@@ -256,7 +266,7 @@ export class BugNav {
   // shows where it was: a bug close to where it is now walks the straight line, not back to where it stood)
   close(L, p) {
     const P = this.P;
-    return Math.hypot(p.x - P.x, p.z - P.z) <= NEAR / STRAIGHT * CELL + Math.hypot(P.x - L.sx, P.z - L.sz);
+    return Math.sqrt((p.x - P.x) ** 2 + (p.z - P.z) ** 2) <= NEAR / STRAIGHT * CELL + Math.sqrt((P.x - L.sx) ** 2 + (P.z - L.sz) ** 2);
   }
 
   // forget the flood (a new fight, run or story): the next update floods afresh, so a replay from the same state walks the same
@@ -267,7 +277,7 @@ export class BugNav {
 
   update(dt, P) {
     if (!this.ready) return;
-    this.P = P;
+    this.P = P; this.frame++;
     if (this.moves !== moves || this.seen !== this.world.colliders.length) this.remark();
     this.since += dt;
     const J = this.job;
