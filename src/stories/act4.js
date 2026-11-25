@@ -60,6 +60,7 @@ act4('restarting-music-reschedules-the-set', {
   setup() {},
   play() {
     const B = encoreFight({ hurt: false });
+    stub(B, 'slot', () => {});                                       // (no solo: it would rest the lasers)
     let beat = 180;
     stub(B, 'song', { beat: () => beat });
     step(1);
@@ -79,6 +80,7 @@ act4('music-recovery-never-releases-an-unwarned-attack', {
   play() {
     const B = encoreFight({ hurt: false });
     B.hp = B.maxHp * 0.7;   // set 2, so its disco ball visits
+    stub(B, 'slot', () => {});
     let beat = 180, strikes = 0;
     stub(B, 'song', { beat: () => beat });
     step(1);
@@ -87,7 +89,7 @@ act4('music-recovery-never-releases-an-unwarned-attack', {
     beat = 167.9; step(1);
     step(20, () => { beat += 128 / 60 / 60; });
     const noStaleStrike = strikes === 0;
-    step(60 * 16, () => { beat += 128 / 60 / 60; });
+    step(60 * 30, () => { beat += 128 / 60 / 60; });
     return ok(noStaleStrike && strikes > 0, { noStaleStrike, strikes });
   },
 });

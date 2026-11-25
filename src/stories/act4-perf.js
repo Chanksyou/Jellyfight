@@ -82,9 +82,9 @@ act4('the-encore-builds-no-shader-mid-fight', {
     let disco = false;
     const look = () => { disco ||= B.disco.hanger.visible; for (const p of fresher(before)) if (!seen.includes(p)) seen.push(p); };
     for (let i = 0; i < 8; i++) { step(60); look(); }
-    // straight on to just before its next disco ball visit (set list: every 32 beats, 16 after a solo slot), on its own clock
+    // straight on to just before its next disco ball visit (set list: every 48 beats, 40 after the warm-up), on its own clock
     stub(B, 'song', { beat: () => null, quiet: () => false, drop: () => false });
-    const o = B.set.origin; B.clock = o + 16 + Math.ceil((B.beat + 8 - o - 16) / 32) * 32 - 7;
+    const o = B.set.origin; B.clock = o + 40 + Math.ceil((B.beat + 8 - o - 40) / 48) * 48 - 7;
     for (let i = 0; i < 12; i++) { step(30); look(); }
     return ok(!seen.length && lights() === lit && disco, { newShaders: seen, lights: [lit, lights()], disco, beat: B.beat });
   },
