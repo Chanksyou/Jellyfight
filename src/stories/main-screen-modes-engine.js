@@ -20,7 +20,7 @@ import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
 import { FieldPerf } from '../field-perf.js';
 import { markMoved } from '../static-batch.js';
-import { G, V, evolve, fresh, near, ok, setupFight, spawn, step, story, phone, stub, tp } from './kit.js';
+import { G, V, evolve, fresh, near, ok, setupFight, spawn, startVacuum, step, story, phone, stub, tp } from './kit.js';
 
 story('engine/field-numbers-ride-the-summary', {
   about: 'A played act\'s summary carries the frame numbers (median and slowest-5% frame, share of slow frames, lowest pixel ratio, tier, cap, screen) and the Settings picks, only after enough frames to mean something, and a dev run sends none.',
@@ -1270,7 +1270,7 @@ story('engine/baked-light-is-current', {
   },
 });
 story('engine/bugs-cast-soft-shadows', {
-  about: 'Every bug standing on something gets a soft round shadow under it (systems.js ShadowSystem), all of them in one instanced draw, sized to the bug; a bug thrown into the air has none until it lands. The jelly\'s own shadow is the same soft picture.',
+  about: 'Every bug standing on something gets a soft round shadow under it (systems.js ShadowSystem), all of them in one instanced draw, sized to the bug; a bug thrown into the air keeps one on the surface below it. The jelly\'s own shadow is the same soft picture.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
     const bugs = [0, 1, 2].map((i) => spawn('ants', near(0.2 + i * 0.06, 0.12), { still: true }));
@@ -1278,7 +1278,60 @@ story('engine/bugs-cast-soft-shadows', {
     const S = G().shadows, grounded = bugs.filter((e) => e.grounded).length, on = S.bugs.count;
     bugs[0].grounded = false; bugs[0].vy = 2; S.update(0);
     const thrown = S.bugs.count;
-    return ok(grounded === 3 && on === 3 && thrown === 2 && S.bugs.isInstancedMesh && !!S.blob.material.alphaMap, { grounded, on, thrown });
+    return ok(grounded === 3 && on === 3 && thrown === 3 && S.bugs.isInstancedMesh && !!S.blob.material.alphaMap, { grounded, on, thrown });
+  },
+});
+// the instance of the shadow draw nearest `e`: its size, the height it lies at and its darkness
+function shadowOf(e) {
+  const S = G().shadows, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  let best = null, bd = 0.05;
+  for (let i = 0; i < S.bugs.count; i++) {
+    S.bugs.getMatrixAt(i, m); m.decompose(p, q, sc);
+    const d = Math.hypot(p.x - e.pos.x, p.z - e.pos.z);
+    if (d < bd) { bd = d; best = { s: sc.x, y: p.y, dark: S.shade.array[i] }; }
+  }
+  return best;
+}
+story('engine/flying-bugs-cast-shadows-below', {
+  about: 'A bug in the air (a mosquito over the floor) has a shadow on the surface straight below it, wider and fainter than a bug standing on the floor, and it is still the one instanced draw; a bug far out of the camera\'s view has none; one with no surface within 3 m below has none.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const S = G().shadows, fly = spawn('mosquito', near(0.2, 0.1), { still: true }), ant = spawn('ants', near(0.3, -0.1), { still: true }), far = spawn('mosquito', near(2.5, 0), { still: true });
+    step(30);
+    fly.grounded = false; fly.pos.y += 0.15; S.update(0);   // (still: it hovers where it was put)
+    const f = shadowOf(fly), a = shadowOf(ant), up = fly.pos.y - (f?.y ?? 0), farOne = shadowOf(far);
+    const wide = f && a && f.s / fly.r > a.s / ant.r, faint = f && a && f.dark < a.dark;
+    const drawCalls = S.bugs.isInstancedMesh;
+    const was = S.airDrop; S.airDrop = 0.001; S.under.delete(fly); S.frame += 100; S.update(0);
+    const none = !shadowOf(fly); S.airDrop = was;
+    return ok(!!fly.T.fly && !!f && !!a && up > 0.01 && f.y < fly.pos.y && wide && faint && !farOne && none && drawCalls, { fly: f, ant: a, up, farOne: !!farOne, none });
+  },
+});
+story('engine/elites-and-bosses-cast-shadows', {
+  about: 'An awake Elite and the Vacuum each have a soft shadow under them in the same instanced draw (read from their position and size, nothing written to them), as wide as they are; an Elite asleep as furniture has none.',
+  setup() { fresh({ bubbles: false, lash: false }); },
+  async play() {
+    const S = G().shadows, ctl = G().run.elites.list.find((x) => x.kind === 'controller');
+    tp(2.2, 0.61 + 0.05, 4.47, 0); step(2); S.update(0);
+    const asleep = ctl.awake === false ? !shadowOf(ctl.entry) : null;   // (the jelly is out of its reach)
+    tp(1.62, 0.61 + 0.05, 4.47, 0); step(60); S.update(0);
+    const awakeShadow = shadowOf(ctl.entry), vac = startVacuum('charge');
+    step(30); S.update(0);
+    const boss = shadowOf(vac.entry);
+    return ok(ctl.awake && !!awakeShadow && awakeShadow.s >= ctl.r && asleep !== false && !!boss && boss.s >= vac.r, { awake: ctl.awake, asleep, awakeShadow, boss, bossR: vac.r });
+  },
+});
+story('engine/jelly-shadow-stays-readable-in-a-jump', {
+  about: 'The jelly\'s shadow widens as it rises and fades, but never below --jelly-shadow-floor, so a full 20 cm jump and a glide still show where it will land.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const S = G().shadows, P = G().player;
+    step(5); S.update(0);
+    const ground = S.blob.material.opacity, wideGround = S.blob.scale.x;
+    P.position.y += 0.2; S.update(0);
+    const high = S.blob.material.opacity, wideHigh = S.blob.scale.x;
+    P.position.y -= 0.2;
+    return ok(high >= S.blobFloor - 1e-6 && high < ground && wideHigh > wideGround && S.blobFloor > 0.1 && S.bugs.isInstancedMesh && S.blob.visible, { ground, high, wideGround, wideHigh, floor: S.blobFloor });
   },
 });
 // how many pixels differ between two renders of the same frame, one after `change` (stories below)
