@@ -841,6 +841,23 @@
   --shadow-link-step: 2;       /* a body that bends (the millipede): a soft spot under every this many links */
   --shadow-link-size: 0.75;    /* each spot's radius, in the bug's own radius */
   --shadow-link-dark: 0.8;     /* and its darkness against a whole bug's (the spots overlap) */
+  /* light-aware (systems.js SHADOW_VERT): each shadow reads the baked light grid where its caster stands */
+  --shadow-lean: 0.9;          /* how far a shadow stretches away from one-sided light, on the ground (x its own length) */
+  --shadow-lean-per-m: 8;      /* and more for each metre its caster is above the surface */
+  --shadow-stretch-max: 2.5;   /* never longer than this x its shape */
+  --shadow-shift: 0.15;        /* how far the whole shadow slides away from the light, in its half-width: the darkest part stays under the creature */
+  --shadow-min-dark: 0.35;     /* the least of its darkness a shadow keeps in a dark corner: a creature is never ungrounded */
+  --shadow-light-lo: 0.05;     /* the grid's light (all sides together) where a shadow starts to darken ... */
+  --shadow-light-hi: 0.6;      /* ... and where it is at its full darkness */
+  --shadow-one-sided: 0.4;     /* how much lighter it is when light comes from all round (between lamps) than from one side */
+  --shadow-soft-between: 0.4;  /* and how much softer */
+  --shadow-jelly-push: 0.6;    /* the jelly's glow pushes a bug's shadow away from it this much, close up (within --jelly-light-reach) */
+  --shadow-jelly-tint: 0.15;   /* the jelly's own shadow takes this much of its colour */
+  --shadow-sun: 1;             /* act 4: the sun's share of a shadow on its side of the line, x the baked daylight (--dawn-daylight*) */
+  --shadow-sun-crisp: 0.8;     /* how much crisper a shadow in full sun is */
+  --shadow-arena-key: -0.4 1 0.5;   /* the arena has no light grid: shadows fall away from its key light (act4-arena.js) */
+  --shadow-arena-lean: 0.6;    /* and this much */
+  --shadow-candle-flicker: 0;  /* shadows waver with the candles' flicker (0: off) */
   --jelly-light-reach: 0.4;    /* meters */
   /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
   --jelly-motion-squeeze: 0.3;    /* how far in the rim pulls at a full stroke, of its radius (it flares out a third of that as it relaxes) */
