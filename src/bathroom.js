@@ -136,16 +136,35 @@ export function addBathroomDetails(scene, stretch = 1) {
   const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.012, 24), black);
   hook.rotation.x = Math.PI / 2; hook.position.set(0, 0.36, -0.006); caddy.add(hook);
   const put = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); caddy.add(m); return m; };
-  // top shelf: an amber bottle and a pink jar
-  put(new THREE.BoxGeometry(0.07, 0.07, 0.05), new THREE.MeshPhysicalMaterial({ color: 0x9a7020, roughness: 0.1, transparent: true, opacity: 0.8, clearcoat: 1 }), -0.08, 0.34, -0.05);
-  put(new THREE.CylinderGeometry(0.03, 0.03, 0.045, 20), new THREE.MeshStandardMaterial({ color: 0xf0a0a8, roughness: 0.4 }), 0.1, 0.33, -0.05);
-  // lower shelf: the pink foaming pump bottle with its hair ties, and the red hair-mask tube leaning out
+  // top shelf: rounded amber apothecary bottle with neck & cap, and pink cream jar with wider lid
+  const amberMat = new THREE.MeshPhysicalMaterial({ color: 0x9a7020, roughness: 0.1, transparent: true, opacity: 0.82, clearcoat: 1 });
+  const amberPts = [[0, 0], [0.028, 0], [0.032, 0.008], [0.032, 0.048], [0.015, 0.064], [0.012, 0.072], [0.012, 0.078]].map(([r, y]) => new THREE.Vector2(r, y));
+  put(new THREE.LatheGeometry(amberPts, 18), amberMat, -0.08, 0.305, -0.05);
+  put(new THREE.CylinderGeometry(0.013, 0.013, 0.014, 14), black, -0.08, 0.388, -0.05);
+  put(new THREE.CylinderGeometry(0.029, 0.027, 0.038, 20), new THREE.MeshStandardMaterial({ color: 0xf0a0a8, roughness: 0.4 }), 0.1, 0.324, -0.05);
+  put(new THREE.CylinderGeometry(0.031, 0.031, 0.012, 20), new THREE.MeshStandardMaterial({ color: 0xfff4f0, roughness: 0.3 }), 0.1, 0.348, -0.05);
+  // lower shelf: the pink foaming pump bottle with its hair ties, and the tapered red hair-mask squeeze tube
   put(new THREE.CylinderGeometry(0.035, 0.037, 0.12, 20), new THREE.MeshStandardMaterial({ color: 0xfff4f0, roughness: 0.4 }), 0.06, 0.065, -0.05);
   put(new THREE.CylinderGeometry(0.036, 0.036, 0.045, 20), new THREE.MeshStandardMaterial({ color: 0xff9ab0, roughness: 0.4 }), 0.06, 0.04, -0.05);
   put(new THREE.CylinderGeometry(0.014, 0.022, 0.03, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 }), 0.06, 0.14, -0.05);
   for (const [k, c] of [[0, 0x5ab8e8], [1, 0xc87aa0]]) { const t = put(new THREE.TorusGeometry(0.02, 0.0045, 6, 18), new THREE.MeshStandardMaterial({ color: c, roughness: 0.3 }), 0.06, 0.11 + k * 0.011, -0.05); t.rotation.x = Math.PI / 2; }
-  const tube = put(new THREE.BoxGeometry(0.045, 0.16, 0.022), new THREE.MeshStandardMaterial({ color: 0xc82a3a, roughness: 0.35 }), -0.13, 0.08, -0.05);
+  const tube = new THREE.Group();
+  tube.position.set(-0.13, 0.08, -0.05);
   tube.rotation.z = 0.6;
+  const tubeMat = new THREE.MeshStandardMaterial({ color: 0xc82a3a, roughness: 0.35 });
+  const tubeGeo = new THREE.CylinderGeometry(0.024, 0.013, 0.13, 14, 6);
+  const tp = tubeGeo.attributes.position;
+  for (let i = 0; i < tp.count; i++) {
+    const u = (tp.getY(i) + 0.065) / 0.13;   // 0 at cap end, 1 at pinched crimp top
+    tp.setZ(i, tp.getZ(i) * (1 - u * 0.78));
+    tp.setX(i, tp.getX(i) * (1 + u * 0.2));
+  }
+  tubeGeo.computeVertexNormals();
+  tube.add(new THREE.Mesh(tubeGeo, tubeMat));
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.014, 0.022, 12), new THREE.MeshStandardMaterial({ color: 0x242428, roughness: 0.35 }));
+  cap.position.y = -0.074;
+  tube.add(cap);
+  caddy.add(tube);
   // the loofah, hanging off the shelf's corner on a cord
   put(new THREE.CylinderGeometry(0.0015, 0.0015, 0.08, 4), new THREE.MeshStandardMaterial({ color: 0xf0ead8 }), 0.17, -0.04, -0.03);
   const loofah = put(new THREE.CylinderGeometry(0.022, 0.026, 0.13, 10, 4), new THREE.MeshStandardMaterial({ color: 0xead8b0, roughness: 1, map: tex(64, 64, (c, w, h) => { c.fillStyle = '#e8d6ac'; c.fillRect(0, 0, w, h); c.strokeStyle = '#b89a68'; c.lineWidth = 1; for (let k = 0; k < 60; k++) { c.beginPath(); c.arc(Math.random() * w, Math.random() * h, 2 + Math.random() * 4, 0, 7); c.stroke(); } }) }), 0.17, -0.15, -0.03);
