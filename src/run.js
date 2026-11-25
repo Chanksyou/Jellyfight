@@ -917,7 +917,7 @@ export class Run {
       const pos = this.spawnPoint(type) || (type !== bugs[0].id ? this.spawnPoint((type = bugs[0].id)) : null);
       if (pos) {
         const e = this.enemies.spawn(type, pos, this.stage.toughness || 1);
-        if (W.noticeMax && !this.firstRun.active) e.noticeT = W.noticeMin + Math.random() * (W.noticeMax - W.noticeMin);   // it notices you first (a first run's bugs don't wait)
+        if (e && W.noticeMax && !this.firstRun.active) e.noticeT = W.noticeMin + Math.random() * (W.noticeMax - W.noticeMin);   // it notices you first (a first run's bugs don't wait)
       }
     }
   }

@@ -305,7 +305,7 @@ export class Enemies {
       const W = CONTENT.waves;
       if (!W?.startleRange || elite || !pos) return;
       for (const o of this.list) {
-        if (o.dead || o.proxy || o.elite || o.T.fly || o.id === targetId || Math.abs(o.pos.y - floor) > 0.1) continue;
+        if (o.dead || o.proxy || o.elite || o.hold || o.T.fly || o.id === targetId || Math.abs(o.pos.y - floor) > 0.1) continue;
         const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z, d = Math.hypot(dx, dz);
         if (d > W.startleRange + o.r || d < 1e-6) continue;
         o.startleT = W.startleTime; (o.startleDir ||= new THREE.Vector3()).set(dx / d, 0, dz / d);
