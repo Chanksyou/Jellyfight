@@ -174,6 +174,16 @@ export class BugNav {
 
   // The walking distance (m) for a body of radius r from a point on the floor to the jelly, or
   // Infinity: no flood reaches it (another level, off the floor on furniture, walled in)
+  // Whether the map is sure a body of radius r at this point can't walk to the jelly: its square is
+  // on a flooded level and the flood didn't reach it (a closed pocket). False wherever the map has nothing
+  walledIn(x, y, z, r) {
+    const l = this.levelAt(x, y, z);
+    if (l < 0) return false;
+    const L = this.levels[l], k = this.cellOf(L, x, z);
+    if (!L.flooded || k < 0 || !(Math.abs(y - L.floor[k]) <= 0.03)) return false;
+    return L.dist[this.sizeOf(r)][k] === NONE;
+  }
+
   distAt(x, y, z, r) {
     const l = this.levelAt(x, y, z);
     if (l < 0) return Infinity;

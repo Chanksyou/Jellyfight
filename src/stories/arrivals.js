@@ -93,7 +93,7 @@ story('spawn/falls-back-in-an-open-room', {
 });
 
 story('spawn/a-first-run-shows-its-first-bugs', {
-  about: 'In a new player\'s first run the first wave bugs (arrive first-run= in content/waves.kdl) still appear in view, close by and growing in, so the first fight is easy to read.',
+  about: 'In a new player\'s first run the first wave bugs (arrive first-run= in content/waves.kdl) still appear in view, close by and growing in, so the first fight is easy to read. That in-view rule (run.spawnPoint) never puts a ground bug in a closed pocket the floor map knows of (BugNav.walledIn), even beside the room\'s most walled-in spot.',
   setup() {},
   play() {
     const { enemies } = G();
@@ -102,6 +102,21 @@ story('spawn/a-first-run-shows-its-first-bugs', {
     const seen = [], real = enemies.spawn.bind(enemies);
     stub(enemies, 'spawn', (type, pos, ...rest) => { const e = real(type, pos, ...rest); seen.push({ e, d: flat(pos, G().player.position), grow: null }); return e; });
     step(40 * 60, () => { for (const s of seen) if (s.grow === null) s.grow = s.e.spawnT; return seen.length >= 3; });
-    return ok(seen.length >= 3 && seen.every((s) => s.grow < 0.5 && s.d <= 0.86), { spawned: seen.length, grew: seen.map((s) => +s.grow.toFixed(2)), dists: seen.map((s) => +s.d.toFixed(2)) });
+    // and that in-view rule never puts a bug in a closed pocket the floor map knows of: beside the room's most walled-in
+    // spot (the most pocket squares 35 to 85 cm off), 300 of its spawn points, none walled in
+    const N = enemies.nav, L = N.levels[0], r = CONTENT.enemies.roach.r;
+    let best = null;
+    for (let j = 2; j < L.nz - 2; j += 6) for (let i = 2; i < L.nx - 2; i += 6) {
+      const x = L.x0 + (i + 0.5) * 0.05, z = L.z0 + (j + 0.5) * 0.05;
+      if (N.distAt(x, L.y, z, r) === Infinity) continue;
+      let n = 0;
+      for (let a = 0; a < 48; a++) { const d = 0.35 + (a % 6) * 0.1, t = a * 0.7; if (N.walledIn(x + Math.cos(t) * d, L.floor[N.cellOf(L, x + Math.cos(t) * d, z + Math.sin(t) * d)] ?? L.y, z + Math.sin(t) * d, r)) n++; }
+      if (!best || n > best.n) best = { x, z, n };
+    }
+    tp(best.x, 0.05, best.z, 0); holdJelly(); step(40);
+    let walled = 0, points = 0;
+    for (let k = 0; k < 300; k++) { const p = G().run.spawnPoint('roach'); if (!p) continue; points++; if (N.walledIn(p.x, p.y, p.z, r)) walled++; }
+    return ok(seen.length >= 3 && seen.every((s) => s.grow < 0.5 && s.d <= 0.86) && best.n > 0 && points > 40 && walled === 0,
+      { spawned: seen.length, grew: seen.map((s) => +s.grow.toFixed(2)), dists: seen.map((s) => +s.d.toFixed(2)), pocketSquaresNear: best.n, points, walled });
   },
 });

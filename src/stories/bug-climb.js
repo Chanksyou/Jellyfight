@@ -145,3 +145,51 @@ story('words/climbs', {
     return ok(l.top && !l.fell && Math.abs(l.rate - 0.15) < 0.03 && !l.aimed, report(l));
   },
 });
+
+// Up on a top (act 1: the coffee table; elsewhere the widest top the map found 25 to 70 cm up) with 4 Cockroaches and
+// 2 House spiders after the jelly for 25 s; then the jelly goes back to the floor and swims off 1.2 m. How many climbed, and
+// how many are still up top 20 s later (a stuck one would count against the wave's bug cap)
+function upThenDown() {
+  const { enemies, run } = G(), C = enemies.nav.climb, L = enemies.nav.levels[0];
+  setupFight({ bubbles: false, lash: false });
+  const v = run.traversal.vents.find((q) => /coffee table/.test(q.name));
+  let at = v ? V(v.land[0], v.land[1], v.land[2]) : null;
+  if (!at) {   // the top square with the most top round it, at one height
+    let most = 0;
+    for (const T of C.tops) for (let k = 0; k < T.n; k++) {
+      const h = T.floor[k] - (Number.isNaN(T.base.floor[k]) ? L.y : T.base.floor[k]);
+      if (!(h > 0.25 && h < 0.7)) continue;
+      let n = 0;
+      for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) if (Math.abs(T.floor[k + di + dj * T.nx] - T.floor[k]) < 0.01) n++;
+      if (n > most) { most = n; at = V(T.x0 + (k % T.nx + 0.5) * 0.05, T.floor[k], T.z0 + (((k / T.nx) | 0) + 0.5) * 0.05); }
+    }
+  }
+  tp(at.x, at.y + 0.05, at.z, 0); holdJelly(); calm();
+  const n = C.floods; step(120, () => C.floods > n && !C.job);
+  const P = G().player.position.clone(), bugs = [];
+  for (let a = 0; a < 64 && bugs.length < 6; a++) {
+    const type = bugs.length < 4 ? 'roach' : 'spider', d = 0.45 + (a % 4) * 0.1;
+    const x = P.x + Math.cos(a * 0.9) * d, z = P.z + Math.sin(a * 0.9) * d;
+    if (C.dist(x, L.y, z, CONTENT.enemies[type].r) < Infinity && run.world.cast(V(x, 0.1, z), V(0, -1, 0), 0.2)) bugs.push(spawn(type, V(x, 0, z), { hp: 1e7 }));
+  }
+  const up = new Set(), was = new Map(); let climbs = 0;
+  step(25 * 60, () => { for (const e of bugs) { if (!e.climb && e.pos.y > P.y - 0.04) up.add(e); if (e.climb && !was.get(e)) climbs++; was.set(e, !!e.climb); } });
+  // back down to the floor, 1.2 m off
+  let floor = null;
+  for (let a = 0; a < 32 && !floor; a++) { const x = P.x + Math.cos(a * 0.4) * 1.2, z = P.z + Math.sin(a * 0.4) * 1.2; const h = run.world.cast(V(x, 0.1, z), V(0, -1, 0), 0.2); if (h) floor = V(x, h.point.y, z); }
+  tp(floor.x, floor.y + 0.05, floor.z, 0); holdJelly();
+  step(20 * 60);
+  const stuck = bugs.filter((e) => !e.dead && e.pos.y > P.y - 0.06);
+  return { climbed: up.size, of: bugs.length, climbs, stuck: stuck.length, tableAt: +P.y.toFixed(2) };
+}
+story('bugs/climbers-come-down-when-the-jelly-leaves', {
+  about: 'Climbers keep to the top only while the jelly is up there with them: with the jelly back on the floor 1.2 m off, every Cockroach and House spider that climbed the coffee table after it walks off the edge and drops within 20 s (none stays up, holding a place under the wave\'s bug cap).',
+  setup() {},
+  play() { const r = upThenDown(); return ok(r.climbed >= 2 && r.stuck === 0, r); },
+});
+story('bugs/climbers-come-down-when-the-jelly-leaves-act-2', {
+  about: 'The same in act 2, on the widest top the floor map found 25 to 70 cm up: once the jelly has gone back to the floor, none of the climbers stays up.',
+  act: 2,
+  setup() {},
+  play() { const r = upThenDown(); return ok(r.climbed >= 2 && r.stuck === 0, r); },
+});
