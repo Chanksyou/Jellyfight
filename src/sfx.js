@@ -811,6 +811,20 @@ export const sfx = {
     noise(170*j, 1.4, 0.24, 0.09, 'lowpass', 0.015, 60);
     for (let i = 0; i < 4; i++) noise((700+i*350)*j, 3, 0.035, 0.025, 'bandpass', 0.06+i*0.035);
   },
+  // Stick Drift Dash windup: a rising servo whine and plastic stick click
+  controllerDriftWind() {
+    if (!ready() || !gap('controllerDriftWind', 300)) return; const j = jitter(0.08);
+    tone('square', 920*j, 620*j, 0.025, 0.05);
+    tone('sawtooth', 180*j, 520*j, 0.6, 0.035, 0.02);
+    noise(2400*j, 2, 0.12, 0.03, 'bandpass', 0.05);
+  },
+  // Stick Drift Dash release: a sharp plastic skid and impact snap
+  controllerDrift() {
+    if (!ready() || !gap('controllerDrift', 200)) return; const j = jitter(0.1);
+    tone('sine', 220*j, 70*j, 0.18, 0.14);
+    noise(2800*j, 1.1, 0.28, 0.12, 'bandpass', 0, 900*j);
+    noise(4800*j, 1.5, 0.08, 0.08, 'highpass', 0.02);
+  },
   // the Mug flinging coffee: a slosh off the rim, then the whoosh of it flying
   mugLob() {
     if (!ready() || !gap('mugLob', 90)) return; const j = jitter(0.12);
@@ -833,6 +847,19 @@ export const sfx = {
     tone('sine', 240*j, 120*j, 0.12, 0.1); noise(1200*j, 1, 0.05, 0.1, 'bandpass');
     noise(1800*j, 0.8, 0.8, 0.07, 'bandpass', 0.04, 700*j);
     for (let i = 0; i < 4; i++) tone('sine', (300 + i*40)*j, 180*j, 0.06, 0.04, 0.12 + i*0.13);
+  },
+  // Espresso Ring: ceramic spoon clink + swirling coffee whoosh
+  mugStir(release = false) {
+    if (!ready() || !gap('mugStir', release ? 150 : 220)) return; const j = jitter(0.1);
+    if (!release) {
+      tone('triangle', 2600*j, 2100*j, 0.05, 0.045);
+      tone('sine', 1400*j, 1800*j, 0.06, 0.03, 0.07);
+      noise(1500*j, 1.8, 0.16, 0.035, 'bandpass', 0.02, 2400*j);
+    } else {
+      tone('triangle', 2900*j, 2400*j, 0.07, 0.07);
+      tone('sine', 210*j, 95*j, 0.2, 0.11);
+      noise(2200*j, 1.0, 0.35, 0.1, 'bandpass', 0.01, 900*j);
+    }
   },
   // standing in something scalding: a short sizzle
   scald() { if (!ready() || !gap('scald', 220)) return; const j = jitter(0.15); noise(6000*j, 1, 0.12, 0.05, 'highpass'); noise(2400*j, 3, 0.05, 0.03, 'bandpass', 0.03); },
@@ -864,6 +891,20 @@ export const sfx = {
     noise(5200*j, 0.8, 0.04, 0.2, 'highpass'); tone('sine', 140*j, 55, 0.18, 0.14);
     noise(3600*j, 0.7, 0.95, 0.12, 'bandpass', 0.02, 1400*j);
     for (let i = 0; i < 5; i++) noise((3000 + Math.random()*3000)*j, 4, 0.012, 0.05, 'bandpass', 0.1 + i*0.16 + Math.random()*0.05);
+  },
+  // Pressure Whistle Sweep windup: rising high-pitched tea-kettle whistle
+  kettleWhistleWind() {
+    if (!ready() || !gap('kettleWhistleWind', 400)) return; const j = jitter(0.06);
+    tone('sine', 1200*j, 2900*j, 0.72, 0.04);
+    tone('triangle', 2400*j, 5400*j, 0.72, 0.014);
+    noise(3600*j, 1.2, 0.7, 0.04, 'bandpass', 0, 6200*j);
+  },
+  // Pressure Whistle Sweep release: pressurized sweeping steam jet
+  kettleWhistleJet() {
+    if (!ready() || !gap('kettleWhistleJet', 300)) return; const j = jitter(0.08);
+    tone('sine', 2700*j, 1900*j, 0.5, 0.035);
+    noise(4200*j, 0.7, 0.55, 0.13, 'bandpass', 0, 2200*j);
+    noise(6400*j, 1.0, 0.45, 0.07, 'highpass', 0.02);
   },
   // the Kettle's lid popping: a clank, a boiling burble, the drops whooshing up
   kettlePop() {
