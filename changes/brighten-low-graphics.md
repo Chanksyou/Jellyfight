@@ -1,1 +1,0 @@
-brightens Low graphics to match Medium: Low's plain materials now receive an environment fill matching the room's night/dawn fill (respecting baked corner shadows) and light the ground mist with the room's already-sampled baked light instead of darkening the floor toward flat mist colour, with no extra draw calls or texture reads.

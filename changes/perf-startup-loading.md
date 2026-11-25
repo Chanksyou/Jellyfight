@@ -1,1 +1,0 @@
-speeds up startup loading and removes the freeze at 97% by sharing WebGL programs across standOut/fireChurn uniforms, draining ready shaders without head-of-line blocking, and running the post-processing warm-up on the clean culled scene.
