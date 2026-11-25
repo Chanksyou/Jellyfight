@@ -67,6 +67,8 @@ story('bugs/seen-bugs-attack-first', {
     const hidden = spawn('lanternfly', out, { hp: 1e7 }), seen = spawn('lanternfly', inside, { hp: 1e7 });
     const first = spawn('lanternfly', inside.clone().lerp(P, 0.3), { hp: 1e7 });
     hidden.leapCd = seen.leapCd = 0.1; first.leapCd = 0;
+    const walk = enemies.moveGround;   // the two stand where they are (in and out of view) while their words run
+    stub(enemies, 'moveGround', function (e, ...a) { const x = e.pos.x, z = e.pos.z; walk.call(this, e, ...a); if (e === hidden || e === seen) { e.pos.x = x; e.pos.z = z; } });
     let order = null;
     step(120, () => {
       const h = attacking(hidden), s = attacking(seen);
