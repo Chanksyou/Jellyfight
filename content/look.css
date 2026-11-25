@@ -683,6 +683,24 @@
   --mist-patch: 0.95;          /* how uneven (0 = a flat layer): thin spots near half, thick spots near one and three quarters of the mean */
   --mist-drift: 2;             /* how fast the patches drift (Reduce effects holds them still) */
   --mist-actors: 0.35;         /* how much of it the jelly and the bugs take, so they sit in the fog and stay readable (the Warnings and attacks take none) */
+  /* the jelly parts it (mist.js): a soft hole round the jelly, a trail behind that curls and fills back in, thinner over vents and where a big hit lands */
+  --mist-part: 0.85;           /* how much of it the jelly pushes aside round itself (0 = none, 1 = all), on the floor (none from a table top) */
+  --mist-part-radius: 0.14;    /* m: the hole round the jelly */
+  --mist-part-trail: 0.1;      /* m: half the width of the parted trail behind it */
+  --mist-part-refill: 2.5;     /* s: a spot the jelly left fills back in this long after */
+  --mist-part-step: 0.3;       /* m: the trail remembers a spot at least this often (and six per refill time) */
+  --mist-part-lift: 0.3;       /* m: from this high the jelly (or a hit) parts none of it */
+  --mist-curl: 2;              /* rad: how far a vortex behind the jelly turns the mist at its core (Reduce effects: none) */
+  --mist-curl-core: 0.08;      /* m: a vortex's core when it starts */
+  --mist-curl-spread: 0.004;   /* m2/s: how fast that core widens as it ages */
+  --mist-curl-flow: 1;         /* how hard the patches slide round the jelly as it swims (0 = not at all) */
+  --mist-curl-flow-radius: 0.2;/* m: the circle the mist flows round */
+  --mist-wisp: 0.8;            /* fine wisps on a parted edge (0 = a smooth edge) */
+  --mist-vent: 0.6;            /* how much a vent thins it over itself while it blows */
+  --mist-vent-radius: 0.12;    /* m: how far round a vent */
+  --mist-vent-gust: 1.5;       /* a ride pushes it out this much further (times the radius) */
+  --mist-hole: 0.9;            /* how much of it a big hit punches out (it refills over --mist-part-refill) */
+  --mist-hole-size: 3;         /* the hole's radius, times the hit's size (between 0.1 and 0.4 m) */
   --mist-act2: 2.6;            --mist-color-act2: #232b30;   /* act 2: pale steam on the tile */
   --mist-act3: 4.2;          --mist-color-act3: #1a2a52;   /* act 3: cold blue, the thickest */
   --haze-act3: 0.2;            --haze-color-act3: #0d1730;   /* act 3: the bedroom's moonlit blue air */
