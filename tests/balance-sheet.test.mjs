@@ -65,7 +65,7 @@ test('Wave C reads the bugs and the night', () => {
 });
 
 test('Wave C3 to C5 read the Elites, the Bosses and the jump from the code', () => {
-  assert.equal(B.landed([0, 0.5, 1.0, 1.6]), 2);                              // one hit per second of i-frames (run.js hit)
+  assert.equal(B.landed([0, 0.1, 0.5, 1.0, 1.6]), 4);                        // one hit per 0.25 s of i-frames (run.js hit): the 0.1 s one is blocked
   const barrage = B.eliteAttacks('controller')[0], P = B.CONTENT.elites;
   assert.ok(Math.abs(barrage.warn - P.controller.skills.barrage.windup / P.pace.tempo) < 1e-9, `barrage warns ${barrage.warn}`);
   assert.equal(B.eliteAttacks('clock').length, 2); assert.equal(B.eliteAttacks('clock', true).length, 3);   // the hour only when angry

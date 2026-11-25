@@ -954,7 +954,7 @@ export class Run {
   // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
   hit(amount, from = null, contact = false, knock = false, at = null) {
     if (this.iFrames > 0 || this.phase === 'dead') return;
-    this.iFrames = 1.0;
+    this.iFrames = 0.25;
     const M = this.mods;
     amount *= M.damageTaken;
     if (M.hitLess && amount > M.hitLeast) { amount = Math.max(M.hitLeast, amount - M.hitLess); this.buffLooks.tink(); }   // hit-less (Thimble)
