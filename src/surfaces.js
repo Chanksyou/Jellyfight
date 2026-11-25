@@ -33,21 +33,21 @@ export const SURFACES = [
   // Wood veneers (Poly Haven oak_veneer_03, oak_veneer_01, natural_walnut_veneer), each colour-matched
   // to the drawn wood it replaces. The kitchen's and the Media console's are one picture.
   { name: 'veneer-kitchen', file: 'veneer-kitchen.webp', detail: 'wood',
-    match: (mesh, m) => isWood(m) && (['Kitchen', 'Refrigerator'].includes(mesh.parent?.name) || (mesh.parent?.name === 'Media_console' && m.map.repeat.x === 1)) },
+    match: (mesh, m) => isWood(m) && (['Kitchen', 'Refrigerator', 'Vanity'].includes(mesh.parent?.name) || (mesh.parent?.name === 'Media_console' && m.map.repeat.x === 1)) },
   { name: 'veneer-oak', file: 'veneer-oak.webp', detail: 'wood',
-    match: (mesh, m) => isWood(m) && ['Standing_desk', 'Cat_window_perches'].includes(mesh.parent?.name) },
+    match: (mesh, m) => isWood(m) && ['Standing_desk', 'Cat_window_perches', 'Ladder_bookshelf', 'Plushie_shelf'].includes(mesh.parent?.name) },
   { name: 'veneer-walnut', file: 'veneer-walnut.webp', detail: 'wood',
-    match: (mesh, m) => isWood(m) && ['Fluted_sideboard', 'Glass_coffee_table', 'Cubby_bench'].includes(mesh.parent?.name) },
+    match: (mesh, m) => isWood(m) && ['Fluted_sideboard', 'Glass_coffee_table', 'Cubby_bench', 'Nightstand', 'Bed'].includes(mesh.parent?.name) },
   // Act 2's bathroom: white wall tile (Poly Haven long_white_tiles; 0.5 makes its tiles 5 by 7.5 cm like
   // the drawn ones) and the dark floor tile (granite_tile).
   { name: 'tile-white', file: 'tile-white.webp', repeat: 0.5,
     match: (mesh, m) => mesh.parent?.name === 'Shell' && isTexture(m, 256) && Math.abs(m.map.repeat.y - 4.58) < 0.01 },
   { name: 'tile-dark', file: 'tile-dark.webp',
     match: (mesh, m) => mesh.parent?.name === 'Shell' && isTexture(m, 256) && m.map.repeat.x === 3.5 },
-  // The kitchen's counter (granite_tile_03, cropped and mirrored to tile) and glazed backsplash
+  // The kitchen's and bathroom vanity's counter (granite_tile_03, cropped and mirrored to tile) and glazed backsplash
   // (rounded_square_tiled_wall).
   { name: 'counter', file: 'counter-stone.webp', detail: 'stone',
-    match: (mesh, m) => mesh.parent?.name === 'Kitchen' && isTexture(m, 256) && m.map.repeat.x === 6 },
+    match: (mesh, m) => ['Kitchen', 'Vanity'].includes(mesh.parent?.name) && isTexture(m, 256) && m.map.repeat.x === 6 },
   { name: 'backsplash', file: 'backsplash.webp', repeat: 0.4,
     match: (mesh, m) => mesh.parent?.name === 'Kitchen' && isTexture(m, 256) && m.map.repeat.x === 9 },
 ];

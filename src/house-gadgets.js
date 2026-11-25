@@ -3,6 +3,7 @@
 // puddles bugs skid on, and the Disco Ball's spotlight. Timed ones are TIMED_WORDS (swatter, geyser,
 // puddle) fired through Gadgets.fire; the spotlight is mods.spotlight. Systems talk through the bus.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { bus } from './events.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
@@ -16,33 +17,41 @@ export class HouseGadgets {
   constructor(g) {
     this.g = g; this.enemies = g.enemies; this.fx = g.fx; this.looks = g.looks;
     const group = this.group = g.group;
-    // Fly Swatter: a grip, a long handle and a flat mesh head; it swings down about the grip
+    // Fly Swatter: a thickened grip, tapered shaft, neck collar and rounded mesh head; it swings down about the grip
     const sw = LOOK.color('gadget-swatter', '#4fb8ff');
     const head = new THREE.MeshStandardMaterial({ color: sw, emissive: sw, emissiveIntensity: 0.25, roughness: 0.6 });
     const handle = new THREE.MeshStandardMaterial({ color: 0xe8e4dc, roughness: 0.5 });
     this.swatter = new THREE.Group();
     this.swatArm = new THREE.Group(); this.swatter.add(this.swatArm);
-    this.swatArm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.07, 6).rotateX(Math.PI / 2).translate(0, 0, 0.035), handle));
-    const face = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.0015, 0.04, 6, 1, 6).translate(0, 0, 0.09), head);
-    face.add(new THREE.Mesh(face.geometry, new THREE.MeshBasicMaterial({ color: 0x1d4f7a, wireframe: true })));   // the mesh of holes
+    this.swatArm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0032, 0.022, 8).rotateX(Math.PI / 2).translate(0, 0, 0.011), head));
+    this.swatArm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0014, 0.0018, 0.052, 8).rotateX(Math.PI / 2).translate(0, 0, 0.045), handle));
+    this.swatArm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.0022, 0.008, 8).rotateX(Math.PI / 2).translate(0, 0, 0.071), head));
+    const face = new THREE.Mesh(new RoundedBoxGeometry(0.044, 0.0022, 0.04, 2, 0.001).translate(0, 0, 0.092), head);
+    face.add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.0024, 0.036, 6, 1, 6).translate(0, 0, 0.092), new THREE.MeshBasicMaterial({ color: 0x1d4f7a, wireframe: true })));   // the mesh of holes
     this.swatArm.add(face);
     this.swatter.visible = false; group.add(this.swatter);
-    // Bath Bomb: a pink fizzing ball, and a soft disc on the floor showing where the foam will reach
+    // Bath Bomb: a pressed fizzy sphere with an equatorial mold seam, and a soft floor disc showing where the foam will reach
     const pink = LOOK.color('bath-foam', '#ff9ad8');
     this.bombMat = new THREE.MeshStandardMaterial({ color: pink, emissive: pink, emissiveIntensity: 0.5, roughness: 0.9 });
-    this.bombGeo = new THREE.SphereGeometry(0.007, 12, 8);
+    const bombPts = [];
+    for (let i = 0; i <= 12; i++) {
+      const a = -Math.PI / 2 + (i / 12) * Math.PI;
+      const seam = i === 6 ? 1.12 : 1;   // raised mold seam around the equator
+      bombPts.push(new THREE.Vector2(Math.cos(a) * 0.007 * seam, Math.sin(a) * 0.007));
+    }
+    this.bombGeo = new THREE.LatheGeometry(bombPts, 16);
     this.bombPool = Array.from({ length: 3 }, () => {
       const m = new THREE.Mesh(this.bombGeo, this.bombMat), disc = glowPool('fizz', pink);
       m.visible = disc.visible = false; group.add(m, disc);
       return { m, disc };
     });
-    // Ice Cube: a little cube that cracks apart as it melts into a wet puddle: a sheen drifting over it,
-    // a frosty rim at its edge, a ripple where a bug skids
+    // Ice Cube: a beveled little cube that cracks apart as it melts into a wet puddle
     const wet = LOOK.color('treasure-iceCube', '#7cc8ff');
     this.cubeMat = new THREE.MeshPhysicalMaterial({ color: 0xeaf8ff, roughness: 0.05, transmission: 0.4, transparent: true, opacity: 0.85 });
+    const cubeGeo = new RoundedBoxGeometry(0.014, 0.014, 0.014, 2, 0.0022).translate(0, 0.007, 0);
     this.puddlePool = Array.from({ length: 4 }, () => {
       const disc = glowPool('wet', wet);
-      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.014).translate(0, 0.007, 0), this.cubeMat);
+      const cube = new THREE.Mesh(cubeGeo, this.cubeMat);
       disc.visible = cube.visible = false; group.add(disc, cube);
       return { disc, cube };
     });

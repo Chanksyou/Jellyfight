@@ -49,7 +49,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v697';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v699';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -823,7 +823,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
-    updateMist(dt, juice.calm);
+    updateMist(dt, juice.calm, traversal.vents, traversal.air);   // (after ambient.update: the mist follows its wake)
     floorLight?.update();
     powered?.update(dt, { pixelRatio: renderer.getPixelRatio() });
     systems.shadow.update(dt);
