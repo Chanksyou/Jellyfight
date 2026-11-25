@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v729 climbing bugs come back down once you leave the furniture (they no longer wait at the edge of a table, holding up the next bugs), a crowd at one side no longer shoves a climber off it again and again, and a bug never appears shut in somewhere it can't walk out of.
+
 v728 makes the Encore's solos come sooner and hit harder: the first solo starts 4 bars after its force field drops and a new one every 12 bars, silver and gold both from set 1, so a fast kill still sees both. The silver DJ throws a record every 2 beats (six a solo, was three), the other DJ's wave comes every 8 beats during a solo (was 16), and the spotlight is brighter. Harder fight.
 
 v727 cockroaches and House spiders climb after you: get up on furniture and they run to a side, go straight up it and come over the top, so a table is no longer a rest from them. While climbing they can be hit and still hurt to touch, but can't attack; knock one off the side and it falls, and a ground-locked bug can't climb. Other bugs still gather underneath.
