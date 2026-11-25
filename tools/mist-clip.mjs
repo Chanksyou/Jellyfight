@@ -21,7 +21,8 @@ const SIZES = [
 ];
 const picked = SIZES.filter((d) => args.includes('--' + d.name));
 // the swim across open floor: from x,z to x,z (a lazy S either side of the line), at --speed m/s, then a stop to watch it fill in
-const PATH = { 1: [3.4, 3.4, 2.0, 2.4], 2: [1.6, 6.6, 0.4, 6.6], 3: [1.4, 8.55, 0.15, 8.55], 4: [3.4, 3.4, 2.0, 2.4] };
+// and whether the camera looks across it (the jelly crosses the screen) or along it (act 3's strip of floor is too narrow to look across)
+const PATH = { 1: [3.7, 3.3, 2.6, 3.3, 'across'], 2: [1.6, 6.6, 0.4, 6.6, 'across'], 3: [1.4, 8.55, -0.2, 8.55, 'along'], 4: [3.7, 3.3, 2.6, 3.3, 'across'] };
 const speed = +arg('speed') || 0.7;
 fs.mkdirSync(out, { recursive: true });
 
@@ -36,13 +37,15 @@ try {
       const { fresh, tp, step, stub } = await import('/src/stories/kit.js');
       fresh({ elites: false, bubbles: false, lash: false });
       for (const el of document.body.children) if (el.tagName !== 'CANVAS') el.style.visibility = 'hidden';
-      const yaw = Math.atan2(-(p[3] - p[1]), p[2] - p[0]);   // the camera looks across the swim, so the jelly crosses the screen
+      const yaw = p[4] === 'along' ? Math.atan2(-(p[2] - p[0]), -(p[3] - p[1])) : Math.atan2(-(p[3] - p[1]), p[2] - p[0]);
       tp(p[0], 0.05, p[1], yaw);
       step(30);
       const P = window.player, len = Math.hypot(p[2] - p[0], p[3] - p[1]), ux = (p[2] - p[0]) / len, uz = (p[3] - p[1]) / len;
       let s = 0;
-      stub(P, 'update', (dt) => {   // the swim, scripted: along the line with a sideways S, then still
+      const real = P.update;
+      stub(P, 'update', function (dt, ...rest) {   // the swim, scripted: along the line with a sideways S, then still (the real update still poses the jelly)
         const was = P.position.clone();
+        real.call(this, dt, ...rest);
         s = Math.min(len, s + speed * dt);
         const side = 0.15 * Math.sin((s / len) * Math.PI * 2);
         P.position.set(p[0] + ux * s - uz * side, 0.05, p[1] + uz * s + ux * side);
