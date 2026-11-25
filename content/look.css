@@ -522,6 +522,11 @@
   /* Crowd limits: what a busy fight sheds first (phones) */
   --fx-hits-per-frame: 8;        /* hit effects with full sparks and ring in one frame; the rest keep just their flash */
   --bug-anim-far: 1.5;           /* m from the jelly: farther (or off-screen) bugs animate on alternate frames */
+  --bug-map-near: #1f8a4c;       /* dev panel Bug map (bug-nav.js), dim so bloom leaves it readable: a square next to the jelly, */
+  --bug-map-far: #1f3a8a;        /* one --bug-map-span m away by foot or farther, */
+  --bug-map-span: 3;
+  --bug-map-cover: #8a5a1f;      /* cover (something low over it), */
+  --bug-map-cut: #303030;        /* and one no flood reaches */
 
   /* How a basic bug's attack moves (src/attack-motion.js; a bug picks attack-motion "<style>" tier="<tier>" in
      content/enemies.kdl). Drawn on its body only: never when or where it hits. */
