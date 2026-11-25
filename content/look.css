@@ -675,16 +675,16 @@
   --grade-sat: 1;              /* colour saturation (1 = as it is) */
   /* --- the ground mist (mist.js): a low uneven fog on the floors of acts 1 to 4, coloured by the baked light where it lies.
      Each --mist-* has an -act<n> mood like the haze; act 4's thickness and colour follow its dawn (--dawn-mist*). The Encore's arena has none. */
-  --mist: 3.2;                 /* how thick it lies on the floor (0 = none): the floor reads about this much mist looking down from the play camera, 3.6 is a third */
+  --mist: 2.4;                 /* how thick it lies on the floor (0 = none): the floor reads about this much mist looking down from the play camera, 3.6 is a third */
   --mist-height: 0.1;          /* how high it reaches (m): table tops and the sofa seat stand clear of it */
   --mist-light: 0.8;            /* how much of the baked light it shows (the lamps' pools glow in it) */
   --mist-color: #3a2c28;       /* its own colour where no light reaches */
-  --mist-max: 0.7;             /* never hides more than this much of a pixel, so a low boss-fight angle doesn't white out */
+  --mist-max: 0.6;             /* never hides more than this much of a pixel, so a low boss-fight angle doesn't white out */
   --mist-patch: 0.95;          /* how uneven (0 = a flat layer): thin spots near half, thick spots near one and three quarters of the mean */
   --mist-drift: 2;             /* how fast the patches drift (Reduce effects holds them still) */
   --mist-actors: 0.35;         /* how much of it the jelly and the bugs take, so they sit in the fog and stay readable (the Warnings and attacks take none) */
-  --mist-act2: 2.6;            --mist-color-act2: #232b30;   /* act 2: pale steam on the tile */
-  --mist-act3: 4.2;          --mist-color-act3: #1a2a52;   /* act 3: cold blue, the thickest */
+  --mist-act2: 1.9;            --mist-color-act2: #232b30;   /* act 2: pale steam on the tile */
+  --mist-act3: 3.2;          --mist-color-act3: #1a2a52;   /* act 3: cold blue, the thickest */
   --haze-act3: 0.2;            --haze-color-act3: #0d1730;   /* act 3: the bedroom's moonlit blue air */
   --grade-gain-act3: #e8efff;  --grade-lift-act3: #000000;   --grade-sat-act3: 0.94;
 
@@ -694,7 +694,7 @@
   --dawn-fill: 0.2;               --dawn-fill-late: 0.34;
   --dawn-sky: #26407a;            --dawn-sky-late: #4a8fe0;
   --dawn-haze: 0.14;              --dawn-haze-late: 0.16;
-  --dawn-mist: 3.2;               --dawn-mist-late: 1.8;   /* act 4's ground mist thins as the sun comes up */
+  --dawn-mist: 2.4;               --dawn-mist-late: 1.4;   /* act 4's ground mist thins as the sun comes up */
   --dawn-mist-color: #1a2748;     --dawn-mist-color-late: #5b4a3a;
   --dawn-haze-color: #0b1226;     --dawn-haze-color-late: #301c10;
   --dawn-daylight: 0.15;          --dawn-daylight-late: 1;   /* how much of act 4's baked daylight picture lights the shell (baked-light.js) */
