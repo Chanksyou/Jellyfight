@@ -34,20 +34,23 @@ float fbm2(vec3 p) { return fn(p) * 0.65 + fn(p * 2.1 + 7.0) * 0.35; }
 // offset by where it is, --fire-churn-spread), never in step with the others.
 export function churn(material, part) {
   const [scale, flow, dark, tear, hot] = LOOK.nums(`fire-churn-${part}`, [2.5, 3, 0.5, 0, 1.6]), spread = LOOK.num('fire-churn-spread', 10);
+  const p4 = new THREE.Vector4(scale, flow, dark, tear), hs = new THREE.Vector2(hot, spread);
   material.onBeforeCompile = (sh) => {
     sh.uniforms.uFireT = TIME;
+    sh.uniforms.uFireP = { value: p4 };
+    sh.uniforms.uFireHS = { value: hs };
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vFireP;')
-      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvFireP = position;\n#ifdef USE_INSTANCING\nvFireP += instanceMatrix[3].xyz * ${spread.toFixed(2)};\n#endif`);
+      .replace('#include <common>', '#include <common>\nuniform vec2 uFireHS;\nvarying vec3 vFireP;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvFireP = position;\n#ifdef USE_INSTANCING\nvFireP += instanceMatrix[3].xyz * uFireHS.y;\n#endif`);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vFireP;\nuniform float uFireT;\n${NOISE}`)
+      .replace('#include <common>', `#include <common>\nvarying vec3 vFireP;\nuniform float uFireT;\nuniform vec4 uFireP;\nuniform vec2 uFireHS;\n${NOISE}`)
       .replace('#include <opaque_fragment>', `
-        float fireN = fbm2(vFireP * ${scale.toFixed(2)} + vec3(0.0, uFireT * 0.7, uFireT * ${flow.toFixed(2)}));
-        outgoingLight *= mix(1.0 - ${dark.toFixed(2)}, ${hot.toFixed(2)}, smoothstep(0.3, 0.75, fireN));
-        diffuseColor.a *= 1.0 - ${tear.toFixed(2)} * (1.0 - smoothstep(0.25, 0.6, fireN));
+        float fireN = fbm2(vFireP * uFireP.x + vec3(0.0, uFireT * 0.7, uFireT * uFireP.y));
+        outgoingLight *= mix(1.0 - uFireP.z, uFireHS.x, smoothstep(0.3, 0.75, fireN));
+        diffuseColor.a *= 1.0 - uFireP.w * (1.0 - smoothstep(0.25, 0.6, fireN));
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => `fireChurn${scale}/${flow}/${dark}/${tear}/${hot}/${spread}`;
+  material.customProgramCacheKey = () => 'fireChurn';
   return material;
 }
 

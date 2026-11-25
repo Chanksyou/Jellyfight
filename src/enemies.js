@@ -66,18 +66,24 @@ export function standOut(target, { base = 0.28, rim = 0.75, tint = true, sheen =
   const rc = new THREE.Color(LOOK.color('rim-color', '#ffcc9e'));
   const patch = (m) => {
     if (!m || m.userData.standOut || !(m.isMeshStandardMaterial || m.isMeshPhysicalMaterial)) return;
-    m.userData.standOut = true;
+    m.userData.standOut = { base, rim, tint, sheen };
+    const soVec = new THREE.Vector3(base, rim, sheen);
     m.onBeforeCompile = (sh) => {
       if (tint) tintShader(sh);
-      const sheenLine = sheen > 0
-        ? `\n        float soChitin = pow(1.0 - soNdotV, 5.0) * ${sheen.toFixed(3)};\n        totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.85, 0.92, 1.0), 0.15) * soChitin;`
-        : '';
-      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      sh.uniforms.uStandOut = { value: soVec };
+      sh.uniforms.uStandOutCol = { value: rc };
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uStandOut, uStandOutCol;')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float soNdotV = saturate(abs(dot(normal, normalize(vViewPosition))));
         float soRim = pow(1.0 - soNdotV, 2.5);
-        totalEmissiveRadiance += diffuseColor.rgb * ${base.toFixed(3)} + vec3(${rc.r.toFixed(3)}, ${rc.g.toFixed(3)}, ${rc.b.toFixed(3)}) * soRim * ${rim.toFixed(3)};${sheenLine}`);
+        totalEmissiveRadiance += diffuseColor.rgb * uStandOut.x + uStandOutCol * soRim * uStandOut.y;
+        if (uStandOut.z > 0.0) {
+          float soChitin = pow(1.0 - soNdotV, 5.0) * uStandOut.z;
+          totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.85, 0.92, 1.0), 0.15) * soChitin;
+        }`);
     };
-    m.customProgramCacheKey = () => `standOut${base}:${rim}:${tint}:${sheen}`;
+    m.customProgramCacheKey = () => (tint ? 'standOut:tint' : 'standOut');
     m.needsUpdate = true;
   };
   if (target.isMaterial) patch(target);
