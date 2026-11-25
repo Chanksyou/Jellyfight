@@ -57,9 +57,10 @@ export class ShadowShapes {
     this.texture.generateMipmaps = false;
     this.cells = new Map();   // key -> { i: its index, u, v: its corner in the picture, half }
     this.renders = 0;         // models drawn into the picture (a story checks none are drawn in play)
-    this.pad = LOOK.num('shadow-shape-pad', 1.3);          // the cell is this much wider than the model, for the blur
+    this.pad = LOOK.num('shadow-shape-pad', 1.15);          // the cell is this much wider than the model, for the blur
     this.sharp = LOOK.num('shadow-shape-sharp', 3);         // px: the blur on the ground
     this.soft = LOOK.num('shadow-shape-soft', 5);           // px: the blur high up
+    this.keep = LOOK.num('shadow-shape-keep', 0.93);        // the share of a shape's ink its drawn circle holds (the faint tips of legs fall outside)
     this.grow = Math.round(LOOK.num('shadow-shape-grow', 2));   // px: how far a shape reaches past its model's edge before the blur
     this.put('disc', (x, z) => { const d = Math.hypot(x, z); return d < 0.45 ? 1 - d * 0.6 : Math.max(0, 0.73 * (1 - d) / 0.55); }, 1, { blurred: true });   // the old soft round one
   }
@@ -85,7 +86,14 @@ export class ShadowShapes {
       d[at + 1] = edge ? 0 : Math.round(255 * Math.min(1, soft[j]));
       d[at + 2] = 0; d[at + 3] = 255;
     }
-    const cell = { i, u: cx / ATLAS, v: cy / ATLAS, half };
+    // how much of the cell the shape really fills: the radius holding all but a sliver of its sharp copy, so the
+    // drawn circle is no bigger than the shadow (every pixel of it is a layer on a phone, even a clear one)
+    let total = 0;
+    const ring = new Float32Array(CELL);
+    for (let r = 0; r < CELL; r++) for (let c = 0; c < CELL; c++) { const v = sharp[r * CELL + c], k = Math.min(CELL - 1, Math.floor(Math.hypot(c + 0.5 - CELL / 2, r + 0.5 - CELL / 2))); ring[k] += v; total += v; }
+    let crop = 1;
+    for (let k = 0, sum = 0; k < CELL; k++) { sum += ring[k]; if (sum >= total * this.keep) { crop = Math.min(1, (k + 1) / (CELL / 2)); break; } }
+    const cell = { i, u: cx / ATLAS, v: cy / ATLAS, half, crop };
     this.cells.set(key, cell);
     this.texture.needsUpdate = true;
     return cell;

@@ -1288,7 +1288,7 @@ function shadowOf(e) {
   for (let i = S.jelly.visible ? 1 : 0; i < S.bugs.count; i++) {   // (the jelly's is the first)
     S.bugs.getMatrixAt(i, m); m.decompose(p, q, sc);
     const d = Math.hypot(p.x - e.pos.x, p.z - e.pos.z);
-    if (d < bd) { bd = d; best = { s: sc.x, y: p.y, dark: S.look.array[i * 4 + 2], soft: S.look.array[i * 4 + 3], cell: [S.look.array[i * 4], S.look.array[i * 4 + 1]], yaw: new THREE.Euler().setFromQuaternion(q, 'YXZ').y }; }
+    if (d < bd) { bd = d; best = { s: sc.x / S.crop.array[i], y: p.y, dark: S.look.array[i * 4 + 2], soft: S.look.array[i * 4 + 3], cell: [S.look.array[i * 4], S.look.array[i * 4 + 1]], yaw: new THREE.Euler().setFromQuaternion(q, 'YXZ').y }; }
   }
   return best;
 }

@@ -130,13 +130,14 @@ export class CameraSystem {
 // the shapes picture (shadow-shapes.js), sharp on the ground and softer the higher it is, faded into the room's haze
 const SHADOW_VERT = /* glsl */`
 attribute vec4 look;   // its cell's corner in the picture (xy), how dark (z), how soft (w)
+attribute float crop;  // how much of its cell the circle covers (the shape's own reach)
 varying vec2 vUv;
 varying vec3 vLook;
 #include <common>
 #include <fog_pars_vertex>
 void main() {
-  vUv = look.xy + (position.xz * 0.5 + 0.5) * ${(1 / 8).toFixed(4)};
-  vLook = vec3(look.zw, length(position.xz));
+  vUv = look.xy + (position.xz * crop * 0.5 + 0.5) * ${(1 / 8).toFixed(4)};
+  vLook = vec3(look.zw, length(position.xz) * crop);
   vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -186,9 +187,11 @@ export class ShadowSystem {
     this.blobFloor = LOOK.num('jelly-shadow-floor', 0.22);   // the faintest it gets, high in a jump: it stays the landing cue
     this.jelly = { visible: false, opacity: 0, scale: 0 };   // what the jelly's shadow is this frame (stories read it)
     const MAX = 160;
-    const geo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+    const geo = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);   // round, sized to the shape's reach: no clear corners drawn
     this.look = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('look', this.look);
+    this.crop = new THREE.InstancedBufferAttribute(new Float32Array(MAX).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('crop', this.crop);
     const mat = new THREE.ShaderMaterial({
       uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), atlas: { value: this.shapes.texture }, core: { value: LOOK.num('shadow-core', 0.3) } },
       vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, fog: true,
@@ -202,10 +205,11 @@ export class ShadowSystem {
     this.linkDark = LOOK.num('shadow-link-dark', 0.8);         // and its darkness against a whole bug's (they overlap)
     this.softPerM = LOOK.num('shadow-soft-per-m', 6);          // softness (0 sharp, 1 the soft copy) per metre above its surface
     this.bugDark = LOOK.num('bug-shadow', 0.75);
-    this.bugSize = LOOK.num('bug-shadow-size', 1.4);
+    this.bugSize = LOOK.num('bug-shadow-size', 1);
     this.bugReach = LOOK.num('bug-shadow-reach', 1.6) ** 2;   // what the camera shows round the jelly: further out is layers for little
     this.eliteDark = LOOK.num('elite-shadow', 0.7);
-    this.eliteSize = LOOK.num('elite-shadow-size', 1.25);
+    this.eliteSize = LOOK.num('elite-shadow-size', 1.15);
+    this.eliteReach = LOOK.num('elite-shadow-reach', 1.4);   // an Elite's or boss's shadow is cut off this far out, in its radius (a cord, a handle: thin far bits cost layers for little)
     this.airWiden = LOOK.num('bug-shadow-air-widen', 3);       // per metre of height, as the jelly's
     this.airFade = LOOK.num('bug-shadow-air-fade', 6);         // darkness / (1 + this * height)
     this.airFloor = LOOK.num('bug-shadow-air-floor', 0.3);     // never fainter than this share of its grounded darkness
@@ -264,8 +268,9 @@ export class ShadowSystem {
     this.bugShadows(n);
   }
   // instance i: `cell`'s shape at (x, y, z), turned to `yaw`, `half` wide each way, `dark` at its darkest, `h` above its surface
-  place(i, cell, x, y, z, yaw, half, dark, h) {
-    const m = this._m.makeRotationY(yaw).scale(this._s.set(half, 1, half)).setPosition(x, y, z), L = this.look.array;
+  place(i, cell, x, y, z, yaw, half, dark, h, reach = Infinity) {
+    const c = Math.min(cell.crop ?? 1, reach / half), m = this._m.makeRotationY(yaw).scale(this._s.set(half * c, 1, half * c)).setPosition(x, y, z), L = this.look.array;
+    this.crop.array[i] = c;
     this.bugs.setMatrixAt(i, m);
     L[i * 4] = cell.u; L[i * 4 + 1] = cell.v; L[i * 4 + 2] = dark; L[i * 4 + 3] = Math.min(1, h * this.softPerM);
     return i + 1;
@@ -321,10 +326,10 @@ export class ShadowSystem {
         for (let k = 0; k < L.length && n < max; k += this.linkStep) { const l = L[k].position, lx = l.x * k0, lz = l.z * k0; n = this.place(n, S.cell('disc'), x + lx * c + lz * sn, floor + 0.0015, z - lx * sn + lz * c, 0, spot, d, h); }
         continue;
       }
-      n = this.place(n, cell, x, floor + 0.0015, z, yaw, half * (1 + h * this.airWiden), Math.max(dark * this.airFloor, dark / (1 + h * this.airFade)), h);
+      n = this.place(n, cell, x, floor + 0.0015, z, yaw, half * (1 + h * this.airWiden), Math.max(dark * this.airFloor, dark / (1 + h * this.airFade)), h, o ? e.r * this.eliteReach * (1 + h * this.airWiden) : Infinity);
     }
     inst.count = n;
-    if (n) { inst.instanceMatrix.needsUpdate = true; this.look.needsUpdate = true; }
+    if (n) { inst.instanceMatrix.needsUpdate = true; this.look.needsUpdate = true; this.crop.needsUpdate = true; }
   }
 }
 
