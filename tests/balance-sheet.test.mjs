@@ -8,7 +8,7 @@ import { ROOT } from './lib.mjs';
 const B = await import('../tools/balance-sheet.mjs');
 
 test('level 1 damage a second matches each type\'s note in content/jellies.kdl', () => {
-  const want = { normal: 10.56, fire: 11.4, lightning: 9.9, ice: 10.8, poison: 10.3, wind: 10.35, glitter: 9.4, tentacle: 15.8 };
+  const want = { normal: 10.56, fire: 12.5, lightning: 9.9, ice: 10.8, poison: 10.3, wind: 10.35, glitter: 9.4, tentacle: 15.8 };
   for (const [type, dps] of Object.entries(want)) assert.ok(Math.abs(B.offence(type, B.baseOf(type)) - dps) < 0.1, `${type}: ${B.offence(type, B.baseOf(type))}`);
   assert.ok(Math.abs(B.offence('glitter', B.baseOf('glitter'), 'clump') - (9.4 + 4 * 4.8 * 0.4 * 1.5)) < 0.1);   // its note: a crowd of 5 takes 21 more
   assert.equal(B.offPts(B.OFF0), 100);

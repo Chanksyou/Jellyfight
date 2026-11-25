@@ -118,7 +118,7 @@ story('types/fire-shot-is-the-only-attack', {
     roachAt(0, -0.06);
     const by = hurtBy(60 * 4);
     const only = Object.keys(by).every((k) => k === 'fire') && by.fire?.length > 0;
-    const shots = (by.fire || []).filter((a) => Math.abs(a - 7.5 * 0.5) < 1e-9).length, burns = (by.fire || []).length - shots;
+    const shots = (by.fire || []).filter((a) => Math.abs(a - 7.5 * 0.6) < 1e-9).length, burns = (by.fire || []).length - shots;
     // a new player's first run opens the Element pick after the first card instead: not for a jelly type
     fresh({ types: 'fire', firstRun: true, levels: true });
         const offers = [];
