@@ -1708,11 +1708,18 @@ export class Elites {
           const D = SK.drift, ret = 0.35;
           if (!e.driftTo) {
             e.locked = true; e.driftHit = false; e.driftDashed = false;
-            const raw = e.base.clone().addScaledVector(fwd, D.reach);
+            let clear = D.reach;
+            const side = this._right.set(fwd.z, 0, -fwd.x);
+            for (const off of [0, -e.r, e.r]) {
+              const org = this._from.copy(e.base).addScaledVector(side, off).setY(e.base.y + 0.035);
+              const h = this.world.castAll(org, fwd, D.reach + e.r + 0.03);
+              if (h) clear = Math.min(clear, Math.max(0, h.distance - e.r - 0.03));
+            }
+            const raw = e.base.clone().addScaledVector(fwd, clear);
             e.driftTo = this.platformTarget(e, raw, e.r + 0.02);
-            const dx = e.driftTo.x - e.base.x, dz = e.driftTo.z - e.base.z;
-            e.driftLen = Math.max(0.08, Math.hypot(dx, dz));
-            e.driftDir = new THREE.Vector3(dx / e.driftLen, 0, dz / e.driftLen);
+            const dx = e.driftTo.x - e.base.x, dz = e.driftTo.z - e.base.z, dist = Math.hypot(dx, dz);
+            e.driftLen = Math.max(0.06, dist);
+            e.driftDir = dist > 1e-4 ? new THREE.Vector3(dx / dist, 0, dz / dist) : fwd.clone();
             const yaw = Math.atan2(e.driftDir.x, e.driftDir.z);
             e.holder.rotation.y = yaw;
             this.mark(e, this.stripGeo, this.T.drift, surf, new THREE.Vector3(D.width, 1, e.driftLen), yaw);
