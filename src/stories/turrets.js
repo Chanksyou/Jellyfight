@@ -37,7 +37,7 @@ story('treasures/turret-takes-the-bugs-hits', {
     const mantis = spawn('mantis', near(0.05, -0.6), { hp: 9999 });
     let swatted = 0; const was = T.health;
     step(60 * 6, () => { swatted = was - T.health; return swatted >= 4; });
-    const T2 = place(0.3, -0.3, { ...EF, time: 60 }); T.health = 0; run.turrets.end(T, true); run.enemies.kill(mantis);
+    const T2 = place(0.3, -0.3, { ...EF, time: 60 }); T.health = 0; run.turrets.end(T, true); run.enemies.kill(mantis, true);   // silent: no worm bursting out of it
     const roach = spawn('roach', near(0.3, -0.45), { hp: 9999 });
     step(60 * 6, () => T2.health <= 0);
     const popped = !run.turrets.list.includes(T2), hurtBefore = hurt.length;
