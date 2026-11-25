@@ -1315,8 +1315,6 @@ export class Run {
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); if (ELITE_DOWN[e.kind]) sfx[ELITE_DOWN[e.kind]](); else sfx.boom();   // an Elite's own breaking sound (elites.js KINDS `down`), else the plain boom
-    this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
-    this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.eliteTreasure(e.base, `${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
   }
 
