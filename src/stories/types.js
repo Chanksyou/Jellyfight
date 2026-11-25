@@ -358,7 +358,7 @@ story('types/pick-screen-bars-normal-is-half', {
     const inRange = Object.keys(CONTENT.jellies).every((id) => { const b = typeBars(id); return b.length === 6 && b.every((x) => x >= 0 && x <= 1); });
     const t = typeBars('tentacle'), l = typeBars('lightning'), f = typeBars('fire');
     const tentacle = Math.abs(t[2] - 0.11 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
-    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.3125) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.5 halves its Damage
+    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.375) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.6 trims its Damage
     const same = (id) => JSON.stringify(typeDetails(id));
     const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
       && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
