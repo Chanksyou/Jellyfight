@@ -762,6 +762,8 @@ export class Gadgets {
       ctx.dash?.(ef.speed, ef.time, ef);
     } else if (ef.kind === 'bubble-ring') {
       ctx.bubbleRing?.(ef.count, ef.dmg);
+    } else if (ef.kind === 'turret') {
+      ctx.turret?.(ef);
     } else if (ef.kind === 'xp') {
       ctx.dropXp?.(ef.xp);
     } else if (ef.kind === 'cone') this.cone(ef, ctx);

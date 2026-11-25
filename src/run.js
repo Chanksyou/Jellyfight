@@ -21,6 +21,7 @@ import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
 import { Tether } from './tether.js';
 import { Wake } from './wake.js';
+import { Turrets } from './turrets.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
@@ -121,6 +122,8 @@ export class Run {
     this.fireTrail = new FireTrail(this);
     this.tether = new Tether(this);   // Tether Current's beam (tether.js)
     this.wake = new Wake(this);       // Bioluminescent Wake's trail (wake.js)
+    this.turrets = new Turrets(this); // Jelly Mould's little jellies (turrets.js)
+    this.decoys = [];                 // what bugs can go for instead of you this frame (enemies.update)
     this.onWalk = (from, dir, length) => { if (this.fireTrail.config) this.fireTrail.onWalk(from, dir, length); if (this.mods.wake) this.wake.onWalk(from, dir, length); };
     this.evolutionReveal = new EvolutionReveal(this);
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
@@ -164,6 +167,7 @@ export class Run {
     bus.on('damage_taken', ({ targetId, amount, drain, from, contact, touch, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
+      if (this.enemies.striking) { this.enemies.striking.hurt(amount); return; }   // a bug going for a Jelly Mould's jelly: its hit lands there (turrets.js)
       if (this.easy) amount *= EASY.taken;   // Easy mode (easy.js)
       const bug = from != null && this.mods.statusTaken.length ? this.enemies.byId.get(from) : null;
       if (bug && !bug.proxy) for (const T of this.mods.statusTaken) if (this.enemies.statuses[T.status](bug)) amount *= 1 - T.less;   // status-taken
@@ -186,6 +190,7 @@ export class Run {
     });
     // slow: you swim `strength` slower (0.4 unless it says; an Aerial root's hold is 0.5)
     bus.on('status_applied', ({ targetId, status, duration, strength, unit }) => {
+      if (this.enemies.striking) return;   // aimed at a Jelly Mould's jelly, not you
       if (targetId === PLAYER && status === 'slow' && strength == null) this.slowT = Math.max(this.slowT, duration);
       else if (targetId === PLAYER && status === 'slow') {
         this.slowK = this.slowHardT > 0 ? Math.max(this.slowK, strength) : strength;
@@ -200,7 +205,7 @@ export class Run {
       }
     });
     bus.on('knockback', ({ targetId, dir, force, launch, tumble }) => {
-      if (targetId !== PLAYER) return;
+      if (targetId !== PLAYER || this.enemies.striking) return;
       if (tumble) {   // thrown: no grip for a moment, so the stick can't cancel it; squashed flat in the freeze, then it somersaults off
         this.tumbleT = this.tumbleMax = Math.max(this.tumbleT, tumble); this.thrownAir = true;
         sfx.thrown(tumble);
@@ -322,6 +327,7 @@ export class Run {
     this.fireTrail.reset();
     this.tether.reset();
     this.wake.reset();
+    this.turrets.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -619,6 +625,7 @@ export class Run {
     this.fireTrail.update(dt);
     this.tether.update(dt);
     this.wake.update(dt);
+    this.turrets.update(dt);
     this.buffLooks.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = (this.shield.full ? 1 + this.mods.shield.fullDamage : 1) * (this.easy ? EASY.dealt : 1);   // shield-full-damage, Easy mode (easy.js)
@@ -735,7 +742,7 @@ export class Run {
         dropXp: (n) => this.xpDrops.drop(P.position.clone().setY(P.position.y + 0.01), 1, n), bubbleRing: (n, k) => this.bubbles.ring(origin, n, this.S.bubbleDamage * k, this.S, this.mods),
         blob: (ef) => this.bubbles.rain(origin, ef.count, ef.range, this.S, this.mods),
         nextAttack: (ef) => { if (!this.attack || this.attack.kind === 'bubble' || this.attack.kind === 'tentacle') return false; this.bubbles.next = ef; return true; },   // an Element shot only
-        dash: (k, time, ef) => this.dash(k, time, ef) });
+        dash: (k, time, ef) => this.dash(k, time, ef), turret: (ef) => this.turrets.place(P.position, ef) });
       if (this.phase === 'explore') {
         this.elites.beat = this.beat; this.elites.bpm = this.bpm;   // the song's time (the Singing Bowl keeps it)
         this.elites.update(dt, P, this.cfg);
@@ -746,7 +753,10 @@ export class Run {
       } else this.hud.setElite(null);
       this.enemies.pace = this.mods.bugSpeed;
       this.enemies.eliteDamage = this.mods.eliteDamage;
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded, velocity: P.velocity }, this.t, this.mirage.target);
+      this.decoys.length = 0;
+      if (this.mirage.target) this.decoys.push(this.mirage.target);
+      for (const T of this.turrets.list) if (T.health > 0) this.decoys.push(T);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded, velocity: P.velocity }, this.t, this.decoys);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }

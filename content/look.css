@@ -218,6 +218,15 @@
   --wake-fresh: #1ccfe8;         /* Bioluminescent Wake: the trail just laid, cyan */
   --wake-old: #7a3cff;           /* the trail as it ages, violet */
   --wake-flare: #f4fdff;         /* the pulse running down it and each piece going off */
+  --turret-cool: #4fe6ff;        /* Jelly Mould's little jelly: its top and its glow as a shot charges */
+  --turret-deep: #9a5cff;        /* its violet lower bell, legs and puddle */
+  --turret-core: #f2c8ff;        /* the veins drifting through it */
+  --turret-glow: 0.75;           /* how bright it is (over 1 blooms on Medium and High) */
+  --turret-hurt: #ffffff;        /* the Health it loses to a bug, shown over it */
+  --turret-radius: 0.022;        /* m: its bell (the jelly's is 3 cm) */
+  --turret-height: 0.05;         /* m: top of the bell off the floor */
+  --turret-lure: 0.3;            /* m: ordinary bugs this near it, and nearer it than you, go for it */
+  --turret-no-hurt: 0.25;        /* s after a hit before it can be hurt again (the jelly's own) */
   --wake-glow: 0.7;              /* how bright the trail glows (its plankton specks are brighter) */
   --tether-core: #f2fdff;        /* Tether Current: the beam's white-hot middle */
   --tether-edge: #4fd8ff;        /* its cyan glow, the sparks at both ends and the glow on a cut bug */

@@ -78,9 +78,9 @@ story('treasures/decoy', {
     const bug = spawn('roach', M.position.clone().add(V(0.1, 0, 0)), { hp: 100 });
     const elite = spawn('roach', M.position.clone().add(V(0.1, 0, 0.12)), { hp: 100 }); elite.elite = true;
     const P = { position: player.position, height: run.cfg.height, radius: run.cfg.radius };
-    enemies.update(1 / 60, P, run.t, M.target);
+    enemies.update(1 / 60, P, run.t, [M.target]);
     const lured = bug.vel.x < 0, ignored = elite.vel.x > 0;
-    M.update(4.1); enemies.update(0.3, P, run.t, M.target);
+    M.update(4.1); enemies.update(0.3, P, run.t, [M.target]);
     const resumed = bug.vel.x > 0 && !M.group.visible;
     return ok(shown && lured && ignored && resumed && Math.abs(run.S.health - BASE_STATS.health * 0.85) < 1e-8,
       { shown, lured, ignored, resumed, health: run.S.health });

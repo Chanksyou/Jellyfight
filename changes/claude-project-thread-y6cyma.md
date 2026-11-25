@@ -1,0 +1,1 @@
+adds the Jelly Mould, a Rare Treasure: every 10 s a little jelly with 8 Health sets on the floor and fires your jelly type's own attack (no Treasures or upgrades) at your Fire rate and Range for 40% damage, for 8 s (16 s at level 2, 24 s at level 3); bugs nearer it than you go for it and their hits land on it. Not offered to the Tentacle jelly.
