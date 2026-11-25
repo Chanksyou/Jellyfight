@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v697 gives every shadow the shape of what casts it: each bug, Elite, boss and the jelly has a soft shadow drawn from its own model seen from above, turned the way it faces and as big as it really is (a dragonfly's wings, a spider's legs, the jelly's trailing tentacles); a millipede's shadow bends with its body, and a shadow goes softer the higher its caster flies, still one draw for all of them.
+
 v696 lightens the ground mist by about a quarter in every act, and caps it lower at flat angles.
 
 v695 adds a thick, uneven ground mist to the floors of acts 1 to 4, lit by the room's baked light, with a little of it on the jelly and the bugs. It thins as act 4's sun comes up.
