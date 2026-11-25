@@ -652,3 +652,16 @@ story('elites/controller-arrow-up-only-in-the-air', {
     return ok(g === 'right' && a === 'up' && below, { g, a, below });
   },
 });
+
+story('elites/a-beaten-elite-drops-no-xp', {
+  about: 'A beaten Elite leaves its Treasure and no XP: no XP drop on the floor and no +XP number.',
+  setup() { fresh(); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { run } = G();
+    const drops = () => run.xpDrops.list?.length ?? run.xpDrops.drops?.length ?? 0;
+    const before = drops(), xp0 = run.xp;
+    run.eliteDefeated(run.elites.alive[0]);
+    step(30);
+    return ok(drops() === before && run.xp === xp0, { before, after: drops(), xp: run.xp });
+  },
+});
