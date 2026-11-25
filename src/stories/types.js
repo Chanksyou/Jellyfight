@@ -880,14 +880,14 @@ story('types/treasures-offered-only-where-they-work', {
   },
 });
 story('types/bobby-pin-pierces-element-shots', {
-  about: 'Bobby Pin\'s pierce reaches a jelly type\'s Element shot: a Fire jelly\'s fireball goes through 2 more bugs with it (up to 3), as a Normal bubble does.',
+  about: 'Bobby Pin\'s pierce reaches a jelly type\'s Element shot: a Fire jelly\'s fireball goes through 3 more bugs with it (up to 4), as a Normal bubble does.',
   setup() { setupFight({ types: 'fire' }); roachAt(0.1, 0); },
   play() {
     const { run } = G(), shot = () => { const blows = spy(run.bubbles, 'blow'); step(60 * 2, () => blows.length); restore(); return blows[0]?.[2]?.pierce; };
     const plain = shot();
     give('bobbyPin');
     const pinned = shot();
-    return ok(plain === 1 && pinned === 3, { plain, pinned });
+    return ok(plain === 1 && pinned === 4, { plain, pinned });
   },
 });
 story('types/range-costs-cut-tentacle-reach', {
@@ -916,12 +916,12 @@ story('types/roller-skate-counts-from-your-start', {
   },
 });
 story('types/crit-treasures-reach-glitter-bursts', {
-  about: 'by="all" covers a Glitter bomb\'s burst too: Nail Clipper gives the splash its 15% crit chance (Lucky Sparkle\'s 15% adds to it), as it does bubbles, shots and stings.',
+  about: 'by="all" covers a Glitter bomb\'s burst too: Nail Clipper gives the splash its 10% crit chance (Lucky Sparkle\'s 15% adds to it), as it does bubbles, shots and stings.',
   setup() {},
   play() {
     const m = compileMods(new Set(['nailClipper'])), both = compileMods(new Set(['nailClipper']), [], ['luckySparkle']);
     const H = m.hits, near = (a, b) => Math.abs(a - b) < 1e-9;
-    return ok(near(H.splash.crit?.chance, 0.15) && near(H.bubbles.crit?.chance, 0.15) && near(H.tentacles.crit?.chance, 0.15) && near(both.hits.splash.crit?.chance, 0.30), { splash: H.splash.crit, both: both.hits.splash.crit });
+    return ok(near(H.splash.crit?.chance, 0.1) && near(H.bubbles.crit?.chance, 0.1) && near(H.tentacles.crit?.chance, 0.1) && near(both.hits.splash.crit?.chance, 0.25), { splash: H.splash.crit, both: both.hits.splash.crit });
   },
 });
 
