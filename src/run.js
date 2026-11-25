@@ -19,6 +19,7 @@ import { Shield } from './shield.js';
 import { BuffLooks } from './buff-looks.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
+import { Tether } from './tether.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
@@ -116,6 +117,7 @@ export class Run {
     this.shield = new Shield(this);   // the Shield stat's pool and shell (shield.js)
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
+    this.tether = new Tether(this);   // Tether Current's beam (tether.js)
     this.evolutionReveal = new EvolutionReveal(this);
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
@@ -313,6 +315,7 @@ export class Run {
     this.shield.reset();
     this.mirage.reset();
     this.fireTrail.reset();
+    this.tether.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -608,6 +611,7 @@ export class Run {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
     this.fireTrail.update(dt);
+    this.tether.update(dt);
     this.buffLooks.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = (this.shield.full ? 1 + this.mods.shield.fullDamage : 1) * (this.easy ? EASY.dealt : 1);   // shield-full-damage, Easy mode (easy.js)
@@ -1030,6 +1034,7 @@ export class Run {
 
   // on-attack (Pocket Vacuum): each attack you make rolls each on-attack's chance, and doing its { block }
   attacked() {
+    this.tether.attacked();   // tether (Tether Current): every Nth attack
     const L = this.mods.onAttack;
     if (!L?.length) return;
     const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);

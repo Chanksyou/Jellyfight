@@ -1023,6 +1023,7 @@ async function warmUp() {
   run.shield.group.scale.setScalar(0.001);
   run.mirage.prepare(); run.mirage.group.visible = true;
   run.fireTrail.warm(true, P.clone().setY(P.y + 0.002));
+  run.tether.warm(true, P.clone().setY(P.y + 0.02));
   enemies.glowPools.warm(true, P.clone().setY(P.y + 0.002));   // a firefly's glowing pool and its Warning
   enemies.prismBalls.warm(true, P.clone().setY(P.y + 0.02));
   enemies.energyBalls.warm(true, P.clone().setY(P.y + 0.02));   // a stag beetle's ball   // a butterfly's bolt and its Warning
@@ -1068,6 +1069,7 @@ async function warmUp() {
   run.shield.update(0);
   run.mirage.group.visible = false;
   run.fireTrail.warm(false);
+  run.tether.warm(false);
   enemies.glowPools.warm(false);
   enemies.prismBalls.warm(false);
   enemies.energyBalls.warm(false);
