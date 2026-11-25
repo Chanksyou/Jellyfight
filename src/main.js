@@ -39,7 +39,7 @@ import { jellyPortrait } from './jelly-portrait.js';
 import { AuraPainter } from './pick-auras/painter.js';
 import { Leaderboard } from './leaderboard.js';
 import { reportError, enableDebug } from './errors.js';
-import { shadeWithBakedAO } from './baked-ao.js';
+import { BAKED_AO, shadeWithBakedAO } from './baked-ao.js';
 import { BAKED_LIGHT, followGlow, setBakedLight } from './baked-light.js';
 import { mapPieces } from './piece-light.js';
 import { wireFeedback } from './feedback.js';
@@ -267,6 +267,7 @@ if (!ARENA) await applyLayout(APT.root, stage.id);   // your saved furniture edi
 const actNum = (n, d) => LOOK.num(`${n}-act${stage.id}`, LOOK.num(n, d));
 const actColor = (n, d) => LOOK.color(`${n}-act${stage.id}`, LOOK.color(n, d));
 scene.environmentIntensity = actNum('night-fill', 0.12);
+BAKED_AO.uniforms.liteEnv.value = scene.environmentIntensity * LOOK.num('lite-env', 1);
 scene.background = new THREE.Color(ARENA ? LOOK.color('arena-background', '#030611') : actColor('night-sky', '#05060c'));
 scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'), LOOK.num('arena-haze', 0.3))
   : new THREE.FogExp2(actColor('haze-color', '#0c0604'), actNum('haze', 0.14));
@@ -283,6 +284,7 @@ function skyNow(t) {
   BAKED_LIGHT.uniforms.lbDayK.value = mix('daylight', 0);   // act 4's baked daylight picture (baked-light.js)
   tint(SKY_STEP.sky, 'sky'); tint(SKY_STEP.hazeColor, 'haze-color');
   scene.environmentIntensity = SKY_STEP.fill;
+  BAKED_AO.uniforms.liteEnv.value = SKY_STEP.fill * LOOK.num('lite-env', 1);
   scene.background.copy(SKY_STEP.sky);
   scene.fog.density = SKY_STEP.haze; scene.fog.color.copy(SKY_STEP.hazeColor);
   setMist(mix('mist', 0), SKY_STEP.mistColor.set(LOOK.color(`${SKY}-mist-color`, '#000000')).lerp(SKY_STEP.mistLate.set(LOOK.color(`${SKY}-mist-color-late`, '#000000')), t));   // the mist thins and warms with the dawn

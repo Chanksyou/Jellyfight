@@ -1543,6 +1543,7 @@
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */
   --desktop-lights: 0;
   --lite-fill: 1.6;            /* Low graphics: the spotlights are off, the room's fill light is this many times brighter (lite-materials.js) */
+  --lite-env: 1;               /* Low graphics: plain materials skip scene.environment IBL; this much of the room's fill (night-fill / dawn-fill) replaces it (baked-ao.js) */
   --light-fade: 0.5;           /* seconds a lamp takes to fade in or out of a phone's light slots */
   --light-reach: 1.5;          /* meters past a lamp's own reach that still count as near */
   --batch-cull-move: 0.05;     /* meters the camera moves before the furniture batches re-check what's in view (src/static-batch.js) */

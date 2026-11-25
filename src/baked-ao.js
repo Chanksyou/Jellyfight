@@ -23,6 +23,7 @@ const uniforms = {
   // a stage's sun (sunrise.js sets these): everything with world z below sunLine is sunlit; far off = none
   sunLine: { value: -1e4 }, sunColor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) },
   sunFill: { value: 0 }, sunSoft: { value: 0.03 }, sunWarm: { value: 0 }, sunRim: { value: 0.035 }, sunRimGlow: { value: 0 }, sunPulse: { value: 0 },
+  liteEnv: { value: 0 },      // Low graphics: replaces scene.environment IBL on plain Lambert materials (main.js sets from scene.environmentIntensity * --lite-env)
 };
 export const BAKED_AO = { uniforms, meta: null };
 
@@ -67,7 +68,7 @@ export function setBakedAOTier(quality) {
 const AO_FRAGMENT = /* glsl */`
   uniform sampler3D aoVolume;
   uniform vec3 aoMin, aoSize;
-  uniform float aoStrength, aoOpen;
+  uniform float aoStrength, aoOpen, liteEnv;
   varying vec3 vAoPos, vAoNormal;
   uniform float sunLine, sunFill, sunSoft, sunWarm, sunRim, sunRimGlow, sunPulse;
   uniform vec3 sunColor, sunDir;
@@ -144,6 +145,9 @@ function patch(shader) {
           float rim = (1.0 - smoothstep(sunRim * 0.5, sunRim, sunD)) * smoothstep(0.0, sunSoft * 0.5, sunD);
           totalEmissiveRadiance += sunColor * rim * (sunRimGlow + sunPulse);
         }
+        #ifdef LAMBERT
+          reflectedLight.indirectDiffuse += material.diffuseColor * liteEnv;
+        #endif
         float baked = bakedAO();
         if (lb.w > 1.5) reflectedLight.directDiffuse += lbKeep;   // the furniture's grid is coarse: the corner shadows darken it
         reflectedLight.directDiffuse *= baked;
@@ -154,7 +158,7 @@ function patch(shader) {
       #include <aomap_fragment>`)
     .replace('#include <fog_fragment>', `#include <fog_fragment>
       #ifdef USE_FOG
-        { vec4 mist = mistAt(vAoPos); gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a); }   // the ground mist (mist.js), over three.js's own fog
+        { vec4 mist = mistAt(vAoPos, lb.rgb); gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a); }   // the ground mist (mist.js), over three.js's own fog
       #endif`);
 }
 

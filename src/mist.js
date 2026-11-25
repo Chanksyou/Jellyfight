@@ -142,8 +142,8 @@ export function updateMist(dt, calm, vents = [], air = null) {
   }
 }
 
-// mistAt(pos): rgb = the mist's colour there, a = how much of a pixel at pos it hides, seen from the camera.
-// Needs GRID_GLSL (baked-light.js) before it. Low's plain (Lambert) materials skip the light grid: a flat colour.
+// mistAt(pos, liteLight): rgb = the mist's colour there, a = how much of a pixel at pos it hides, seen from the camera.
+// Needs GRID_GLSL (baked-light.js) before it. Low's plain (Lambert) materials reuse the room's already-sampled baked light instead of reading the light grid again.
 export const MIST_GLSL = /* glsl */`
   uniform float mistK, mistH, mistLit, mistMax, mistPatch, mistT;
   uniform vec3 mistBase;
@@ -208,7 +208,7 @@ export const MIST_GLSL = /* glsl */`
     float c = sin((p.x + p.y) * 11.0 + sin((p.x - p.y) * 9.0 + ph * 9.0) + ph * 13.0);
     return 0.55 * a + 0.3 * b + 0.15 * c;   // soft, never clipped: thin spots fade into thick ones
   }
-  vec4 mistAt(vec3 pos) {
+  vec4 mistAt(vec3 pos, vec3 liteLight) {
     if (mistK <= 0.0) return vec4(0.0);
     vec3 rv = pos - cameraPosition;
     float T = max(length(rv), 1e-3), b = 1.0 / mistH;
@@ -225,6 +225,9 @@ export const MIST_GLSL = /* glsl */`
     #ifndef LAMBERT
       vec3 g = (vec3(pos.x, 0.1, pos.z) - lbGridMin) / lbGridStep + 0.5;
       if (lbGridGain > 0.0 && all(greaterThanEqual(g, vec3(0.0))) && all(lessThanEqual(g, lbGridDims))) col += lbGridDir(g, 2.0) * lbGridGain * mistLit;
+    #else
+      col += liteLight * mistLit;
     #endif
     return vec4(col, f);
-  }`;
+  }
+  vec4 mistAt(vec3 pos) { return mistAt(pos, vec3(0.0)); }`;
