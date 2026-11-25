@@ -24,6 +24,7 @@ const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
+const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
@@ -50,9 +51,9 @@ export const ENEMY_WORDS = {
     },
   },
   chase: {
-    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you.',
+    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you. A file: with `file` (m) it follows the nearest bug of its own kind ahead of it (nearer you) within that distance, and with `fan` (m) a ranged bug holding at `stop` side-steps away from its own kind closer than that, so they stand in a line, not a stack.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0, file: 0, fan: 0 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c, en) {
@@ -72,6 +73,17 @@ export const ENEMY_WORDS = {
           const a = cur + THREE.MathUtils.clamp(d, -p.turn * c.dt, p.turn * c.dt);
           c.dir.copy(h.set(Math.sin(a), 0, Math.cos(a)));
         }
+        if (p.file && c.flat > (p.stop || 0) * 1.5) {   // a file: head for the nearest of its own kind that is nearer you, within `file`
+          let best = p.file * p.file, bx = 0, bz = 0;
+          for (let n = 0; n < en.list.length; n++) {
+            const o = en.list[n];
+            if (o === e || o.dead || o.type !== e.type || o.under) continue;
+            const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, d2 = dx * dx + dz * dz;
+            if (d2 >= best || d2 < 1e-8 || (o.pos.x - c.pc.x) ** 2 + (o.pos.z - c.pc.z) ** 2 >= c.flat * c.flat) continue;
+            best = d2; bx = dx; bz = dz;
+          }
+          if (best < p.file * p.file) { const l = Math.sqrt(best); c.dir.x += bx / l * FILE_PULL; c.dir.z += bz / l * FILE_PULL; c.dir.normalize(); }
+        }
         c.speed = speed * c.slow;
         e.backing = e.resting = false;
         const far = c.flat > RHYTHM_FROM();
@@ -86,6 +98,17 @@ export const ENEMY_WORDS = {
         if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; e.backing = true; }   // too close: back off (and still faces you)
         else {                                                                  // in range: hold, or side-step slowly once it has held a while
           c.speed = 0; e.resting = false; e.holdT = (e.holdT || 0) + c.dt;
+          if (p.fan) {   // a neighbour of its own kind too close: slide along the ring round you, away from it
+            let best = p.fan * p.fan, side = 0;
+            for (let n = 0; n < en.list.length; n++) {
+              const o = en.list[n];
+              if (o === e || o.dead || o.type !== e.type || o.under) continue;
+              const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, d2 = dx * dx + dz * dz;
+              if (d2 >= best) continue;
+              best = d2; side = -(dx * -c.flatDir.z + dz * c.flatDir.x) || e.phase - 5;   // (exactly on top of each other: either way, by its own phase)
+            }
+            if (side) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(side > 0 ? 1 : -1); c.speed = speed * FAN_SPEED * c.slow; e.backing = true; }
+          }
           if (p.side && e.holdT > SIDE_AFTER) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(Math.sin(c.t * 0.5 + e.phase) > 0 ? 1 : -1); c.speed = p.side * c.slow; e.backing = true; }
         }
       },

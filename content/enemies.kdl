@@ -18,7 +18,7 @@ enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
 enemy "ants" name="Ant" hp=45 r=0.029 dmg=1 xp=2 model="ants" {
     death-motion "crumple" weight="light"
     attack-motion "throw" tier="light"
-    chase 0.3 stop=0.3
+    chase 0.3 stop=0.3 file=0.5 fan=0.12   // follow each other in a file, then spread along the ring to throw
     spit every=2.6 reach=0.55 speed=0.8 life=1 dmg=2 aim=0.7 shot="pin" height=0 still=true
 }
 
