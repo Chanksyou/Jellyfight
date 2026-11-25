@@ -915,7 +915,10 @@ export class Run {
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = bugs[0].id;
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
       const pos = this.spawnPoint(type) || (type !== bugs[0].id ? this.spawnPoint((type = bugs[0].id)) : null);
-      if (pos) this.enemies.spawn(type, pos, this.stage.toughness || 1);
+      if (pos) {
+        const e = this.enemies.spawn(type, pos, this.stage.toughness || 1);
+        if (W.noticeMax && !this.firstRun.active) e.noticeT = W.noticeMin + Math.random() * (W.noticeMax - W.noticeMin);   // it notices you first (a first run's bugs don't wait)
+      }
     }
   }
 

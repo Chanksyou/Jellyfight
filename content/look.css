@@ -543,6 +543,9 @@
   /* Crowd limits: what a busy fight sheds first (phones) */
   --fx-hits-per-frame: 8;        /* hit effects with full sparks and ring in one frame; the rest keep just their flash */
   --bug-rhythm-from: 0.5;        /* m from the jelly: nearer than this a bug walks steadily (its rhythm is for the approach) */
+  --bug-startle-speed: 0.3;      /* m/s: a bug steps aside from a neighbour that died (content/waves.kdl startle) */
+  --bug-wander-speed: 0.12;      /* m/s: a bug that lost the jelly mills about (waves.kdl lose-track) */
+  --bug-wander-turn: 0.8;        /* radians a second its milling heading turns */
   --bug-face-reach: 0.05;        /* m past its reach (from the jelly's edge) inside which a walking bug turns to face the jelly, not where it goes */
   --bug-face-min-speed: 0.03;    /* m/s: slower than this a bug faces the jelly */
   --bug-anim-far: 1.5;           /* m from the jelly: farther (or off-screen) bugs animate on alternate frames */

@@ -5,6 +5,9 @@
 spawning {
     rate 0.22 grow=0.0022       // bugs per second at midnight, and how much faster each second after
     cap 6 every=15 max=20       // most alive at once: 6, one more every 15 s, never more than 20
+    notice 0.3 0.5              // a bug that comes out stands head up for this many seconds (between the two) before it moves or attacks (not in a first run)
+    lose-track 1.2              // when you go up a vent or onto furniture, the bugs on the floor mill about for this many seconds before they head for the spot beneath you
+    startle 0.1 time=0.4        // a bug within this many metres of one that dies steps aside for this many seconds
 }
 
 bug "roach" weight=1                // cockroaches from the start
