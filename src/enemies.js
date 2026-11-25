@@ -661,6 +661,7 @@ export class Enemies {
 
   clear() {
     this.passes.length = 0;
+    this.nav?.reset();
     for (const e of this.list) {
       if (e.dead) continue; // Death effects own dead models until their own cleanup.
       e.chargeSound?.(); e.chargeSound = null;   // a whine that was charging stops with the bug

@@ -233,7 +233,7 @@ story('dev/balance-editor', {
   },
 });
 story('dev/balance-editor-hints', {
-  about: 'Every number of every bug, treasure and evolution in the balance editor has a short note on what it does (from its word\'s doc, or the file\'s own key), and tapping a number in an open row shows that note in the row\'s one hint line: Cockroach chase speed says it walks at that many m/s.',
+  about: 'Every number of every bug, treasure and evolution in the balance editor has a short note on what it does (from its word\'s doc, or the file\'s own key), and tapping a number in an open row shows that note in the row\'s one hint line: Cockroach chase speed says it walks at you at that many m/s.',
   setup() { fresh(); },
   play() {
     const groups = balanceGroups().filter((g) => ['bug', 'treasure', 'evolution'].includes(g.kind));
@@ -246,7 +246,7 @@ story('dev/balance-editor-hints', {
     input.focus();
     const after = row.querySelector('.hint').textContent, bold = row.querySelector('.hint b')?.textContent;
     panel.hide();
-    return ok(groups.length > 50 && !bare.length && /tap a number/i.test(before) && /walks straight at you at speed m\/s/i.test(after) && bold === 'speed',
+    return ok(groups.length > 50 && !bare.length && /tap a number/i.test(before) && /walks at you at speed m\/s/i.test(after) && bold === 'speed',
       { groups: groups.length, bare: bare.slice(0, 8), before, after, bold });
   },
 });

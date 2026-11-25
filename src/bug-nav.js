@@ -32,6 +32,7 @@ const COST = [STRAIGHT, STRAIGHT, STRAIGHT, STRAIGHT, DIAGONAL, DIAGONAL, DIAGON
 const UX = DX.map((x, m) => x / Math.hypot(x, DZ[m])), UZ = DZ.map((z, m) => z / Math.hypot(DX[m], z));   // each way as a unit vector
 const AVOID = 0.06;                       // m past touching: another bug closer than this that way is in the way
 const NEAR = 3 * STRAIGHT;
+const OPEN = 1.1;   // a flood way at most this much longer than the straight line (eight ways on squares run up to 8% long) counts as open
 const UNDER = 0.15;                       // m: with the jelly up on furniture, the floor this close under it is where the flood starts                // the last 15 cm by foot: steer by the straight line to the jelly
 const SPREAD = 1;                       // how hard bugs that close push each other aside, against the pull of the way on
 const _danger = new Float32Array(8);
@@ -183,7 +184,8 @@ export class BugNav {
   // are summed, weighted by their score squared, plus a push away from the bugs that close (SPREAD),
   // into `out` (flat, unit length). Over the last
   // stretch (NEAR) interest is simply the straight line to the jelly. Returns false, leaving `out`
-  // alone, when the map has nothing for it: not built, another level, off the floor, no flood there.
+  // alone, when the map has nothing for it (not built, another level, off the floor, no flood there)
+  // or when the straight line will do: no bug close, and the way round no longer than the line (OPEN).
   steer(e, list, toward, out) {
     const p = e.pos, l = this.ready ? this.levelAt(p.x, p.y, p.z) : -1;
     if (l < 0) return false;
@@ -202,7 +204,9 @@ export class BugNav {
       sx -= dx / d * w; sz -= dz / d * w;
       for (let m = 0; m < 8; m++) { const a = (UX[m] * dx + UZ[m] * dz) / d; if (a > 0 && a * w > danger[m]) danger[m] = a * w; }
     }
-    const ways = L.steps[s][k], near = here <= NEAR, cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
+    const ways = L.steps[s][k], near = here <= NEAR || this.close(L, p), cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
+    // alone, with nothing much in the way (the flood's way is about as long as the straight line), the jelly not up on furniture: the straight line, exactly as before the map
+    if (sx === 0 && sz === 0 && !L.up && (near || here / STRAIGHT * CELL <= Math.hypot(p.x - L.sx, p.z - L.sz) * OPEN + 2 * CELL)) return false;
     let bx = 0, bz = 0;
     for (let m = 0; m < 8; m++) {
       if (!(ways & (1 << m))) continue;
@@ -248,8 +252,22 @@ export class BugNav {
   // Once a frame (enemies.update): marks again what moved; when the jelly's square has changed, a
   // new flood from it starts, and a flood under way goes on for at most FLOOD_WORK squares, so no
   // frame pays for a whole one (bugs read the last finished flood meanwhile)
+  // within the last stretch of the jelly by the straight line, counting how far it has gone since the flood began (the flood
+  // shows where it was: a bug close to where it is now walks the straight line, not back to where it stood)
+  close(L, p) {
+    const P = this.P;
+    return Math.hypot(p.x - P.x, p.z - P.z) <= NEAR / STRAIGHT * CELL + Math.hypot(P.x - L.sx, P.z - L.sz);
+  }
+
+  // forget the flood (a new fight, run or story): the next update floods afresh, so a replay from the same state walks the same
+  reset() {
+    this.job.L = null; this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
+    for (const L of this.levels) L.flooded = false;
+  }
+
   update(dt, P) {
     if (!this.ready) return;
+    this.P = P;
     if (this.moves !== moves || this.seen !== this.world.colliders.length) this.remark();
     this.since += dt;
     const J = this.job;
@@ -323,7 +341,7 @@ export class BugNav {
     if (left > 0) return;
     L.next[s] = L.dist[s]; L.dist[s] = D;   // this size's flood is done: bugs read it from now
     if (s + 1 < SIZES.length) { this.floodStart(L, s + 1); return; }
-    J.L = null;
+    J.L = null; L.sx = J.x; L.sz = J.z; L.up = J.up;   // where the jelly was when this flood began
     for (const o of this.levels) o.flooded = o === L;
     this.floods++;
     if (this.view) this.paint();
