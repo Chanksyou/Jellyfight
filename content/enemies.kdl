@@ -160,7 +160,7 @@ enemy "worm" name="Horsehair worm" hp=150 r=0.05 dmg=2 xp=8 model="worm" {
 enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
     death-motion "shell" weight="heavy"
     attack-motion "throw" tier="heavy"
-    chase 0.14
+    chase 0.14 turn=1.5              // a heavy body: it swings round slowly
     charge-shot range=0.6 charge=2 lock=0.5 speed=0.6 dmg=5 size=0.08 blast=0.3 knock=0.6 life=2 rest=0.7 every=3.5
 }
 
@@ -174,7 +174,7 @@ enemy "beetle" name="Stag beetle" hp=210 r=0.069 dmg=1 xp=12 model="beetle" {
 enemy "cicada" name="Cicada" hp=1200 r=0.058 dmg=1 xp=12 model="cicada" {
     death-motion "skin-shed" weight="heavy"
     attack-motion "pounce" tier="heavy"
-    chase 0.13
+    chase 0.13 turn=1.5
     on-beat every=2
     burrow range=0.55 every=4 dig=1 follow=5 warn=2 speed=3 radius=0.15 dmg=5 knock=1.5 launch=0.5 tumble=1 daze=4
 }
