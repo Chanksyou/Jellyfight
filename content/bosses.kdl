@@ -88,18 +88,19 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // its stages, by Health: at or below `set2` of it set 2 starts (disco ball visits), `set3` set 3,
     // `last` the last song; above `set2` it plays set 1 (after the warm-up behind its opening force field)
     stages set2=0.75 set3=0.5 last=0.25
-    // its set list, in bars: a solo slot every `solo` bars from the end of the warm-up, and in set 2
+    // its set list, in bars: a solo slot from `first` bars after the end of the warm-up and then every `solo` bars
+    // (silver and gold from set 1, so a short fight still sees both), and in set 2
     // a disco ball visit every `disco` bars, halfway between them; in the last song a slot every `last` bars
     // (a solo and its bow take 8 at most) from 2 bars in: silver, gold, duet, round again;
     // a floor wave (a line, never a ring) every `wave` bars, and in a solo one every 2 x `wave` bars
-    set solo=16 disco=8 last=10 wave=2
+    set first=4 solo=12 disco=12 last=10 wave=2
     // a solo: `bars` long, then that DJ bows for `bow` bars (`clean` if no hit reached the jelly during
     // his solo), while hits on the Encore do `exposed` x (the song's breakdown bows both DJs, exposed too)
     solo bars=4 bow=2 clean=4 exposed=1.5
-    // the silver DJ's Record toss, one a bar of his solo: `dmg` Health, its lane `height` m tall (a jump
+    // the silver DJ's Record toss, one every `every` beats of his solo (two Warnings at once at 2): `dmg` Health, its lane `height` m tall (a jump
     // doesn't clear it), landing on the bar line `flight` beats after he lets go, `windup` beats wound
     // back first, aimed at the jelly until `lock` beats before he throws; it stands `stand` bars
-    records dmg=4 height=0.25 flight=1 windup=3 lock=1 stand=4
+    records every=2 dmg=4 height=0.25 flight=1 windup=3 lock=1 stand=4
     // the gold DJ's Pyro, from the second bar of his solo: a set of flame lanes (odd lanes, then even) every beat,
     // each lane's width is --encore-pyro-lane; `reach` m out from the stage lip and `height` m tall, its Warning `warn` beats, `dmg` Health;
     // the flames burn `burn` beats and a scorch mark lasts `scorch` beats

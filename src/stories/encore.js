@@ -478,7 +478,7 @@ story('encore/the-set-list-lays-out-its-waves-and-lasers-as-recorded', {
 });
 
 story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
-  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no doubling at a drop); from set 1 a laser on every wave; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet, the turn carrying on from stage to stage (set 2 opens on gold, set 3 on the duet).',
+  about: 'Whatever stage a bar is laid out in decides what it holds: the warm-up only waves, one at a time (no lasers, no doubling at a drop); from set 1 a laser on every wave; disco ball visits only in set 2, every 8 bars halfway between solo slots; and from the end of the warm-up a solo slot every 16 bars, on a bar line, silver and gold in turn in sets 1 and 2, then silver, gold and a duet in set 3, the turn carrying on from stage to stage.',
   setup() {},
   play() {
     // the stage by beat (a stand-in for the Encore's Health)
@@ -493,21 +493,33 @@ story('encore/the-set-list-adds-each-stages-attacks-bar-by-bar', {
     const noLasers = shots.every((at) => at >= o) && shots.length > 100 && f.casts.filter((c) => c.at >= o).every((c) => shots.includes(c.at));
     const disco = visits.length > 3 && visits.every((at) => stageAt(at) === 'set2' && (at - o) % 32 === 16);
     const want = []; let last = null;
-    for (let at = o + 64; at <= 900; at += 64) { const kinds = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[stageAt(at)]; last = kinds[(kinds.indexOf(last) + 1) % kinds.length]; want.push(`${last}@${at}`); }
+    for (let at = o + 64; at <= 900; at += 64) { const kinds = { set1: ['silver', 'gold'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'] }[stageAt(at)]; last = kinds[(kinds.indexOf(last) + 1) % kinds.length]; want.push(`${last}@${at}`); }
     const solos = slots.join() === want.join() && slots.some((x) => x.startsWith('duet'));
     return ok(o === 40 && single && noLasers && disco && solos, { origin: o, single, noLasers, disco, visits: visits.slice(0, 6), solos, slots: slots.slice(0, 8) });
   },
 });
 
+story('encore/the-first-two-solos-come-in-set-1-with-the-real-set-list-numbers', { act: 4, scene: 2,
+  about: 'With the numbers in bosses.kdl a fight that never leaves set 1 sees the silver solo 4 bars after the warm-up and the gold solo 12 bars later, so a quick kill still shows both.',
+  setup() {},
+  play() {
+    const K = encoreFight({ hurt: false }).def.skills.set ?? {}, slots = [];
+    let now = 0;
+    const set = new SetList(recorder(), 0, { random: lcg(7), stage: () => (now + 6 < 32 ? 'warmup' : 'set1'), first: K.first, solo: K.solo, slot: (kind, at) => { slots.push(`${kind}@${(at - set.origin) / 4}`); } });
+    for (now = -6; now <= 400; now += 0.25) set.update(now);
+    return ok(slots.slice(0, 2).join() === 'silver@4,gold@16', { slots: slots.slice(0, 4), K });
+  },
+});
+
 story('encore/a-short-fight-still-sees-every-solo', {
-  about: 'The solo turn carries on across the 75%, 50% and 25% gates, so a fight paced at about 3.5 minutes (24 bars a stage after a 8 bar warm-up) sees the silver solo, the gold solo and the duet; the duet never plays above half Health (its turn passes to the next DJ), and gold never before set 2.',
+  about: 'The solo turn carries on across the 75%, 50% and 25% gates, so a fight paced at about 3.5 minutes (24 bars a stage after a 8 bar warm-up) sees the silver solo, the gold solo and the duet; and the duet never plays above half Health (its turn passes to the next DJ).',
   setup() {},
   play() {
     const stageAt = (b) => (b < 32 ? 'warmup' : b < 128 ? 'set1' : b < 224 ? 'set2' : b < 320 ? 'set3' : 'last');
     let now = 0;
     const slots = [], set = new SetList(recorder(), 0, { random: lcg(5), stage: () => stageAt(now + 6), slot: (kind, at) => { slots.push([kind, stageAt(at)]); } });
     for (now = -6; now <= 416; now += 0.25) set.update(now);
-    const kinds = new Set(slots.map(([k]) => k)), early = slots.every(([k, st]) => (k !== 'duet' || st === 'set3' || st === 'last') && (k !== 'gold' || st !== 'set1'));
+    const kinds = new Set(slots.map(([k]) => k)), early = slots.every(([k, st]) => (k !== 'duet' || st === 'set3' || st === 'last'));
     return ok(kinds.has('silver') && kinds.has('gold') && kinds.has('duet') && early, { slots: slots.map((x) => x.join(' in ')), early, minutes: +(416 * 60 / BPM / 60).toFixed(1) });
   },
 });
@@ -520,7 +532,7 @@ const counting = (B) => {
   return n;
 };
 fight('fight-stages-follow-its-health-not-the-clock', {
-  about: 'The Encore\'s stage comes from its Health, not the time: behind its opening force field it warms up with waves only (no lasers); then set 1 adds lasers; however long set 1 plays, its disco ball never visits, and a visit is booked within 8 bars of it reaching 75% (set 2). 50% is set 3 and 25% the last song.',
+  about: 'The Encore\'s stage comes from its Health, not the time: behind its opening force field it warms up with waves only (no lasers); then set 1 adds lasers; however long set 1 plays, its disco ball never visits, and a visit is booked within 12 bars of it reaching 75% (set 2). 50% is set 3 and 25% the last song.',
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false });
@@ -536,7 +548,7 @@ fight('fight-stages-follow-its-health-not-the-clock', {
     step(60 * 16, () => B.disco.visitAt != null);
     const booked = B.disco.visitAt != null && B.disco.visitAt > B.beat - 8;
     const gates = [[0.76, 'set1'], [0.5, 'set3'], [0.26, 'set3'], [0.25, 'last'], [0.1, 'last']].map(([f, want]) => { B.hp = B.maxHp * f; return B.stage === want; });
-    const kdl = B.def.skills.stages?.set2 === 0.75 && B.def.skills.stages?.set3 === 0.5 && B.def.skills.stages?.last === 0.25 && B.def.skills.set?.solo === 16 && B.def.skills.set?.disco === 8;
+    const kdl = B.def.skills.stages?.set2 === 0.75 && B.def.skills.stages?.set3 === 0.5 && B.def.skills.stages?.last === 0.25 && B.def.skills.set?.solo === 12 && B.def.skills.set?.disco === 12;
     return ok(kdl && warm && set1 && noDisco && set2 && booked && gates.every(Boolean), { kdl, warm, set1, noDisco, set2, booked, visit: B.disco.visitAt, beat: B.beat, gates, n });
   },
 });
@@ -574,6 +586,7 @@ fight('fight-a-song-rewind-in-any-stage-re-arms-the-set', {
   setup() {},
   play() {
     const B = encoreFight({ guard: true, hurt: false }), results = {};
+    stub(B, 'slot', () => {});                                       // (no solo: this is about the waves, lasers and visits)
     let beat = 300;
     stub(B, 'song', { beat: () => beat, quiet: () => false, drop: () => false });
     for (const [stage, f] of [['warmup', 1], ['set1', 1], ['set2', 0.7], ['set3', 0.4], ['last', 0.2]]) {
@@ -1060,15 +1073,15 @@ story('encore/a-record-held-against-a-jelly-that-cannot-move-stays-a-small-push'
   },
 });
 
-story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-16-beats', {
-  about: 'In the 4 bars of a solo the set list casts no lasers, and only the other DJ plays a wave, one a bar into it (every 16 beats, half as often as before); before and after it the set plays as usual.',
+story('encore/a-solo-rests-the-lasers-and-the-other-dj-plays-every-8-beats', {
+  about: 'In the 4 bars of a solo the set list casts no lasers, and only the other DJ plays a wave, one a bar into it and one every 8 beats after; before and after it the set plays as usual.',
   setup() {},
   play() {
     const f = recorder(), shots = [], solo = { who: 'silver', at: 72, end: 88 };
     const set = new SetList(f, 8, { random: lcg(5), lasers: { cast: (at) => shots.push(at) }, soloing: (at) => (at >= solo.at && at < solo.end ? solo : null) });
     for (let b = -6; b <= 120; b += 0.25) set.update(b);
     const inSolo = f.casts.filter((c) => c.at >= 72 && c.at < 88);
-    const waves = inSolo.map((c) => `${c.at}:${c.dj}`).join() === '76:gold';
+    const waves = inSolo.map((c) => `${c.at}:${c.dj}`).join() === '76:gold,84:gold';
     const rest = !shots.some((at) => at >= 72 && at < 88) && shots.includes(68) && shots.includes(88);
     return ok(waves && rest, { waves: inSolo.map((c) => `${c.at}:${c.dj}`), shots: shots.filter((at) => at > 60 && at < 96) });
   },
@@ -1086,7 +1099,7 @@ function soloFight(fps = 60, opts = {}) {
   return { B, song, go, slot };
 }
 fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
-  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ (crouched to vault out to the floor 2 beats before it) and three records thrown from the second bar, each flung on the beat before a bar line (his wind-up leading to it) and landing on the bar line. Then he bows: the boss bar reads EXPOSED and hits do 1.5x, for 2 bars if a hit reached the jelly during his solo, 4 if none did; before and after, hits do 1x.',
+  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ (crouched to vault out to the floor 2 beats before it) and six records thrown from the second bar, one every 2 beats, each flung a beat before it lands (his wind-up leading to it). Then he bows: the boss bar reads EXPOSED and hits do 1.5x, for 2 bars if a hit reached the jelly during his solo, 4 if none did; before and after, hits do 1x.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { hud } = G();
@@ -1106,7 +1119,7 @@ fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
       return { lands, throwing, lit, inSolo, bowed, bar, bowing, late, after, barAfter, solo: B.solo, spot: B.spots.silver.visible };
     };
     const hurt = run1(40, true), clean = run1(80, false);
-    const good = (r, at) => r.lands === `${at + 4},${at + 8},${at + 12}` && r.throwing && r.lit && r.inSolo === 100 && r.bowed === 150 && r.bar && r.bowing && r.late === 150 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
+    const good = (r, at) => r.lands === [4, 6, 8, 10, 12, 14].map((b) => at + b).join() && r.throwing && r.lit && r.inSolo === 100 && r.bowed === 150 && r.bar && r.bowing && r.late === 150 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
     return ok(good(hurt, 40) && good(clean, 80), { hurt, clean });
   },
 });
@@ -1499,7 +1512,7 @@ function cueBeats(now) {
 const near = (list, want, tol = 0.07) => list.length === want.length && list.every(([b], i) => Math.abs(b - want[i]) < tol);
 
 fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
-  about: 'In a silver solo (three records, from its second bar) each record is scratched as it winds up (four beats before it lands), thrown on the beat before the bar and sticks on the bar line; each shatters when its four bars are up. The bow breathes out on its beat, and the crowd cheers only if no hit reached the jelly in the solo.',
+  about: 'In a silver solo (six records, one every 2 beats from its second bar) each record is scratched as it winds up (four beats before it lands), thrown a beat before it lands and sticks where it lands; each shatters when its four bars are up. The bow breathes out on its beat, and the crowd cheers only if no hit reached the jelly in the solo.',
   setup() {},
   play() {
     const out = {};
@@ -1509,7 +1522,7 @@ fight('the-silver-solos-records-and-bow-have-their-sounds-on-the-beat', {
       go(34); slot('silver', 40);
       go(42); if (hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss' });
       go(78);
-      out[hurt ? 'hurt' : 'clean'] = { cues, scratch: near(cues.recordScratch, [40, 44, 48]), thrown: near(cues.recordThrow, [43, 47, 51]), stuck: near(cues.recordStick, [44, 48, 52]), shattered: near(cues.recordShatter, [60, 64, 68]), breath: near(cues.bowExhale, [56]), cheer: cues.crowdCheer.length };
+      out[hurt ? 'hurt' : 'clean'] = { cues, scratch: near(cues.recordScratch, [40, 42, 44, 46, 48, 50]), thrown: near(cues.recordThrow, [43, 45, 47, 49, 51, 53]), stuck: near(cues.recordStick, [44, 46, 48, 50, 52, 54]), shattered: near(cues.recordShatter, [60, 62, 64, 66, 68, 70]), breath: near(cues.bowExhale, [56]), cheer: cues.crowdCheer.length };
     }
     const good = (r) => r.scratch && r.thrown && r.stuck && r.shattered && r.breath;
     const { clean, hurt } = out;
@@ -1899,8 +1912,8 @@ fight('the-landing-shoves-a-jelly-on-the-mark-unhurt', {
   },
 });
 
-fight('records-fly-from-his-hand-on-the-floor-three-a-solo-never-near-him', {
-  about: 'On the floor the silver DJ throws three records, from his hand out there (not the booth), landing on the bar lines of bars 2 to 4 where their lanes locked; with the jelly hugging him, none lands within 17 cm of him (his body, a record and 6 cm), and each still lands on open floor.',
+fight('records-fly-from-his-hand-on-the-floor-six-a-solo-never-near-him', {
+  about: 'On the floor the silver DJ throws six records, one every 2 beats, from his hand out there (not the booth), landing from bar 2 to the end of the solo where their lanes locked; with the jelly hugging him, none lands within 17 cm of him (his body, a record and 6 cm), and each still lands on open floor.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { player } = G(), mark = markAt(B), F = FL(), keep = F.body + B.records.r + F.keep;
@@ -1912,14 +1925,14 @@ fight('records-fly-from-his-hand-on-the-floor-three-a-solo-never-near-him', {
       for (const c of B.records.casts) if (c.state === 'stand' && !lands.includes(c)) lands.push(c);
     });
     const out = lands.map((c) => ({ land: c.land, from: +flat(c.start, mark).toFixed(3), d: +Math.hypot(c.to[0] - mark.x, c.to[1] - mark.z).toFixed(3) }));
-    const okAll = lands.length === 3 && out.every((o) => o.from < 0.15 && o.d >= keep - 1e-6) && out.map((o) => o.land).join() === '44,48,52';
+    const okAll = lands.length === 6 && out.every((o) => o.from < 0.15 && o.d >= keep - 1e-6) && out.map((o) => o.land).join() === '44,46,48,50,52,54';
     // the keep-out on its own: no spot round him (or anywhere near) lands within it, or in the boss's space
     let worst = Infinity;
     for (let x = -0.6; x <= 0.6; x += 0.03) for (let z = -0.5; z <= 0.6; z += 0.03) {
       const p = landing(x, z, 0.055, 0.06, [0, 0], [SPOT()[0], SPOT()[1], keep]);
       worst = Math.min(worst, Math.hypot(p[0] - SPOT()[0], p[1] - SPOT()[1]));
     }
-    return ok(n === 3 && okAll && worst >= keep - 1e-6 && Math.abs(keep - 0.175) < 1e-9, { n, out, keep, worst: +worst.toFixed(4) });
+    return ok(n === 6 && okAll && worst >= keep - 1e-6 && Math.abs(keep - 0.175) < 1e-9, { n, out, keep, worst: +worst.toFixed(4) });
   },
 });
 

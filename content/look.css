@@ -1088,8 +1088,8 @@
   --encore-scorch-opacity: 0.55;
   --encore-hit-scorch: 0.035;    /* m: the scorch any Encore hit leaves on the floor under the jelly (fades as splats do) */
   --encore-spotlight: #fff1d0;   /* a solo's spotlight: a cone of warm haze on the soloing DJ, never a light */
-  --encore-spotlight-opacity: 0.22;
-  --encore-spotlight-floor-opacity: 0.1;  /* the same cone on a DJ out on the floor: fainter, so he reads through it */
+  --encore-spotlight-opacity: 0.34;
+  --encore-spotlight-floor-opacity: 0.16;  /* the same cone on a DJ out on the floor: fainter, so he reads through it */
   --encore-spotlight-radius: 0.09; /* m: its pool on the booth */
   --encore-broken: #ff2a3a;      /* the Encore's panels after it shorts out at half Health (encore.js) */
   --hostile-encore-wall: #ff2020; /* the DJs' Wall of sound (encore-wall.js): its Warning, the wall and the booth while they play it: hot crimson, nearer the broken panels' red than the gold DJ's gold or the disco magenta */
