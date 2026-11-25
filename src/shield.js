@@ -83,7 +83,7 @@ export class Shield {
       for (const B of bursts) this.burst(at, B.radius, B.flat ? B.dmg : B.dmg * run.S.bubbleDamage, B.look);
       if (!bursts.length) sfx.shieldBreak(true);
       if (sleep > 0) {   // shield-burst invuln (Cryo Sleep): the jelly freezes over and can't be hurt for a moment
-        run.iFrames += sleep;   // on top of the 1 s of grace the breaking hit already gave
+        run.iFrames += sleep;   // on top of the grace the breaking hit already gave
         run.fx.ring(run.player.position.clone().setY(run.player.position.y + 0.004), 0xdff8ff, 0.04, 0.5);
         run.fx.ice.shatter(at, 10, 0.004, 0.3, run.player.position.y);
         run.fx.number(at.clone().setY(at.y + run.cfg.height * 0.5), 'CRYO SLEEP', '#bff4ff', 16);

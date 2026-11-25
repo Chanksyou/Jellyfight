@@ -126,7 +126,7 @@ The night's pressure (C2) is Health arriving a second against the reference jell
 
 Elite and Boss timings live in code as well as content, so the sheets read each one from its line (`num` in the tool) and a moved timing fails loudly.
 An Elite's attack is priced by its Warning (to the first hit), its dodge time (from the moment it locks on you to the hit), its length and its rest, all in real seconds: tempo-timed parts are divided by `pace tempo` in `content/elites.kdl`, act 4's are beats of its 128 bpm song.
-An attack lands at most one hit a second, the jelly's i-frames after a hit (`run.js` `hit`).
+An attack lands at most one hit per i-frame window: the jelly is safe for 0.25 s after a hit (`run.js` `hit`).
 "Sent if never dodged" is a ceiling; the run log's Health lost by source (#529), per Elite beaten and per Boss fight, is what players really took.
 A Boss's fight is its Health over the Offence at the door, plus the time it can't be hurt (the Vacuum's fly shields, the Clog's acid floods, the shark under the quilt, the Encore's force fields); what Treasures add is solved so the Normal jelly matches the run log's mean fight, so a type's paper time differs from Normal's by its cards only.
 C5 divides the distance to get clear (half the Warning's width plus the jelly's radius) by the dodge time, as a share of swim speed (`config.js` `walkSpeed` x Move speed), and steps a held jump as `src/player.js` does to find how long it keeps the jelly over each wall.
