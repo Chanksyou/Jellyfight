@@ -1030,6 +1030,8 @@ async function warmUp() {
   // this act's boss (not in a scene before its stage door: the boss is through it, in the next scene's page)
   const warmBoss = stage.stageDoor ? null : makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });
   warmBoss?.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
+  // every model's shadow shape, drawn once from above (shadow-shapes.js): every bug, this act's Elites and its boss
+  systems.shadow.buildShapes(renderer, { looks: enemies.looks, models: kinds.map((t) => ({ name: TYPES[t].model || t, r: TYPES[t].r })), proxies: [...enemies.list.filter((e) => e.proxy).map((e) => e.proxy), warmBoss] });
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

@@ -357,7 +357,7 @@ export class Enemies {
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
     const model = this.models.take(`${type}:${elite}`, () => {
-      const { body: mesh, face, anim, ballRadius, deathParts, deathRig } = this.looks[T.model || type]();
+      const { body: mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks } = this.looks[T.model || type]();
       const root = new THREE.Group();
       if (elite && !anim) {
         const m = mesh.children[0];
@@ -373,9 +373,9 @@ export class Enemies {
       }
       mesh.scale.multiplyScalar(T.r * (elite && !anim ? 1.35 : 1));
       root.add(mesh, face);
-      return { root, mesh, face, anim, ballRadius, deathParts, deathRig };
+      return { root, mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks };
     });
-    const { root, mesh, face, anim, ballRadius, deathParts, deathRig } = model.value;
+    const { root, mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks } = model.value;
     if (elite && !anim) {
       T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
@@ -385,7 +385,7 @@ export class Enemies {
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, deathRig, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
+      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, deathRig, shadowLinks, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),

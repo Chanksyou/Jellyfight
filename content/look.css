@@ -786,7 +786,7 @@
   --vent-shimmer-scale: 0.5;   /* the bend map's size, of the screen's (0.5: a quarter of the pixels) */
   --jelly-shadow: 0.5;         /* how dark the soft shadow under the jelly is, at its middle */
   --bug-shadow: 0.75;          /* and under each bug standing on something (one instanced draw, systems.js) */
-  --bug-shadow-size: 1.25;     /* a bug's shadow's radius, in the bug's own radius */
+  --bug-shadow-size: 1.4;      /* a bug's shadow against its real footprint (its model from above, shadow-shapes.js) */
   --bug-shadow-reach: 1.6;     /* bugs this close to the jelly (m) get one: about what the camera shows, at play and in a fight view; further out is phone layers for little */
   --bug-shadow-air-widen: 3;   /* a bug in the air (a flyer, a thrown bug): its shadow on the surface below grows by this per metre of height */
   --bug-shadow-air-fade: 6;    /* and its darkness is its grounded darkness / (1 + this x height) */
@@ -795,8 +795,18 @@
   --bug-shadow-casts: 6;       /* surfaces looked for a frame, for the bugs in the air and the Elites and bosses, in turn */
   --bug-shadow-cast-every: 6;  /* frames a found surface is trusted for */
   --elite-shadow: 0.7;         /* the soft shadow under an awake Elite or a boss: how dark, at its middle */
-  --elite-shadow-size: 1.1;    /* its radius, in the Elite's own radius */
+  --elite-shadow-size: 1.25;   /* its size against its model's real footprint (a boss with no model of its own: a round one, 1.1x its radius) */
   --jelly-shadow-floor: 0.22;  /* the faintest the jelly's shadow gets, high in a jump: it stays the landing cue */
+  --jelly-shadow-size: 1.7;    /* its shape's half-width (the bell and the tentacles' soft tail), in the old round shadow's radius */
+  --shadow-shape-pad: 1.3;     /* each model's cell is this much wider than the model, room for the blur (shadow-shapes.js) */
+  --shadow-shape-grow: 2;      /* px of a 64 px cell: how far a shape reaches past its model's edge (thin legs still cast), before the blur */
+  --shadow-shape-sharp: 3;     /* px of a 64 px cell: the blur of a shadow on the ground */
+  --shadow-shape-soft: 5;      /* and of one high up (the shader mixes the two by height) */
+  --shadow-soft-per-m: 6;      /* how fast a shadow goes soft as its caster rises: fully soft at 1/this metres */
+  --shadow-core: 0.3;          /* how much lighter a shadow is at its rim than at its middle, so the darkest part stays under the creature */
+  --shadow-link-step: 2;       /* a body that bends (the millipede): a soft spot under every this many links */
+  --shadow-link-size: 0.75;    /* each spot's radius, in the bug's own radius */
+  --shadow-link-dark: 0.8;     /* and its darkness against a whole bug's (the spots overlap) */
   --jelly-light-reach: 0.4;    /* meters */
   /* the bell's bend (src/bell-flex.js): the crown stays nearly still, the lower bell squeezes in */
   --jelly-motion-squeeze: 0.3;    /* how far in the rim pulls at a full stroke, of its radius (it flares out a third of that as it relaxes) */
