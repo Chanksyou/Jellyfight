@@ -22,6 +22,7 @@ import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
 import './stories/bug-collision.js';
 import './stories/bug-nav.js';
+import './stories/bug-steering.js';
 import './stories/bug-attack-motion.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';

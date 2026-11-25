@@ -29,6 +29,12 @@ const NONE = 0xffff;
 const STRAIGHT = 5, DIAGONAL = 7;         // a step's cost (5:7 is close to 1:√2, and whole numbers keep the queue a ring)
 const DX = [1, -1, 0, 0, 1, 1, -1, -1], DZ = [0, 0, 1, -1, 1, -1, 1, -1];
 const COST = [STRAIGHT, STRAIGHT, STRAIGHT, STRAIGHT, DIAGONAL, DIAGONAL, DIAGONAL, DIAGONAL];
+const UX = DX.map((x, m) => x / Math.hypot(x, DZ[m])), UZ = DZ.map((z, m) => z / Math.hypot(DX[m], z));   // each way as a unit vector
+const AVOID = 0.06;                       // m past touching: another bug closer than this that way is in the way
+const NEAR = 3 * STRAIGHT;
+const UNDER = 0.15;                       // m: with the jelly up on furniture, the floor this close under it is where the flood starts                // the last 15 cm by foot: steer by the straight line to the jelly
+const SPREAD = 1;                       // how hard bugs that close push each other aside, against the pull of the way on
+const _danger = new Float32Array(8);
 const E = 1, N = 2;                       // a square's open edges: to +x, to +z
 
 const DOORWAY = 0.25;                     // how far past a room's edge the map reaches (a wall's thickness, and then some)
@@ -59,7 +65,7 @@ export class BugNav {
     this.buckets = new Int32Array(8 * most);   // the flood's ring of 8 buckets (a square sits in one bucket at most once at a time)
     this.blen = new Int32Array(8);
     this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
-    this.job = { L: null, s: 0, cur: 0, left: 0, x: 0, z: 0 };   // the flood under way (floodOn)
+    this.job = { L: null, s: 0, cur: 0, left: 0, x: 0, z: 0, up: false };   // the flood under way (floodOn)
     this.moves = moves; this.seen = 0; this.boxes = new Float64Array(0);
   }
 
@@ -171,6 +177,74 @@ export class BugNav {
     return d === NONE ? Infinity : d / STRAIGHT * CELL;
   }
 
+  // Which way a ground bug should walk (context steering, the chase word): each of the 8 ways out of
+  // its square scores how far downhill on the flood the next square is (interest), less how close
+  // another bug on the floor is that way (danger); a way the map closes scores nothing. The good ways
+  // are summed, weighted by their score squared, plus a push away from the bugs that close (SPREAD),
+  // into `out` (flat, unit length). Over the last
+  // stretch (NEAR) interest is simply the straight line to the jelly. Returns false, leaving `out`
+  // alone, when the map has nothing for it: not built, another level, off the floor, no flood there.
+  steer(e, list, toward, out) {
+    const p = e.pos, l = this.ready ? this.levelAt(p.x, p.y, p.z) : -1;
+    if (l < 0) return false;
+    const L = this.levels[l], k = this.cellOf(L, p.x, p.z);
+    if (!L.flooded || k < 0 || !(Math.abs(p.y - L.floor[k]) <= 0.03)) return false;
+    const s = this.sizeOf(e.r), D = L.dist[s], here = D[k];
+    if (here === NONE) return this.backOn(L, D, k, p, out);
+    const danger = _danger.fill(0);
+    let sx = 0, sz = 0;   // and a push away from them, so a crowd walking in widens instead of filing on top of itself
+    for (let n = 0; n < list.length; n++) {
+      const o = list[n];
+      if (o === e || o.dead || o.proxy || o.under || o.T.fly) continue;
+      const dx = o.pos.x - p.x, dz = o.pos.z - p.z, d = Math.hypot(dx, dz), reach = AVOID + o.r + e.r;
+      if (d >= reach || d < 1e-6 || Math.abs(o.pos.y - p.y) > 0.1) continue;
+      const w = 1 - d / reach;
+      sx -= dx / d * w; sz -= dz / d * w;
+      for (let m = 0; m < 8; m++) { const a = (UX[m] * dx + UZ[m] * dz) / d; if (a > 0 && a * w > danger[m]) danger[m] = a * w; }
+    }
+    const ways = L.steps[s][k], near = here <= NEAR, cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
+    let bx = 0, bz = 0;
+    for (let m = 0; m < 8; m++) {
+      if (!(ways & (1 << m))) continue;
+      const t = D[k + DX[m] + DZ[m] * L.nx];
+      if (t === NONE) continue;
+      const interest = near ? UX[m] * toward.x + UZ[m] * toward.z : (here - t) / COST[m];
+      const score = interest - danger[m];
+      if (score <= 0) continue;
+      // toward the middle of that square, not just its way: off the middle line a body clips the corner of a leg the map stepped past
+      const vx = cx + DX[m] * CELL - p.x, vz = cz + DZ[m] * CELL - p.z, vl = Math.hypot(vx, vz) || 1, w = score * score / vl;
+      bx += vx * w; bz += vz * w;
+    }
+    if (bx === 0 && bz === 0) return false;
+    const len = Math.hypot(bx, bz);
+    const spread = near ? 0 : SPREAD;   // (not over the last stretch: there they close in as before)
+    out.set(bx / len + sx * spread, 0, bz / len + sz * spread);
+    // never pushed aside into a way the map closes (a pocket by the wall): then just the way on
+    let m = 0, best = -2;
+    for (let q = 0; q < 8; q++) { const a = UX[q] * out.x + UZ[q] * out.z; if (a > best) { best = a; m = q; } }
+    if (out.lengthSq() < 1e-8 || !(ways & (1 << m))) out.set(bx, 0, bz);
+    out.normalize();
+    return true;
+  }
+
+  // a bug on a square the flood doesn't reach (pressed against a leg or into a corner the map calls
+  // closed): head for the nearest square it does reach within 20 cm, or give up (false: the straight line)
+  backOn(L, D, k, p, out) {
+    const i0 = k % L.nx, j0 = (k / L.nx) | 0;
+    let best = Infinity, bi = 0, bj = 0;
+    for (let j = Math.max(0, j0 - 4); j <= Math.min(L.nz - 1, j0 + 4); j++) for (let i = Math.max(0, i0 - 4); i <= Math.min(L.nx - 1, i0 + 4); i++) {
+      const d = D[j * L.nx + i];
+      if (d === NONE) continue;
+      const score = (i - i0) ** 2 + (j - j0) ** 2 + d * 1e-4;   // the nearest (likeliest the open side of what it's pressed against), then the nearer the jelly
+      if (score < best) { best = score; bi = i; bj = j; }
+    }
+    if (best === Infinity) return false;
+    out.set(L.x0 + (bi + 0.5) * CELL - p.x, 0, L.z0 + (bj + 0.5) * CELL - p.z);
+    if (out.lengthSq() < 1e-8) return false;
+    out.normalize();
+    return true;
+  }
+
   // Once a frame (enemies.update): marks again what moved; when the jelly's square has changed, a
   // new flood from it starts, and a flood under way goes on for at most FLOOD_WORK squares, so no
   // frame pays for a whole one (bugs read the last finished flood meanwhile)
@@ -184,7 +258,7 @@ export class BugNav {
     if ((l === this.jl && k === this.jk && !this.dirty) || this.since < FLOOD_EVERY) return;
     this.since = 0; this.jl = l; this.jk = k; this.dirty = false;
     if (l < 0) { for (const L of this.levels) L.flooded = false; return; }
-    J.x = P.x; J.z = P.z;
+    J.x = P.x; J.z = P.z; J.up = P.y > this.levels[l].y + 0.1;
     this.floodStart(this.levels[l], 0);
     this.floodOn(FLOOD_WORK);
   }
@@ -209,12 +283,22 @@ export class BugNav {
   // Walking distances from the jelly's square to every square it reaches, one size after the other,
   // written into `next` and swapped in when done (Dial's algorithm: a ring of 8 buckets by cost)
   floodStart(L, s) {
-    const J = this.job, D = L.next[s], start = this.nearestOpen(L, s, J.x, J.z);
+    const J = this.job, D = L.next[s], S = L.steps[s], B = this.buckets;
     J.L = L; J.s = s; J.cur = 0; J.left = 0;
     D.fill(NONE);
     this.blen.fill(0);
+    if (J.up) {
+      // up on furniture: the whole floor under it starts the flood (its nearest square alone may be a pocket among a chair's legs)
+      const ci = Math.floor((J.x - L.x0) / CELL), cj = Math.floor((J.z - L.z0) / CELL), R = Math.ceil(UNDER / CELL);
+      for (let j = Math.max(0, cj - R); j <= Math.min(L.nz - 1, cj + R); j++) for (let i = Math.max(0, ci - R); i <= Math.min(L.nx - 1, ci + R); i++) {
+        const k = j * L.nx + i;
+        if (S[k] && (i - ci) ** 2 + (j - cj) ** 2 <= R * R) { D[k] = 0; B[this.blen[0]++] = k; J.left++; }
+      }
+      if (J.left) return;
+    }
+    const start = this.nearestOpen(L, s, J.x, J.z);
     if (start < 0) return;
-    D[start] = 0; this.buckets[0] = start; this.blen[0] = 1; J.left = 1;
+    D[start] = 0; B[0] = start; this.blen[0] = 1; J.left = 1;
   }
 
   floodOn(work) {
