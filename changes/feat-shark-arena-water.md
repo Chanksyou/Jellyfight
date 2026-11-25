@@ -1,0 +1,1 @@
+builds carved dark-stone tide-pool arena walls around Act 3's bed that rise first, then fills deeper 3 cm interactive moonlit water outward from the center before the shark breaches, with real-time waves reacting to the jelly, the shark, its fin, slams, illusion, and tornadoes.
