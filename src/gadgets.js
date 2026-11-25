@@ -36,9 +36,11 @@ export class Gadgets {
     this.companions = new TreasureCompanions(this);   // Fairy Lights' wire, the Magnifying Glass's lens, the Disco Ball's dots (treasure-companions.js)
 
     const glow = (color, k = 1.6) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
-    // Fairy Lights: three warm bulbs that circle you
+    // Fairy Lights: teardrop glass bulbs with sculpted socket neck that circle you (1 child: inner core)
+    const bulbPts = [[0, -0.0056], [0.0036, -0.0044], [0.0052, -0.0014], [0.0046, 0.0022], [0.0026, 0.0046], [0.0024, 0.0068], [0, 0.0068]].map(([r, y]) => new THREE.Vector2(r, y));
+    const bulbGeo = new THREE.LatheGeometry(bulbPts, 12);
     this.bulbs = [0xffd27a, 0xff9ad8, 0x9fe2ff, 0xffd27a, 0xff9ad8, 0x9fe2ff].map((c) => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.005, 12, 8), glow(c, 2.4));
+      const m = new THREE.Mesh(bulbGeo, glow(c, 2.4));
       const core=new THREE.Mesh(new THREE.SphereGeometry(.0022,8,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));m.add(core);
       m.visible = false;
       this.group.add(m);

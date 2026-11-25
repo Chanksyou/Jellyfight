@@ -31,6 +31,35 @@ const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness
 // its attacks in the order it takes them, calm and angry (pick); the stories check each one's Warning
 export const ATTACKS = { calm: ['charge', 'suction', 'flies', 'brushes', 'dump'], angry: ['charge', 'spin', 'flies', 'suction', 'brushes', 'charge', 'dump'] };
 
+// top-surface detail for the Vacuum: brushed gunmetal, power/home buttons, rear vent slots and bin seam
+function vacuumTopTex() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#363a42';
+  g.fillRect(0, 0, 256, 256);
+  // subtle concentric brushed sheen
+  for (let r = 8; r < 126; r += 3) {
+    g.strokeStyle = r % 6 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.05)';
+    g.lineWidth = 1.5;
+    g.beginPath(); g.arc(128, 128, r, 0, Math.PI * 2); g.stroke();
+  }
+  // dust-bin release seam across the rear (+y on top disc is -z in world)
+  g.strokeStyle = '#181a1f'; g.lineWidth = 3;
+  g.beginPath(); g.arc(128, 128, 108, 0.35, Math.PI - 0.35); g.stroke();
+  // rear exhaust vents
+  g.fillStyle = '#14161a';
+  for (let i = -3; i <= 3; i++) g.fillRect(128 + i * 11 - 3, 212, 6, 14);
+  // tactile power & home buttons near the front
+  for (const [x, r] of [[128, 10], [104, 6], [152, 6]]) {
+    g.fillStyle = '#202329'; g.beginPath(); g.arc(x, 76, r, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#6c7382'; g.lineWidth = 1.8; g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class Vacuum {
   constructor(scene, enemies, fx, arena, world) {
     Object.assign(this, { scene, enemies, fx, arena, world });
@@ -56,44 +85,59 @@ export class Vacuum {
     this.kick = 0;            // its body answering its own attack: rears up and squashes, decaying
 
     const root = new THREE.Group();
-    const shell = std(0x2a2c31, { roughness: 0.25, metalness: 0.2 });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(this.r, this.r * 0.98, 0.07, 64), shell);
-    body.position.y = 0.04;
-    root.add(body);
-    const lid = new THREE.Mesh(new THREE.CylinderGeometry(this.r * 0.9, this.r * 0.95, 0.012, 64), std(0x3b3f47, { roughness: 0.12, metalness: 0.4 }));
-    lid.position.y = 0.081;
-    root.add(lid);
-    // bumper across the front
-    const bumper = new THREE.Mesh(new THREE.CylinderGeometry(this.r * 1.02, this.r * 1.02, 0.05, 48, 1, true, -Math.PI * 0.45, Math.PI * 0.9), std(0x111114, { roughness: 0.7, side: THREE.DoubleSide }));
-    bumper.position.y = 0.035;
+    const R = this.r;
+    const shell = std(0x2a2c31, { roughness: 0.25, metalness: 0.25 });
+    const dark = std(0x16171a, { roughness: 0.45, metalness: 0.2 });
+    // beveled chassis profile: tucked underside, recessed bumper waist, chamfered top shoulder
+    const bodyPts = [[0, 0.005], [R * 0.9, 0.005], [R * 0.98, 0.014], [R, 0.056], [R * 0.97, 0.072], [R * 0.9, 0.08], [0, 0.082]].map(([x, y]) => new THREE.Vector2(x, y));
+    root.add(new THREE.Mesh(new THREE.LatheGeometry(bodyPts, 56), shell));
+    // brushed gunmetal top plate with buttons and exhaust vents
+    const topPlate = new THREE.Mesh(new THREE.CircleGeometry(R * 0.89, 56).rotateX(-Math.PI / 2), std(0xffffff, { map: vacuumTopTex(), roughness: 0.18, metalness: 0.45 }));
+    topPlate.position.y = 0.083;
+    root.add(topPlate);
+    // front rubber bumper with subtle recessed trim line
+    const bumper = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.025, R * 1.015, 0.048, 48, 1, true, -Math.PI * 0.46, Math.PI * 0.92), std(0x111114, { roughness: 0.72, side: THREE.DoubleSide }));
+    bumper.position.y = 0.036;
     root.add(bumper);
+    const bumperStrip = new THREE.Mesh(new THREE.TorusGeometry(R * 1.024, 0.0025, 6, 40, Math.PI * 0.88).rotateX(Math.PI / 2).rotateY(Math.PI * 0.06), std(0x3a3e46, { roughness: 0.35, metalness: 0.5 }));
+    bumperStrip.position.y = 0.036;
+    root.add(bumperStrip);
     // ring light: blue while it drives, red when it's about to charge, orange when angry
     this.ringMat = new THREE.MeshStandardMaterial({ color: 0x4ab8ff, emissive: 0x4ab8ff, emissiveIntensity: 2 });
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(this.r * 0.62, 0.004, 8, 64), this.ringMat);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 0.62, 0.004, 8, 64), this.ringMat);
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.088;
+    ring.position.y = 0.085;
     root.add(ring);
-    // lidar turret
-    const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.032, 0.022, 24), std(0x16171a, { roughness: 0.3 }));
-    turret.position.set(0, 0.098, -0.07);
+    // slotted lidar turret: base collar, spinning scanner inside, 4 pillars and domed cap
+    const turret = new THREE.Group();
+    turret.position.set(0, 0.084, -0.068);
+    turret.add(new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.034, 0.008, 24).translate(0, 0.004, 0), dark));
+    turret.add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.007, 24).translate(0, 0.024, 0), shell));
+    for (let i = 0; i < 4; i++) {
+      const a = (i + 0.5) * Math.PI / 2;
+      turret.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.018, 8).translate(Math.cos(a) * 0.028, 0.015, Math.sin(a) * 0.028), dark));
+    }
     root.add(turret);
-    this.lidar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.006, 0.01), std(0x2a2c31));
-    this.lidar.position.set(0, 0.111, -0.07);
+    this.lidar = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.007, 0.011), std(0x4a505c, { metalness: 0.6, roughness: 0.2 }));
+    this.lidar.position.set(0, 0.098, -0.068);
     root.add(this.lidar);
-    // dust bin at the back
-    const bin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.02), std(0x4a4d55, { roughness: 0.2, transparent: true, opacity: 0.8 }));
-    bin.position.set(0, 0.04, -this.r * 0.95);
+    // curved translucent dust bin flush with the rear arc
+    const bin = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.015, R * 1.005, 0.046, 24, 1, false, Math.PI * 0.78, Math.PI * 0.44), std(0x4a4d55, { roughness: 0.16, metalness: 0.1, transparent: true, opacity: 0.78 }));
+    bin.position.y = 0.039;
     root.add(bin);
-    // side brushes: spin slowly while driving, fast before a sweep
+    // side brushes: tapered hub + 3 curved bristle tufts
+    const bristleGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0, 0.007), new THREE.Vector3(0.006, 0.002, 0.032), new THREE.Vector3(0.014, -0.001, 0.068),
+    ]), 8, 0.0022, 5, false);
+    const bristleMat = std(0x6e737d, { roughness: 0.75 });
     this.brushes = [-1, 1].map((s) => {
       const g = new THREE.Group();
-      g.position.set(s * this.r * 0.7, 0.006, this.r * 0.62);
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.006, 12), std(0x16171a));
-      g.add(hub);
+      g.position.set(s * R * 0.7, 0.006, R * 0.62);
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.007, 14), dark));
       for (let k = 0; k < 3; k++) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.002, 0.07).translate(0, 0, 0.035), std(0x6a6d75, { roughness: 0.8 }));
+        const arm = new THREE.Mesh(bristleGeo, bristleMat);
         arm.rotation.y = (k / 3) * Math.PI * 2;
-        arm.rotation.x = 0.12;
+        arm.scale.x = s;
         g.add(arm);
       }
       root.add(g);

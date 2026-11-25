@@ -211,12 +211,199 @@ const buildCandle = (face, label) => (box, { baked }) => {
   return g;
 };
 
+// Desktop PC tower on a rolling stand: casters, rounded chassis, front intake louvers,
+// side glass window with glowing cooling fans, top power button & front LED strip (3 draws).
+function buildPC(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const baseH = 0.035, towerW = Math.min(s.x * 0.76, 0.22), towerH = Math.max(0.28, s.y - baseH - 0.04), towerD = Math.min(s.z * 0.92, 0.46);
+  const baseY = -s.y / 2 + 0.018;
+  const parts = [
+    paint(new RoundedBoxGeometry(s.x * 0.96, 0.024, s.z * 0.98, 2, 0.005).translate(0, baseY + 0.014, 0), 0x16171b),
+    paint(new RoundedBoxGeometry(towerW, towerH, towerD, 3, 0.008).translate(0, baseY + 0.026 + towerH / 2, 0), 0x1e2026),
+    paint(new RoundedBoxGeometry(0.09, 0.024, 0.048, 2, 0.004).translate(0, baseY + 0.026 + towerH + 0.012, 0), 0x141519),
+  ];
+  // 4 rolling casters under stand
+  for (const sx of [-1, 1]) for (const sz of [-1, 1])
+    parts.push(paint(new THREE.CylinderGeometry(0.012, 0.012, 0.014, 10).rotateZ(Math.PI / 2).translate(sx * (s.x * 0.38), baseY - 0.006, sz * (s.z * 0.38)), 0x2c2e34));
+  // front horizontal intake louvers (+z and -z so either facing reads cleanly)
+  for (let i = 0; i < 6; i++)
+    parts.push(paint(new THREE.BoxGeometry(towerW * 0.72, 0.006, towerD + 0.004).translate(0, baseY + 0.1 + i * 0.042, 0), 0x101115));
+  // top power button ring
+  parts.push(paint(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 12).translate(0, baseY + 0.028 + towerH, towerD * 0.34), 0x4a505e));
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.45, metalness: 0.35 })));
+  // tinted side glass panel (+x faces room)
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(towerD * 0.78, towerH * 0.78).rotateY(Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x0a1018, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.65 }));
+  glass.position.set(towerW / 2 + 0.001, baseY + 0.026 + towerH * 0.52, 0);
+  // glowing front LED strip + 3 faint internal fan rings visible behind the glass
+  const ledParts = [
+    new THREE.BoxGeometry(0.005, towerH * 0.65, 0.009).translate(towerW / 2 + 0.002, baseY + 0.026 + towerH * 0.45, -towerD * 0.44),
+  ];
+  for (let i = 0; i < 3; i++)
+    ledParts.push(new THREE.TorusGeometry(0.036, 0.0035, 6, 18).rotateY(Math.PI / 2).translate(towerW / 2 - 0.002, baseY + 0.11 + i * 0.095, -towerD * 0.24));
+  const glow = new THREE.Mesh(merge(ledParts), new THREE.MeshStandardMaterial({ color: 0x3a7bff, emissive: 0x3a7bff, emissiveIntensity: 1.5, roughness: 0.2 }));
+  g.add(glass, glow);
+  g.position.copy(c);
+  return g;
+}
+
+// Round glass side table: 3 tapered splayed oak legs, brass mounting collars, beveled glass disc (2 draws).
+function buildSideTable(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const r = Math.min(s.x, s.z) / 2, h = s.y, bot = -h / 2;
+  const parts = [];
+  for (const a of [0, 2.094, 4.189]) {
+    const leg = new THREE.CylinderGeometry(0.01, 0.015, h - 0.016, 10);
+    leg.rotateZ(-Math.cos(a) * 0.12); leg.rotateX(Math.sin(a) * 0.12);
+    leg.translate(Math.cos(a) * r * 0.62, bot + (h - 0.016) / 2, Math.sin(a) * r * 0.62);
+    parts.push(paint(leg, 0xb88f60));
+    parts.push(paint(new THREE.CylinderGeometry(0.018, 0.014, 0.014, 12).translate(Math.cos(a) * r * 0.56, bot + h - 0.02, Math.sin(a) * r * 0.56), 0xc8a454));
+  }
+  // subtle cross-brace ring tying legs together
+  parts.push(paint(new THREE.TorusGeometry(r * 0.58, 0.006, 6, 24).rotateX(Math.PI / 2).translate(0, bot + h * 0.45, 0), 0x9e784c));
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.55, metalness: 0.15 })));
+  const topPts = [[0, 0], [r - 0.006, 0], [r, 0.004], [r, 0.01], [r - 0.006, 0.014], [0, 0.014]].map(([x, y]) => new THREE.Vector2(x, y));
+  const glass = new THREE.Mesh(new THREE.LatheGeometry(topPts, 32),
+    new THREE.MeshStandardMaterial({ color: 0xdceae8, roughness: 0.06, metalness: 0.15, transparent: true, opacity: 0.45 }));
+  glass.position.y = bot + h - 0.014;
+  g.add(glass);
+  g.position.copy(c);
+  return g;
+}
+
+// Double stainless step trash & recycling can: rounded body, recessed base trim, hinged dual lids & foot pedals (1 draw).
+function buildTrashCan(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const w = s.x * 0.88, h = s.y, d = s.z * 0.96, bot = -h / 2;
+  const parts = [
+    paint(new RoundedBoxGeometry(w, h - 0.045, d, 3, 0.025).translate(0, bot + 0.015 + (h - 0.045) / 2, 0), 0xb8bec4),
+    paint(new RoundedBoxGeometry(w + 0.008, 0.022, d + 0.008, 2, 0.006).translate(0, bot + 0.011, 0), 0x222428),
+    paint(new RoundedBoxGeometry(w + 0.01, 0.014, d + 0.01, 2, 0.004).translate(0, bot + h - 0.036, 0), 0x2c2e34),
+  ];
+  for (const sz of [-1, 1]) {
+    parts.push(paint(new RoundedBoxGeometry(w * 0.9, 0.028, d * 0.45, 2, 0.012).translate(0, bot + h - 0.016, sz * d * 0.24), 0x383a40));
+    parts.push(paint(new THREE.BoxGeometry(0.018, 0.026, 0.095).translate(-w / 2 - 0.002, bot + 0.026, sz * d * 0.24), 0x16171a));
+    parts.push(paint(new RoundedBoxGeometry(0.052, 0.016, 0.082, 2, 0.004).rotateZ(0.18).translate(-w / 2 - 0.024, bot + 0.02, sz * d * 0.24), 0xc8ced4));
+  }
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.34, metalness: 0.65 })));
+  g.position.copy(c);
+  return g;
+}
+
+// Walnut nightstand: overhanging beveled top, proud drawer front with shadow reveal, brass pull & splayed legs (1 draw).
+function buildNightstand(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const w = s.x, h = s.y, d = s.z, bot = -h / 2, legH = 0.09, bodyH = h - legH - 0.022;
+  const W = 0x624028, W2 = 0x482d1a, BRASS = 0xd2a84e;
+  const parts = [
+    paint(new RoundedBoxGeometry(w * 1.04, 0.024, d * 1.04, 2, 0.005).translate(0, bot + h - 0.012, 0), W),          // overhanging top
+    paint(new RoundedBoxGeometry(w * 0.96, bodyH, d * 0.94, 2, 0.006).translate(0, bot + legH + bodyH / 2, 0), W),    // carcass
+    paint(new RoundedBoxGeometry(w * 0.88, bodyH * 0.34, 0.016, 2, 0.004).translate(0, bot + legH + bodyH * 0.78, d * 0.47), W), // upper drawer
+    paint(new RoundedBoxGeometry(w * 0.88, bodyH * 0.52, 0.016, 2, 0.004).translate(0, bot + legH + bodyH * 0.3, d * 0.47), W),  // lower drawer
+    paint(new THREE.CylinderGeometry(0.0045, 0.0045, 0.085, 8).rotateZ(Math.PI / 2).translate(0, bot + legH + bodyH * 0.78, d * 0.495), BRASS),
+    paint(new THREE.CylinderGeometry(0.0045, 0.0045, 0.085, 8).rotateZ(Math.PI / 2).translate(0, bot + legH + bodyH * 0.36, d * 0.495), BRASS),
+  ];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const leg = new THREE.CylinderGeometry(0.014, 0.009, legH + 0.008, 10);
+    leg.rotateZ(-sx * 0.08); leg.rotateX(sz * 0.08);
+    leg.translate(sx * (w * 0.4), bot + legH / 2, sz * (d * 0.38));
+    parts.push(paint(leg, W2));
+  }
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.52, metalness: 0.12 })));
+  g.position.copy(c);
+  return g;
+}
+
+// Round bedroom air purifier: tapered lathe body, lower intake grille band, concentric top louvers & status LED (2 draws).
+function buildAirPurifier(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const r = Math.min(s.x, s.z) / 2, h = s.y, bot = -h / 2;
+  const pts = [[0, 0], [r * 0.92, 0], [r, 0.015], [r, h * 0.5], [r * 0.94, h * 0.94], [r * 0.86, h], [r * 0.72, h], [r * 0.7, h - 0.02], [0, h - 0.02]].map(([x, y]) => new THREE.Vector2(x, y));
+  const parts = [
+    paint(new THREE.LatheGeometry(pts, 32).translate(0, bot, 0), 0xf2f0ec),
+    paint(new THREE.CylinderGeometry(r * 1.006, r * 1.006, h * 0.42, 32, 1, true).translate(0, bot + h * 0.25, 0), 0x3c3e44),
+  ];
+  for (const k of [0.22, 0.44, 0.66])
+    parts.push(paint(new THREE.TorusGeometry(r * k, 0.005, 6, 24).rotateX(Math.PI / 2).translate(0, bot + h - 0.01, 0), 0x303238));
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.42 })));
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshStandardMaterial({ color: 0x48e090, emissive: 0x48e090, emissiveIntensity: 1.8 }));
+  led.position.set(0, bot + h - 0.003, r * 0.8);
+  g.add(led);
+  g.position.copy(c);
+  return g;
+}
+
+// Tripod bedside floor lamp: tapered walnut legs, brass collar hub, inner bulb/socket/spokes & warm linen drum shade (2 draws).
+function buildBedsideLamp(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const r = Math.min(s.x, s.z) / 2, h = s.y, bot = -h / 2;
+  const shadeH = Math.min(0.28, h * 0.26), shadeR = r * 0.76, hubY = bot + h - shadeH - 0.03;
+  const parts = [
+    paint(new THREE.CylinderGeometry(0.022, 0.026, 0.035, 14).translate(0, hubY, 0), 0xc8a454),                 // brass hub collar
+    paint(new THREE.CylinderGeometry(0.012, 0.014, 0.055, 12).translate(0, hubY + 0.04, 0), 0x2a2a2e),          // bulb socket
+    paint(new THREE.SphereGeometry(0.028, 12, 8).translate(0, hubY + 0.09, 0), 0xfff4d8),                       // inner bulb
+  ];
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const legLen = Math.hypot(r * 0.72, hubY - bot);
+    const leg = new THREE.CylinderGeometry(0.009, 0.014, legLen, 10);
+    const dir = new THREE.Vector3(-Math.cos(a) * r * 0.72, hubY - bot, -Math.sin(a) * r * 0.72).normalize();
+    leg.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+    leg.translate(Math.cos(a) * r * 0.36, (bot + hubY) / 2, Math.sin(a) * r * 0.36);
+    parts.push(paint(leg, 0x6b482c));
+    // spider spoke holding the drum shade
+    const spoke = new THREE.CylinderGeometry(0.0025, 0.0025, shadeR, 6).rotateZ(Math.PI / 2).rotateY(a).translate(Math.cos(a) * shadeR / 2, hubY + 0.04, -Math.sin(a) * shadeR / 2);
+    parts.push(paint(spoke, 0xc8a454));
+  }
+  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.45, metalness: 0.25 })));
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(shadeR * 0.92, shadeR, shadeH, 32, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xf4ead8, emissive: 0xffe0a8, emissiveIntensity: 0.18, roughness: 0.92, side: THREE.DoubleSide }));
+  shade.position.y = bot + h - shadeH / 2;
+  g.add(shade);
+  g.position.copy(c);
+  return g;
+}
+
+// Tall leaning floor mirror: 4-piece recessed mitered black frame, rear easel strut & reflective glass (2 draws).
+function buildFloorMirror(box) {
+  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const g = new THREE.Group();
+  const w = Math.min(s.x, 0.54), h = Math.min(s.y, 1.5), t = 0.028, d = 0.032;
+  const parts = [
+    paint(new RoundedBoxGeometry(t, h, d, 2, 0.004).translate(-w / 2 + t / 2, 0, 0), 0x16171a),
+    paint(new RoundedBoxGeometry(t, h, d, 2, 0.004).translate(w / 2 - t / 2, 0, 0), 0x16171a),
+    paint(new RoundedBoxGeometry(w, t, d, 2, 0.004).translate(0, h / 2 - t / 2, 0), 0x16171a),
+    paint(new RoundedBoxGeometry(w, t, d, 2, 0.004).translate(0, -h / 2 + t / 2, 0), 0x16171a),
+    paint(new THREE.BoxGeometry(w - t * 1.4, h - t * 1.4, 0.008).translate(0, 0, 0.008), 0x202226),
+  ];
+  const frame = new THREE.Mesh(merge(parts), std({ roughness: 0.42, metalness: 0.35 }));
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - t * 2, h - t * 2), new THREE.MeshStandardMaterial({ color: 0xdce4ea, metalness: 0.94, roughness: 0.05 }));
+  glass.position.z = -0.008; glass.rotation.y = Math.PI;
+  const inner = new THREE.Group(); inner.rotation.x = 0.12; inner.add(frame, glass);
+  g.add(inner);
+  g.position.copy(c);
+  return g;
+}
+
 const BUILDERS = [
   ['Candle', buildCandle(-1, ['EMME', 'NEW YORK CITY', 'LYCHEE'])],
   ['Black candle', buildCandle(1, null)],
   ['TV', buildTV],
   ['Soundbar', buildSoundbar],
   ['Shower curtain', buildCurtain],
+  ['PC tower', buildPC],
+  ['Glass side table', buildSideTable],
+  ['Trash and recycling', buildTrashCan],
+  ['Nightstand', buildNightstand],
+  ['Air purifier', buildAirPurifier],
+  ['Bedside floor lamp', buildBedsideLamp],
+  ['Floor mirror', buildFloorMirror],
 ];
 
 // the baked pieces it replaces, by node name (the layout editor can't copy these: a copy would be the flat baked one)

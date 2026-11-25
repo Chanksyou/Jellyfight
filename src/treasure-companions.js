@@ -6,6 +6,7 @@
 // untouched (gadgets.js, house-gadgets.js call in). Reduce effects keeps where and how far and drops the
 // motion; Low graphics drops the wire, trails, dots and wisps.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _q = new THREE.Quaternion(), _c = new THREE.Color();
@@ -23,12 +24,17 @@ export class TreasureCompanions {
     this.wire = new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color: this.fairyColor, transparent: true, opacity: LOOK.num('treasure-wire-opacity', 0.5), depthWrite: false, toneMapped: false }));
     this.wire.frustumCulled = false; this.wire.visible = false; g.group.add(this.wire);
     this.lag = new THREE.Vector3();   // where the wire's sag trails to as you swim
-    // Magnifying Glass: a rim and a thin pane, kit pieces tinted per instance
+    // Magnifying Glass: rim + ferrule + tapered handle merged into one piece, plus thin pane
     const size = LOOK.num('treasure-lens-size', 0.011), mk = (name, geo2, color, opacity) => g.props.prop(name, () => {
       const m = g.fx.piece(geo2, g.looks.mat); m.userData.size = size; m.userData.color.copy(color); m.userData.opacity = opacity; return m;
     });
     const glass = new THREE.Color(LOOK.color('treasure-magnifier', '#c6f6ff'));
-    this.rim = mk('lens-rim', new THREE.TorusGeometry(1, 0.09, 6, 24), glass, 0.85);
+    const rimGeo = mergeGeometries([
+      new THREE.TorusGeometry(1, 0.1, 8, 24).toNonIndexed(),
+      new THREE.CylinderGeometry(0.14, 0.16, 0.24, 10).translate(0, -1.16, 0).toNonIndexed(),
+      new THREE.CylinderGeometry(0.13, 0.19, 1.35, 10).translate(0, -1.94, 0).toNonIndexed(),
+    ]);
+    this.rim = mk('lens-rim', rimGeo, glass, 0.85);
     this.pane = mk('lens-pane', new THREE.CircleGeometry(0.92, 24), glass, 0.16);
     this.tilt = new THREE.Quaternion(); this.aimed = false; this.scorchT = 0;
     this.scorch = LOOK.color('beetle-scorch', '#2a1a12');
