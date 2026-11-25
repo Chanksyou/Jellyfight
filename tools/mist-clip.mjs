@@ -3,7 +3,7 @@
 //
 //   node tools/mist-clip.mjs              act 3, phone and desktop, into .wrangler/mist-clip
 //   node tools/mist-clip.mjs 1            another act
-//   node tools/mist-clip.mjs --phone | --desktop | --low | --calm | --out=DIR | --secs=4
+//   node tools/mist-clip.mjs --phone | --desktop | --low | --calm | --shuttle | --out=DIR | --secs=4
 //
 // Uses the test runner's Playwright and three.js (tests/lib.mjs). A software renderer: looks only, never a frame rate.
 import fs from 'node:fs';
@@ -23,7 +23,7 @@ const picked = SIZES.filter((d) => args.includes('--' + d.name));
 // the swim across open floor: from x,z to x,z (a lazy S either side of the line), at --speed m/s, then a stop to watch it fill in
 // and whether the camera looks across it (the jelly crosses the screen) or along it (act 3's strip of floor is too narrow to look across)
 const PATH = { 1: [3.7, 3.3, 2.6, 3.3, 'across'], 2: [1.6, 6.6, 0.4, 6.6, 'across'], 3: [1.4, 8.55, -0.2, 8.55, 'along'], 4: [3.7, 3.3, 2.6, 3.3, 'across'] };
-const speed = +arg('speed') || 0.7;
+const speed = +arg('speed') || 0.7, shuttle = args.includes('--shuttle');   // --shuttle: quick dashes back and forth along the first 40 cm, every 0.5 s
 fs.mkdirSync(out, { recursive: true });
 
 const env = await start();
@@ -33,7 +33,7 @@ try {
     await page.evaluate(async ([tier, calm]) => { APT.renderer.setAnimationLoop(null); gfx.setQuality(tier); await gfx.ready; (await import('/src/juice.js')).juice.calm = calm; }, [tier, calm]);
     const dir = path.join(out, `act${act}-${device.name}`);
     fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
-    await page.evaluate(async ([p, speed]) => {
+    await page.evaluate(async ([p, speed, shuttle]) => {
       const { fresh, tp, step, stub } = await import('/src/stories/kit.js');
       fresh({ elites: false, bubbles: false, lash: false });
       for (const el of document.body.children) if (el.tagName !== 'CANVAS') el.style.visibility = 'hidden';
@@ -46,12 +46,12 @@ try {
       stub(P, 'update', function (dt, ...rest) {   // the swim, scripted: along the line with a sideways S, then still (the real update still poses the jelly)
         const was = P.position.clone();
         real.call(this, dt, ...rest);
-        s = Math.min(len, s + speed * dt);
+        s = shuttle ? Math.min(0.4, Math.max(0, s + (Math.floor((P.t = (P.t || 0) + dt) / 0.5) % 2 ? -1 : 1) * 1.2 * dt)) : Math.min(len, s + speed * dt);
         const side = 0.15 * Math.sin((s / len) * Math.PI * 2);
         P.position.set(p[0] + ux * s - uz * side, 0.05, p[1] + uz * s + ux * side);
         P.velocity.copy(P.position).sub(was).divideScalar(dt);
       });
-    }, [PATH[act], speed]);
+    }, [PATH[act], speed, shuttle]);
     const frames = Math.round(secs * FPS);
     for (let i = 0; i < frames; i++) {
       await page.evaluate(async () => {

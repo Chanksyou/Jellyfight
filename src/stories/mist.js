@@ -154,3 +154,26 @@ story('mist/vents-thin-it-and-a-ride-pushes-it-out', {
       { vent: v.name, first, riding, off });
   },
 });
+
+story('mist/the-flow-round-the-jelly-eases-in-and-out', {
+  about: 'When the jelly sets off, stops or turns back, the flow of mist round it builds and fades over --mist-curl-ease instead of snapping, so swimming back and forth quickly doesn\'t flick the mist about.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); },
+  play() {
+    const { player } = G(), P = player.position, U = MIST.uniforms;
+    let vx = 0;
+    stub(player, 'update', (dt) => { P.x += vx * dt; player.velocity.set(vx, 0, 0); });
+    step(30);
+    vx = 0.8; step(1);
+    const started = U.mistJk.value.y;
+    step(90);
+    const moving = U.mistJk.value.y;
+    vx = -0.8; step(1);
+    const turned = U.mistJk.value.y, heading = U.mistJ.value.z;
+    vx = 0; step(2);
+    const stopping = U.mistJk.value.y;
+    step(150);
+    const stopped = U.mistJk.value.y;
+    return ok(moving > 0.3 && started < moving * 0.2 && turned > moving * 0.8 && heading > 0.9 && stopping > moving * 0.5 && stopped < moving * 0.05,
+      { started, moving, turned, heading, stopping, stopped });
+  },
+});
