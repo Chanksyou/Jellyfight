@@ -1,0 +1,1 @@
+makes the Encore's solos come sooner and hit harder: the first solo starts 4 bars after its force field drops and a new one every 12 bars, silver and gold both from set 1, so a fast kill still sees both. The silver DJ throws a record every 2 beats (six a solo, was three), the other DJ's wave comes every 8 beats during a solo (was 16), and the spotlight is brighter. Harder fight.

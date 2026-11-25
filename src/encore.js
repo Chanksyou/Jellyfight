@@ -10,7 +10,7 @@
 //   gold, duet, round again, with nothing between but the waves. The boss bar says whose solo it is, or
 //   BOW · EXPOSED; the first bow and the first standing record before a wall each get a hint, once ever
 //   (first-run.js EncoreHints).
-// In set 1 to 3, every 16 bars from the end of the warm-up one DJ solos (slot, solo): he vaults out of the booth onto his
+// In set 1 to 3, from 4 bars after the warm-up and every 12 bars (bosses.kdl `set`), one DJ solos (slot, solo): he vaults out of the booth onto his
 // mark on the floor (ENCORE.marks, src/stage4.js; floorStep and floorFollow below), a spotlight on him and his wing lit his
 // colour, the lasers rest and the other DJ, still in the booth, plays a wave every 8 beats (none in a duet), while he
 // plays his solo attack (the silver DJ's Record toss, encore-records.js; the gold DJ's Pyro, encore-pyro.js). Out there he
@@ -57,11 +57,11 @@ export const ATTACKS = { calm: ['floor', 'laser', 'disco', 'contact', 'records',
 const DJS = ['silver', 'gold'], WING = { silver: 'leftWing', gold: 'rightWing', duet: 'all' }, SOLOISTS = { silver: ['silver'], gold: ['gold'], duet: DJS };
 // each DJ's solo attack: books what he plays from bar line `at`
 const SOLO_ATTACKS = {
-  // the silver DJ's Record toss: a record a bar (from his mark, from the second bar: the first he vaults out)
+  // the silver DJ's Record toss: a record every `every` beats (from his mark, from the second bar: the first he vaults out)
   silver(at, S) {
     const R = this.def.skills.records || {}, bars = this.def.skills.solo?.bars ?? 4;
-    for (let k = S.mark ? 1 : 0; k < bars; k++) {
-      const land = at + k * 4;
+    for (let b = S.mark ? 4 : 0; b < bars * 4; b += R.every ?? 4) {
+      const land = at + b;
       if (this.quiet(land)) continue;                      // (the breakdown rests it, as it rests the floor)
       this.records.cast(land, { from: () => this.hand('silver'), target: () => this.jellyAt(),
         dmg: R.dmg ?? 4, height: R.height ?? 0.25, stand: (R.stand ?? 4) * 4, flight: R.flight ?? 1, windup: R.windup ?? 3, lock: R.lock ?? 1 });
@@ -592,7 +592,7 @@ export class Encore {
       this.beat = beat;
       const S = this.def.skills.set || {};
       this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + (this.broken ? 0 : 4), { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],
-        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco, waveBars: S.wave, turn: this.soloTurn });
+        lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, first: S.first, soloLast: S.last, discoEvery: S.disco, waveBars: S.wave, turn: this.soloTurn });
       this.set.update(beat);
       this.floor.update(beat, player);
       this.lasers.update(beat, player);
@@ -834,17 +834,16 @@ const sideDj = (o) => (o.dir === 'right' ? 'silver' : o.dir === 'left' ? 'gold' 
 //     (not in the warm-up), and in the last song they are always two at a time. `target()` is where the jelly is.
 //   a club laser from a random corner on every bar (`lasers`, encore-laser.js; not in the warm-up)
 //   in set 2, a disco ball visit every `discoEvery` bars, halfway between solo slots (`disco`)
-// From the first bar after the warm-up (`origin`), every `solo` bars is a solo slot: `slot(kind, at)`,
-// silver in set 1, silver and gold in turn in set 2, then silver, gold and a duet. The turn carries on from
-// stage to stage (`turn.last`, kept by the Encore so a rebuilt set list keeps it), so set 2 opens on gold and
-// set 3 on the duet: a fight that's over in a few slots still shows every solo.
+// From `first` bars after the warm-up (`origin`), then every `solo` bars, is a solo slot: `slot(kind, at)`,
+// silver and gold in turn in sets 1 and 2, then silver, gold and a duet in set 3. The turn carries on from
+// stage to stage (`turn.last`, kept by the Encore so a rebuilt set list keeps it), so set 3 can open on the duet: a fight that's over in a few slots still shows every solo.
 // The last song's slots come every `soloLast` bars from 2 bars in (a slot that finds a solo still playing
 // tries again the next bar): a solo and its bow, the next, a duet, with only the waves between.
-const SOLOS = { set1: ['silver'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'], last: ['silver', 'gold', 'duet'] };
+const SOLOS = { set1: ['silver', 'gold'], set2: ['silver', 'gold'], set3: ['silver', 'gold', 'duet'], last: ['silver', 'gold', 'duet'] };
 export class SetList {
   constructor(floor, from, { random = Math.random, quiet = () => false, drop = () => false, target = () => [0, 0.3], lasers = null, disco = null,
-    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, soloLast = 10, discoEvery = 8, waveBars = 2, turn = { last: null } } = {}) {
-    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, soloLast, discoEvery, waveBars, turn });
+    stage = () => 'set1', slot = () => {}, soloing = () => null, solo = 16, first = solo, soloLast = 10, discoEvery = 8, waveBars = 2, turn = { last: null } } = {}) {
+    Object.assign(this, { floor, from, random, quiet, drop, target, lasers, disco, stage, slot, soloing, solo, first, soloLast, discoEvery, waveBars, turn });
     this.next = 0; this.last = null; this.dj = 0; this.origin = null;
   }
   update(beat) {
@@ -864,13 +863,13 @@ export class SetList {
       if (stage !== this.soloStage) { this.soloStage = stage; this.nextSlot = n + 2; }
       const kind = kinds[(kinds.indexOf(this.turn.last) + 1) % kinds.length];   // the one after the last that played (in this stage's list)
       if (stage === 'last') { if (n >= this.nextSlot && this.slot(kind, at) !== false) { this.turn.last = kind; this.nextSlot = n + this.soloLast; } }   // (a slot that finds a solo still playing waits a bar)
-      else if (n > 0 && n % this.solo === 0 && this.slot(kind, at) !== false) this.turn.last = kind;
-      if (stage === 'set2' && n % this.discoEvery === this.discoEvery / 2) this.disco?.visit(at);
+      else if (n >= this.first && (n - this.first) % this.solo === 0 && this.slot(kind, at) !== false) this.turn.last = kind;
+      if (stage === 'set2' && (n - this.first) % this.discoEvery === this.discoEvery / 2) this.disco?.visit(at);
     }
     if (this.quiet(at) || this.quiet(at + 8)) return;
     // a solo: the lasers rest and the other DJ plays a wave every `waveBars` x 8 beats, a bar into it (a duet: no wave)
     const solo = warm ? null : this.soloing(at);
-    if (solo) { if (solo.who !== 'duet' && (at - solo.at) % (2 * WAVE_GAP * this.waveBars) === WAVE_GAP) this.wave(at, 1, solo.who === 'silver' ? 'gold' : 'silver'); return; }
+    if (solo) { if (solo.who !== 'duet' && (at - solo.at) % (WAVE_GAP * this.waveBars) === WAVE_GAP) this.wave(at, 1, solo.who === 'silver' ? 'gold' : 'silver'); return; }
     if (this.next % this.waveBars === 0) this.wave(at, !warm && (stage === 'last' || this.drop(at)) ? 2 : 1);
     // (its corner and side are picked in the warm-up too, so the waves roll the same with lasers or without)
     if (this.lasers) {
