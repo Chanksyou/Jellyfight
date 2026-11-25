@@ -1,1 +1,0 @@
-The Dragonfly now leads its whirlwind: while the aim is still tracking, it aims at where a swimming jelly will be when the rotor arrives (at most 1.5 s ahead), so swimming straight across its front no longer dodges it. Once the aim locks, nothing changes: stepping aside after the lock still works. Wind-up, rotor size, speed and damage are the same.

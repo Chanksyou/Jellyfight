@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v725 The Dragonfly now leads its whirlwind: while the aim is still tracking, it aims at where a swimming jelly will be when the rotor arrives (at most 1.5 s ahead), so swimming straight across its front no longer dodges it. Once the aim locks, nothing changes: stepping aside after the lock still works. Wind-up, rotor size, speed and damage are the same.
+
 v724 makes the Praying mantis cut you off: while you swim away it heads for where you will be, not where you are, and strikes as before once it is in reach.
 
 v723 maps the tops of furniture and the sides a small bug can climb, ready for climbing bugs (nothing climbs yet).
