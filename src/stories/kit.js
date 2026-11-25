@@ -256,7 +256,7 @@ export function asNewPlayer(fn) {
   finally { keys.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]))); }
 }
 // bugs walk at one steady pace (no bursts, rushes or sways: the chase word's rhythms) until the next fresh(): for a story that times a walk
-export const steadyBugs = () => stub(LOOK.vars, 'bug-rhythm-from', '99');
+export const steadyBugs = () => stub(LOOK, 'vars', { ...LOOK.vars, 'bug-rhythm-from': '99' });   // (a new vars object: LOOK keeps what it has read per object)
 export const near = (dx, dz, dy = 0) => G().player.position.clone().add(V(dx, dy, dz));
 export const give = (...ids) => { for (const id of ids) G().run.owned.add(id); };
 // Engine stories drive an Element directly (the game fires them only as a jelly type's attack): its base numbers into the run's mods
