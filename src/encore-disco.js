@@ -194,8 +194,8 @@ export class EncoreDisco {
     const fk = struck ? 1 - k / this.flare : 0;
     const fadeIn = Math.min(1, u / 0.25);
     const flash = struck || (stopped && Math.floor(k * 8) % 2 === 0);
-    const bright = (struck ? 1.0 + 0.7 * fk : stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6)) * fadeIn;
-    const size = this.spotR * (struck ? 1.05 + 0.32 * fk : stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
+    const bright = (struck ? 1.6 + 0.3 * fk : stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6)) * fadeIn;
+    const size = this.spotR * (struck ? 1.2 + 0.2 * fk : stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
     for (let i = 0; i < DISCO.spots; i++) {
       const p = this.spot(i, t);
       if (!p) { _m.makeScale(0, 0, 0); this.spots.setMatrixAt(i, _m); this.beams.setMatrixAt(i, _m); continue; }

@@ -423,8 +423,8 @@ export class Encore {
     for (const who of DJS) M.travel(who, 'home', { secs: hop });
     this.records.reset(); this.wall.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.restExhale = null; this.floor.held.silver = this.floor.held.gold = false;
     for (const who of DJS) {
-      if (wasOut.includes(who) && this.beat !== null && hop > 0.05) { M.perform(who, 'flinch', this.beat + 0.1); M.kickSpring?.(who, { flinch: -2.5, squash: -1.5 }); }
-      else M.perform(who, null);
+      M.perform(who, null);
+      if (wasOut.includes(who) && hop > 0.05) M.kickSpring?.(who, { flinch: -2.8, squash: -1.6 });
     }
   }
 
