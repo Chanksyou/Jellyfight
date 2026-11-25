@@ -1,0 +1,1 @@
+- The ground mist is smoother and lower: its thin spots are now lighter mist that blends into the rest instead of open floor, and it fades out by about 11 cm, a little above the jelly's height.
