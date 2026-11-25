@@ -859,6 +859,7 @@ export function newMods() {
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
     rebound: false, decoy: null, fireTrail: null,
+    tether: null,                    // tether: { every, time, range, dps, tick, width } a beam to a hit bug that cuts what it touches (src/tether.js)
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
@@ -1318,6 +1319,14 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.time > 0 && p.radius > 0 && p.height > 0 && p.dps > 0 && p.tick > 0)) throw new Error('fire-trail: time, radius, height, dps and tick must be positive');
       return m => { m.fireTrail = { ...p }; };
+    },
+  },
+  'tether': {
+    doc: 'Every `every`th attack you make ties a beam from your middle to the first bug it hits (an Elite too, never the boss) for `time` s. It breaks early if that bug dies or gets more than `range` m away, and only one is up at a time. Every other bug within `width` m of the beam takes `dps` x Attack damage a second, once per `tick` s (a soft hit). Jumping tilts it, since it runs from wherever you are.',
+    props: { every: 5, time: 4, range: 0.6, dps: 1.5, tick: 0.2, width: 0.012 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.every) && p.every >= 1 && p.time > 0 && p.range > 0 && p.dps > 0 && p.tick > 0 && p.width > 0)) throw new Error('tether: every= must be a whole number, 1 or more; time, range, dps, tick and width must be positive');
+      return (m) => { m.tether = { ...p }; };
     },
   },
   'shield-recharge': {

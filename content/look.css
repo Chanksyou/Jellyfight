@@ -215,6 +215,14 @@
   --gadget-cotton-life: 0.32;
   --gadget-salt-life: 0.36;
   --gadget-friendly: #a6f6ed;
+  --tether-core: #f2fdff;        /* Tether Current: the beam's white-hot middle */
+  --tether-edge: #4fd8ff;        /* its cyan glow, the sparks at both ends and the glow on a cut bug */
+  --tether-pulse: #a58bff;       /* the violet packets of current running out to the tied bug */
+  --tether-width: 0.011;         /* half the beam's drawn width (m); its reach is the word's width= */
+  --tether-wobble: 0.004;        /* how far the beam writhes (m), none at the two ends */
+  --tether-end-glow: 0.014;      /* the glow at the jelly's end (m); the bug's end is 1.3x */
+  --tether-spark-every: 0.07;    /* s between the sparks spitting off both ends */
+  --tether-arm-time: 1.5;        /* s the 5th attack's shots have to land a hit and tie the beam */
   --gadget-swatter: #4fb8ff;     /* Fly Swatter: its head (a friendly blue mesh) */
   --bath-foam: #ff9ad8;          /* Bath Bomb: the ball, its reach on the floor and the foam column */
   --bounty: #ffd23a;             /* Chore List: the gold target over the marked bug */
