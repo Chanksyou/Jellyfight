@@ -94,7 +94,7 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
     death-motion "flutter" weight="mid"
     attack-motion "throw" tier="mid"
     zip distance=0.2 above=0.06 speed=1.25 length=0.2 pause=0.35
-    whirlwind range=0.8 every=4 windup=0.5 lock=0.6 speed=0.45 size=0.075 life=2.5 count=3 gap=0.4 dmg=3 rest=0.5
+    whirlwind range=0.8 every=4 windup=0.5 lock=0.6 speed=0.45 size=0.075 life=2.5 count=3 gap=0.4 dmg=3 rest=0.5 lead=1
     evade every=5 distance=0.25 speed=2.2
 }
 
