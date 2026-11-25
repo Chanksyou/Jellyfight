@@ -68,6 +68,7 @@ import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
 import { FieldPerf } from './field-perf.js';
 import { Ambient, AMBIENT } from './ambient.js';
+import { readMist, setMist, updateMist } from './mist.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
 
 const APT = window.APT;
@@ -269,11 +270,12 @@ scene.environmentIntensity = actNum('night-fill', 0.12);
 scene.background = new THREE.Color(ARENA ? LOOK.color('arena-background', '#030611') : actColor('night-sky', '#05060c'));
 scene.fog = ARENA ? new THREE.FogExp2(LOOK.color('arena-background', '#030611'), LOOK.num('arena-haze', 0.3))
   : new THREE.FogExp2(actColor('haze-color', '#0c0604'), actNum('haze', 0.14));
+readMist(actNum, actColor, ARENA || EXPERIMENTS.mist === 0);   // the ground mist over the rooms' floors (mist.js); the arena has none
 if (!ARENA) { GRADE.gain.set(actColor('grade-gain', '#ffffff')); GRADE.lift.set(actColor('grade-lift', '#000000')); GRADE.sat = actNum('grade-sat', 1); }
 // A stage with a `sky` (act 4's dawn) reads `--<sky>-*` from look.css instead of the night's values: each
 // at the night's first clock minute, and `-late` at its last. setNight (below) moves them along.
 const SKY = !ARENA && stage.sky || null;
-const SKY_STEP = { fill: 0, haze: 0, sky: new THREE.Color(), hazeColor: new THREE.Color() };
+const SKY_STEP = { fill: 0, haze: 0, sky: new THREE.Color(), hazeColor: new THREE.Color(), mistColor: new THREE.Color(), mistLate: new THREE.Color() };
 function skyNow(t) {
   const mix = (n, d) => LOOK.num(`${SKY}-${n}`, d) + (LOOK.num(`${SKY}-${n}-late`, d) - LOOK.num(`${SKY}-${n}`, d)) * t;
   const tint = (out, n) => out.set(LOOK.color(`${SKY}-${n}`, '#000000')).lerp(new THREE.Color(LOOK.color(`${SKY}-${n}-late`, '#000000')), t);
@@ -283,6 +285,7 @@ function skyNow(t) {
   scene.environmentIntensity = SKY_STEP.fill;
   scene.background.copy(SKY_STEP.sky);
   scene.fog.density = SKY_STEP.haze; scene.fog.color.copy(SKY_STEP.hazeColor);
+  setMist(mix('mist', 0), SKY_STEP.mistColor.set(LOOK.color(`${SKY}-mist-color`, '#000000')).lerp(SKY_STEP.mistLate.set(LOOK.color(`${SKY}-mist-color-late`, '#000000')), t));   // the mist thins and warms with the dawn
 }
 if (!ARENA) dressSet(scene, APT.root, { tvScreensaver: !!stage.tvScreensaver && EXPERIMENTS.ambient !== 0 });   // detailed TV / soundbar / shower curtain replace the flat baked ones
 prepareApartment(APT, stage);
@@ -820,6 +823,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
+    updateMist(dt, juice.calm);
     floorLight?.update();
     powered?.update(dt, { pixelRatio: renderer.getPixelRatio() });
     systems.shadow.update(dt);

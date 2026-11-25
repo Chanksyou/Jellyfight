@@ -17,6 +17,7 @@ import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { fingerprint } from './baked-ao.js';
 import { BAKE_LIGHTS } from './bake-lights.js';
+import { MIST, MIST_GLSL } from './mist.js';
 
 const blank = new THREE.DataTexture(new Uint8Array(4), 1, 1);
 blank.needsUpdate = true;
@@ -230,15 +231,23 @@ export const LIGHT_FRAGMENT = GRID_GLSL + /* glsl */`
 // --baked-tint of the bake's light on top (indirect, so the corner of a dark room stays dark). Reads the fragment's
 // world position and normal back from view space, so it works on instanced and bent (bell-flex.js) meshes alike.
 export function tintShader(sh) {
-  Object.assign(sh.uniforms, uniforms);
+  Object.assign(sh.uniforms, uniforms, MIST.uniforms);
   sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\n' + GRID_GLSL + '\nuniform float lbTint;')
+    .replace('#include <common>', '#include <common>\n' + GRID_GLSL + MIST_GLSL + '\nuniform float lbTint, mistActors;')
     .replace('#include <aomap_fragment>', `#include <aomap_fragment>
       if (lbTint > 0.0) {
         mat3 tView = transpose(mat3(viewMatrix));
         vec4 tL = gridLight(tView * (-vViewPosition - viewMatrix[3].xyz), normalize(tView * normal));
         reflectedLight.indirectDiffuse += tL.rgb * diffuseColor.rgb * lbTint;
-      }`);
+      }`)
+    .replace('#include <fog_fragment>', `#include <fog_fragment>
+      #ifdef USE_FOG
+        if (mistActors > 0.0) {   // the jelly and the bugs sit in the ground mist, a little (mist.js)
+          mat3 mView = transpose(mat3(viewMatrix));
+          vec4 mist = mistAt(mView * (-vViewPosition - viewMatrix[3].xyz));
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a * mistActors);
+        }
+      #endif`);
 }
 
 // every lit material under root takes the tint, once, on top of whatever patch it has (the jelly: player.js)
