@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v700 Shadows take the room's light: a bug's shadow leans and stretches away from the lamp that lights it and is darker where the room is bright, fainter in a dark corner; the jelly's glow pushes nearby bugs' shadows away from it; in act 4 the dawn sun takes over on its side of the line, long crisp shadows pointing away from the window; the Encore's arena has one fixed key light. The darkest part always stays under the creature, and it is still one draw.
+
 v699 upgrades simple box-and-blob 3D models across bosses, elites, pickups, treasure props, early hats, and apartment furniture (Vacuum, Kettle, Headphones, Controller, Soap Dispenser, Shark fin, Treasure Chest, XP crystals, Health hearts, Cicada burrows, Frozen crystals, Whirlwind blades, Magnifying Glass handle, Rubber Duck, Guitar Pick, Fly Swatter, Bath Bomb, Ice Cube, Fairy Lights, basic hats/adornments, Act 4 arena PAR cans, extended photo veneers, bathroom caddy bottles, and runtime set-dressing replacements for the PC tower, glass side table, trash can, cubby bench, nightstand, air purifier, bedside lamp, and floor mirror).
 
 v698 the ground mist now parts round the jelly: a soft hole where it swims, a trail behind it that curls into little eddies and fills back in over about 2.5 seconds, the patches sliding round it as it goes; vents thin the mist over themselves (a ride blows it further out) and big hits punch a hole that refills. Reduce effects keeps the parting without the curls; Low graphics parts it without the curls.
