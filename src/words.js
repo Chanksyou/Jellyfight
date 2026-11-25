@@ -17,11 +17,14 @@
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
 import { hitSpot } from './collision.js';
+import { LOOK } from './look.js';
 import { STYLES, TIERS, knobs } from './attack-motion.js';
 const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame (World.cast `out`: no hit allocated)
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
+const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 // An attack word starts its attack only through go(c): false while c.wait (the attack gap, or on-beat off the beat), and a start
 // or a wait held by the gap is noted for enemies.js (c.start, c.want), so two bugs never start their attacks together
@@ -51,14 +54,14 @@ export const ENEMY_WORDS = {
     },
   },
   chase: {
-    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
+    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you. A file: with `file` (m) it follows the nearest bug of its own kind ahead of it (nearer you) within that distance, and with `fan` (m) a ranged bug holding at `stop` side-steps away from its own kind closer than that, so they stand in a line, not a stack.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0, file: 0, fan: 0 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c, en) {
         // round the furniture by the floor map (bug-nav.js), easing from the way it was going; straight at a decoy, or where the map has nothing
-        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir)) {
+        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir, p.hug)) {
           const h = (e.navDir ||= c.dir.clone());
           h.lerp(c.dir, 1 - Math.exp(-STEER_EASE * c.dt));
           if (h.lengthSq() < 1e-6) h.copy(c.dir);
@@ -73,10 +76,44 @@ export const ENEMY_WORDS = {
           const a = cur + THREE.MathUtils.clamp(d, -p.turn * c.dt, p.turn * c.dt);
           c.dir.copy(h.set(Math.sin(a), 0, Math.cos(a)));
         }
+        if (p.file && c.flat > (p.stop || 0) * 1.5) {   // a file: head for the nearest of its own kind that is nearer you, within `file`
+          let best = p.file * p.file, bx = 0, bz = 0;
+          for (let n = 0; n < en.list.length; n++) {
+            const o = en.list[n];
+            if (o === e || o.dead || o.type !== e.type || o.under) continue;
+            const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, d2 = dx * dx + dz * dz;
+            if (d2 >= best || d2 < 1e-8 || (o.pos.x - c.pc.x) ** 2 + (o.pos.z - c.pc.z) ** 2 >= c.flat * c.flat) continue;
+            best = d2; bx = dx; bz = dz;
+          }
+          if (best < p.file * p.file) { const l = Math.sqrt(best); c.dir.x += bx / l * FILE_PULL; c.dir.z += bz / l * FILE_PULL; c.dir.normalize(); }
+        }
         c.speed = speed * c.slow;
+        e.backing = e.resting = false;
+        const far = c.flat > RHYTHM_FROM();
+        if (p.sway && far && c.flat > p.rush) c.dir.applyAxisAngle(UP, Math.sin(c.t * 0.8 * Math.PI * 2 + e.phase) * p.sway);
+        if (p.bursts && far) {   // go for `go` of each burst, faster by the same share, stand the rest: the same distance in the end
+          const on = (c.t / p.bursts + e.phase * 0.159) % 1 < p.go;
+          c.speed *= on ? 1 / p.go : 0; e.resting = !on;
+        }
+        if (p.rush && far) c.speed *= c.flat < p.rush ? p.rushx : p.stalk;
         if (!p.stop || c.flat > p.stop) return;
-        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; }   // too close: back off
-        else c.speed = 0;                                                      // in range: hold
+        if (c.flat < p.stop * 0.75) e.holdT = 0;
+        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; e.backing = true; }   // too close: back off (and still faces you)
+        else {                                                                  // in range: hold, or side-step slowly once it has held a while
+          c.speed = 0; e.resting = false; e.holdT = (e.holdT || 0) + c.dt;
+          if (p.fan) {   // a neighbour of its own kind too close: slide along the ring round you, away from it
+            let best = p.fan * p.fan, side = 0;
+            for (let n = 0; n < en.list.length; n++) {
+              const o = en.list[n];
+              if (o === e || o.dead || o.type !== e.type || o.under) continue;
+              const dx = o.pos.x - e.pos.x, dz = o.pos.z - e.pos.z, d2 = dx * dx + dz * dz;
+              if (d2 >= best) continue;
+              best = d2; side = -(dx * -c.flatDir.z + dz * c.flatDir.x) || e.phase - 5;   // (exactly on top of each other: either way, by its own phase)
+            }
+            if (side) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(side > 0 ? 1 : -1); c.speed = speed * FAN_SPEED * c.slow; e.backing = true; }
+          }
+          if (p.side && e.holdT > SIDE_AFTER) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(Math.sin(c.t * 0.5 + e.phase) > 0 ? 1 : -1); c.speed = p.side * c.slow; e.backing = true; }
+        }
       },
     }),
   },
@@ -862,6 +899,8 @@ export function newMods() {
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
     rebound: false, decoy: null, fireTrail: null,
+    wake: null,                      // wake: { time, radius, slow, dmg, blast, ignite, cooldown } a slowing trail a jump sets off (src/wake.js)
+    tether: null,                    // tether: { every, time, range, dps, tick, width } a beam to a hit bug that cuts what it touches (src/tether.js)
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
     touchZap: null,                  // touch-zap: { dmg, stun, each, reach } (gadgets.js)
@@ -1321,6 +1360,22 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.time > 0 && p.radius > 0 && p.height > 0 && p.dps > 0 && p.tick > 0)) throw new Error('fire-trail: time, radius, height, dps and tick must be positive');
       return m => { m.fireTrail = { ...p }; };
+    },
+  },
+  'wake': {
+    doc: 'Swimming along anything you stand on leaves a glowing trail `radius` m either side of your path that lasts `time` s. Bugs walking in it lose `slow` (0.3 = 30%) of their speed (Elites and the Boss only a light slow; flying bugs not at all). Jumping off the ground sets the whole trail off: a pulse runs from you to its far end in `ignite` s, and every piece goes off as a Blast `blast` m round for `dmg` x Attack damage (each bug hit once). That uses the trail up; at most once every `cooldown` s. A mid-air jump sets nothing off.',
+    props: { time: 4, radius: 0.018, slow: 0.3, dmg: 2, blast: 0.04, ignite: 0.3, cooldown: 1 },
+    make: (_, p) => {
+      if (!(p.time > 0 && p.radius > 0 && p.slow > 0 && p.slow < 1 && p.dmg > 0 && p.blast > 0 && p.ignite > 0 && p.cooldown >= 0)) throw new Error('wake: time, radius, dmg, blast and ignite must be positive, slow between 0 and 1, cooldown 0 or more');
+      return (m) => { m.wake = { ...p }; };
+    },
+  },
+  'tether': {
+    doc: 'Every `every`th attack you make ties a beam from your middle to the first bug it hits (an Elite too, never the boss) for `time` s. It breaks early if that bug dies or gets more than `range` m away, and only one is up at a time. Every other bug within `width` m of the beam takes `dps` x Attack damage a second, once per `tick` s (a soft hit). Jumping tilts it, since it runs from wherever you are.',
+    props: { every: 5, time: 4, range: 0.6, dps: 1.5, tick: 0.2, width: 0.012 },
+    make: (_, p) => {
+      if (!(Number.isInteger(p.every) && p.every >= 1 && p.time > 0 && p.range > 0 && p.dps > 0 && p.tick > 0 && p.width > 0)) throw new Error('tether: every= must be a whole number, 1 or more; time, range, dps, tick and width must be positive');
+      return (m) => { m.tether = { ...p }; };
     },
   },
   'shield-recharge': {

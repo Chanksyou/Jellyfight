@@ -22,8 +22,10 @@ export async function meshoptDecoder() {
 
 export async function loadApartment(scene, renderer, onProgress, parts = ['act1']) {
   // The small files need a WebAssembly decoder; if WebAssembly is blocked, load the plain ones
-  const decoder = await meshoptDecoder();
-  const meta = await fetch('assets/apartment.json').then((r) => r.json());
+  const [decoder, meta] = await Promise.all([
+    meshoptDecoder(),
+    fetch('assets/apartment.json').then((r) => r.json()),
+  ]);
   const apt = { root: null, plan: meta.plan, doors: {}, loaded: new Set(), meta };
   apt.load = (more, progress) => loadParts(apt, scene, renderer, decoder, more, progress);
   await apt.load(parts, onProgress);
@@ -36,9 +38,17 @@ export async function loadApartment(scene, renderer, onProgress, parts = ['act1'
 // collisions, the layout editor's edits and the minimap).
 async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
   const todo = parts.filter((p) => !apt.loaded.has(p)), added = [], meta = apt.meta;
+  const prog = new Float32Array(todo.length);
+  const report = () => {
+    if (!onProgress || !todo.length) return;
+    let sum = 0;
+    for (let i = 0; i < prog.length; i++) sum += prog[i];
+    onProgress(sum / todo.length);
+  };
+  const buffers = todo.map((part, n) => fetchModel(`assets/apartment-${part}${decoder ? '' : '-q'}.glb`, (f) => { prog[n] = f; report(); }, !!decoder));
   for (let n = 0; n < todo.length; n++) {
     const part = todo[n];
-    const buffer = await fetchModel(`assets/apartment-${part}${decoder ? '' : '-q'}.glb`, (f) => onProgress?.((n + f) / todo.length), !!decoder);
+    const buffer = await buffers[n];
     const loader = new GLTFLoader();
     if (decoder) loader.setMeshoptDecoder(decoder);
     // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
@@ -271,6 +281,8 @@ function roomEnvironment(renderer) {
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshBasicMaterial({ color: 0x9a8c7c }));
   fl.rotation.x = -Math.PI / 2; fl.position.y = -1.95; es.add(fl);
   const env = pm.fromScene(es, 0.04).texture;
+  es.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+  room.dispose(); win.dispose();
   pm.dispose();
   return env;
 }

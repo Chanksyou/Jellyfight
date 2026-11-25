@@ -19,6 +19,8 @@ import { Shield } from './shield.js';
 import { BuffLooks } from './buff-looks.js';
 import { Mirage } from './mirage.js';
 import { FireTrail } from './fire-trail.js';
+import { Tether } from './tether.js';
+import { Wake } from './wake.js';
 import { EvolutionReveal } from './evolution-reveal.js';
 import { Victory } from './victory.js';
 import { DriedOut } from './dried-out.js';
@@ -116,6 +118,9 @@ export class Run {
     this.shield = new Shield(this);   // the Shield stat's pool and shell (shield.js)
     this.mirage = new Mirage(this);
     this.fireTrail = new FireTrail(this);
+    this.tether = new Tether(this);   // Tether Current's beam (tether.js)
+    this.wake = new Wake(this);       // Bioluminescent Wake's trail (wake.js)
+    this.onWalk = (from, dir, length) => { if (this.fireTrail.config) this.fireTrail.onWalk(from, dir, length); if (this.mods.wake) this.wake.onWalk(from, dir, length); };
     this.evolutionReveal = new EvolutionReveal(this);
     this.victory = new Victory(this);   // the ending, after the last act's boss (victory.js)
     this.driedOut = new DriedOut(this); // behind the death screen: your jelly dried out (dried-out.js)
@@ -225,6 +230,7 @@ export class Run {
       this.fx.burst(_drop.set(P.x, P.y + r * 0.3, P.z), [c, '#ffffff'], 5, r * 0.09, 0.22, P.y);
       sfx.jump();
       this.dress.skip();   // a jump skips the stage door's warm-up
+      this.wake.ignite();   // wake (Bioluminescent Wake): a jump off the ground sets the trail off
     };
     this.player.onLand = (drop) => {
       if (this.thrownAir) {   // a throw comes down: a bounce, a puff and a scuff where it lands (then it skids, still tumbling)
@@ -313,6 +319,8 @@ export class Run {
     this.shield.reset();
     this.mirage.reset();
     this.fireTrail.reset();
+    this.tether.reset();
+    this.wake.reset();
     juice.reset();
     this.bubbles.reset();
     this.gadgets.reset();
@@ -576,12 +584,13 @@ export class Run {
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
   get mods() {
-    const picks = `${this.evolved?.length || 0}/${this.upgrades?.length || 0}/${this.attack ? this.jelly : ''}`;   // evolutions and Attack upgrades taken, and the jelly type's own effects
-    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== picks) {
+    const el = this.evolved?.length || 0, ul = this.upgrades?.length || 0, j = this.attack ? this.jelly : '';
+    if (!this._modsE || this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsEL !== el || this._modsUL !== ul || this._modsJ !== j) {
       this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
-      this._modsE = picks;
+      this._modsEL = el; this._modsUL = ul; this._modsJ = j;
+      this._modsE = true;
     }
     return this._mods;
   }
@@ -607,6 +616,8 @@ export class Run {
     this.adorn.update(dt, this);      // evolutions' pieces on the jelly, in every phase
     this.mirage.update(0);
     this.fireTrail.update(dt);
+    this.tether.update(dt);
+    this.wake.update(dt);
     this.buffLooks.update(dt);
     this.shield.update(this.phase === 'explore' || this.phase === 'boss' ? dt : 0);
     this.enemies.damageMult = (this.shield.full ? 1 + this.mods.shield.fullDamage : 1) * (this.easy ? EASY.dealt : 1);   // shield-full-damage, Easy mode (easy.js)
@@ -645,7 +656,7 @@ export class Run {
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0, spin: this.thrownSpin(),
-        onWalk: this.fireTrail.config ? this.fireTrail.onWalk : null,
+        onWalk: this.fireTrail.config || this.mods.wake ? this.onWalk : null,
       });
       if (!riding && P.flight && tr.vent) bus.emit('vent_ride', { vent: tr.vent });
       this.tpc.lag = this.tumbleT > 0 && !this.stillScreen() ? LOOK.num('camera-thrown-lag', 0.75) : 0;   // thrown: the camera falls a touch behind, then catches up
@@ -657,6 +668,7 @@ export class Run {
 
     // --- timers
     this.fireTrail.draw();
+    this.wake.draw();
     this.iFrames = Math.max(0, this.iFrames - dt);
     this.slowT = Math.max(0, this.slowT - dt);
     this.slowHardT = Math.max(0, this.slowHardT - dt);
@@ -1029,6 +1041,7 @@ export class Run {
 
   // on-attack (Pocket Vacuum): each attack you make rolls each on-attack's chance, and doing its { block }
   attacked() {
+    this.tether.attacked();   // tether (Tether Current): every Nth attack
     const L = this.mods.onAttack;
     if (!L?.length) return;
     const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
@@ -1315,8 +1328,6 @@ export class Run {
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); if (ELITE_DOWN[e.kind]) sfx[ELITE_DOWN[e.kind]](); else sfx.boom();   // an Elite's own breaking sound (elites.js KINDS `down`), else the plain boom
-    this.xpDrops.drop(e.base.clone().setY(e.base.y + e.r), 1, 20);
-    this.fx.number(e.base.clone().setY(e.base.y + e.r * 2.5), '+20 XP', '#ffe27a', 20);
     this.eliteTreasure(e.base, `${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
   }
 
@@ -2374,7 +2385,10 @@ export class Run {
     h.setShield(this.shield); this.shield.state = null;
     this.healthPulse = false;
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
-    h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
+    if (this._hudItemsOf !== this.owned || this._hudItemsV !== this.owned.version || this._hudItemsE !== this.evolved.length) {
+      this._hudItemsOf = this.owned; this._hudItemsV = this.owned.version; this._hudItemsE = this.evolved.length;
+      h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
+    }
     h.setCooldowns(this.cooldowns());
     const [c0, c1] = this.stage.clock;
     const mins = c0 + (c1 - c0) * this.night;

@@ -21,7 +21,15 @@ const paint = (geo, hex) => {
 const std = (opts) => new THREE.MeshStandardMaterial({ vertexColors: true, ...opts });
 // RoundedBoxGeometry is non-indexed, the primitives it merges with are indexed;
 // mergeGeometries refuses a mix, so bring every part to the same (non-indexed) form
-const merge = (parts) => mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)));
+const merge = (parts) => {
+  const list = parts.map((g) => (g.index ? g.toNonIndexed() : g));
+  const out = mergeGeometries(list);
+  for (let i = 0; i < parts.length; i++) {
+    if (list[i] !== parts[i]) list[i].dispose();
+    parts[i].dispose();
+  }
+  return out;
+};
 
 // The wall TV and its soundbar, after the real ones: a near-frameless glossy panel
 // on a wall mount, and a slim fabric-fronted bar under it. The front faces -z (the
@@ -120,7 +128,7 @@ function buildCurtain(box) {
     const amp = 0.019 * (1 - v * 0.45) * gather;                           // folds relax downward
     return Math.sin(u * FOLDS * Math.PI * 2 + 0.7) * amp + Math.sin(u * 41 + 1.3) * amp * 0.18;
   };
-  const cloth = new THREE.PlaneGeometry(W, H, 128, 40);
+  const cloth = new THREE.PlaneGeometry(W, H, 56, 12);
   {
     const p = cloth.attributes.position, colors = new Float32Array(p.count * 3);
     const base = new THREE.Color(0xefe8d8);
@@ -145,6 +153,7 @@ function buildCurtain(box) {
     f.translate(-W / 2 + u * W, -H / 2 - len / 2 + 0.002, fold(u, 1));
     fringes.push(paint(f, 0xe9e2cf));
   }
+  strand.dispose();
   parts.push(...fringes);
   const weave = weaveNormalMap();
   weave.repeat.set(W / 0.15, H / 0.15);   // one weave tile ≈ 15 cm of cloth

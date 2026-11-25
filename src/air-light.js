@@ -116,13 +116,16 @@ export class AirLight {
     const size = renderer.getDrawingBufferSize(_size);
     this.haloUniforms.uScale.value = size.y * 0.5 * camera.projectionMatrix.elements[5];   // metres at 1 m into pixels
     const pos = this.halos.geometry.attributes.position, tint = this.halos.geometry.attributes.tint;
-    this.lamps.forEach((L, i) => {
+    let posDirty = false, tintDirty = false;
+    for (let i = 0; i < this.lamps.length; i++) {
+      const L = this.lamps[i];
       _p.setFromMatrixPosition(L.matrixWorld);
-      pos.setXYZ(i, _p.x, _p.y, _p.z);
-      const k = this.on ? L.intensity * this.haloGain : 0;
-      tint.setXYZ(i, L.color.r * k, L.color.g * k, L.color.b * k);
-    });
-    pos.needsUpdate = tint.needsUpdate = true;
+      if (pos.getX(i) !== _p.x || pos.getY(i) !== _p.y || pos.getZ(i) !== _p.z) { pos.setXYZ(i, _p.x, _p.y, _p.z); posDirty = true; }
+      const k = this.on ? L.intensity * this.haloGain : 0, r = L.color.r * k, g = L.color.g * k, b = L.color.b * k;
+      if (tint.getX(i) !== r || tint.getY(i) !== g || tint.getZ(i) !== b) { tint.setXYZ(i, r, g, b); tintDirty = true; }
+    }
+    if (posDirty) pos.needsUpdate = true;
+    if (tintDirty) tint.needsUpdate = true;
     if (this.motes) {
       this.motes.visible = !this.low();
       if (!this.calm()) this.moteUniforms.uTime.value += dt;

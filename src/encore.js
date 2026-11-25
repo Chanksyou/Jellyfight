@@ -626,7 +626,7 @@ export class Encore {
   }
 
   // show what only appears mid-fight, for the shader build at load (main.js warmUp)
-  warm(on) { this.records.warm(on); this.wall.warm(on); this.pyro.warm(on); for (const who of DJS) this.spots[who].visible = on; }
+  warm(on) { this.records.warm(on); this.wall.warm(on); this.pyro.warm(on); this.sparks.mesh.visible = on; for (const who of DJS) this.spots[who].visible = on; }
   dispose() {
     this.offHurt(); this.records.dispose(); this.wall.dispose(); this.pyro.dispose();
     for (const m of Object.values(this.spots)) { m.removeFromParent(); m.material.dispose(); }
@@ -648,7 +648,7 @@ const SPARKS = 220, _sm = new THREE.Matrix4(), _sq = new THREE.Quaternion(), _sv
 class Sparks {
   constructor(parent) {
     this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), SPARKS);
-    this.mesh.name = 'Encore sparks'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true; this.mesh.renderOrder = 6;
+    this.mesh.name = 'Encore sparks'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true; this.mesh.renderOrder = 6; this.mesh.visible = false;
     this.list = Array.from({ length: SPARKS }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), t: 0, life: 0 }));
     this.next = 0; this.live = 0;
     this.hot = new THREE.Color(LOOK.color('encore-spark-hot', '#fff6c8')); this.cool = new THREE.Color(LOOK.color('encore-spark-cool', '#ff7a14'));
@@ -664,6 +664,7 @@ class Sparks {
       s.t = 0; s.life = 0.35 + Math.random() * 0.55;
     }
     this.live = SPARKS;
+    this.mesh.visible = true;
   }
   update(dt) {
     if (!this.live) return;
@@ -678,7 +679,7 @@ class Sparks {
       this.mesh.setColorAt(i, _sc.copy(this.hot).lerp(this.cool, k).multiplyScalar(3 * (1 - k * k)));
     });
     this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true;
-    if (!any) this.live = 0;
+    if (!any) { this.live = 0; this.mesh.visible = false; }
   }
   dispose() { this.mesh.removeFromParent(); this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.mesh.dispose(); }
 }

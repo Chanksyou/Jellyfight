@@ -495,6 +495,12 @@ treasure "pocketVacuum" name="Pocket Vacuum" icon="🌪️" rarity="epic" attack
         whirl radius=0.3 time=4 pull=0.9 range=0.9 dmg=0.15 most=3
     }
 }
+treasure "tetherCurrent" name="Tether Current" icon="🔗" rarity="epic" attack=#true stack=1 text="Every 5th attack: a beam ties you to the bug it hits for 4 s, cutting other bugs it touches for 1.5x Attack damage a second. Not the Boss." {
+    tether every=5 time=4 range=0.6 dps=1.5 tick=0.2 width=0.012
+}
+treasure "bioWake" name="Bioluminescent Wake" icon="🌊" rarity="epic" attack=#true stack=1 text="Swimming leaves a glowing trail for 4 s: bugs in it are 30% slower. A jump sets it all off for 2x Attack damage." {
+    wake time=4 radius=0.018 slow=0.3 dmg=2 blast=0.04 ignite=0.3 cooldown=1
+}
 treasure "glowStar" name="Glow-in-the-Dark Star" icon="⭐" rarity="epic" attack=#true text="1 in 10 kills: the bug rises as a ghost for 8 s, slamming into other bugs." stack=2 {
     ghosts chance=0.1 time=8 dmg=0.6 speed=0.5 rest=0.5 most=5
 }

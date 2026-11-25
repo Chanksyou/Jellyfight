@@ -111,7 +111,7 @@ export function addSkyline(scene, centre, map, { haze = 0 } = {}) {   // haze: r
       float luma = dot(art, vec3(0.2126, 0.7152, 0.0722));
       float light = smoothstep(0.14, 0.65, luma);
       vec3 night = art * mix(cityNightGain, 1.05, light);
-      if (ambientOn > 0.5) {
+      if (ambientOn > 0.5 && light > 0.0) {
         // a living city at night: some lit windows switch off and on (a cell is a window, each on its own slow beat; the beat
         // is a whole number of turns per 600 s, the clock's wrap), the red beacons on the tall roofs blink every two seconds
         vec2 cell = floor(vMapUv * vec2(2048.0, 512.0) / 3.0);
@@ -123,18 +123,23 @@ export function addSkyline(scene, centre, map, { haze = 0 } = {}) {   // haze: r
         night *= mix(1.0, cityLife.y, flick * light * (1.0 - redLamp));
         night *= mix(1.0, mix(cityLife.z, 1.0, blink), redLamp);
       }
-      float warmLamp = light * smoothstep(0.05, 0.42, art.r - art.b);
-      vec3 day = art * mix(cityDayGain, 0.95, light) + citySky * (0.14 * (1.0 - light));
-      day = mix(day, vec3(luma * 0.66), warmLamp * 0.7);
-      day *= mix(vec3(1.0, 0.8, 0.62), vec3(1.0), citySunUp);   // the first light is warm
-      diffuseColor.rgb = mix(night, day, cityDaylight);
-      // the photo's sky: blue, above the roofs, in the painted panorama (the towers' tiles start at 0.75)
-      float skyness = smoothstep(0.15, 0.22, art.b - art.r) * (1.0 - step(0.745, vMapUv.x)) * smoothstep(0.64, 0.68, vMapUv.y);
-      float high = clamp((vMapUv.y - 0.69) / 0.31, 0.0, 1.0);
-      vec2 toSun = vec2((vMapUv.x * 2048.0 - citySunAt.x) / 150.0, (high - citySunAt.y) * 2.6);
-      float halo = exp(-dot(toSun, toSun) * 1.4), disc = smoothstep(0.16, 0.1, length(toSun));
-      vec3 dayHigh = mix(cityHorizon, citySky, pow(high, 0.55)) + citySun * (halo * 0.55 + disc);
-      diffuseColor.rgb = mix(diffuseColor.rgb, dayHigh, skyness * citySkyMix);
+      diffuseColor.rgb = night;
+      if (cityDaylight > 0.0) {
+        float warmLamp = light * smoothstep(0.05, 0.42, art.r - art.b);
+        vec3 day = art * mix(cityDayGain, 0.95, light) + citySky * (0.14 * (1.0 - light));
+        day = mix(day, vec3(luma * 0.66), warmLamp * 0.7);
+        day *= mix(vec3(1.0, 0.8, 0.62), vec3(1.0), citySunUp);   // the first light is warm
+        diffuseColor.rgb = mix(night, day, cityDaylight);
+      }
+      if (citySkyMix > 0.0) {
+        // the photo's sky: blue, above the roofs, in the painted panorama (the towers' tiles start at 0.75)
+        float skyness = smoothstep(0.15, 0.22, art.b - art.r) * (1.0 - step(0.745, vMapUv.x)) * smoothstep(0.64, 0.68, vMapUv.y);
+        float high = clamp((vMapUv.y - 0.69) / 0.31, 0.0, 1.0);
+        vec2 toSun = vec2((vMapUv.x * 2048.0 - citySunAt.x) / 150.0, (high - citySunAt.y) * 2.6);
+        float halo = exp(-dot(toSun, toSun) * 1.4), disc = smoothstep(0.16, 0.1, length(toSun));
+        vec3 dayHigh = mix(cityHorizon, citySky, pow(high, 0.55)) + citySun * (halo * 0.55 + disc);
+        diffuseColor.rgb = mix(diffuseColor.rgb, dayHigh, skyness * citySkyMix);
+      }
       diffuseColor.rgb = mix(diffuseColor.rgb, cityHazeColor + diffuseColor.rgb * 0.35, cityHaze);   // rain: lower contrast, a little haze
     `).replace('#include <colorspace_fragment>', `
       #include <colorspace_fragment>

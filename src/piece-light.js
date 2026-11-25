@@ -169,9 +169,13 @@ export function mapPieces(root, meta) {
     const e = byId.get(id);
     if (e && !mesh.geometry.attributes.lightUv && mapPiece(mesh, e, meta.atlas)) mapped++;
   }
+  const furniture = new Set(lightPieces(root).map((p) => p.mesh));
   root.traverse((o) => {
     const g = o.isMesh && o.geometry;
-    if (g && !g.attributes.lightUv && g.attributes.position) g.setAttribute('lightUv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    if (!g || g.attributes.lightUv || !g.attributes.position) return;
+    const arr = new Float32Array(g.attributes.position.count * 2);
+    if (furniture.has(o)) arr.fill(-1);   // -1 tells baked-ao.js to jump straight to gridLight() instead of testing shell planes
+    g.setAttribute('lightUv', new THREE.BufferAttribute(arr, 2));
   });
   return mapped;
 }

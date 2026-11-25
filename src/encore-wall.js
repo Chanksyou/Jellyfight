@@ -137,6 +137,7 @@ export class EncoreWall {
         this.mesh.setColorAt(j, _c.copy(this.color).multiplyScalar(this.glow * (k ? 0.35 : 1)));
       }
     }
+    this.mesh.visible = true;
     this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true;
   }
 
@@ -144,7 +145,7 @@ export class EncoreWall {
   reset() {
     this.w = null; this.swell = 0;
     this.riser?.(); this.riser = null;   // a Warning cut short stops its riser
-    this.band.visible = this.slab.visible = false; for (const m of this.safe) m.visible = false;
+    this.band.visible = this.slab.visible = this.mesh.visible = false; for (const m of this.safe) m.visible = false;
     for (let i = 0; i < COLS * 2; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
     this.mesh.instanceMatrix.needsUpdate = true;
   }

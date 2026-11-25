@@ -18,6 +18,7 @@ const uniforms = {
   aoVolume: { value: null },
   aoMin: { value: new THREE.Vector3() },
   aoSize: { value: new THREE.Vector3(1, 1, 1) },
+  aoInvSize: { value: new THREE.Vector3(1, 1, 1) },
   aoStrength: { value: 0 },   // shadow = openness ^ this: 0 = off (High, or nothing baked), higher = darker
   aoOpen: { value: 0.5 },     // how open a plain floor or wall reads: that much counts as no shadow
   // a stage's sun (sunrise.js sets these): everything with world z below sunLine is sunlit; far off = none
@@ -31,11 +32,10 @@ export const BAKED_AO = { uniforms, meta: null };
 // false when this act has none
 export async function loadBakedAO(stageId) {
   try {
-    const meta = await fetch(`assets/ao-${stageId}.json`).then((r) => (r.ok ? r.json() : null));
-    if (!meta) return false;
-    const res = await fetch(`assets/ao-${stageId}.bin.gz`);
-    if (!res.ok) return false;
-    let bytes = new Uint8Array(await res.arrayBuffer());
+    const [metaRes, binRes] = await Promise.all([fetch(`assets/ao-${stageId}.json`), fetch(`assets/ao-${stageId}.bin.gz`)]);
+    const meta = metaRes.ok ? await metaRes.json() : null;
+    if (!meta || !binRes.ok) return false;
+    let bytes = new Uint8Array(await binRes.arrayBuffer());
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) {   // still gzipped (a host that didn't unpack it)
       bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
     }
@@ -50,6 +50,7 @@ export async function loadBakedAO(stageId) {
     uniforms.aoVolume.value = tex;
     uniforms.aoMin.value.fromArray(meta.min);
     uniforms.aoSize.value.fromArray(meta.size);
+    uniforms.aoInvSize.value.set(1 / meta.size[0], 1 / meta.size[1], 1 / meta.size[2]);
     uniforms.aoOpen.value = meta.open;
     BAKED_AO.meta = meta;
     return true;
@@ -67,14 +68,14 @@ export function setBakedAOTier(quality) {
 // above it, not the inside of the floor; the top of the grid fades out, nothing is baked above it.
 const AO_FRAGMENT = /* glsl */`
   uniform sampler3D aoVolume;
-  uniform vec3 aoMin, aoSize;
+  uniform vec3 aoMin, aoInvSize;
   uniform float aoStrength, aoOpen, liteEnv;
   varying vec3 vAoPos, vAoNormal;
   uniform float sunLine, sunFill, sunSoft, sunWarm, sunRim, sunRimGlow, sunPulse;
   uniform vec3 sunColor, sunDir;
-  float bakedAO() {
+  float bakedAO(vec3 nrm) {
     if (aoStrength <= 0.0) return 1.0;   // (pow(x, 0) is 1 anyway; this skips the texture read)
-    vec3 uvw = (vAoPos + normalize(vAoNormal) * 0.02 - aoMin) / aoSize;
+    vec3 uvw = (vAoPos + nrm * 0.02 - aoMin) * aoInvSize;
     if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0)))) return 1.0;
     float ao = clamp(texture(aoVolume, uvw).r / aoOpen, 0.0, 1.0);
     ao = mix(ao, 1.0, smoothstep(0.85, 1.0, uvw.y));
@@ -112,10 +113,11 @@ function patch(shader) {
         aoNormal = mat3(batchingMatrix) * aoNormal;
       #endif
       vAoPos = (modelMatrix * aoWorld).xyz;
-      vec3 ambOff = ambientOffset(vAoPos, mat3(modelMatrix) * aoNormal);   // a plant's sway, a glass's shiver (ambient.js); zero at rest
+      vec3 worldN = mat3(modelMatrix) * aoNormal;
+      vec3 ambOff = ambientOffset(vAoPos, worldN);   // a plant's sway, a glass's shiver (ambient.js); zero at rest
       if (ambOff != vec3(0.0)) { mvPosition.xyz += mat3(viewMatrix) * ambOff; gl_Position = projectionMatrix * mvPosition; vAoPos += ambOff; }
       vLightUv = lightUv;
-      vAoNormal = mat3(modelMatrix) * aoNormal;`);
+      vAoNormal = worldN;`);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT + MIST_GLSL + DETAIL_FRAGMENT)
     .replace('#include <color_fragment>', `#include <color_fragment>
@@ -123,8 +125,8 @@ function patch(shader) {
         if (detailMix != vec4(0.0)) diffuseColor.rgb *= surfaceDetail();   // the fine grain (surfaces.js); Low's plain materials leave it out
       #endif`)
     .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
-      vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : bakedLight(vAoPos, lbN);
-      if (lb.w <= 0.0) lb = gridLight(vAoPos, lbN);
+      vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : (vLightUv.x < 0.0 ? gridLight(vAoPos, lbN) : bakedLight(vAoPos, lbN));
+      if (lb.w <= 0.0 && vLightUv.x >= 0.0) lb = gridLight(vAoPos, lbN);
       ${lampLoops()}`)
     .replace('#include <aomap_fragment>', `{
         // the shell's baked light (baked-light.js) in place of its lamps' diffuse; the jelly's glow stays live on top
@@ -139,7 +141,7 @@ function patch(shader) {
         float sunD = sunLine - vAoPos.z;
         if (sunD > 0.0) {
           float sunK = smoothstep(0.0, sunSoft, sunD);
-          float ndl = clamp((dot(normalize(vAoNormal), sunDir) + 0.3) / 1.3, 0.0, 1.0);
+          float ndl = clamp((dot(lbN, sunDir) + 0.3) / 1.3, 0.0, 1.0);
           reflectedLight.directDiffuse += sunColor * diffuseColor.rgb * (sunFill * sunK * ndl);
           reflectedLight.indirectDiffuse *= 1.0 + sunWarm * sunK;
           float rim = (1.0 - smoothstep(sunRim * 0.5, sunRim, sunD)) * smoothstep(0.0, sunSoft * 0.5, sunD);
@@ -148,7 +150,7 @@ function patch(shader) {
         #ifdef LAMBERT
           reflectedLight.indirectDiffuse += material.diffuseColor * liteEnv;
         #endif
-        float baked = bakedAO();
+        float baked = bakedAO(lbN);
         if (lb.w > 1.5) reflectedLight.directDiffuse += lbKeep;   // the furniture's grid is coarse: the corner shadows darken it
         reflectedLight.directDiffuse *= baked;
         reflectedLight.indirectDiffuse *= baked;
@@ -158,7 +160,7 @@ function patch(shader) {
       #include <aomap_fragment>`)
     .replace('#include <fog_fragment>', `#include <fog_fragment>
       #ifdef USE_FOG
-        { vec4 mist = mistAt(vAoPos, lb.rgb); gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a); }   // the ground mist (mist.js), over three.js's own fog
+        { vec4 mist = mistAt(vAoPos, lb.rgb, lb.w > 0.0 && lbN.y > 0.7); gl_FragColor.rgb = mix(gl_FragColor.rgb, mist.rgb, mist.a); }   // the ground mist (mist.js), over three.js's own fog
       #endif`);
 }
 

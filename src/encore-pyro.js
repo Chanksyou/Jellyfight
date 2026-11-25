@@ -128,7 +128,7 @@ export class EncorePyro {
   // the flames and scorch marks of the lanes that have burst
   draw(beat) {
     const { height, reach, burn, scorch } = this.at, fade = this.scorch.geometry.attributes.fade;
-    let any = false;
+    let any = false, anyFlames = false, anyScorch = false;
     for (let l = 0; l < this.lanes; l++) {
       const t0 = this.burnAt[l];
       if (t0 === null) continue;
@@ -136,11 +136,15 @@ export class EncorePyro {
       if (t > scorch) { this.burnAt[l] = null; this.flames.setMatrixAt(l, _m.makeScale(0, 0, 0)); this.scorch.setMatrixAt(l, _m.makeScale(0, 0, 0)); fade.setX(l, 0); any = true; continue; }
       // the burst: up fast, then down; it flickers as it burns
       const h = s >= 1 ? 0 : height * (s < 0.2 ? 0.3 + 0.7 * s / 0.2 : 1 - (s - 0.2) / 0.8), f = 1 + 0.08 * Math.sin(beat * 40 + l * 2);
+      if (h > 0) anyFlames = true;
+      anyScorch = true;
       this.flames.setMatrixAt(l, _m.compose(_p.set(this.laneX(l), 0, LIP + reach / 2), _q.identity(), _s.set(this.w * 0.9 * f, Math.max(0, h), reach * 0.95 * f)));
       this.scorch.setMatrixAt(l, _m.compose(_p.set(this.laneX(l), 0.002, LIP + reach / 2), _q.identity(), _s.set(this.w * 0.9, 1, reach * 0.95)));
       fade.setX(l, Math.max(this.base[l], Math.min(1, t / 0.25)) * Math.max(0, 1 - t / scorch));
       any = true;
     }
+    this.flames.visible = anyFlames;
+    this.scorch.visible = anyScorch;
     if (any) { this.flames.instanceMatrix.needsUpdate = this.scorch.instanceMatrix.needsUpdate = fade.needsUpdate = true; }
   }
 

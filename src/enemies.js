@@ -313,7 +313,7 @@ export class Enemies {
       if (e.proxy) {   // Elites and bosses: a stun or pin is only a mini-stun, a chill or slow only a light one; freeze, trap and mark pass them by
         if (e.proxy.beatBound) return;   // (the Encore and the song-beat Elites keep the song's time: nothing here moves it)
         if (status === 'stun' || status === 'pin') e.stunT = Math.max(e.stunT || 0, LOOK.num('boss-stun', 0.1));
-        else if (status === 'slow' || status === 'chill') {
+        else if (status === 'slow' || status === 'chill' || status === 'wade') {
           e.slowT = Math.max(e.slowT || 0, duration);
           if (status === 'chill') e.chillT = Math.max(e.chillT || 0, duration);   // so Chilled bonuses (Brittle, Frostbite...) count
         }
@@ -322,6 +322,7 @@ export class Enemies {
       if(status==='mark'){this.treasureLooks?.stamp(this.center(e).add(new THREE.Vector3(0,e.r,0)),e.r);sfx.gadgetPaper();}
       if(status==='pin'){this.treasureLooks?.stamp(this.center(e),e.r,true,e,duration);sfx.gadgetPin();}
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
+      else if (status === 'wade') { e.wadeT = Math.max(e.wadeT || 0, duration); e.wadeK = more ?? 0.3; }   // wading through a slowing trail (the wake word): `more` of its speed lost, no frost
       else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
@@ -1580,12 +1581,13 @@ export class Enemies {
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
       if (e.blockT > 0) e.blockT -= dt;
       e.slowT = Math.max(0, e.slowT - dt);
+      e.wadeT = Math.max(0, (e.wadeT || 0) - dt);
       e.chillT = Math.max(0, (e.chillT || 0) - dt);
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
       e.trapT = Math.max(0, (e.trapT || 0) - dt);
-      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
+      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : e.wadeT > 0 ? 1 - e.wadeK : 1) * pace;
       const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
       const aim = lure ? decoy.center : pc;
       const toP = this._d.copy(aim).sub(this.center(e, tmp));
@@ -1632,7 +1634,11 @@ export class Enemies {
       // look at the player, pop when hit, grow in when spawned
       // turn smoothly toward the player (snapping every frame made them twitch up close)
       if (dist > e.r * 0.5 && !e.faceLock) {
-        let d = Math.atan2(aim.x - e.pos.x, aim.z - e.pos.z) - e.root.rotation.y;
+        // a walking ground bug faces where it is going; it faces you when in reach, mid-attack, backing off or nearly still
+        const vx = e.vel.x, vz = e.vel.z, sp2 = vx * vx + vz * vz, ax = aim.x - e.pos.x, az = aim.z - e.pos.z;
+        const walk = !e.T.fly && !e.elite && e.state === 'approach' && (!e.atk || e.atk.phase === 'idle') && dist - this.playerRadius - e.r > e.T.reach + LOOK.num('bug-face-reach', 0.05)
+          && sp2 > LOOK.num('bug-face-min-speed', 0.03) ** 2 && !e.backing;
+        let d = (walk ? Math.atan2(vx, vz) : Math.atan2(ax, az)) - e.root.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
       }
@@ -1670,7 +1676,7 @@ export class Enemies {
         const q = (e.squashT / e.squashFor) ** 2, k = LOOK.num('stomp-squash', 0.55) * q;
         e.mesh.scale.y *= 1 - k; e.mesh.scale.x *= 1 + k * 0.5; e.mesh.scale.z *= 1 + k * 0.5;
       }
-      if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
+      if (e.elite) { const h = e._halo !== undefined ? e._halo : (e._halo = e.root.getObjectByName('halo') || null); if (h) h.rotation.z += dt * 3; }
       if (e.recT > 0 && !e.dead && !e.proxy) {   // physical backward recoil slide from firing a projectile
         const rk = e.recT / e.recMax;
         e.recT = Math.max(0, e.recT - dt);
@@ -1690,7 +1696,8 @@ export class Enemies {
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
 
-    // keep them from stacking into one blob
+    // keep them from stacking into one blob: accumulate separation forces first so each bug calls sweepSphere at most once
+    let anySep = false;
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
       if (a.dead || a.proxy || a.under) continue;   // (a mound under the floor is nobody's to shove: it must stay on its Warning)
@@ -1702,8 +1709,18 @@ export class Enemies {
         const d2 = dx * dx + dz * dz;
         if (d2 >= min * min || d2 < 1e-10 || Math.abs(a.pos.y - b.pos.y) > min) continue;
         const d = Math.sqrt(d2), push = (min - d) * 0.5 / d;
-        this.move(a, S.separate.set(-dx * push, 0, -dz * push));
-        this.move(b, S.separate.set(dx * push, 0, dz * push));
+        a._sepX = (a._sepX || 0) - dx * push; a._sepZ = (a._sepZ || 0) - dz * push;
+        b._sepX = (b._sepX || 0) + dx * push; b._sepZ = (b._sepZ || 0) + dz * push;
+        anySep = true;
+      }
+    }
+    if (anySep) {
+      for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (e._sepX || e._sepZ) {
+          this.move(e, S.separate.set(e._sepX, 0, e._sepZ));
+          e._sepX = e._sepZ = 0;
+        }
       }
     }
 

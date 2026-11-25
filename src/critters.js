@@ -41,7 +41,7 @@ const rod = (a, b, r0, r1, hex) => tint(rodGeo(a, b, r0, r1), hex);
 const merge = (parts) => { const g = mergeGeometries(parts); g.computeVertexNormals(); g.computeBoundingSphere(); return g; };
 
 const MAT = {};
-const isLowGfx = () => typeof window !== 'undefined' && window.GAME?.gfx?.quality === 'low';
+const isLowGfx = () => typeof window !== 'undefined' && (window.gfx?.quality === 'low' || window.GAME?.gfx?.quality === 'low');
 function mats() {
   const low = isLowGfx();
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });
@@ -178,8 +178,9 @@ export function buildRoach() {
     gait.update(dt, e, { bodyY: bobY, skidZ: -jab * 0.6, trigPhase: t, trigAmp: k });
     for (let j = 0; j < antennae.length; j++) {
       const a = antennae[j];
-      spring(a.spY, Math.sin(t * 0.65 + j * 1.7) * 0.14 - gait.turnRate * 0.04, 0.05, 2.0, dt);
-      spring(a.spX, Math.sin(t * 0.9 + j * 2.1) * 0.1 - head * 0.6 + jab * 0.8, 0.05, 2.2, dt);
+      const w = e.resting ? 1 : 0;   // standing still in a burst (the chase word): the antennae work, quick and wide
+      spring(a.spY, Math.sin(t * (0.65 + 5 * w) + j * 1.7) * (0.14 + 0.2 * w) - gait.turnRate * 0.04, 0.05, 2.0, dt);
+      spring(a.spX, Math.sin(t * (0.9 + 4 * w) + j * 2.1) * (0.1 + 0.15 * w) - head * 0.6 + jab * 0.8, 0.05, 2.2, dt);
       a.p.rotation.y = a.spY.x;
       a.p.rotation.x = a.spX.x;
     }

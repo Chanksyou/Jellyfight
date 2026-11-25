@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { World } from '../collision.js';
 import { hostile } from '../vfx.js';
 import { Batcher } from '../batch.js';
-import { G, V, act2, fresh, give, near, ok, roachAt, setupFight, spawn, step, story, stub } from './kit.js';
+import { G, V, act2, fresh, give, near, ok, roachAt, setupFight, spawn, steadyBugs, step, story, stub } from './kit.js';
 
 story('collision/scenery-grid-refreshes-before-focus-early-return', {
   about: 'A static apartment prop crossing cells is reindexed on the next focus tick even while the jelly stands still; newly loaded scenery joins immediately.',
@@ -354,7 +354,7 @@ function farWalk(fps, secs, lazy, at) {
 }
 for (const fps of [30, 60]) story(`engine/far-bugs-walk-as-far-on-alternate-sweeps-${fps}fps`, {
   about: `At ${fps} fps a Cockroach walking 2 m off sweeps on alternate frames with both frames' time, and covers the same distance in the same time (within 1%) as one that sweeps every frame.`,
-  setup() { setupFight({ bubbles: false, lash: false, waves: false }); step(5); },
+  setup() { setupFight({ bubbles: false, lash: false, waves: false }); steadyBugs(); step(5); },
   play() {
     const at = openFloor();
     if (!at) return ok(false, { error: 'no open floor 2.2 m off' });

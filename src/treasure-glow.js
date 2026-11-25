@@ -35,33 +35,38 @@ const base = new THREE.ShaderMaterial({
     }
     void main() {
       #include <logdepthbuf_fragment>
-      float r = length(vP), aa = fwidth(r) * 1.5;
-      float n = noise(vP * 3.0 + vec2(uTime * 0.6, -uTime * 0.4)) * 0.65 + noise(vP * 7.0 - vec2(uTime * 0.9, uTime * 0.7)) * 0.35;
-      float bands = smoothstep(0.55, 0.95, sin((r * 5.0 - uTime) * 6.2832 + n * 4.0) * 0.5 + 0.5);
-      float rim = smoothstep(0.9 - aa, 0.955, r) * (1.0 - smoothstep(0.975, 1.0, r));   // the area's real reach
+      float r = length(vP);
       float fall = 1.0 - smoothstep(0.0, 1.0, r);
-      float pulse = uPulse < 0.0 ? 0.0 : (1.0 - uPulse) * (1.0 - uPulse);   // a sting: the whole area flashes at once
-      float d = distance(vP, uRipple.xy), age = uRipple.z;
-      float ripple = age < 0.0 ? 0.0 : smoothstep(0.06, 0.0, abs(d - age * 0.9)) * max(0.0, 1.0 - age / 0.6);
       vec3 col = uColor; float a, cover = 0.0;
-      if (uKind < 0.5) {            // glow: a living green glow, its bands quicker and brighter with charge
-        a = fall * 0.12 + 0.05 + bands * (0.06 + 0.16 * uCharge) + rim * (0.5 + 0.3 * uCharge) + pulse * (0.14 + rim * 0.4);
-        col += vec3(rim * 0.1); cover = 1.0;   // covers: stays green on a pale floor
-      } else if (uKind < 1.5) {     // lamp: a soft pool of light, brightest under the lamp, a faint edge where it helps
-        a = pow(fall, 2.0) * 0.7 + n * fall * 0.2 + 0.03 + rim * 0.12; cover = 0.3;
-      } else if (uKind < 2.5) {     // wet: a puddle; a sheen that drifts over it, a frosty rim, ripples where bugs skid
-        float sheen = smoothstep(0.62, 0.92, noise(vP * 2.2 + vec2(uTime * 0.35, 0.0)) * 0.6 + noise(vP * 5.0 - uTime * 0.2) * 0.4);
-        float frost = rim * (0.6 + 0.4 * noise(vP * 18.0));
-        col = mix(uColor * 0.45, vec3(1.0), sheen * 0.3 + frost * 0.55 + ripple * 0.5);   // deep: water darkens the floor, so it reads blue, not a grey film
-        a = 0.42 + sheen * 0.12 + frost * 0.35 + ripple * 0.3; cover = 1.0;
-      } else if (uKind < 3.5) {     // spot: a stage light's pool, glittering
-        float glint = step(0.93, noise(vP * 14.0 + uTime * 1.5));
-        a = fall * 0.35 + 0.1 + rim * 0.45 + glint * fall * 0.5; col += vec3(glint * 0.3); cover = 0.3;
-      } else if (uKind < 4.5) {     // fizz: a bath bomb's reach filling as it fizzes, bubbles popping across it
-        float bub = smoothstep(0.78, 0.95, noise(vP * 11.0 + vec2(0.0, uTime * 2.0)));
-        a = 0.08 + fall * 0.2 * uCharge + bub * 0.35 * (0.4 + uCharge) + rim * (0.4 + 0.5 * uCharge); cover = 0.3;
-      } else {                      // soft: light spilled on the floor (floor-light.js): nothing at the edge, no ring, never a shape
-        a = pow(fall, 2.0) * (0.7 + n * 0.3); cover = 0.3;
+      if (uKind >= 4.5) {           // soft: light spilled on the floor (floor-light.js): nothing at the edge, no ring, never a shape
+        float n = noise(vP * 3.0 + vec2(uTime * 0.6, -uTime * 0.4)) * 0.65 + noise(vP * 7.0 - vec2(uTime * 0.9, uTime * 0.7)) * 0.35;
+        a = fall * fall * (0.7 + n * 0.3); cover = 0.3;
+      } else {
+        float aa = fwidth(r) * 1.5;
+        float rim = smoothstep(0.9 - aa, 0.955, r) * (1.0 - smoothstep(0.975, 1.0, r));   // the area's real reach
+        if (uKind < 0.5) {          // glow: a living green glow, its bands quicker and brighter with charge
+          float n = noise(vP * 3.0 + vec2(uTime * 0.6, -uTime * 0.4)) * 0.65 + noise(vP * 7.0 - vec2(uTime * 0.9, uTime * 0.7)) * 0.35;
+          float bands = smoothstep(0.55, 0.95, sin((r * 5.0 - uTime) * 6.2832 + n * 4.0) * 0.5 + 0.5);
+          float pulse = uPulse < 0.0 ? 0.0 : (1.0 - uPulse) * (1.0 - uPulse);
+          a = fall * 0.12 + 0.05 + bands * (0.06 + 0.16 * uCharge) + rim * (0.5 + 0.3 * uCharge) + pulse * (0.14 + rim * 0.4);
+          col += vec3(rim * 0.1); cover = 1.0;   // covers: stays green on a pale floor
+        } else if (uKind < 1.5) {   // lamp: a soft pool of light, brightest under the lamp, a faint edge where it helps
+          float n = noise(vP * 3.0 + vec2(uTime * 0.6, -uTime * 0.4)) * 0.65 + noise(vP * 7.0 - vec2(uTime * 0.9, uTime * 0.7)) * 0.35;
+          a = fall * fall * 0.7 + n * fall * 0.2 + 0.03 + rim * 0.12; cover = 0.3;
+        } else if (uKind < 2.5) {   // wet: a puddle; a sheen that drifts over it, a frosty rim, ripples where bugs skid
+          float age = uRipple.z;
+          float ripple = age < 0.0 ? 0.0 : smoothstep(0.06, 0.0, abs(distance(vP, uRipple.xy) - age * 0.9)) * max(0.0, 1.0 - age / 0.6);
+          float sheen = smoothstep(0.62, 0.92, noise(vP * 2.2 + vec2(uTime * 0.35, 0.0)) * 0.6 + noise(vP * 5.0 - uTime * 0.2) * 0.4);
+          float frost = rim * (0.6 + 0.4 * noise(vP * 18.0));
+          col = mix(uColor * 0.45, vec3(1.0), sheen * 0.3 + frost * 0.55 + ripple * 0.5);   // deep: water darkens the floor, so it reads blue, not a grey film
+          a = 0.42 + sheen * 0.12 + frost * 0.35 + ripple * 0.3; cover = 1.0;
+        } else if (uKind < 3.5) {   // spot: a stage light's pool, glittering
+          float glint = step(0.93, noise(vP * 14.0 + uTime * 1.5));
+          a = fall * 0.35 + 0.1 + rim * 0.45 + glint * fall * 0.5; col += vec3(glint * 0.3); cover = 0.3;
+        } else {                    // fizz: a bath bomb's reach filling as it fizzes, bubbles popping across it
+          float bub = smoothstep(0.78, 0.95, noise(vP * 11.0 + vec2(0.0, uTime * 2.0)));
+          a = 0.08 + fall * 0.2 * uCharge + bub * 0.35 * (0.4 + uCharge) + rim * (0.4 + 0.5 * uCharge); cover = 0.3;
+        }
       }
       a = clamp(a, 0.0, 1.0) * uOpacity;
       gl_FragColor = vec4(col * a, a * cover);

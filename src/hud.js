@@ -198,7 +198,12 @@ export class Hud {
       <canvas class="map"></canvas>
       <div class="hint"></div><div class="toast ui-toast" role="status"></div><div class="hurt"></div><div class="veil"></div><div class="debug" hidden></div>
       <div class="combo" hidden><b></b><span>combo</span><i></i></div>`;
-    this.$ = (s) => this.el.querySelector(s);
+    this._els = new Map();
+    this.$ = (s) => {
+      let el = this._els.get(s);
+      if (!el) { el = this.el.querySelector(s); if (el) this._els.set(s, el); }
+      return el;
+    };
     this.map = this.$('.map');
     this.ctx = this.map.getContext('2d');
     this.room = undefined;
@@ -286,7 +291,7 @@ export class Hud {
 
   healthAnimate(key, node, frames, duration, easing = 'ease-out') {
     this.hpAnimations[key]?.cancel();
-    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (juice.calm || this.reduced.matches) return;
     this.hpAnimations[key] = node.animate(frames, { duration, easing });
   }
 
@@ -417,7 +422,7 @@ export class Hud {
   resetXp() { this.xpAnimation?.cancel(); this.xpFlash?.cancel(); this.xpAnimation = this.xpFlash = null; }
 
   pulseXp(amount) {
-    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) { this.resetXp(); return; }
+    if (juice.calm || this.reduced.matches) { this.resetXp(); return; }
     if (this.xpAnimation?.playState === 'running') return;
     const duration = LOOK.num('xp-bar-time', 180);
     this.xpAnimation = this.$('.xp').animate([{ transform: `scaleY(${LOOK.num('xp-bar-pulse', 1.35)})` }, { transform: 'scaleY(1)' }], { duration, easing: 'ease-out' });
@@ -505,7 +510,7 @@ export class Hud {
 
   // A level-up lands (run.levelUp): the badge pops, and a gold ring leaves the jelly at (x, y) on screen
   levelDing(x, y) {
-    if (juice.calm || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (juice.calm || this.reduced.matches) return;
     const lvl = this.$('.lvl');
     lvl.classList.remove('ding'); void lvl.offsetWidth; lvl.classList.add('ding');
     const ring = document.createElement('div');
@@ -560,7 +565,7 @@ export class Hud {
     if (this.touch !== document.body.classList.contains('touch')) this.fit();   // (a touch device is only known after the HUD mounts)
     const css = (this.mapPx ||= c.clientWidth || 285) * (this.scale || 1);   // drawn at its zoomed size, so it stays sharp
     const W = Math.round(css * dpr);
-    if (c.width !== W) { c.width = c.height = W; this.mapCone = null; }
+    if (c.width !== W) { c.width = c.height = W; this.mapCone = null; this.planPath = null; }
     const b = this.bounds, R = W / 2, TAU = Math.PI * 2;
     // the whole room fits across the map; centred on you, the far side of it can run off the edge
     const s = W / Math.max(b.x1 - b.x0, b.z1 - b.z0);
@@ -571,6 +576,11 @@ export class Hud {
     const cs = Math.cos(turn), sn = Math.sin(turn), px = X(pos.x), pz = Z(pos.z);
     const out = this._pt || (this._pt = { x: 0, y: 0, d: 0 });
     const toMap = (x, z) => { const dx = X(x) - px, dz = Z(z) - pz; out.x = R + dx * cs - dz * sn; out.y = R + dx * sn + dz * cs; out.d = Math.hypot(dx, dz); return out; };
+    if (!this.planPath) {
+      const path = new Path2D();
+      for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? path.lineTo(X(x), Z(z)) : path.moveTo(X(x), Z(z)))); path.closePath(); }
+      this.planPath = path;
+    }
 
     // the glass: dark water, the rooms' outlines on it, a light rim and a sheen across the top
     g.clearRect(0, 0, W, W);
@@ -579,10 +589,8 @@ export class Hud {
     g.globalAlpha = 0.62; g.fillStyle = C.deep; g.fill();
     g.clip();
     g.translate(R, R); g.rotate(turn); g.translate(-px, -pz);
-    g.beginPath();
-    for (const [, poly] of this.plan) { poly.forEach(([x, z], k) => (k ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.closePath(); }
-    g.globalAlpha = 0.1; g.fillStyle = C.ink; g.fill();
-    g.globalAlpha = 0.75; g.lineWidth = 1.5 * u; g.lineJoin = 'round'; g.strokeStyle = C.ink; g.stroke();
+    g.globalAlpha = 0.1; g.fillStyle = C.ink; g.fill(this.planPath);
+    g.globalAlpha = 0.75; g.lineWidth = 1.5 * u; g.lineJoin = 'round'; g.strokeStyle = C.ink; g.stroke(this.planPath);
     g.restore();
     g.strokeStyle = C.ink;
     g.globalAlpha = 0.6; g.lineWidth = 2 * u; g.beginPath(); g.arc(R, R, R - 2 * u, 0, TAU); g.stroke();

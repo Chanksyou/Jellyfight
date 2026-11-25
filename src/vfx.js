@@ -250,7 +250,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
           p *= vec2(1.0, 1.1547);
           vec2 a = mod(p, vec2(1.0, 1.732)) - vec2(0.5, 0.866), b = mod(p - vec2(0.5, 0.866), vec2(1.0, 1.732)) - vec2(0.5, 0.866);
           vec2 g = abs(dot(a, a) < dot(b, b) ? a : b);
-          return 0.5 - max(dot(g, normalize(vec2(1.0, 1.732))), g.x);
+          return 0.5 - max(dot(g, vec2(0.5, 0.8660254)), g.x);
         }
         void main() {
           #include <logdepthbuf_fragment>
@@ -265,7 +265,7 @@ export class VolumeMaterial extends THREE.ShaderMaterial {
         }`,
       transparent: true,
       depthWrite: false,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       toneMapped: false,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,   // the floor Warning's over-blend
     });
@@ -409,11 +409,14 @@ export class GlowPoints {
   hold(p, color, size, a = 1) { this.holds.push(p.x, p.y, p.z, color.r, color.g, color.b, size, a); }
 
   update(dt, camera, renderer) {
-    let n = 0;
-    const P = this.pos, C = this.col, S = this.size, A = this.alpha;
-    for (const q of this.parts) {
+    let n = 0, w = 0;
+    const P = this.pos, C = this.col, S = this.size, A = this.alpha, parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const q = parts[i];
       q.t += dt;
-      if (q.t >= q.life) { q.dead = true; continue; }
+      if (q.t >= q.life) continue;
+      if (w !== i) parts[w] = q;
+      w++;
       q.vy -= q.g * dt;
       q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt;
       const k = q.t / q.life;
@@ -423,7 +426,7 @@ export class GlowPoints {
       A[n] = q.a * (1 - k) * (1 - k * 0.3);
       n++;
     }
-    if (this.parts.some((q) => q.dead)) this.parts = this.parts.filter((q) => !q.dead);
+    parts.length = w;
     const H = this.holds;
     for (let i = 0; i < H.length && n < this.cap; i += 8, n++) {
       P[n * 3] = H[i]; P[n * 3 + 1] = H[i + 1]; P[n * 3 + 2] = H[i + 2];
@@ -432,11 +435,18 @@ export class GlowPoints {
     }
     H.length = 0;
     this.n = n;
+    this.points.visible = n > 0;
     const g = this.points.geometry;
     g.setDrawRange(0, n);
-    for (const k of ['position', 'color', 'size', 'alpha']) g.attributes[k].needsUpdate = true;
-    // sizes are in meters: pixels per meter at 1 m away
-    if (renderer && camera) this.mat.uniforms.uScale.value = renderer.getDrawingBufferSize(_size).y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    if (n > 0) {
+      const attrs = g.attributes;
+      attrs.position.clearUpdateRanges(); attrs.position.addUpdateRange(0, n * 3); attrs.position.needsUpdate = true;
+      attrs.color.clearUpdateRanges(); attrs.color.addUpdateRange(0, n * 3); attrs.color.needsUpdate = true;
+      attrs.size.clearUpdateRanges(); attrs.size.addUpdateRange(0, n); attrs.size.needsUpdate = true;
+      attrs.alpha.clearUpdateRanges(); attrs.alpha.addUpdateRange(0, n); attrs.alpha.needsUpdate = true;
+      // sizes are in meters: pixels per meter at 1 m away
+      if (renderer && camera) this.mat.uniforms.uScale.value = renderer.getDrawingBufferSize(_size).y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    }
   }
 
   clear() { this.parts = []; this.holds.length = 0; }

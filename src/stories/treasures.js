@@ -6,7 +6,7 @@ import { rollCards, RARITY, BASE_STATS } from '../stats.js';
 import { elementParams } from '../words.js';
 import { parse } from '../kdl.js';
 import { seededRandom } from '../story-random.mjs';
-import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, holdJelly, near, ok, record, restore, roachAt, setupFight, spawn, startVacuum, spy, step, story, stub, tp, withElement } from './kit.js';
+import { BASE_FIRE_RATE, G, V, dmgBy, fresh, give, holdJelly, near, ok, record, restore, roachAt, setupFight, spawn, startVacuum, spy, steadyBugs, step, story, stub, tp, withElement } from './kit.js';
 
 // --- treasures: one story per effect word (content/treasures.kdl, TREASURE_WORDS in words.js)
 
@@ -826,7 +826,7 @@ story('treasures/card-choices', {
 });
 story('treasures/bug-speed', {
   about: 'bug-speed (Snail Shell): bugs crawl 15% slower.',
-  setup() { setupFight({ bubbles: false, lash: false }); },
+  setup() { setupFight({ bubbles: false, lash: false }); steadyBugs(); },
   play() {
     const run1 = () => { G().enemies.clear(); const e = spawn('roach', near(0.6, 0), { hp: 9999 }); const d0 = e.pos.distanceTo(G().player.position); step(40); return d0 - e.pos.distanceTo(G().player.position); };
     const plain = run1();

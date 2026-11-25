@@ -328,7 +328,7 @@ export class Shark {
       drawFish(s.m.position,ang,-Math.cos(t*Math.PI)*.95,Math.sin(this.t*26)*.65,1.45);
       if(t>=1){this.burst(s.to,.08);this.hit(player,s.to,.08,.10,T.fishDmg,false,false);if(this.dead||this.dying)return;this.pool(s.to);this.fx.free(s.m);this.shots.splice(i,1);}
     }
-    this.fish.count=fish;this.fish.instanceMatrix.needsUpdate=true;
+    this.fish.count=fish;this.fish.visible=fish>0;if(fish>0){this.fish.instanceMatrix.clearUpdateRanges();this.fish.instanceMatrix.addUpdateRange(0,fish*16);this.fish.instanceMatrix.needsUpdate=true;}
   }
   hitTornado(q,dt,player){
     if(Math.hypot(player.position.x-q.m.position.x,player.position.z-q.m.position.z)<.10+player.cfg.radius&&player.position.y<q.m.position.y+.28&&player.position.y+player.cfg.height>q.m.position.y)

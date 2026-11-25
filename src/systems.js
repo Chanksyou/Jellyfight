@@ -236,7 +236,7 @@ export class ShadowSystem {
     this.blobFloor = LOOK.num('jelly-shadow-floor', 0.22);   // the faintest it gets, high in a jump: it stays the landing cue
     this.jelly = { visible: false, opacity: 0, scale: 0 };   // what the jelly's shadow is this frame (stories read it)
     const MAX = 160;
-    const geo = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);   // round, sized to the shape's reach: no clear corners drawn
+    const geo = new THREE.CircleGeometry(1, 8).rotateX(-Math.PI / 2);   // round, sized to the shape's reach: no clear corners drawn
     this.look = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('look', this.look);
     this.cast = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 3), 3).setUsage(THREE.DynamicDrawUsage);
@@ -261,6 +261,7 @@ export class ShadowSystem {
       vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, fog: true,
     });
     this.bugs = new THREE.InstancedMesh(geo, mat, MAX);
+    this.bugs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.bugs.count = 0;
     this.bugs.frustumCulled = false;   // its instances are everywhere; it is one draw either way
     this.bugs.renderOrder = 1;         // under the Warning floor shapes (3)
@@ -397,7 +398,12 @@ export class ShadowSystem {
       n = this.place(n, cell, x, floor + 0.0015, z, yaw, half * (1 + h * this.airWiden), Math.max(dark * this.airFloor, dark / (1 + h * this.airFade)), h, 0, o ? e.r * this.eliteReach * (1 + h * this.airWiden) : Infinity);
     }
     inst.count = n;
-    if (n) { inst.instanceMatrix.needsUpdate = true; this.look.needsUpdate = true; this.cast.needsUpdate = true; }
+    inst.visible = n > 0;
+    if (n) {
+      inst.instanceMatrix.clearUpdateRanges(); inst.instanceMatrix.addUpdateRange(0, n * 16); inst.instanceMatrix.needsUpdate = true;
+      this.look.clearUpdateRanges(); this.look.addUpdateRange(0, n * 4); this.look.needsUpdate = true;
+      this.cast.clearUpdateRanges(); this.cast.addUpdateRange(0, n * 3); this.cast.needsUpdate = true;
+    }
   }
 }
 

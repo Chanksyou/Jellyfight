@@ -16,10 +16,11 @@ export class ShimmerPass extends Pass {
     this.scale = LOOK.num('vent-shimmer-scale', 0.5);
     this.map = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });   // signed bends, added up
     this.clear = new THREE.Color(0, 0, 0);
+    this._wasColor = new THREE.Color();
   }
   setSize(w, h) { this.map.setSize(Math.max(1, Math.round(w * this.scale)), Math.max(1, Math.round(h * this.scale))); }
   render(renderer, writeBuffer, readBuffer) {
-    const r = renderer, wasColor = r.getClearColor(new THREE.Color()), wasAlpha = r.getClearAlpha(), cam = this.camera, caps = r.capabilities;
+    const r = renderer, wasColor = r.getClearColor(this._wasColor), wasAlpha = r.getClearAlpha(), cam = this.camera, caps = r.capabilities;
     for (const o of this.heat.children) {
       const u = o.material.uniforms;
       u.tDepth.value = this.depth(readBuffer);

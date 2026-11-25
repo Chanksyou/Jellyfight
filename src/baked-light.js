@@ -177,8 +177,10 @@ export const GRID_GLSL = /* glsl */`
     if (lbGridGain <= 0.0) return vec4(0.0);
     vec3 g = (pos + n * lbGridStep * 0.5 - lbGridMin) / lbGridStep + 0.5;
     if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, lbGridDims))) return vec4(0.0);
-    vec3 w = n * n;
-    vec3 L = w.x * lbGridDir(g, n.x > 0.0 ? 0.0 : 1.0) + w.y * lbGridDir(g, n.y > 0.0 ? 2.0 : 3.0) + w.z * lbGridDir(g, n.z > 0.0 ? 4.0 : 5.0);
+    vec3 w = n * n, L = vec3(0.0);
+    if (w.x > 0.001) L += w.x * lbGridDir(g, n.x > 0.0 ? 0.0 : 1.0);
+    if (w.y > 0.001) L += w.y * lbGridDir(g, n.y > 0.0 ? 2.0 : 3.0);
+    if (w.z > 0.001) L += w.z * lbGridDir(g, n.z > 0.0 ? 4.0 : 5.0);
     return vec4(L * lbGridGain, 2.0);
   }
 `;
