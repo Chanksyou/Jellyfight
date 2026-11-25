@@ -756,7 +756,7 @@ export class Run {
       this.decoys.length = 0;
       if (this.mirage.target) this.decoys.push(this.mirage.target);
       for (const T of this.turrets.list) if (T.health > 0) this.decoys.push(T);
-      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded }, this.t, this.decoys);
+      this.enemies.update(dt, { position: P.position, height: this.cfg.height, radius: this.cfg.radius, grounded: P.grounded, velocity: P.velocity }, this.t, this.decoys);
       this.contactDamage();
       this.enemies.shotHits(_mid.copy(P.position).setY(P.position.y + this.cfg.height * 0.5), this.cfg.radius);
     }

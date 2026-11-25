@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { moves } from './static-batch.js';
 import { inPoly } from './hud.js';
 import { LOOK } from './look.js';
+import { Climb } from './bug-climb.js';
 
 export const CELL = 0.05;                 // a square's side (m)
 export const SIZES = [0.035, 0.069];      // body radii the map is marked for (a bug takes the first that fits it)
@@ -70,6 +71,7 @@ export class BugNav {
     this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true; this.frame = 0; this.born = 0;
     this.job = { L: null, s: 0, cur: 0, left: 0, x: 0, z: 0, up: false };   // the flood under way (floodOn)
     this.moves = moves; this.seen = 0; this.boxes = new Float64Array(0);
+    this.climb = new Climb(this);   // the tops of furniture and the climb links (bug-climb.js)
   }
 
   addLevel(y, x0, x1, z0, z1, top, inside) {
@@ -91,6 +93,7 @@ export class BugNav {
       for (let j = 0; j < L.nz; j++) { for (let i = 0; i < L.nx; i++) this.markEdges(L, i, j); await breathe(); }
       this.markSteps(L, 0, 0, L.nx - 1, L.nz - 1);
     }
+    await this.climb.build(breathe);
     this.snapshot();
     this.ready = true;
     this.dirty = true;
@@ -305,12 +308,14 @@ export class BugNav {
   reset() {
     this.job.L = null; this.frame = 0; this.born = 0; this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
     for (const L of this.levels) L.flooded = false;
+    this.climb.reset();
   }
 
   update(dt, P) {
     if (!this.ready) return;
     this.P = P; this.frame++;
     if (this.moves !== moves || this.seen !== this.world.colliders.length) this.remark();
+    this.climb.update(dt, P);
     this.since += dt;
     const J = this.job;
     if (J.L) { this.floodOn(FLOOD_WORK); return; }
@@ -414,6 +419,7 @@ export class BugNav {
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) this.markFloor(L, j * L.nx + i);
       for (let j = Math.max(0, j0 - 1); j <= j1; j++) for (let i = Math.max(0, i0 - 1); i <= i1; i++) this.markEdges(L, i, j);
       this.markSteps(L, i0 - 2, j0 - 2, i1 + 1, j1 + 1);
+      for (const T of this.climb.tops) if (T.base === L) this.climb.markBox(T, i0, j0, i1, j1);
     }
   }
 
