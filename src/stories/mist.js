@@ -90,7 +90,9 @@ story('mist/parts-round-the-jelly-and-fills-back-in', {
   about: 'The mist is thinner where the jelly is than with nothing parting it, and no thinner 60 cm off; a spot the jelly swam through is thinner just after and back to full once --mist-part-refill has passed; a big hit punches a hole too. None of it builds a shader in play.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); },
   async play() {
-    const { player, APT } = G(), P = player.position, programs = () => APT.renderer.info.programs.length;
+    const { player, APT } = G(), P = player.position, programs = () => APT.renderer.info.programs.length, U = MIST.uniforms, k = U.mistK.value;
+    U.mistK.value = 2 * k;   // thick, so what is measured doesn't hang on how thick --mist is tuned
+    offs.push(() => { U.mistK.value = k; });
     let goal = null;
     hideJelly((dt) => { if (goal) { const d = goal.clone().sub(P); d.y = 0; const s = Math.min(d.length(), 0.7 * dt); if (s > 1e-6) d.setLength(s); P.add(d); player.velocity.copy(d).divideScalar(dt); } else player.velocity.set(0, 0, 0); });
     step(20);
