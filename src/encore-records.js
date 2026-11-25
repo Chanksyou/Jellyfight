@@ -145,8 +145,18 @@ export class EncoreRecords {
     for (const c of this.casts) {
       if (c.state === 'wind' || c.state === 'fly') this.warnStep(c, beat, player);
       if (c.state === 'wind' && !c.scratched && beat >= c.warnAt) { c.scratched = true; if (!skip) sfx.recordScratch(); }
+      if (c.state === 'wind' && beat >= c.warnAt) {
+        const h = c.from();
+        _p.copy(h);
+        const sc = Math.min(1, (beat - c.warnAt) / 0.25);
+        _q.setFromEuler(_e.set(0.2, beat * 12 + c.spin, 0.15, 'YXZ'));
+        this.mesh.setMatrixAt(c.slot.i, _m.compose(_p, _q, _s.setScalar(sc)));
+      }
       if (c.state === 'wind' && beat >= c.release) {
         c.state = 'fly';
+        c.start.copy(c.from());
+        const dx = c.to[0] - c.start.x, dz = c.to[1] - c.start.z, len = Math.hypot(dx, dz) || 1;
+        c.ux = dx / len; c.uz = dz / len; c.len = len;
         if (!skip) { this.fx.impact(c.start, this.color, 0.02, 8); sfx.recordThrow(); }
         c.orb = this.fx.orb(this.color, 0.006);
       }
@@ -191,13 +201,14 @@ export class EncoreRecords {
     const w = c.warn; if (!w) return;
     const t0 = this.stripStart(c), x = c.start.x + c.ux * t0, z = c.start.z + c.uz * t0, len = Math.max(0.01, c.len - t0 + this.r), a = Math.atan2(c.ux, c.uz);
     const progress = Math.min(1, Math.max(0, (beat - c.warnAt) / (c.land - c.warnAt))), width = this.r * 2;
+    const lockFlash = beat >= c.lockAt ? 1 + Math.exp(-(beat - c.lockAt) * 6) * 0.45 : 1;
     w.band.visible = w.lane.visible = true;
     w.band.position.set(x, 0, z); w.band.rotation.set(0, a, 0); w.band.scale.set(width, 1, len);
     w.lane.position.set(x, 0, z); w.lane.rotation.set(0, a, 0); w.lane.scale.set(width, c.height, len);
     w.band.material.progress = w.lane.material.progress = progress;
     w.band.material.uniforms.uTime.value = beat;
-    w.band.material.opacity = this.warnGlow;
-    w.lane.material.opacity = this.laneGlow;
+    w.band.material.opacity = Math.min(1, this.warnGlow * lockFlash);
+    w.lane.material.opacity = Math.min(1, this.laneGlow * lockFlash);
   }
   freeWarning(c) { if (c.warn) { c.warn.band.visible = c.warn.lane.visible = false; c.warn.cast = null; c.warn = null; } }
 
@@ -206,12 +217,15 @@ export class EncoreRecords {
     const R = this.r, d = s * c.len, y = s >= 1 ? R : R + (c.start.y - R) * (1 - s) ** 2;
     _p.set(c.start.x + c.ux * d, y, c.start.z + c.uz * d);
     if (s >= 1) {
-      // on edge, its face back towards the stage, with a small wobble as it sticks
+      // on edge, its face back towards the stage, with a damped wobble as it sticks and a pre-shatter tremor
+      const left = c.land + c.stand - beat;
+      const tremor = left < 1.2 && left > 0 ? Math.sin(beat * 45) * 0.08 * (1 - left / 1.2) : 0;
       const wob = Math.exp(-(beat - c.land) * 3) * Math.sin((beat - c.land) * 18) * 0.25;
-      _q.setFromEuler(_e.set(Math.PI / 2 + wob, Math.atan2(c.nx, c.nz), 0, 'YXZ'));
+      _q.setFromEuler(_e.set(Math.PI / 2 + wob, Math.atan2(c.nx, c.nz) + tremor, 0, 'YXZ'));
     } else {
-      // spinning flat, tipped a little into its flight
-      _q.setFromEuler(_e.set(0.25, Math.atan2(c.ux, c.uz), 0, 'YXZ')).multiply(_q2.setFromAxisAngle(UP, c.spin + beat * 9));
+      // spinning flat, pitching smoothly upright as it nears landing
+      const up = s > 0.8 ? THREE.MathUtils.smoothstep(s, 0.8, 1) : 0;
+      _q.setFromEuler(_e.set(0.25 + up * (Math.PI / 2 - 0.25), Math.atan2(c.ux, c.uz), 0, 'YXZ')).multiply(_q2.setFromAxisAngle(UP, (c.spin + beat * 9) * (1 - up)));
     }
     this.mesh.setMatrixAt(c.slot.i, _m.compose(_p, _q, _s.set(1, 1, 1)));
   }

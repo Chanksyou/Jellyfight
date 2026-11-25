@@ -38,23 +38,27 @@ export class EncoreContact {
     for(const t of this.triangles){const d=t.closestPointToSegment(this.line,this.point,this.onBody);if(d<distance){distance=d;this.hitPoint.copy(this.point);}}
     return distance<=r+.003;
   }
-  update(dt,player,active=true,quiet=false){
+  update(dt,player,active=true,quiet=false,dead=false){
+    this.clock=(this.clock||0)+dt;
     this.cooldown=Math.max(0,this.cooldown-dt);this.life=Math.max(0,this.life-dt);
     let hit=false;
     if(active&&this.cooldown===0&&this.touching(player)){this.cooldown=CONTACT_GAP;this.life=this.duration;this.onShock(CONTACT_DMG,this.hitPoint);hit=true;}
     const fade=this.life/this.duration;
-    this.edgeMaterial.opacity=this.warning+fade*(quiet?.12:.5);
+    const hum=dead?0:quiet?1:0.86+0.14*Math.sin(this.clock*22)*Math.cos(this.clock*7.3);
+    this.edgeMaterial.opacity=dead?0:this.warning*hum+fade*(quiet?.12:.5);
+    this.edges.visible=!dead;
     this.material.opacity=fade*(quiet?.55:1);this.bolts.visible=this.life>0;this.flashMaterial.opacity=fade*(quiet?.06:.16);this.flash.visible=this.life>0;
     if(this.life>0){
-      const p=player.position,c=player.cfg;this.center.set(p.x,p.y+c.height*.55,p.z);this.flash.position.copy(this.center);this.flash.scale.set(c.radius*1.2,c.height*.6,c.radius*1.2);
+      const p=player.position,c=player.cfg,tick=Math.floor(this.clock*30);this.center.set(p.x,p.y+c.height*.55,p.z);this.flash.position.copy(this.center);this.flash.scale.set(c.radius*1.2,c.height*.6,c.radius*1.2);
       for(let branch=0;branch<4;branch++)for(let k=0;k<5;k++)for(let end=0;end<2;end++){
-        const u=(k+end)/5,a=branch*Math.PI/2,w=Math.sin(u*Math.PI)*(quiet?.002:.008),j=(k+end)%2?1:-1;
+        const u=(k+end)/5,a=branch*Math.PI/2,w=Math.sin(u*Math.PI)*(quiet?.002:.009);
+        const j=quiet?((k+end)%2?1:-1):Math.sin(tick*17.3+branch*11.7+(k+end)*5.1);
         const i=(branch*10+k*2+end),sx=branch?this.center.x+Math.cos(a)*c.radius:this.hitPoint.x,sz=branch?this.center.z+Math.sin(a)*c.radius:this.hitPoint.z;
         this.positions.setXYZ(i,THREE.MathUtils.lerp(sx,branch?sx:this.center.x,u)+Math.cos(a)*w*j,branch?p.y+c.height*(.9-u*.8):THREE.MathUtils.lerp(this.hitPoint.y,this.center.y,u)+Math.sin(a)*w*j,THREE.MathUtils.lerp(sz,branch?sz:this.center.z,u)+w*j*.5);
       }this.positions.needsUpdate=true;
     }
     return hit;
   }
-  reset(){this.cooldown=this.life=0;this.material.opacity=this.flashMaterial.opacity=0;this.flash.visible=false;this.edgeMaterial.opacity=this.warning;}
+  reset(){this.cooldown=this.life=0;this.material.opacity=this.flashMaterial.opacity=0;this.bolts.visible=this.flash.visible=false;this.edgeMaterial.opacity=this.warning;}
   dispose(){this.root.removeFromParent();for(const r of [this.geometry,this.material,this.flashGeometry,this.flashMaterial,this.edgeGeometry,this.edgeMaterial])r.dispose();}
 }

@@ -22,6 +22,7 @@ export const SIZES = [0.035, 0.069];      // body radii the map is marked for (a
 const LIFT = 0.012;                       // the body is swept this far off the floor: a rug's edge doesn't stop it
 const CLIMB = 0.025;                      // the most two neighbouring squares' floors may differ (a bug walks up a rug, not onto a shelf)
 const COVER = 0.12;                       // something lower than this over a square makes it cover
+const EDGE = 1;                           // squares: a spawn spot this close to cover is at its edge (spot)
 const PROBE = 0.004;                      // the small ball that finds the floor and what is over it
 const FLOOD_EVERY = 0.2;                  // seconds: at most 5 floods a second
 const FLOOD_WORK = 1200;                  // squares a flood settles in one frame (a room's floor is about 8,000)
@@ -244,6 +245,32 @@ export class BugNav {
     if (out.lengthSq() < 1e-8 || !(ways & (1 << m))) out.set(bx, 0, bz);
     out.normalize();
     return true;
+  }
+
+  // A spawn spot for a ground bug of radius r (run.js arriveFrom): a square the flood reaches, a walk
+  // of near..far m from the jelly, that pass(x, y, z) accepts (out of view) and, with `under`, at the
+  // edge of cover (a cover square within EDGE: most of the floor under a sofa is too low to stand on,
+  // so a bug comes out from its edge). Picked at random from up to `tries` squares round the jelly,
+  // into `out`; false if none
+  spot(r, near, far, under, pass, out, tries = 500) {
+    for (const L of this.levels) {
+      if (!this.ready || !L.flooded) continue;
+      const D = L.dist[this.sizeOf(r)], lo = near / CELL * STRAIGHT, hi = far / CELL * STRAIGHT, R = Math.ceil(far / CELL);
+      const ci = Math.floor((L.sx - L.x0) / CELL), cj = Math.floor((L.sz - L.z0) / CELL);
+      for (let t = 0; t < tries; t++) {
+        const i = ci + Math.floor((Math.random() * 2 - 1) * R), j = cj + Math.floor((Math.random() * 2 - 1) * R);
+        if (i < 0 || j < 0 || i >= L.nx || j >= L.nz) continue;
+        const k = j * L.nx + i, d = D[k];
+        if (d === NONE || d < lo || d > hi || (under && !this.byCover(L, i, j))) continue;
+        const x = L.x0 + (i + 0.5) * CELL, z = L.z0 + (j + 0.5) * CELL;
+        if (pass(x, L.floor[k], z)) { out.set(x, L.floor[k], z); return true; }
+      }
+    }
+    return false;
+  }
+  byCover(L, i, j) {
+    for (let b = Math.max(0, j - EDGE); b <= Math.min(L.nz - 1, j + EDGE); b++) for (let a = Math.max(0, i - EDGE); a <= Math.min(L.nx - 1, i + EDGE); a++) if (L.cover[b * L.nx + a]) return true;
+    return false;
   }
 
   // a bug on a square the flood doesn't reach (pressed against a leg or into a corner the map calls

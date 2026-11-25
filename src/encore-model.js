@@ -23,7 +23,7 @@ function moves(){
   const n=(name,d)=>LOOK.num('encore-dance-'+name,d),pose=name=>{const v=LOOK.list('encore-dance-'+name,[]).map(Number);return Float32Array.from({length:J},(_,i)=>Number.isFinite(v[i])?v[i]:0);};
   K={over:n('over',.12),hold:n('hold',.35),shake:n('shake',.5),bounces:n('bounces',2),damp:n('damp',2),blend:n('blend',.25)};
   MOVE={};
-  for(const m of MOVES){const t=LOOK.list('encore-dance-'+m,[]).map(Number),g=(i,d)=>Number.isFinite(t[i])?t[i]:d;MOVE[m]={lead:Math.max(g(0,1),g(1,.5)),strike:Math.max(.01,g(1,.5)),sustain:g(2,0),release:Math.max(.01,g(3,1)),spin:g(4,0),W:pose(m+'-wind'),A:pose(m+'-hit')};}
+  for(const m of MOVES){const t=LOOK.list('encore-dance-'+m,[]).map(Number),g=(i,d)=>Number.isFinite(t[i])?t[i]:d;MOVE[m]={lead:Math.max(g(0,1),g(1,.5)),strike:Math.max(.01,g(1,.5)),sustain:g(2,0),release:Math.max(.01,g(3,1)),spin:g(4,0),heavy:m==='bow'||m==='land',W:pose(m+'-wind'),A:pose(m+'-hit')};}
   return MOVE;
 }
 // a move's offsets `u` beats from its accent into `out`; returns its weight, how far it has taken over
@@ -41,7 +41,7 @@ function shape(M,u,quiet,dir,sustain,out){
     const n=snap((u+s)/s,over);for(let i=0;i<J;i++)out[i]=M.W[i]+(M.A[i]-M.W[i])*n;
     if(L<=s)w=Math.min(1,n);   // no wind-up (a flinch): it takes over with the swing
   }else{
-    const d=quiet||u>=K.shake?0:settle(u/K.shake,K.bounces,K.damp),k=(u-sustain)/M.release,r=u<sustain?1:quiet?heavy(k):settle(k,K.bounces,K.damp);
+    const d=quiet||M.heavy||u>=K.shake?0:settle(u/K.shake,K.bounces,K.damp),k=(u-sustain)/M.release,r=u<sustain?1:quiet||M.heavy?heavy(k):settle(k,K.bounces,K.damp);
     for(let i=0;i<J;i++)out[i]=M.A[i]*r+over*(M.A[i]-M.W[i])*d;
     if(u>=sustain)w=1-k;
   }
@@ -189,8 +189,9 @@ export function buildEncoreBoss(){
     const body=new THREE.Group();body.name=side<0?'Silver performer':'Gold performer';body.position.set(side*.083,0,-.075);body.rotation.y=-side*.18;root.add(body);
     const torso=new THREE.Group();torso.name='Torso';torso.position.y=.16;torso.rotation.order='YXZ';body.add(torso);
     const fig=new THREE.Group();fig.position.y=-.16;torso.add(fig);
-    const rig={side,body,torso,head:null,outer:null,inner:null,outerLeg:null,innerLeg:null,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null,look:null,arm:'outer',
-      rest:body.position.clone(),restYaw:body.rotation.y,out:false,trip:null,yaw:0,facing:null};rigs.push(rig);
+    const rig={side,body,torso,head:null,outer:null,inner:null,outerLeg:null,innerLeg:null,metal,move:null,at:0,dir:1,sustain:0,fadeAt:null,w:0,from:0,now:new Float32Array(J),was:new Float32Array(J),raise:0,beat:null,look:null,arm:'outer',
+      rest:body.position.clone(),restYaw:body.rotation.y,out:false,trip:null,yaw:0,facing:null,
+      squash:0,squashV:0,flinch:0,flinchV:0,tilt:0,tiltV:0,flash:0,slump:0,headLead:0};rigs.push(rig);
     // Two legs, each its own part pivoting at the hip (two materials: they show only off the booth;
     // in it they stand hidden in the pyramid, as they always have)
     for(const x of [-.017,.017]){
@@ -300,33 +301,61 @@ export function buildEncoreBoss(){
   const homeAt=(r,out)=>out.copy(r.rest).applyQuaternion(root.quaternion).add(root.position);
   const homeYaw=r=>r.restYaw+root.rotation.y;
   function leave(r){if(r.out)return;homeAt(r,r.body.position);r.yaw=homeYaw(r);r.body.rotation.y=r.yaw;root.parent.add(r.body);r.out=true;r.outerLeg.visible=r.innerLeg.visible=true;}
-  function home(r){r.trip=null;r.facing=null;if(!r.out)return;root.add(r.body);r.body.position.copy(r.rest);r.body.rotation.y=r.restYaw;r.out=false;r.outerLeg.visible=r.innerLeg.visible=false;}
-  const turnTo=(r,yaw,dt)=>{const d=Math.atan2(Math.sin(yaw-r.yaw),Math.cos(yaw-r.yaw)),c=turnRate*dt;r.yaw+=Math.max(-c,Math.min(c,d));};
+  function home(r){r.trip=null;r.facing=null;r.headLead=0;if(!r.out)return;root.add(r.body);r.body.position.copy(r.rest);r.body.rotation.set(0,r.restYaw,0);r.out=false;r.outerLeg.visible=r.innerLeg.visible=false;}
+  // smooth deceleration into the target yaw, never faster than turnRate rad/s
+  const turnTo=(r,yaw,dt)=>{
+    const d=Math.atan2(Math.sin(yaw-r.yaw),Math.cos(yaw-r.yaw)),c=turnRate*dt;
+    const step=Math.abs(d)<0.002?d:d*(1-Math.exp(-turnRate*2.4*dt));
+    r.yaw+=Math.max(-c,Math.min(c,step));
+    r.headLead+=(THREE.MathUtils.clamp(d*0.35,-0.32,0.32)-r.headLead)*(1-Math.exp(-12*dt));
+  };
+  const stepSpring=(x,v,k,c,dt)=>{const a=-k*x-c*v;v+=a*dt;x+=v*dt;if(Math.abs(x)<1e-4&&Math.abs(v)<1e-4){x=0;v=0;}return [x,v];};
   // each frame: where a travelling DJ is (u 0..1 along his arc, by the beat or the clock), and his facing
-  function fly(r,dt,beat){
+  function fly(r,dt,beat,quiet){
     const T=r.trip,b=r.body.position;
-    let moving=false;
+    let moving=false,arcPitch=0;
     if(T&&!T.done){
       const u=T.secs?(time-T.t0)/T.secs:beat===null?null:(beat-T.t0)/(T.t1-T.t0);   // (no beat: he waits where he is)
       if(u!==null&&u<0&&T.set){home(r);return;}   // the song rewound past his take-off: back in the booth
       if(u!==null&&u>=0){
         moving=true;
         if(!r.out)leave(r);
-        if(!T.set){T.set=true;T.from.copy(b);}   // he takes off from wherever he stands
+        if(!T.set){T.set=true;T.from.copy(b);T.startYaw=r.yaw;if(!quiet)r.squashV+=1.8;}   // take-off stretch
         if(T.home)homeAt(r,T.to);
         const k=Math.min(1,u);b.lerpVectors(T.from,T.to,k);b.y+=4*T.h*k*(1-k);
         const dx=T.to.x-T.from.x,dz=T.to.z-T.from.z,end=T.home?homeYaw(r):r.facing?Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z):null;
-        turnTo(r,k<.5||end===null?(Math.hypot(dx,dz)>.01?Math.atan2(dx,dz):r.yaw):end,dt);   // faces the way he goes, then where he lands facing
-        if(u>=1){if(T.home)home(r);else T.done=true;}   // (kept, so asking again for it changes nothing)
+        if(T.home){
+          // smooth full-arc yaw interpolation back to restYaw so fast knock-backs never snap on landing
+          const s=k*k*(3-2*k),dy=Math.atan2(Math.sin(end-T.startYaw),Math.cos(end-T.startYaw));
+          r.yaw=T.startYaw+dy*s;
+        }else{
+          turnTo(r,k<.5||end===null?(Math.hypot(dx,dz)>.01?Math.atan2(dx,dz):r.yaw):end,dt);   // faces the way he goes, then where he lands facing
+        }
+        if(!quiet)arcPitch=Math.sin(k*Math.PI)*(T.home?-0.14:0.18);   // lean into the vault arc
+        if(u>=1){if(T.home)home(r);else T.done=true;if(!quiet)r.squashV-=2.2;}   // landing squash
       }
     }
     if(!moving&&r.out&&r.facing)turnTo(r,Math.atan2(r.facing[0]-b.x,r.facing[1]-b.z),dt);
-    if(r.out)r.body.rotation.y=r.yaw;
+    else if(!moving)r.headLead*=Math.exp(-10*dt);
+    if(r.out){r.body.rotation.y=r.yaw;r.body.rotation.x=arcPitch;}
   }
+  const iceBase=ice.color.clone(),warmBase=warm.color.clone(),haloBaseOp=halo.opacity;
   moves();
   return {root,collisionGeometry,setLighting,setTriangle,clearLighting:()=>setLighting('all',0,0),triangleCount:litPanels.length,heads:heads.map(h=>h.head),hands,arms:rigs.map(r=>r.outer),
     rigs:{silver:rigOf('silver'),gold:rigOf('gold')},
     dance(who,beat){const d=rigOf(who);if(!d||(beat!==null&&!Number.isFinite(beat)))return false;d.beat=beat;return true;},
+    // excite 2nd-order underdamped springs (squash, flinch, lateral tilt) on a DJ
+    kickSpring(who,{squash=0,flinch=0,tilt=0}={}){const r=rigOf(who);if(!r)return;r.squashV+=squash;r.flinchV+=flinch;r.tiltV+=tilt;},
+    // brief white-hot flash on that DJ's chrome helmet material
+    flashHit(who,amount=1){const r=rigOf(who);if(!r)return;r.flash=Math.max(r.flash,amount);},
+    // pulse or dim the booth's LED strips & halos (1 = normal, >1 = beat accent, 0 = dead/shorted)
+    setLedPulse(gain=1){
+      const g=Math.max(0,gain);
+      ice.color.copy(iceBase).multiplyScalar(g);warm.color.copy(warmBase).multiplyScalar(g);
+      halo.opacity=warmHalo.opacity=haloBaseOp*Math.min(1.6,g);
+    },
+    // persistent defeat slump (0..1): bends torso, arms, and helmet over the decks
+    setSlump(amount=0){const s=THREE.MathUtils.clamp(amount,0,1);for(const r of rigs)r.slump=s;},
     // perform(who, move, beat0, dir = 1, sustain): play a move (MOVES) so its accent lands on beat0, over
     // the dance; dir -1 mirrors its turns (a sweep the other way); sustain (beats) overrides how long the
     // accent holds (a bow); look (radians, 0 = straight down the floor, + towards +x) turns his
@@ -353,7 +382,7 @@ export function buildEncoreBoss(){
       if(same&&(clock?T.secs===takeOff.secs:!T.secs&&T.t0===takeOff&&T.t1===land))return true;   // asked again (each frame)
       if(goHome&&!r.out){r.trip=null;return true;}   // he is home already (a trip out not yet begun is called off)
       r.trip={home:goHome,to:goHome?new THREE.Vector3():new THREE.Vector3().fromArray(to),from:new THREE.Vector3(),set:false,h:Number.isFinite(height)?height:vaultHeight,
-        t0:clock?time:takeOff,t1:clock?null:land,secs:clock?takeOff.secs:0};
+        t0:clock?time:takeOff,t1:clock?null:land,secs:clock?takeOff.secs:0,startYaw:r.yaw};
       return true;
     },
     // face(who, [x, z]): off the booth, he turns to that point (--encore-turn-rate, radians a second); null: holds his facing
@@ -362,6 +391,7 @@ export function buildEncoreBoss(){
     out(who){return !!rigOf(who)?.out;},
     // each frame; beat: the song's (null: no move plays, each eases back)
     update(dt,quiet=false,beat=null){time+=dt;
+      const stepDt=Math.min(dt,0.05);
       for(const r of rigs){
         const {side,head,torso,outer,inner,now}=r;
         let w=0;
@@ -370,20 +400,39 @@ export function buildEncoreBoss(){
           w=shape(r.move,beat-r.at,quiet,r.dir,r.sustain,now);
           if(r.arm==='inner')for(let i=4;i<7;i++){const t=now[i];now[i]=now[i+3];now[i+3]=t;}   // the other arm plays it
           if(r.fadeAt===null)r.fadeAt=beat;
-          const f=Math.min(1,Math.max(0,(beat-r.fadeAt)/K.blend));   // from whatever it was doing
+          const lin=Math.min(1,Math.max(0,(beat-r.fadeAt)/K.blend)),f=lin*lin*(3-2*lin);   // smoothstep from whatever it was doing
           if(f<1){for(let i=0;i<J;i++)now[i]=r.was[i]+(now[i]-r.was[i])*f;w=r.from+(w-r.from)*f;}
           if(beat-r.at>=r.sustain+r.move.release)r.move=null;
-        }else{const e=Math.max(0,1-dt*8);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;r.was.set(now);r.from=w;}
+        }else{const e=Math.exp(-8*dt);for(let i=0;i<J;i++)now[i]*=e;w=r.w*e;r.fadeAt=null;r.was.set(now);r.from=w;}
         r.w=w;
-        r.raise+=((r.beat===null?0:1)-r.raise)*Math.min(1,dt*8);
+        r.raise+=((r.beat===null?0:1)-r.raise)*(1-Math.exp(-8*dt));
+        // 2nd-order underdamped springs (Shark/Clog physicality; damped cleanly when quiet)
+        if(quiet){r.squash=r.squashV=r.flinch=r.flinchV=r.tilt=r.tiltV=0;}
+        else{
+          [r.squash,r.squashV]=stepSpring(r.squash,r.squashV,130,8.5,stepDt);
+          [r.flinch,r.flinchV]=stepSpring(r.flinch,r.flinchV,140,9,stepDt);
+          [r.tilt,r.tiltV]=stepSpring(r.tilt,r.tiltV,120,8,stepDt);
+        }
+        // helmet hit flash decay
+        if(r.flash>0){r.flash=Math.max(0,r.flash-dt*7);const c=1+r.flash*1.8;r.metal.color.setRGB(c,c,c);}
+        else if(r.metal.color.r!==1){r.metal.color.setRGB(1,1,1);}
         const bob=r.beat===null||quiet?0:-Math.cos(r.beat*Math.PI*2);
-        torso.rotation.x=now[0];torso.rotation.y=-side*now[1];
-        head.rotation.y=-side*.52+(quiet?0:Math.sin(time*.65+side)*.07)-side*now[3];head.rotation.x=(quiet?0:.04+Math.sin(time*.9+side)*.025)+now[2];
+        const slump=r.slump;
+        torso.rotation.x=now[0]+r.flinch*0.35+slump*0.42;
+        torso.rotation.y=-side*now[1];
+        torso.rotation.z=r.tilt*0.28;
+        // on the floor, face straight ahead (+headLead into turns); in the booth, keep the -side*.52 duo angle
+        const baseHeadY=r.out?r.headLead:-side*.52;
+        head.rotation.y=baseHeadY+(quiet||slump>0?0:Math.sin(time*.65+side)*.07)-side*now[3];
+        head.rotation.x=(quiet||slump>0?0:.04+Math.sin(time*.9+side)*.025)+now[2]-r.flinch*0.22+slump*0.55;
         if(r.look!==null)head.rotation.y+=Math.max(-1.5,Math.min(1.5,r.look+side*.7))*w;   // faces it (the body already turns -side*.18, the helmet -side*.52)
-        outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)+now[4];outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)+side*now[6];
-        inner.rotation.x=now[7];inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
+        outer.rotation.x=-r.raise*(raised+pump*bob)*(1-w)*(1-slump)+now[4]+slump*0.35;outer.rotation.y=side*now[5];outer.rotation.z=side*.25*r.raise*(1-w)*(1-slump)+side*now[6]+side*r.tilt*0.18;
+        inner.rotation.x=now[7]+slump*0.35;inner.rotation.y=-side*now[8];inner.rotation.z=-side*now[9];
         r.outerLeg.rotation.x=now[10];r.innerLeg.rotation.x=now[11];
-        fly(r,dt,beat);
+        // volume-preserving squash-and-stretch on r.body
+        const sy=THREE.MathUtils.clamp(1+r.squash*0.14,0.82,1.22),sxz=1/Math.sqrt(sy);
+        r.body.scale.set(sxz,sy,sxz);
+        fly(r,dt,beat,quiet);
       }},
-    dispose(){for(const r of rigs)home(r);root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
+    dispose(){for(const r of rigs)home(r);ice.color.copy(iceBase);warm.color.copy(warmBase);halo.opacity=warmHalo.opacity=haloBaseOp;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

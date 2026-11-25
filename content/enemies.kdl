@@ -107,7 +107,7 @@ enemy "dragonfly" name="Dragonfly" hp=85 r=0.04 dmg=1 xp=8 model="dragonfly" {
 enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="butterfly" {
     death-motion "flutter" weight="mid"
     attack-motion "throw" tier="mid"
-    hover 0.35 above=0.3 speed=0.45 circle=0.9 bob=0.08
+    hover 0.35 above=0.3 speed=0.45 circle=0.9 bob=0.08 swap=4
     on-beat every=1
     prism range=0.8 every=5 windup=0.6 beats=6 peak=0.24 radius=0.17 count=12 rows=5 speed=0.26 life=2.5 dmg=2 burst=3 most=3 rest=0.6
 }
@@ -122,7 +122,7 @@ enemy "butterfly" name="Monarch butterfly" hp=1000 r=0.045 dmg=2 xp=15 model="bu
 enemy "firefly" name="Firefly" hp=700 r=0.036 dmg=2 xp=12 model="firefly" {
     death-motion "lantern-pop" weight="light"
     attack-motion "throw" tier="light"
-    hover 0.22 above=0.17 speed=0.4 circle=0.35 bob=0.06 pause=0.3
+    hover 0.22 above=0.17 speed=0.4 circle=0.35 bob=0.06 pause=0.3 swap=4
     on-beat every=2
     lob range=0.8 every=4 windup=0.4 flight=2 peak=0.3 radius=0.2 dmg=3 drain=2 last=10 most=12 rest=0.6
 }
@@ -195,7 +195,7 @@ enemy "nest" name="Wasp nest" hp=250 r=0.025 dmg=2 xp=15 model="nest" {
 enemy "wasp" name="Wasp" hp=40 r=0.04 dmg=1 xp=0 model="wasp" {
     death-motion "flutter" weight="light"
     attack-motion "lunge" tier="light"
-    hover 0.2 above=0.08 speed=0.55 circle=1.6
+    hover 0.2 above=0.08 speed=0.55 circle=1.6 swap=3 jerk=0.8   // straight runs and sudden turns, either way round
     dive range=0.5 every=3 windup=0.5 speed=2 reach=0.5 dmg=4 rest=0.6
 }
 

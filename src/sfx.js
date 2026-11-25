@@ -670,6 +670,12 @@ export const sfx = {
   encoreDisco() { if (!ready() || !gap('encoreDisco', 120)) return; const j = jitter(0.06); for (let k = 0; k < 4; k++) tone('triangle', (1800 + k * 420) * j, (1700 + k * 400) * j, 0.22, 0.018, k * 0.012); noise(3200 * j, 0.9, 0.08, 0.05, 'bandpass'); tone('square', 180 * j, 70 * j, 0.09, 0.05); },
   // the Encore's club laser firing (act 4): a bright falling zap with a buzz and a hiss under it
   encoreLaser() { if (!ready() || !gap('encoreLaser', 80)) return; const j = jitter(0.08); tone('sawtooth', 2600 * j, 320 * j, 0.32, 0.045); tone('square', 1300 * j, 1250 * j, 0.36, 0.018); noise(5200 * j, 1.2, 0.28, 0.03, 'bandpass', 0, 1400); },
+  // the Encore's floor wave launching (act 4): subtle musical sub-thump + low air sweep under the track
+  encoreFloor() { if (!ready() || !gap('encoreFloor', 160)) return; const j = jitter(0.06); tone('sine', 96 * j, 52 * j, 0.16, 0.045); noise(620 * j, 0.9, 0.18, 0.022, 'bandpass', 0, 1400 * j); },
+  // hitting the Encore's force field: resonant glassy ping + low energy hum
+  encoreShieldHit() { if (!ready() || !gap('encoreShieldHit', 70)) return; const j = jitter(0.08); tone('triangle', 1480 * j, 920 * j, 0.12, 0.04); tone('sine', 420 * j, 280 * j, 0.1, 0.03); },
+  // hitting an EXPOSED DJ or booth (1.5x): crisp harmonic snap on top of the hit
+  encoreExposedHit() { if (!ready() || !gap('encoreExposedHit', 70)) return; const j = jitter(0.07); tone('triangle', 1120 * j, 1680 * j, 0.09, 0.045); noise(3600 * j, 1.4, 0.05, 0.03, 'bandpass'); },
   // the Encore's new moves (act 4), all synthesized and kept low under the recording
   // the silver DJ scratching a record as he winds up: two quick strokes, back and forth
   recordScratch() { if (!ready() || !gap('recordScratch', 150)) return; const j = jitter(0.08); tone('sawtooth', 180 * j, 520 * j, 0.09, 0.04); tone('sawtooth', 520 * j, 200 * j, 0.1, 0.04, 0.09); noise(2400 * j, 3, 0.2, 0.04, 'bandpass', 0, 900); },

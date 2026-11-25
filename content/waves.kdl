@@ -5,7 +5,14 @@
 spawning {
     rate 0.22 grow=0.0022       // bugs per second at midnight, and how much faster each second after
     cap 6 every=15 max=20       // most alive at once: 6, one more every 15 s, never more than 20
+    // where a new bug comes from: out of the camera's view, a walk (round the furniture) from you of
+    // `near` to `cover` m when it crawls out from under furniture or (`vents` of the time) out of a
+    // floor vent, else of `near` to `far` m over open floor; fliers come down from above the view.
+    // A first run's first `first-run` bugs (and anywhere with no floor map) still appear in view, growing in
+    arrive near=0.3 far=0.75 cover=1 vents=0.3 first-run=8
 }
+
+attack-gap 0.3                  // s: no bug starts an attack within this of another bug's start (Elites, Bosses and on-beat bugs aside)
 
 bug "roach" weight=1                // cockroaches from the start
 bug "ants" weight=0.5 from=30       // ants from 0:30

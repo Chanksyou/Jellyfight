@@ -10,7 +10,7 @@
 //   c.flatDir, c.flat   the same, flat on the floor (unit vector, meters)
 //   c.slow              1 normally, 0.55 slowed, 0 frozen or stunned
 //   c.speed, c.dir      ground bugs: set these and the bug walks that way (collision included)
-//   c.beat              the song's beat now (run.js keepTime); c.wait: on-beat says an attack can't start this frame
+//   c.beat              the song's beat now (run.js keepTime); c.wait: an attack can't start this frame (the attack gap, or on-beat): start one through go(c)
 // Flying words move the bug themselves and set `fly`.
 //
 // To teach the game a new behaviour: add a word here (small, one job), use it in a .kdl file,
@@ -25,7 +25,11 @@ const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THRE
 const UP = new THREE.Vector3(0, 1, 0);
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
+const SWAP_LEAD = 0.3, JERK_SHARE = 0.2;   // the part of each `jerk` run the bug spends turning
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
+// An attack word starts its attack only through go(c): false while c.wait (the attack gap, or on-beat off the beat), and a start
+// or a wait held by the gap is noted for enemies.js (c.start, c.want), so two bugs never start their attacks together
+const go = (c) => { if (!c.wait) return (c.start = true); if (c.gapped) c.want = true; return false; };
 const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
 export const ENEMY_WORDS = {
@@ -132,7 +136,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt;
           e.leapCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked && !c.wait) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
+            if (c.flat < p.range && e.grounded && e.leapCd <= 0 && !e.groundLocked && go(c)) { e.state = 'crouch'; e.stateT = p.windup; target(e, c); }
           } else if (e.state === 'crouch') {
             c.speed = 0;
             e.leapK = 1 - Math.max(0, e.stateT) / p.windup;
@@ -158,9 +162,9 @@ export const ENEMY_WORDS = {
   },
 
   hover: {
-    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s. With `bob` (m) it bobs that far up and down as it goes; with `pause` (0 to 1) it hangs still that share of the time, in short spells (a firefly drifting).',
+    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s. With `bob` (m) it bobs that far up and down as it goes; with `pause` (0 to 1) it hangs still that share of the time, in short spells (a firefly drifting). With `swap` (s) each bug, after its first change (a few `swap` in), picks its own way round you and changes it about that often, so a crowd circles both ways; with `jerk` (s) it flies straight and turns in sudden quick swings, one a `jerk`, at the same turn rate overall (a fly-style turn). After its first change a bug with `swap` really orbits you, at `circle` radians a second or as fast as its `speed` allows.',
     args: ['distance'],
-    props: { above: 0.07, speed: 0.33, circle: 0.4, bob: 0, pause: 0 },
+    props: { above: 0.07, speed: 0.33, circle: 0.4, bob: 0, pause: 0, swap: 0, jerk: 0 },
     make: ([distance], p) => {
       const still = Math.sin(Math.PI * (p.pause - 0.5));   // under this, the slow wave below means hang still: `pause` of the time
       return {
@@ -170,7 +174,14 @@ export const ENEMY_WORDS = {
         const s = p.speed * c.slow * (p.pause > 0 && Math.sin(c.t * 1.3 + e.phase) < still ? 0 : 1);
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.normalize().applyAxisAngle(UP, c.dt * p.circle * (s > 0 ? 1 : 0));
+        let turn = c.dt * p.circle * (s > 0 ? 1 : 0);
+        if (p.swap) {   // the way it circles, as it always has until its first change, then its own (e.phase seeds them)
+          if (e.swapT === undefined) { e.swapT = p.swap * (1.25 + 0.75 * ((e.phase * 0.37) % 1)); e.swapDir = 1; e.swaps = 0; }
+          if ((e.swapT -= c.dt) <= 0) { e.swapT = p.swap * (0.7 + (e.phase * 7.3 + e.swaps) % 0.6); e.swapDir = Math.sin(e.phase * 12.9898 + e.swaps * 78.233) > 0 ? 1 : -1; e.swaps++; }
+          turn = e.swaps ? p.circle * SWAP_LEAD * e.swapDir * (s > 0 ? 1 : 0) : turn * e.swapDir;   // after the first change it really circles: its mark is that many seconds ahead of it round you
+        }
+        if (p.jerk && e.swaps) turn *= ((c.t / p.jerk + e.phase * 0.159) % 1 < JERK_SHARE ? 1 / JERK_SHARE : 0);   // after its first change: all the turning in a quick swing at the start of each run
+        away.normalize().applyAxisAngle(UP, turn);
         const to = _spot.copy(c.pc).addScaledVector(away, distance).setY(c.pc.y + p.above + p.bob * Math.sin(c.t * 2.1 + e.phase * 3)).sub(e.pos);
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
         en.move(e, e.vel, c.dt);
@@ -202,7 +213,7 @@ export const ENEMY_WORDS = {
           const s = p.speed * c.slow;
           e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
           en.move(e, e.vel, c.dt);
-          if (e.stateT <= 0) {
+          if (e.stateT <= 0 && go(c)) {
             // land on the floor between it and you, `land` from you
             const away = _away.copy(e.pos).sub(c.foot).setY(0);
             if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
@@ -261,7 +272,7 @@ export const ENEMY_WORDS = {
         e.ballCd -= c.dt;
         if (e.state === 'rest' && e.curlK > 0) { e.state = 'uncurl'; e.stateT = p.uncurl; }   // rolled into a wall (Enemies.moveGround)
         if (e.state === 'approach') {
-          if (c.flat < p.range && e.grounded && e.ballCd <= 0 && live && !c.wait) { e.state = 'curl'; e.stateT = p.curl; en.ballCurl(e); }
+          if (c.flat < p.range && e.grounded && e.ballCd <= 0 && live && go(c)) { e.state = 'curl'; e.stateT = p.curl; en.ballCurl(e); }
         } else if (e.state === 'curl') {
           c.speed = 0;
           e.curlK = 1 - Math.max(0, e.stateT) / p.curl;
@@ -320,7 +331,7 @@ export const ENEMY_WORDS = {
           e.stateT -= c.dt * live;
           e.pokeCd -= c.dt;
           if (e.state === 'approach') {
-            if (c.dist < p.range && e.pokeCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
+            if (c.dist < p.range && e.pokeCd <= 0 && live && go(c)) { e.state = 'windup'; e.stateT = e.pokeMax = p.windup; e.flyHeld = true; lock(e, c); }
           } else if (e.state === 'windup') {
             e.vel.multiplyScalar(Math.exp(-10 * c.dt));
             en.move(e, e.vel, c.dt * live);
@@ -351,11 +362,12 @@ export const ENEMY_WORDS = {
       tick(e, c, en) {
         e.shootT -= c.dt * (c.slow > 0 ? 1 : 0);
         e.aimT = Math.max(0, e.aimT - c.dt);
-        if (e.shootT <= p.aim && e.aimT <= 0 && e.shootT > 0 && c.dist < p.reach) e.aimT = e.aimMax = p.aim;
+        if (e.shootT <= p.aim && e.aimT <= 0 && e.shootT > 0 && c.dist < p.reach) { if (go(c)) e.aimT = e.aimMax = p.aim; else e.shootT = p.aim; }   // (held by the gap: it winds up the moment it may)
         // the aim locks on half way through the warning, so the line shows where it will really go
         if (e.aimT > p.aim * 0.5) (e.aimAt ||= new THREE.Vector3()).copy(c.pc);
         if (p.shot === 'pin' && e.aimAt && e.aimT > 0 && e.aimT <= p.aim * 0.5) en.pinLine(e, e.aimAt, 1 - e.aimT / (p.aim * 0.5), p.speed * p.life);
-        if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.65; }
+        if (e.shootT <= 0 && c.dist < p.reach && !e.aimAt && !go(c)) e.shootT = p.aim;   // it came into reach with no wind-up: it takes the gap too
+        else if (e.shootT <= 0 && c.dist < p.reach) { e.shootT = p.every; en.spit(e, e.aimAt || c.pc, p); e.aimAt = null; e.aimT = 0; e.firedT = 0.65; }
         else if (e.shootT <= 0) e.shootT = 0.5;
         if (e.firedT > 0) e.firedT -= c.dt;
         if (p.still && (e.aimT > 0 || e.firedT > 0)) c.speed = 0;
@@ -471,7 +483,7 @@ export const ENEMY_WORDS = {
           }
           e.whirlT -= c.dt * live;
           if (e.whirlT <= 0) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.whirlCd = p.every; }
-        } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && !c.wait) {
+        } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && go(c)) {
           e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
           e.vel.set(0, 0, 0);
           e.whirlAt.copy(c.pc);
@@ -492,7 +504,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.swatCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.flat < p.range && e.grounded && e.swatCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.swatMax = p.windup; e.swatDir.copy(c.flatDir); }
+          if (c.flat < p.range && e.grounded && e.swatCd <= 0 && live && go(c)) { e.state = 'windup'; e.stateT = e.swatMax = p.windup; e.swatDir.copy(c.flatDir); }
         } else if (e.state === 'windup') {
           c.speed = 0;
           if (e.stateT > p.windup * 0.5) { e.swatDir.copy(c.flatDir); e.root.rotation.y = Math.atan2(c.flatDir.x, c.flatDir.z); }
@@ -520,7 +532,7 @@ export const ENEMY_WORDS = {
         const live = c.slow > 0 ? 1 : 0;
         e.burrowCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && !c.wait) { e.state = 'dig'; e.stateT = p.dig * c.spb; e.vel.set(0, 0, 0); en.burrowDig(e); }
+          if (c.dist < p.range && e.burrowCd <= 0 && live && e.grounded && go(c)) { e.state = 'dig'; e.stateT = p.dig * c.spb; e.vel.set(0, 0, 0); en.burrowDig(e); }
         } else if (e.state === 'dig') {
           c.speed = 0;
           e.stateT -= c.dt * live;
@@ -559,7 +571,7 @@ export const ENEMY_WORDS = {
         e.shotCd -= c.dt;
         if (e.state === 'charge' && !live) { en.breakSpark(e); e.state = 'approach'; e.faceLock = false; e.ballK = 0; e.shotCd = 1.5; }
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.shotCd <= 0 && live && !c.wait) {
+          if (c.dist < p.range && e.shotCd <= 0 && live && go(c)) {
             e.state = 'charge'; e.stateT = p.charge; e.aimLocked = false; e.ballK = 0; e.faceLock = true;
             e.vel.set(0, 0, 0);
             en.sparkCharge(e, p.charge);
@@ -638,7 +650,7 @@ export const ENEMY_WORDS = {
         const from = e.emergeAt || e.pos, flat = Math.hypot(c.foot.x - from.x, c.foot.z - from.z);
         const aim = () => { if (flat > 1e-4) e.whipDir.set(c.foot.x - from.x, 0, c.foot.z - from.z).normalize(); e.whipFloor = c.foot.y; };
         if (e.state === 'approach') {
-          if (flat < p.range && e.whipCd <= 0 && live && !c.wait) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
+          if (flat < p.range && e.whipCd <= 0 && live && go(c)) { e.state = 'windup'; e.stateT = e.whipMax = p.windup; aim(); }
         } else if (e.state === 'windup') {
           if (e.stateT > p.windup * 0.5) aim();
           if (e.stateT <= 0) { e.state = 'lash'; e.stateT = 0.12; en.whipLash(e); }
@@ -695,7 +707,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.diveCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
+          if (c.dist < p.range && e.diveCd <= 0 && live && !e.flyHeld && go(c)) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; en.diveWind(e, p.windup); }
         } else if (e.state === 'windup') {
           e.vel.multiplyScalar(Math.exp(-10 * c.dt));
           en.move(e, e.vel, c.dt * live);
@@ -733,7 +745,7 @@ export const ENEMY_WORDS = {
         if (e.firedT > 0) e.firedT -= c.dt;
         if (e.state === 'windup' && !live) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.prismCd = 1.5; }   // broken off
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.prismCd <= 0 && live && !e.flyHeld && !c.wait && en.prismBalls.flying() < p.most) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.prismWind(e, p.windup); }
+          if (c.dist < p.range && e.prismCd <= 0 && live && !e.flyHeld && en.prismBalls.flying() < p.most && go(c)) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.prismWind(e, p.windup); }
         } else if (e.state === 'windup') {
           let d = Math.atan2(c.flatDir.x, c.flatDir.z) - e.root.rotation.y;   // turns to face you
           d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -758,7 +770,7 @@ export const ENEMY_WORDS = {
         e.stateT -= c.dt * live;
         e.biteCd -= c.dt;
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.biteCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; en.biteWind(e, p.windup); }
+          if (c.dist < p.range && e.biteCd <= 0 && live && !e.flyHeld && go(c)) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; en.biteWind(e, p.windup); }
         } else if (e.state === 'windup') {
           if (e.stateT > p.windup * 0.5) e.biteDir.copy(c.toP).normalize();   // tracks you, then locks on
           else e.faceLock = true;
@@ -798,7 +810,7 @@ export const ENEMY_WORDS = {
         if (e.firedT > 0) e.firedT -= c.dt;
         if (e.state === 'windup' && !live) { e.state = 'approach'; e.flyHeld = false; e.faceLock = false; e.lobCd = 1.5; }   // broken off
         if (e.state === 'approach') {
-          if (c.dist < p.range && e.lobCd <= 0 && live && !e.flyHeld && !c.wait) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.lobWind(e, p.windup); }
+          if (c.dist < p.range && e.lobCd <= 0 && live && !e.flyHeld && go(c)) { e.state = 'windup'; e.stateT = p.windup; e.flyHeld = true; e.faceLock = true; e.vel.set(0, 0, 0); en.lobWind(e, p.windup); }
         } else if (e.state === 'windup') {
           let d = Math.atan2(-c.flatDir.x, -c.flatDir.z) - e.root.rotation.y;   // its tail to you
           d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -834,7 +846,7 @@ export const ENEMY_WORDS = {
           const n = Math.floor(c.beat), on = e.beatN !== null && n !== e.beatN;   // a new beat this frame
           e.beatN = n; e.beatAt = c.beat;                                         // (a firefly's lamp keeps time with it)
           e.beatPulse = on ? 1 : Math.max(0, e.beatPulse - c.dt * 4);           // its model (or the size pulse) shows it
-          c.wait = !(on && n % p.every === 0);
+          c.wait = !(on && n % p.every === 0); c.gapped = false;   // the music keeps its time: the attack gap doesn't hold it
         },
       };
     },

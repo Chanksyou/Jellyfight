@@ -145,7 +145,8 @@ export class EncoreDisco {
   // stopped for the 4th; the second 4 beats turn the other way
   // (one way, then back the other: every other 4 beats, so a show that stays keeps swinging)
   turn(u) {
-    const spin = LOOK.num('encore-disco-spin', 0.35), c = Math.floor(u / DISCO.cycle), k = Math.min(DISCO.move, u - c * DISCO.cycle);
+    const spin = LOOK.num('encore-disco-spin', 0.35), c = Math.floor(u / DISCO.cycle);
+    const p = Math.min(1, Math.max(0, (u - c * DISCO.cycle) / DISCO.move)), k = DISCO.move * p * p * (3 - 2 * p);
     return spin * (c % 2 === 0 ? k : DISCO.move - k);
   }
   // spot i's place on the floor at turn `t`, or null off the floor
@@ -169,8 +170,10 @@ export class EncoreDisco {
     // each 4 beats strike as they end (beats 4 and 8 of the show), where the spots stopped
     const len = this.stayFrom != null ? Infinity : DISCO.length;
     if (u !== null) for (let c = this.struck + 1; c < Math.min(len / DISCO.cycle, Math.floor(u / DISCO.cycle)); c++) this.strike(c, player, skip || this.quiet(at + c * DISCO.cycle));
-    // staying: fresh spots every 8 beats, at the turn back to where they started
-    if (this.stayFrom != null && u >= 0 && Math.floor(u / (DISCO.cycle * 2)) !== this.dealt) { this.dealt = Math.floor(u / (DISCO.cycle * 2)); this.scatter(); }
+    // staying: fresh spots every 8 beats, only AFTER the 0.2-beat strike flare finishes on the old spots
+    const dealIdx = u !== null && u >= 0 ? Math.floor(u / (DISCO.cycle * 2)) : -1;
+    const dealPhase = u !== null && u >= 0 ? u % (DISCO.cycle * 2) : 0;
+    if (this.stayFrom != null && dealIdx >= 0 && dealIdx !== this.dealt && (dealIdx === 0 || dealPhase >= this.flare)) { this.dealt = dealIdx; this.scatter(); }
     // the ball: drops over the beat before, hangs for the show, rises away over the beat and a half after
     const down = u === null ? 0 : u < 0 ? 1 + u : u <= len ? 1 : Math.max(0, 1 - (u - len) / 1.5);
     this.hanger.visible = down > 0.001;
@@ -186,10 +189,13 @@ export class EncoreDisco {
     if (!playing) return;
     // the spots: soft white while they wheel; stopped, they flash fast between white and the hot colour
     const k = u % DISCO.cycle, stopped = k >= DISCO.move, t = this.turn(u);
-    // just struck (the strike's release, where each spot landed): hot and swelling for `flare` beats
+    // just struck (the strike's release, where each spot landed): hot and swelling for `flare` beats, decaying smoothly
     const struck = u >= DISCO.cycle && k < this.flare && this.lit === Math.floor(u / DISCO.cycle) - 1;
-    const flash = struck || (stopped && Math.floor(k * 8) % 2 === 0), bright = struck ? 1.6 : stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6);
-    const size = this.spotR * (struck ? 1.35 : stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
+    const fk = struck ? 1 - k / this.flare : 0;
+    const fadeIn = Math.min(1, u / 0.25);
+    const flash = struck || (stopped && Math.floor(k * 8) % 2 === 0);
+    const bright = (struck ? 1.6 + 0.3 * fk : stopped ? 1 : 0.55 + 0.15 * Math.sin(beat * 6)) * fadeIn;
+    const size = this.spotR * (struck ? 1.2 + 0.2 * fk : stopped ? 1.15 : 1), ball = _d.set(CENTER[0], y, CENTER[1]);
     for (let i = 0; i < DISCO.spots; i++) {
       const p = this.spot(i, t);
       if (!p) { _m.makeScale(0, 0, 0); this.spots.setMatrixAt(i, _m); this.beams.setMatrixAt(i, _m); continue; }
@@ -198,7 +204,7 @@ export class EncoreDisco {
       // its beam, from the ball to the spot
       const dir = _s.copy(p).sub(ball), len = dir.length();
       this.beams.setMatrixAt(i, _m.compose(ball, _q.setFromUnitVectors(UP, dir.divideScalar(len)), _s.set(0.0018, len, 0.0018)));
-      this.beams.setColorAt(i, _c.copy(flash ? this.hot : this.white).multiplyScalar(struck ? 1.4 : stopped ? 0.9 : 0.5));
+      this.beams.setColorAt(i, _c.copy(flash ? this.hot : this.white).multiplyScalar((struck ? 0.9 + 0.6 * fk : stopped ? 0.9 : 0.5) * fadeIn));
     }
     for (const m of [this.spots, this.beams]) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
   }
@@ -211,8 +217,8 @@ export class EncoreDisco {
     sfx.encoreDisco?.();
     if (this.hanger.visible) this.fx?.impact(this.hanger.position, this.hot, 0.05, 12);   // the ball flares as it strikes
     if (!player) return;
-    const p = player.position, r = player.cfg?.radius ?? 0.03, t = this.turn(c * DISCO.cycle + DISCO.move), q = new THREE.Vector3();
-    for (let i = 0; i < DISCO.spots; i++) if (this.spot(i, t, q) && Math.hypot(q.x - p.x, q.z - p.z) < this.spotR + r * 0.6) { this.onHit(DISCO_DMG, { name: 'disco' }); return; }
+    const p = player.position, r = player.cfg?.radius ?? 0.03, t = this.turn(c * DISCO.cycle + DISCO.move);
+    for (let i = 0; i < DISCO.spots; i++) if (this.spot(i, t, _p) && Math.hypot(_p.x - p.x, _p.z - p.z) < this.spotR + r * 0.6) { this.onHit(DISCO_DMG, { name: 'disco' }); return; }
   }
 
   // from beat `at` the ball comes down and stays, wheeling, stopping and striking every 4 beats
@@ -221,6 +227,6 @@ export class EncoreDisco {
   // a visit: the ball drops for 8 beats from beat `at` (the Encore's set list books them)
   visit(at) { this.visitAt = at; }
 
-  reset(beat = null) { this.beat = null; this.show = null; this.struck = -1; this.stayFrom = null; this.visitAt = null; this.resumeAt = beat === null ? null : Math.ceil(beat / DISCO.cycle) * DISCO.cycle; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
+  reset(beat = null) { this.beat = null; this.show = null; this.struck = this.lit = this.dealt = -1; this.stayFrom = null; this.visitAt = null; this.resumeAt = beat === null ? null : Math.ceil(beat / DISCO.cycle) * DISCO.cycle; this.hanger.visible = this.spots.visible = this.beams.visible = false; }
   dispose() { this.root.removeFromParent(); this.spots.dispose(); this.beams.dispose(); for (const o of this.owned) o.dispose(); }
 }

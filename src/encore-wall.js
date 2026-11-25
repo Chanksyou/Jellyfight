@@ -68,6 +68,7 @@ export class EncoreWall {
   sheltered(w, x, z) { return w.shields.some((s) => Math.abs(x - s.x) < w.safe / 2 && z > s.z && z < s.z + s.len); }
 
   update(beat, player) {
+    if (this.beat !== null && beat < this.beat) this.reset();
     const w = this.w, skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
     if (!w) return;
@@ -75,7 +76,9 @@ export class EncoreWall {
     if (w.state === 'warn') {
       const u = Math.min(1, (beat - w.warnAt) / (w.rollAt - w.warnAt));
       this.band.material.progress = this.slab.material.progress = u;
-      this.band.material.opacity = this.warnGlow; this.slab.material.opacity = this.slabGlow;
+      this.band.material.uniforms.uTime.value = beat;
+      const gain = 0.75 + 0.25 * u * u;
+      this.band.material.opacity = this.warnGlow * gain; this.slab.material.opacity = this.slabGlow * gain;
       this.swell = u;
       for (let i = 0; i < w.shields.length; i++) this.safe[i].visible = w.shields[i].c.slot.cast === w.shields[i].c;   // (gone if its record is)
       if (beat >= w.rollAt) {
@@ -86,7 +89,7 @@ export class EncoreWall {
     }
     if (w.state === 'roll') {
       const was = w.front, front = (w.front = this.frontAt(w, beat));
-      this.swell = 1 - (beat - w.rollAt) / w.roll;
+      this.swell = Math.max(0, 1 - (beat - w.rollAt) / w.roll);
       // a record taking the wall: a white shimmer fading on the strip it spared (its own shatter is encore-records.js's)
       for (const s of w.shields) if (!s.took && front >= s.z) { s.took = true; if (!skip) { sfx.wallShield(); this.fx.splat?.(_p.set(s.x, 0.002, s.z + s.len / 2), LOOK.color('safe-spot', '#ffffff'), w.safe / 2, 'dust'); } }
       // the hit, as the front passes the jelly: anywhere in the floor, at any height, unless sheltered
