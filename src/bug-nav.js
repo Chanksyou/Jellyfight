@@ -65,7 +65,7 @@ export class BugNav {
     const most = Math.max(1, ...this.levels.map((L) => L.n));
     this.buckets = new Int32Array(8 * most);   // the flood's ring of 8 buckets (a square sits in one bucket at most once at a time)
     this.blen = new Int32Array(8);
-    this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true; this.frame = 0;
+    this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true; this.frame = 0; this.born = 0;
     this.job = { L: null, s: 0, cur: 0, left: 0, x: 0, z: 0, up: false };   // the flood under way (floodOn)
     this.moves = moves; this.seen = 0; this.boxes = new Float64Array(0);
   }
@@ -188,9 +188,9 @@ export class BugNav {
   // or when the straight line will do: no bug close, and the way round no longer than the line (OPEN).
   // Each bug works it out every other frame (half the bugs each frame) and keeps the answer between.
   steer(e, list, toward, out) {
-    const n = e.nav || (e.nav = { at: -9, ok: false, dir: out.clone() });
-    if ((this.frame + e.id) & 1 && n.at === this.frame - 1) { if (n.ok) out.copy(n.dir); return n.ok; }
-    n.at = this.frame; n.ok = this.way(e, list, toward, out);
+    const n = e.nav || (e.nav = { at: -9, odd: (this.born++ & 1) === 1, ok: false, dir: out.clone() });   // (its own count, not the bug's id: a replay walks the same; every other bug born works on the other frames)
+    if ((n.at === this.frame - 1 || n.at === -9) && !n.odd) { n.odd = true; n.at = this.frame; if (n.ok) out.copy(n.dir); return n.ok; }
+    n.odd = false; n.at = this.frame; n.ok = this.way(e, list, toward, out);
     if (n.ok) n.dir.copy(out);
     return n.ok;
   }
@@ -273,7 +273,7 @@ export class BugNav {
 
   // forget the flood (a new fight, run or story): the next update floods afresh, so a replay from the same state walks the same
   reset() {
-    this.job.L = null; this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
+    this.job.L = null; this.frame = 0; this.born = 0; this.jl = -1; this.jk = -1; this.since = Infinity; this.dirty = true;
     for (const L of this.levels) L.flooded = false;
   }
 
