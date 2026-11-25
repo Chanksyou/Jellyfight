@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v716 makes Ants follow each other in a file toward you, then spread out along the ring round you to throw their pushpins instead of standing in a stack.
+
 v715 makes ground bugs move in rhythms: the Cockroach scurries and stops with its antennae working (never faster than you swim), the Spotted lanternfly crawls in short spells, the House spider stalks in steps and side-steps while it holds its distance, and the Praying mantis sways as it stalks then rushes the last stretch.
 
 v714 adds Bioluminescent Wake, an Epic Treasure: swimming leaves a glowing cyan-to-violet trail that slows bugs 30%, and a jump off the ground sends a pulse down it that sets every piece off as a Blast for 2x Attack damage.
