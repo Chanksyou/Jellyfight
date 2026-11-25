@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v710 stops Elites dropping XP when beaten: an Elite now leaves only its Treasure.
+
 v709 makes walking bugs find their way round furniture by the floor map instead of walking straight at you and getting stuck behind it, and spread out round each other on the way in; with you up on furniture they gather on the floor under you.
 
 v708 tunes twelve Treasures' numbers: Bobby Pin pierces 4/8/12 bugs, Reed Stick's big bubble hits for 4 and comes every 3rd bubble at Level 3, Nail Clipper crits 10% of hits, Cotton Ball's shockwave hits for 1.2, Bath Salt's burst hits for 1.5/2 at Levels 2 and 3, Ice Cube's puddle is wider, TV Remote zaps every 5/4/3 s, Lego Brick's brick is bigger, Marble lasts 4 s, and Dustpan gives +15% Fire rate per dust bunny.
