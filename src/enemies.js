@@ -284,6 +284,7 @@ export class Enemies {
     this.webGeo.computeVertexNormals();
     this.webMat = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.9, emissive: 0xffe8f4, emissiveIntensity: 0.55, toneMapped: false });
     this.frame = 0;
+    this.gapAt = -Infinity; this.gapBy = null; this.seenWant = false;   // the last bug attack start (the attack gap)
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
@@ -662,6 +663,7 @@ export class Enemies {
 
   clear() {
     this.passes.length = 0;
+    this.gapAt = -Infinity; this.gapBy = null; this.seenWant = false;
     this.nav?.reset();
     for (const e of this.list) {
       if (e.dead) continue; // Death effects own dead models until their own cleanup.
@@ -1568,6 +1570,8 @@ export class Enemies {
     if (cam) view.setFromProjectionMatrix(S.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
     beginFrame();
     const calm = juice.calm || !!this.fx?.reducedMotion?.matches;
+    const gap = CONTENT.waves.attackGap ?? 0;
+    const seenWant = this.seenWant; this.seenWant = false;   // a bug on screen was held by the attack gap last frame
     for (const e of list) {
       if (e.proxy) {   // an Elite's or boss's clocks (timeScale)
         e.slowT = Math.max(0, (e.slowT || 0) - dt); e.chillT = Math.max(0, (e.chillT || 0) - dt); e.stunT = Math.max(0, (e.stunT || 0) - dt);
@@ -1592,7 +1596,9 @@ export class Enemies {
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      // the attack gap (content/waves.kdl attack-gap): no attack starts within `gap` s of another bug's; a bug off screen also waits while one on screen does, so the seen one goes first
+      const gapped = !e.elite && gap > 0 && ((t - this.gapAt < gap && this.gapBy !== e.id) || (seenWant && !(cam && view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)))));
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = c.gapped = gapped; c.start = c.want = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
       c.realPc = pc; c.realFoot = player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
@@ -1603,6 +1609,8 @@ export class Enemies {
       const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
       e.groundLocked = lock;
       if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
+      if (c.start && !e.elite) { this.gapAt = t; this.gapBy = e.id; }
+      if (c.want && cam && view.intersectsSphere(S.sphere.set(e.pos, e.r * 2))) this.seenWant = true;
       const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
