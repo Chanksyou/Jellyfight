@@ -826,6 +826,7 @@ story('engine/frame-cap-60', {
   },
 });
 story('engine/no-black-frame-when-the-pixel-ratio-changes', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'A frame where the governor changes the pixel ratio is still drawn: the change goes in before the frame is drawn, because resizing the canvas clears it (made after drawing, that frame showed whole black).',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0); step(2); },
   play() {
@@ -1151,6 +1152,7 @@ for (const phone of [false, true]) story((phone ? 'phone/' : 'modes/') + 'cosmet
   },
 });
 story('engine/bloom-glows-without-black-squares', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'On Medium a bright light glows past its edge (the half-resolution bloom), and a broken pixel the scene draws (NaN) stays where it is instead of smearing black squares over the glow. The dev switches turn AO and bloom off and back on.',
   setup() { fresh({ elites: false, lash: false }); tp(3.2, 0.05, 3.0, 0.8); step(2); },
   async play() {
@@ -1271,37 +1273,37 @@ story('engine/baked-light-is-current', {
   },
 });
 story('engine/bugs-cast-soft-shadows', {
-  about: 'Every bug standing on something gets a soft round shadow under it (systems.js ShadowSystem), all of them in one instanced draw, sized to the bug; a bug thrown into the air keeps one on the surface below it. The jelly\'s own shadow is the same soft picture.',
+  about: 'Every bug standing on something gets a soft shadow under it (systems.js ShadowSystem), all of them and the jelly\'s in one instanced draw, sized to the bug; a bug thrown into the air keeps one on the surface below it.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
     const bugs = [0, 1, 2].map((i) => spawn('ants', near(0.2 + i * 0.06, 0.12), { still: true }));
     step(30);
-    const S = G().shadows, grounded = bugs.filter((e) => e.grounded).length, on = S.bugs.count;
+    const S = G().shadows, grounded = bugs.filter((e) => e.grounded).length, on = S.bugs.count - (S.jelly.visible ? 1 : 0);
     bugs[0].grounded = false; bugs[0].vy = 2; S.update(0);
-    const thrown = S.bugs.count;
-    return ok(grounded === 3 && on === 3 && thrown === 3 && S.bugs.isInstancedMesh && !!S.blob.material.alphaMap, { grounded, on, thrown });
+    const thrown = S.bugs.count - (S.jelly.visible ? 1 : 0);
+    return ok(grounded === 3 && on === 3 && thrown === 3 && S.bugs.isInstancedMesh && !!S.bugs.material.uniforms.atlas.value, { grounded, on, thrown });
   },
 });
 // the instance of the shadow draw nearest `e`: its size, the height it lies at and its darkness
 function shadowOf(e) {
   const S = G().shadows, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   let best = null, bd = 0.05;
-  for (let i = 0; i < S.bugs.count; i++) {
+  for (let i = S.jelly.visible ? 1 : 0; i < S.bugs.count; i++) {   // (the jelly's is the first)
     S.bugs.getMatrixAt(i, m); m.decompose(p, q, sc);
     const d = Math.hypot(p.x - e.pos.x, p.z - e.pos.z);
-    if (d < bd) { bd = d; best = { s: sc.x, y: p.y, dark: S.shade.array[i] }; }
+    if (d < bd) { bd = d; best = { s: sc.x / S.crop.array[i], y: p.y, dark: S.look.array[i * 4 + 2], soft: S.look.array[i * 4 + 3], cell: [S.look.array[i * 4], S.look.array[i * 4 + 1]], yaw: new THREE.Euler().setFromQuaternion(q, 'YXZ').y }; }
   }
   return best;
 }
 story('engine/flying-bugs-cast-shadows-below', {
-  about: 'A bug in the air (a mosquito over the floor) has a shadow on the surface straight below it, wider and fainter than a bug standing on the floor, and it is still the one instanced draw; a bug far out of the camera\'s view has none; one with no surface within 3 m below has none.',
+  about: 'A bug in the air (a mosquito over the floor) has a shadow on the surface straight below it, wider than its own footprint and fainter than a bug standing on the floor, and it is still the one instanced draw; a bug far out of the camera\'s view has none; one with no surface within 3 m below has none.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
     const S = G().shadows, fly = spawn('mosquito', near(0.2, 0.1), { still: true }), ant = spawn('ants', near(0.3, -0.1), { still: true }), far = spawn('mosquito', near(2.5, 0), { still: true });
     step(30);
     fly.grounded = false; fly.pos.y += 0.15; S.update(0);   // (still: it hovers where it was put)
     const f = shadowOf(fly), a = shadowOf(ant), up = fly.pos.y - (f?.y ?? 0), farOne = shadowOf(far);
-    const wide = f && a && f.s / fly.r > a.s / ant.r, faint = f && a && f.dark < a.dark;
+    const wide = f && f.s > S.shapes.cell(`bug:${fly.T.model || fly.type}`).half * fly.r * S.bugSize * 1.2, faint = f && a && f.dark < a.dark;
     const drawCalls = S.bugs.isInstancedMesh;
     const was = S.airDrop; S.airDrop = 0.001; S.under.delete(fly); S.frame += 100; S.update(0);
     const none = !shadowOf(fly); S.airDrop = was;
@@ -1328,11 +1330,54 @@ story('engine/jelly-shadow-stays-readable-in-a-jump', {
   async play() {
     const S = G().shadows, P = G().player;
     step(5); S.update(0);
-    const ground = S.blob.material.opacity, wideGround = S.blob.scale.x;
+    const ground = S.jelly.opacity, wideGround = S.jelly.scale;
     P.position.y += 0.2; S.update(0);
-    const high = S.blob.material.opacity, wideHigh = S.blob.scale.x;
+    const high = S.jelly.opacity, wideHigh = S.jelly.scale;
     P.position.y -= 0.2;
-    return ok(high >= S.blobFloor - 1e-6 && high < ground && wideHigh > wideGround && S.blobFloor > 0.1 && S.bugs.isInstancedMesh && S.blob.visible, { ground, high, wideGround, wideHigh, floor: S.blobFloor });
+    return ok(high >= S.blobFloor - 1e-6 && high < ground && wideHigh > wideGround && S.blobFloor > 0.1 && S.bugs.isInstancedMesh && S.jelly.visible, { ground, high, wideGround, wideHigh, floor: S.blobFloor });
+  },
+});
+story('engine/each-bug-type-has-its-own-shadow-shape', {
+  about: 'Every bug model the game has gets its own cell in the shadow shapes picture (shadow-shapes.js), drawn from above at load, and no two are the same; a body that bends (the millipede) casts a spot under its links instead, so its shadow bends with it; this act\'s Elites and the Vacuum have cells of their own.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const S = G().shadows, sh = S.shapes, models = [...new Set(Object.values(TYPES).map((T) => T.model))];
+    const chain = models.filter((m) => !sh.has(`bug:${m}`)), drawn = models.filter((m) => sh.has(`bug:${m}`));
+    const print = (c) => { let h = 0, ink = 0; for (let r = 0; r < 64; r++) for (let x = 0; x < 64; x++) { const v = sh.data[((c.v * 512 + r) * 512 + c.u * 512 + x) * 4]; ink += v; h = (h * 31 + v) >>> 0; } return { h, ink }; };
+    const prints = drawn.map((m) => print(sh.cell(`bug:${m}`)));
+    const distinct = new Set(prints.map((p) => p.h)).size, allInk = prints.every((p) => p.ink > 64 * 255 * 0.5);
+    const mil = spawn('millipede', near(0.25, 0), { still: true });
+    step(20); S.update(0);
+    const before = S.bugs.count - (S.jelly.visible ? 1 : 0);
+    const elites = ['controller', 'mug', 'kettle'].filter((k) => sh.has(`proxy:${k}`)).length, vac = sh.has('proxy:Vacuum');
+    return ok(drawn.length >= 15 && distinct === drawn.length && allInk && chain.length === 1 && !!mil.shadowLinks && before >= 8 && elites === 3 && vac, { drawn: drawn.length, distinct, allInk, chain, spots: before, elites, vac });
+  },
+});
+story('engine/shadow-shapes-are-built-at-load', {
+  about: 'The shadow shapes are drawn once at load: spawning every bug type in play draws no new shape and builds no new shader program or texture; the shadows stay one instanced draw.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const S = G().shadows, r = G().APT.renderer, renders = S.shapes.renders;
+    step(5);
+    const programs = r.info.programs.length, textures = r.info.memory.textures;
+    Object.keys(TYPES).forEach((t, i) => spawn(t, near(0.1 + 0.05 * (i % 6), 0.1 * Math.floor(i / 6) - 0.2), { still: true }));
+    step(30); S.update(0);
+    const after = { renders: S.shapes.renders, programs: r.info.programs.length, textures: r.info.memory.textures };
+    return ok(after.renders === renders && after.programs === programs && after.textures === textures && S.bugs.isInstancedMesh && S.bugs.count > 10, { renders, programs, textures, after, count: S.bugs.count });
+  },
+});
+story('engine/shadows-turn-with-the-bug', {
+  about: 'A bug\'s shadow is turned to the way it faces (yaw only), and it is as big as its model really is, not a circle round its radius.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
+  async play() {
+    const S = G().shadows, e = spawn('roach', near(0.2, 0.1), { still: true });
+    step(20);
+    e.root.rotation.y = 0.3; S.update(0);
+    const a = shadowOf(e);
+    e.root.rotation.y = 1.5; S.update(0);
+    const b = shadowOf(e), turned = a && b ? Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) : 0;
+    const real = S.shapes.cell('bug:roach').half * e.r;
+    return ok(Math.abs(turned - 1.2) < 0.02 && Math.abs(b.s - real * S.bugSize) < real * 0.05 && Math.abs(real - e.r) > e.r * 0.3, { a: a?.yaw, b: b?.yaw, turned, s: b?.s, real, r: e.r });
   },
 });
 // how many pixels differ between two renders of the same frame, one after `change` (stories below)
@@ -1345,6 +1390,7 @@ function changedPixels(change, undo) {
   return n;
 }
 story('engine/bugs-and-jelly-take-the-baked-light', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The jelly and the bugs take a little of the baked light where they stand (baked-light.js tintShader, --baked-tint): every lit material of the jelly and the bugs reads the furniture\'s light grid, so turning the tint up changes how they are drawn, and it is a number, not a new shader.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
@@ -1384,6 +1430,7 @@ story('engine/baked-light-maps-the-big-pieces', {
   },
 });
 story('engine/baked-light-lights-the-shell', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The floor shows Blender\'s baked light in place of its lamps\' diffuse: switching every lamp off barely changes it, while with the bake switched off (the dev panel\'s Baked light) the same floor darkens a lot. The jelly\'s glow stays live on the baked floor, on Medium and on Low (whose plain materials skip the lamp maths there). Switching the bake builds no shader (it is a number, not a new program).',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); step(3); },
   async play() {
@@ -1425,6 +1472,7 @@ story('engine/baked-light-lights-the-shell', {
   },
 });
 story('engine/baked-light-lights-the-furniture', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'Furniture reads the light grid Blender baked through the rooms (the light from 6 directions at points every 10 cm): with the bake on, switching every lamp off barely changes a piece of furniture; with the bake off (the dev panel\'s Baked light) the same piece darkens a lot. --baked-light-furniture 0 hands it back to the live lamps.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.6, Math.PI * 0.85); step(3); },
   async play() {

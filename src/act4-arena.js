@@ -68,8 +68,8 @@ export function buildAct4(scene){
       put(box,steel,u,.085,side*(half+.035),[.005,.11,.005]);
     }
     for(const y of [.075,.14]){
-      put(box,steel,side*(half+.035),y,0,[.006,.006,span]);
-      put(box,steel,0,y,side*(half+.035),[span,.006,.006]);
+      bar([side*(half+.035),y,-half],[side*(half+.035),y,half],.0032,steel);
+      bar([-half,y,side*(half+.035)],[half,y,side*(half+.035)],.0032,steel);
     }
   }
   // Rear riser supports the visual boss model; combat and collision remain separate.
@@ -113,7 +113,7 @@ export function buildAct4(scene){
       }
     }
   }
-  // Overhead truss frame, braces and lamp cans. Geometry only, no individual light sources.
+  // Overhead truss frame, braces and angled PAR lamp cans. Geometry only, no individual light sources.
   for(const x of [-.79,.79])for(const z of [-.79,.79]){
     for(const dx of [-.015,.015])for(const dz of [-.015,.015])bar([x+dx,0,z+dz],[x+dx,.92,z+dz],.003,steel);
     for(let i=0;i<5;i++)bar([x-.015,i*.18,z-.015],[x+.015,(i+1)*.18,z+.015],.002,steel);
@@ -122,8 +122,11 @@ export function buildAct4(scene){
     bar([-.79,y,side*.79],[.79,y,side*.79],.004,steel);
     bar([side*.79,y,-.79],[side*.79,y,.79],.004,steel);
   }
+  const parCan=geo(new THREE.CylinderGeometry(.018,.024,.052,14)),parLens=geo(new THREE.CircleGeometry(.017,14).rotateX(Math.PI/2));
   for(const x of [-.58,-.28,.28,.58]){
-    put(box,dark,x,.86,-.72,[.035,.035,.045]);put(box,x<0?cool:edge,x,.839,-.712,[.022,.002,.025]);
+    bar([x,.88,-.72],[x,.855,-.72],.0025,steel);
+    put(parCan,dark,x,.85,-.712,[1,1,1],[.45,0,0]);
+    put(parLens,x<0?cool:edge,x,.828,-.70,[1,1,1],[.45,0,0]);
   }
   // Reusable soft light pools fake spill/reflection instead of planar reflections or tile lights.
   const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');

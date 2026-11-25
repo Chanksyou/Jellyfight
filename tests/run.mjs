@@ -78,6 +78,15 @@ const pageOf = (n) => (n.startsWith('menu/portrait') ? 'portrait' : n.startsWith
 // two at a time (--boots=N): more at once starve each other's shader building past openGame's wait.
 const num = (flag, d) => Math.max(1, Number((args.find((a) => a.startsWith(flag)) || '').slice(flag.length)) || d);
 const JOBS = num('--jobs=', 3), BOOTS = num('--boots=', 2);
+// A story that takes longer than this has hung: it fails, and the rest play on a fresh page (--story-timeout=SECONDS).
+// The slowest honest story is about a minute in CI; without a limit a hung page sat until the job's own timeout.
+// With one job (the CI) each story's line prints as it finishes, so a log that stops shows which story it stopped in.
+const LIVE = JOBS === 1;
+const STORY_MS = num('--story-timeout=', 240) * 1000;
+class StoryHang extends Error {}
+const SMALL = Number((args.find((a) => a.startsWith('--small=')) || '').slice(8)) || 0.25;
+// Closing a page or the browser waits for the software GPU to finish every frame it was handed; the stories are done by then, so give up after a minute (the process exit ends the browser).
+const quit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 60000))]);
 let free = BOOTS; const waiting = [];
 const gate = async (f) => {
   if (free > 0) free--; else await new Promise((r) => waiting.push(r));
@@ -90,7 +99,7 @@ const gate = async (f) => {
 // shown(page, f) puts the picture back for a failure screenshot.
 const prep = async (page) => page.evaluate(() => { APT.renderer.setAnimationLoop(null); APT.renderer.domElement.style.opacity = '0'; });
 const shown = async (page, f) => {
-  await page.evaluate(() => { APT.renderer.domElement.style.opacity = ''; GAME.render(); }).catch(() => {});
+  await page.evaluate(async () => { APT.renderer.setPixelRatio(1); (await import('/src/stories/kit.js')).G().gfx.resize(); APT.renderer.domElement.style.opacity = ''; GAME.render(); }).catch(() => {});
   try { return await f(); } finally { await page.evaluate(() => { APT.renderer.domElement.style.opacity = '0'; }).catch(() => {}); }
 };
 const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
@@ -104,18 +113,31 @@ const firstKey = (s) => FIRST[s % FIRST.length];
 const first = !shardArg ? PAGES.find((P) => !filters.every((f) => f && pageOf(f) !== P.key && pageOf(f) !== 'act1'))
   : firstKey(shardIndex) === FIRST_RUN.key ? FIRST_RUN : PAGES.find((P) => P.key === firstKey(shardIndex));
 let listing = await boot(env, first.opts);
-const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1']));
+const all = await listing.page.evaluate(async () => Object.entries((await import('/src/stories.js')).STORIES).map(([n, s]) => [n, s.portrait ? 'portrait' : s.phone ? ((s.act || 1) > 1 ? 'phone' + s.act : 'phone') : (s.act || 1) > 1 ? (s.act === 4 && s.scene !== 2 ? 'night4' : 'act' + s.act) : 'act1', !!s.readback]));
+const readback = new Set(all.filter((a) => a[2]).map((a) => a[0]));
 const reuse = (P) => { if (!listing || P !== first) return null; const got = listing; listing = null; return got; };
 // one task per page, then the two checks that need a page of their own. A page that crashes (the browser's
 // "Target crashed", not a story failing) is replayed once per run on a fresh page from the story it was
 // playing; a second crash fails the run.
-let crashed = false;
-const pageTask = (P, names) => async (e) => {
+let crashed = false, hangs = 0;
+// Stories that read the picture back play first: drawing is queued for the software GPU and any story that reads pixels
+// waits for every frame the stories before it drew (6 minutes in CI behind act 1's first 150 stories, against 5 seconds alone).
+const pageTask = (P, played) => async (e) => {
+  const names = [...played.filter((n) => readback.has(n)), ...played.filter((n) => !readback.has(n))];
   let got = reuse(P) || await boot(e, P.opts);
   const out = [];
   while (out.length < names.length) {
     try { await playAll(got.page, got.errors, names.slice(out.length), out); }
     catch (err) {
+      if (err instanceof StoryHang) {
+        const note = `${err.message} took over ${STORY_MS / 1000} s and was stopped: it fails, and the rest play on a fresh page`;
+        console.log(process.env.GITHUB_ACTIONS ? `::error::${note}` : `✗ ${note}`);
+        out.push(result(false, err.message, STORY_MS, { hung: true }));
+        if (++hangs > 3) throw new Error('Four stories hung in one run: stopping');
+        await got.page.close().catch(() => {});
+        got = await boot(e, P.opts);
+        continue;
+      }
       if (crashed || !/Target crashed/.test(String(err))) throw err;
       crashed = true;
       const note = `The ${P.key} page crashed during ${names[out.length]}: replaying it and the rest on a fresh page (a second crash fails the run)`;
@@ -124,7 +146,7 @@ const pageTask = (P, names) => async (e) => {
       got = await boot(e, P.opts);
     }
   }
-  await got.page.close();
+  await quit(got.page.close());
   return out;
 };
 const BOOT_COST = 180;
@@ -188,15 +210,21 @@ if (!tasks.length) throw new Error('No story tasks selected; check the filter an
 if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${jobs.map((j) => j.label).join(', ')}`);
 const envs = [env];
 await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, async (_, w) => {
-  for (let t; (t = tasks.shift());) console.log((await t(envs[w] ||= await start())).join('\n'));
+  for (let t; (t = tasks.shift());) { const lines = (await t(envs[w] ||= await start())).filter(Boolean).join('\n'); if (lines) console.log(lines); }
 }));
-if (listing) await listing.page.close();
-await Promise.all(envs.slice(1).map((e) => e.close()));
+if (listing) await quit(listing.page.close());
+await Promise.all(envs.slice(1).map((e) => quit(e.close())));
 
 async function playAll(page, errors, names, out = []) {
   for (const name of names) {
     const before = errors.length;
-    const r = await page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED });
+    // frames are drawn in software and their cost is paid later, in bulk: stories that never look at the picture draw it small
+    await page.evaluate(async ({ ratio }) => { APT.renderer.setPixelRatio(ratio); (await import('/src/stories/kit.js')).G().gfx.resize(); }, { ratio: readback.has(name) ? 1 : SMALL }).catch(() => {});
+    let timer;
+    const r = await Promise.race([
+      page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED }),
+      new Promise((_, no) => { timer = setTimeout(() => no(new StoryHang(name)), STORY_MS); }),
+    ]).finally(() => clearTimeout(timer));
     const newErrors = errors.slice(before);
     const good = r.ok && !newErrors.length;
     if (!good) {
@@ -208,7 +236,7 @@ async function playAll(page, errors, names, out = []) {
   }
   return out;
 }
-function result(good, ...a) { good ? passed++ : failed++; return text(good, ...a); }
+function result(good, ...a) { good ? passed++ : failed++; const line = text(good, ...a); if (LIVE) console.log(line); return LIVE ? '' : line; }
 
 // --- a player's first run survives a real reload, and ends for good once a run ends (first-run.js)
 async function firstRunReload(e) {
@@ -336,8 +364,8 @@ async function touchControls(e) {
 }
 
 
-await env.close();
 console.log(`\n${passed} passed, ${failed} failed`);
+await quit(env.close());
 // a full green run on a clean checkout records its commit: the pre-push hook (.githooks/pre-push)
 // lets that commit go to main
 if (!shardArg && !failed && filters.join('') === '' && MOBILE && SEED === DEFAULT_SEED) {

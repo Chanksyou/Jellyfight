@@ -82,7 +82,10 @@ export class Shark {
     const ph=IS_TOUCH?'-phone':'';this.camera={distance:LOOK.num('shark-camera-distance'+ph,IS_TOUCH?.85:1.15),pitch:LOOK.num('shark-camera-tilt'+ph,IS_TOUCH?.95:.98),ahead:LOOK.num('shark-camera-ahead'+ph,IS_TOUCH?.3:.25)};
     this.cameraBase={distance:this.camera.distance,pitch:this.camera.pitch};this.cameraAir=IS_TOUCH?LOOK.num('shark-camera-air-room-phone',.6):0;this.cameraAirView=0;
     // A separate inexpensive fin proxy is visible while the full model is beneath the quilt.
-    this.fin=new THREE.Mesh(new THREE.ConeGeometry(.065*K,.15*K,3).scale(.18,1,1),this.model.rig.mat);
+    const finShape=new THREE.Shape();finShape.moveTo(0,0);finShape.quadraticCurveTo(-.03*K,.09*K,-.075*K,.155*K);finShape.quadraticCurveTo(.025*K,.115*K,.065*K,0);finShape.closePath();
+    const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.014*K,bevelEnabled:true,bevelThickness:.006*K,bevelSize:.004*K,bevelSegments:2,curveSegments:8});
+    finGeo.translate(0,-.075*K,-.007*K).rotateY(Math.PI/2);
+    this.fin=new THREE.Mesh(finGeo,this.model.rig.mat);
     this.fin.geometry.setAttribute('color',new THREE.Float32BufferAttribute(Array(this.fin.geometry.attributes.position.count).fill([.23,.38,.48]).flat(),3));
     this.fin.userData.noCollide=true;this.fin.visible=false;scene.add(this.fin);
     this.circleGeo=new THREE.CircleGeometry(1,48).rotateX(-Math.PI/2);

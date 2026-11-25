@@ -357,7 +357,7 @@ export class Enemies {
   spawn(type, pos, hpScale = 1, elite = false) {
     let T = TYPES[type];
     const model = this.models.take(`${type}:${elite}`, () => {
-      const { body: mesh, face, anim, ballRadius, deathParts, deathRig } = this.looks[T.model || type]();
+      const { body: mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks } = this.looks[T.model || type]();
       const root = new THREE.Group();
       if (elite && !anim) {
         const m = mesh.children[0];
@@ -373,9 +373,9 @@ export class Enemies {
       }
       mesh.scale.multiplyScalar(T.r * (elite && !anim ? 1.35 : 1));
       root.add(mesh, face);
-      return { root, mesh, face, anim, ballRadius, deathParts, deathRig };
+      return { root, mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks };
     });
-    const { root, mesh, face, anim, ballRadius, deathParts, deathRig } = model.value;
+    const { root, mesh, face, anim, ballRadius, deathParts, deathRig, shadowLinks } = model.value;
     if (elite && !anim) {
       T = { ...T, xp: T.xp * 4, r: T.r * 1.35, dmg: T.dmg + 1 };
       hpScale *= 2.2;
@@ -385,7 +385,7 @@ export class Enemies {
     this.scene.add(root);
     batcher.track(root);                  // every part drawn instanced with the other bugs' (batch.js)
     const e = {
-      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, deathRig, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
+      model, id: nextId(), type, T, root, mesh, face, anim, deathParts, deathRig, shadowLinks, elite, pos: root.position, r: T.r, shootT: 0, aimT: 0, hold: false,
       hp: T.hp * hpScale, maxHp: T.hp * hpScale,
       vel: new THREE.Vector3(), vy: 0, grounded: false,
       state: 'approach', stateT: 0, dashDir: new THREE.Vector3(),
@@ -419,9 +419,16 @@ export class Enemies {
       e.note.position.y = e.r * 2.7 + Math.sin(performance.now() / 180 + e.id) * e.r * 0.12;
     }
     if (e.freezeT > 0 && !e.frost) {
-      this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.45, roughness: 0.1 });
+      this.frostMat ||= new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x3a8aa8, emissiveIntensity: 0.6, transparent: true, opacity: 0.5, roughness: 0.08, flatShading: true });
       if (this.fx?.deaths) this.fx.deaths.frostMat = this.frostMat;
-      this.frostGeo ||= new THREE.IcosahedronGeometry(1, 1);   // shared: one per enemy leaked GPU buffers
+      this.frostGeo ||= mergeGeometries([   // jagged cluster of encasing ice crystals (shared: 1 mesh)
+        new THREE.ConeGeometry(0.68, 1.85, 5).translate(0, 0.15, 0).toNonIndexed(),
+        new THREE.ConeGeometry(0.55, 1.55, 5).rotateZ(0.55).rotateY(0.4).translate(0.28, -0.05, 0.2).toNonIndexed(),
+        new THREE.ConeGeometry(0.52, 1.5, 5).rotateZ(-0.6).rotateY(1.6).translate(-0.26, -0.08, 0.22).toNonIndexed(),
+        new THREE.ConeGeometry(0.5, 1.45, 5).rotateX(0.58).rotateY(2.8).translate(0.12, -0.1, -0.32).toNonIndexed(),
+        new THREE.ConeGeometry(0.48, 1.4, 5).rotateX(-0.52).rotateY(4.1).translate(-0.24, -0.06, -0.24).toNonIndexed(),
+        new THREE.OctahedronGeometry(0.88, 0).toNonIndexed(),
+      ]);
       e.frost = new THREE.Mesh(this.frostGeo, this.frostMat);
       e.frost.scale.setScalar(e.r * 1.25);
       e.frost.position.y = e.T.fly ? 0 : e.r;
@@ -961,7 +968,12 @@ export class Enemies {
   }
   whirlModel() {
     if (!this.whirlGeo) {
-      const blades = [0, 1].map((i) => new THREE.BoxGeometry(0.95, 0.05, 0.22).translate(0.5, 0, 0).rotateX(0.3).rotateY(i * Math.PI).toNonIndexed());
+      const bladeShape = new THREE.Shape();
+      bladeShape.moveTo(0.06, -0.04);
+      bladeShape.quadraticCurveTo(0.5, -0.14, 1.0, 0.02);
+      bladeShape.quadraticCurveTo(0.52, 0.14, 0.06, 0.05);
+      bladeShape.closePath();
+      const blades = [0, 1].map((i) => new THREE.ShapeGeometry(bladeShape, 8).rotateX(-Math.PI / 2 + 0.25).rotateY(i * Math.PI).toNonIndexed());
       this.whirlGeo = { top: mergeGeometries(blades), blur: new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2) };
       const color = hostile('dragonfly');
       this.whirlMats = {

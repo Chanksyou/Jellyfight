@@ -49,7 +49,7 @@ import { LOOK } from './look.js';
 import { AirLight } from './air-light.js';
 import { Clock, GameplaySystem, LayoutSystem, TouchSystem, AvatarSystem, InputSystem, CameraSystem, ShadowSystem, HudSystem, DebugSystem, RenderSystem } from './systems.js';
 
-const BUILD = 'v696';   // shown in the corner of the main screen, so you can tell which version is running
+const BUILD = 'v699';   // shown in the corner of the main screen, so you can tell which version is running
 window.JF_BUILD = BUILD;
 import { Lash } from './combat.js';
 import { XpDrops } from './pickups.js';
@@ -823,7 +823,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
-    updateMist(dt, juice.calm);
+    updateMist(dt, juice.calm, traversal.vents, traversal.air);   // (after ambient.update: the mist follows its wake)
     floorLight?.update();
     powered?.update(dt, { pixelRatio: renderer.getPixelRatio() });
     systems.shadow.update(dt);
@@ -1034,6 +1034,8 @@ async function warmUp() {
   // this act's boss (not in a scene before its stage door: the boss is through it, in the next scene's page)
   const warmBoss = stage.stageDoor ? null : makeBoss(stage.boss, scene, enemies, fx, world, { arena: ARENA, toughness: stage.toughness });
   warmBoss?.warm?.(true);                         // (and what only shows mid-fight: the Clog's acid)
+  // every model's shadow shape, drawn once from above (shadow-shapes.js): every bug, this act's Elites and its boss
+  systems.shadow.buildShapes(renderer, { looks: enemies.looks, models: kinds.map((t) => ({ name: TYPES[t].model || t, r: TYPES[t].r })), proxies: [...enemies.list.filter((e) => e.proxy).map((e) => e.proxy), warmBoss] });
   const spit = new THREE.Mesh(enemies.shotGeo, enemies.shotMat);
   spit.position.copy(P).setY(P.y + 0.03);
   scene.add(spit);

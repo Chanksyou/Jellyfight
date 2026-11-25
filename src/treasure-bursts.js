@@ -4,11 +4,24 @@
 // this draws the body and the flight after the hit lands. Pieces come from the kit (gadget-looks.js),
 // so no material or shader of its own; props are built here and shown by the warm-up (treasure-props.js).
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 
 const UP = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3(), _a = new THREE.Vector3();
 const backOut = (u) => 1 + 2.7 * (u - 1) ** 3 + 1.7 * (u - 1) ** 2;
 const DUCK_LIFE = 0.55, PICK_LIFE = 0.25;
+
+// rounded guitar-pick silhouette (classic teardrop triangle)
+function guitarPickGeo() {
+  const s = new THREE.Shape();
+  s.moveTo(0, -1.05);
+  s.bezierCurveTo(0.85, -0.3, 1.05, 0.55, 0.72, 0.9);
+  s.bezierCurveTo(0.35, 1.12, -0.35, 1.12, -0.72, 0.9);
+  s.bezierCurveTo(-1.05, 0.55, -0.85, -0.3, 0, -1.05);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.18, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2, curveSegments: 8 });
+  g.center();
+  return g;
+}
 
 export class TreasureBursts {
   constructor(gadgets) {
@@ -16,10 +29,17 @@ export class TreasureBursts {
     const { props, looks } = gadgets, fx = gadgets.fx, geo = looks.geo;
     const piece = (g, size) => () => { const m = fx.piece(g, looks.mat); m.userData.size = size; return m; };
     const duck = new THREE.Color(LOOK.color('treasure-rubberDuck', '#a8e9ce'));
-    this.duck = [props.prop('duck-body', piece(geo.foam, 0.02)), props.prop('duck-head', piece(geo.foam, 0.012)), props.prop('duck-beak', piece(geo.needle, 0.004))];
+    // sculpted duck body: ovoid torso + upturned tail cone + twin folded wings merged into one piece
+    const duckBodyGeo = mergeGeometries([
+      new THREE.SphereGeometry(1, 12, 8).toNonIndexed(),
+      new THREE.ConeGeometry(0.42, 0.85, 8).rotateX(-0.9).translate(0, 0.45, -0.85).toNonIndexed(),
+      new THREE.SphereGeometry(1, 10, 6).scale(0.28, 0.52, 0.78).translate(0.85, 0.08, -0.05).toNonIndexed(),
+      new THREE.SphereGeometry(1, 10, 6).scale(0.28, 0.52, 0.78).translate(-0.85, 0.08, -0.05).toNonIndexed(),
+    ]);
+    this.duck = [props.prop('duck-body', piece(duckBodyGeo, 0.02)), props.prop('duck-head', piece(geo.foam, 0.012)), props.prop('duck-beak', piece(geo.needle, 0.004))];
     this.duck.forEach((m) => m.userData.color.copy(duck));
     this.duck[2].userData.color.set(LOOK.color('treasure-duck-beak', '#ffcf9e'));
-    this.pick = props.prop('pick', piece(new THREE.CylinderGeometry(1, 1, 0.25, 3), LOOK.num('treasure-pick-size', 0.02)));
+    this.pick = props.prop('pick', piece(guitarPickGeo(), LOOK.num('treasure-pick-size', 0.02)));
     this.pick.userData.color.set(LOOK.color('treasure-guitarPick', '#e0c8ff'));
     this.reset();
   }
