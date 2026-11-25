@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v691 makes Fire's shot hit harder (hit 0.5 to 0.6), so Fire keeps up with the other types against the Vacuum and the Clog.
+
 v690 Act 3's wasp nests send out at most six wasps at a time, down from nine, so the swarm is smaller and easier to clear.
 
 v689 makes Clean play last longer in later acts: it now pays down to nothing at 100, 250, 300 and 350 Health taken in acts 1 to 4, so a hard-fought clear in act 2 to 4 still earns part of it.
