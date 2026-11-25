@@ -312,7 +312,7 @@ export class Enemies {
       if (e.proxy) {   // Elites and bosses: a stun or pin is only a mini-stun, a chill or slow only a light one; freeze, trap and mark pass them by
         if (e.proxy.beatBound) return;   // (the Encore and the song-beat Elites keep the song's time: nothing here moves it)
         if (status === 'stun' || status === 'pin') e.stunT = Math.max(e.stunT || 0, LOOK.num('boss-stun', 0.1));
-        else if (status === 'slow' || status === 'chill') {
+        else if (status === 'slow' || status === 'chill' || status === 'wade') {
           e.slowT = Math.max(e.slowT || 0, duration);
           if (status === 'chill') e.chillT = Math.max(e.chillT || 0, duration);   // so Chilled bonuses (Brittle, Frostbite...) count
         }
@@ -321,6 +321,7 @@ export class Enemies {
       if(status==='mark'){this.treasureLooks?.stamp(this.center(e).add(new THREE.Vector3(0,e.r,0)),e.r);sfx.gadgetPaper();}
       if(status==='pin'){this.treasureLooks?.stamp(this.center(e),e.r,true,e,duration);sfx.gadgetPin();}
       if (status === 'slow') e.slowT = Math.max(e.slowT || 0, duration);
+      else if (status === 'wade') { e.wadeT = Math.max(e.wadeT || 0, duration); e.wadeK = more ?? 0.3; }   // wading through a slowing trail (the wake word): `more` of its speed lost, no frost
       else if (status === 'mark') { e.markMore = Math.max(e.markT > 0 ? e.markMore || 0 : 0, more ?? 0.5); e.markT = Math.max(e.markT || 0, duration); }   // the strongest mark on it counts
       else if (status === 'stun') e.stunT = Math.max(e.stunT || 0, duration);
       else if (status === 'pin') { e.stunT = Math.max(e.stunT || 0, duration); e.vel?.set(0, 0, 0); }   // a stun that stops it dead (pin-on-crit)
@@ -1576,12 +1577,13 @@ export class Enemies {
       e.spawnT = Math.min(1, e.spawnT + dt * 4);
       if (e.blockT > 0) e.blockT -= dt;
       e.slowT = Math.max(0, e.slowT - dt);
+      e.wadeT = Math.max(0, (e.wadeT || 0) - dt);
       e.chillT = Math.max(0, (e.chillT || 0) - dt);
       e.freezeT = Math.max(0, (e.freezeT || 0) - dt);
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
       e.trapT = Math.max(0, (e.trapT || 0) - dt);
-      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : 1) * pace;
+      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : e.wadeT > 0 ? 1 - e.wadeK : 1) * pace;
       const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
       const aim = lure ? decoy.center : pc;
       const toP = this._d.copy(aim).sub(this.center(e, tmp));

@@ -1,0 +1,1 @@
+adds Bioluminescent Wake, an Epic Treasure: swimming leaves a glowing cyan-to-violet trail that slows bugs 30%, and a jump off the ground sends a pulse down it that sets every piece off as a Blast for 2x Attack damage.
