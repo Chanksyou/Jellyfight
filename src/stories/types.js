@@ -916,12 +916,12 @@ story('types/roller-skate-counts-from-your-start', {
   },
 });
 story('types/crit-treasures-reach-glitter-bursts', {
-  about: 'by="all" covers a Glitter bomb\'s burst too: Nail Clipper gives the splash its 20% crit chance (Lucky Sparkle\'s 15% adds to it), as it does bubbles, shots and stings.',
+  about: 'by="all" covers a Glitter bomb\'s burst too: Nail Clipper gives the splash its 15% crit chance (Lucky Sparkle\'s 15% adds to it), as it does bubbles, shots and stings.',
   setup() {},
   play() {
     const m = compileMods(new Set(['nailClipper'])), both = compileMods(new Set(['nailClipper']), [], ['luckySparkle']);
     const H = m.hits, near = (a, b) => Math.abs(a - b) < 1e-9;
-    return ok(near(H.splash.crit?.chance, 0.2) && near(H.bubbles.crit?.chance, 0.2) && near(H.tentacles.crit?.chance, 0.2) && near(both.hits.splash.crit?.chance, 0.35), { splash: H.splash.crit, both: both.hits.splash.crit });
+    return ok(near(H.splash.crit?.chance, 0.15) && near(H.bubbles.crit?.chance, 0.15) && near(H.tentacles.crit?.chance, 0.15) && near(both.hits.splash.crit?.chance, 0.30), { splash: H.splash.crit, both: both.hits.splash.crit });
   },
 });
 
