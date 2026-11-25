@@ -6,7 +6,7 @@ import { bus, PLAYER } from '../events.js';
 import { CONTENT } from '../content.js';
 import { BASE_STATS, applyCard, knockFor, rollCards, rollTreasures, TREASURE_RARITY, xpToNext, cardText } from '../stats.js';
 import { sfx } from '../sfx.js';
-import { G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, step, story, stub, tp } from './kit.js';
+import { G, V, fresh, give, holdJelly, near, ok, record, restore, spawn, spy, startVacuum, steadyBugs, step, story, stub, tp } from './kit.js';
 
 // --- movement
 story('movement/jelly-steady-speed', {
@@ -25,7 +25,7 @@ story('movement/jelly-steady-speed', {
 });
 story('movement/roach-slower-than-jelly', {
   about: 'A cockroach chases at 0.35 m/s, slower than the jelly, so one can always be outswum.',
-  setup() { fresh({ elites: false, bubbles: false, lash: false }); tp(3.2, 0.05, 4.0, 0); spawn('roach', V(3.2, 0, 2.3)); },
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); steadyBugs(); tp(3.2, 0.05, 4.0, 0); spawn('roach', V(3.2, 0, 2.3)); },
   play() {
     const e = G().enemies.list[0];
     step(40); const a = e.pos.clone(); step(60);
