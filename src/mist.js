@@ -4,7 +4,7 @@
 // here are the whole cost (uniforms; the clock is the only one that changes). The height fog is the closed-form
 // integral of a density that falls off as exp(-height / --mist-height) along the eye ray (Inigo Quilez's formula),
 // so a table top or the sofa seat stands clear of it and the floor sits in it. Patches (a few sines on x,z, no
-// texture) swing the thickness between 1 - patch and 1 + patch times the mean, drifting with the clock.
+// texture, blended, never clipped) swing the thickness at most between 1 - patch and 1 + patch times the mean, drifting with the clock.
 // The jelly parts it (F2): density falls round the jelly and along the trail it leaves (TRAIL remembered spots,
 // refilling over --mist-part-refill s), a counter-rotating vortex pair at each spot bends the patches' lookup into
 // curls (a Lamb-Oseen shaped spin that grows and fades with the spot's age), the patches slide round the jelly as
@@ -205,7 +205,7 @@ export const MIST_GLSL = /* glsl */`
     float a = sin(p.x * 5.0 + 1.3 * sin(p.y * 3.2 + ph * 5.0) + ph * 7.0);
     float b = sin(p.y * 7.5 + 1.1 * sin(p.x * 5.8 - ph * 4.0) - ph * 11.0 + 1.7);
     float c = sin((p.x + p.y) * 11.0 + sin((p.x - p.y) * 9.0 + ph * 9.0) + ph * 13.0);
-    return clamp((0.55 * a + 0.3 * b + 0.15 * c) * 2.2, -1.0, 1.0);
+    return 0.55 * a + 0.3 * b + 0.15 * c;   // soft, never clipped: thin spots fade into thick ones
   }
   vec4 mistAt(vec3 pos) {
     if (mistK <= 0.0) return vec4(0.0);
