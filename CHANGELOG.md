@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v693 offers "Try Easy mode" on the death screen after a second act 1 death, for players who have never cleared act 1.
+
 v692 tunes five Treasures: Lego Brick hits harder (4, 4.5 and 5 damage), Marble hits harder (1.5, 1.65 and 1.8), Nail Clipper crits on 15% of hits, Cat Toy Mouse hits for 7, and Wind-Up Key is Epic.
 
 v691 makes Fire's shot hit harder (hit 0.5 to 0.6), so Fire keeps up with the other types against the Vacuum and the Clog.
