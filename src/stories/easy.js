@@ -1,7 +1,7 @@
 // Stories: Easy mode (easy.js). Shared helpers are in ./kit.js; src/stories.js imports this file in order.
 
 import { BEST_KEY } from '../leaderboard.js';
-import { EASY_KEY, DEATHS_KEY, chooseEasy, easyChosen, act1Deaths } from '../easy.js';
+import { EASY_KEY, DEATHS_KEY, chooseEasy, easyChosen, act1Deaths, easyOffered } from '../easy.js';
 import { FOUND_KEY } from '../collection.js';
 import { G, fresh, hitJelly, ok, phone, spawn, near, step, story, tp } from './kit.js';
 import { bus } from '../events.js';
@@ -104,10 +104,11 @@ story('easy/offered-after-a-second-act-1-death', {
       localStorage.removeItem(DEATHS_KEY); chooseEasy(false);
       run.die(); const counted = act1Deaths() === 1;
       run.start();   // a new run: the death's own end screen (a timer, run.later) never lands
-      const first = !!dieAt(run, 1, false);
-      const cleared = !!dieAt(run, 5, true);
+      // the rule itself, one case at a time; only the dev run and the offered run draw an end screen
+      localStorage.setItem(DEATHS_KEY, '1'); const first = easyOffered(false);
+      localStorage.setItem(DEATHS_KEY, '5'); const cleared = easyOffered(true);
+      chooseEasy(true); const already = easyOffered(false); chooseEasy(false);
       run.dev = true; const dev = !!dieAt(run, 5, false); run.dev = false;
-      chooseEasy(true); const already = !!dieAt(run, 5, false); chooseEasy(false);
       const btn = dieAt(run, 2, false), says = /deal twice the damage and take half/.test(modal().innerText);
       btn?.click();
       G().picker.close(); run.ui.close();
