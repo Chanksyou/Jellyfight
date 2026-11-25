@@ -1048,7 +1048,7 @@ async function warmUp() {
   try {
     await prepareGraphics((f) => JF_LOAD.step(0.65 + 0.3 * f, 'Preparing the graphics…'));
     await JF_LOAD.step(0.97, 'Almost ready…');
-    uploadAll(true);
+    uploadAll(false);
   } catch (e) {
     reportError(e, 'preparing graphics');
   }
@@ -1080,6 +1080,13 @@ async function warmUp() {
   xpDrops.clear();
   fx.clear();
   tentacles.forEach((m) => { m.visible = false; m.material = lash.mat; lash.pool.push(m); });
+  // Warm the composer's passes (N8AO, DOF, bloom) once on the clean scene with culling & HIDDEN restored
+  if (gfx.composer) {
+    await JF_LOAD.step(0.99, 'Almost ready…');
+    const mask = camera.layers.mask;
+    camera.layers.enable(0);
+    try { gfx.render(); } catch (e) { reportError(e, 'preparing graphics'); } finally { camera.layers.mask = mask; }
+  }
   playBtn.disabled = false;
   playBtn.textContent = 'Play';
   warming = false;
@@ -1110,11 +1117,11 @@ async function prepareGraphics(progress) {
   const waiting = [...programs], total = waiting.length || 1;
   while (waiting.length) {
     const until = performance.now() + 40;
-    while (waiting.length && performance.now() < until) {
-      const program = waiting[0];
-      if (program && !program.isReady()) break;   // still building: look again next time
+    for (let i = 0; i < waiting.length && performance.now() < until; ) {
+      const program = waiting[i];
+      if (program && !program.isReady()) { i++; continue; }   // don't head-of-line block behind one slow shader
       program?.getUniforms();
-      waiting.shift();
+      waiting.splice(i, 1);
     }
     await progress(1 - waiting.length / total);
   }
@@ -1183,15 +1190,19 @@ function uploadAll(gamePasses = false) {
   scene.traverse((o) => { if (o.isMesh && o.frustumCulled) { o.frustumCulled = false; culled.push(o); } });
   const was = renderer.getRenderTarget();
   try {
-    if (gamePasses) camera.layers.enable(0);   // the home portrait may already have isolated its own layer
+    camera.layers.enable(0);   // the home portrait may already have isolated its own layer
     camera.layers.enable(HIDDEN);   // and the batched pieces' own meshes, drawn by themselves when the camera fades one (static-batch.js)
     renderer.setRenderTarget(drawnInto());   // Low: the screen, under the loading screen or menu
     renderer.render(scene, camera);
-    if (gamePasses && gfx.composer) { renderer.setRenderTarget(was); gfx.render(); }   // and the composer's own passes (AO, bloom), not at the first frame
   } finally {
     renderer.setRenderTarget(was);
     culled.forEach((o) => { o.frustumCulled = true; });
     camera.layers.mask = cameraMask;
+  }
+  // Composer passes (N8AO, DOF, bloom) run after culling & HIDDEN are restored, never on duplicate off-screen geometry
+  if (gamePasses && gfx.composer) {
+    camera.layers.enable(0);
+    try { gfx.render(); } finally { camera.layers.mask = cameraMask; }
   }
 }
 

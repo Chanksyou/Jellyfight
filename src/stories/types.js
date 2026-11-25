@@ -505,7 +505,7 @@ story('types/pick-stage-roaches-keep-their-brown', {
       const P = live.P, game = G().run.bubbles.looks.fx;
       const shells = new Set();
       for (const b of P.enemies.list) { let first = null; b.mesh.traverse((o) => { if (o.isMesh) first ||= o.material; }); shells.add(first); }   // (its body's material, as roach() swaps it)
-      const shell = [...shells][0], stage = shells.size === 1 && shell.envMapIntensity < 1 && shell.customProgramCacheKey().startsWith('standOut0.08');
+      const shell = [...shells][0], stage = shells.size === 1 && shell.envMapIntensity < 1 && shell.userData.standOut?.base === 0.08 && shell.customProgramCacheKey().startsWith('standOut');
       const soft = P.fx.puffMat.userData.soft > 0 && !game.puffMat.userData.soft;
       const at = new THREE.Vector3(0.1, 0.05, 0), n = 420;
       P.fx.glitter.clear(); P.fx.glitter.cloud(at, n, 0.1, 0); P.fx.glitter.cloud(at, n, 0.1, 0);
