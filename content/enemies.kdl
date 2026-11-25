@@ -134,7 +134,7 @@ enemy "firefly" name="Firefly" hp=700 r=0.036 dmg=2 xp=12 model="firefly" {
 // When it dies, the worm that was living inside it takes its place.
 enemy "mantis" name="Praying mantis" hp=200 r=0.05 dmg=2 xp=10 model="mantis" {
     attack-motion "swipe" tier="heavy"
-    chase 0.4 sway=0.25 stalk=0.85 rush=0.8 rushx=1.5   // a slow sway as it stalks, then a quick rush over the last stretch
+    chase 0.4 sway=0.25 stalk=0.85 rush=0.8 rushx=1.5 lead=1.2   // a slow sway as it stalks, then a quick rush over the last stretch, and it cuts you off
     swat range=0.3 windup=0.5 reach=0.2 arc=120 dmg=4 rest=0.5 every=1
     hatch "worm"
 }

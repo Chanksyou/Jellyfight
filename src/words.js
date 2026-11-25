@@ -22,10 +22,10 @@ import { STYLES, TIERS, knobs } from './attack-motion.js';
 const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame (World.cast `out`: no hit allocated)
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
-const UP = new THREE.Vector3(0, 1, 0);
+const UP = new THREE.Vector3(0, 1, 0), _lead = new THREE.Vector3();
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
-const SWAP_LEAD = 0.3, JERK_SHARE = 0.2;   // the part of each `jerk` run the bug spends turning
+const LEAD_NEAR = 0.1, SWAP_LEAD = 0.3, JERK_SHARE = 0.2;   // the part of each `jerk` run the bug spends turning
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 // An attack word starts its attack only through go(c): false while c.wait (the attack gap, or on-beat off the beat), and a start
 // or a wait held by the gap is noted for enemies.js (c.start, c.want), so two bugs never start their attacks together
@@ -55,19 +55,30 @@ export const ENEMY_WORDS = {
     },
   },
   chase: {
-    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you. A file: with `file` (m) it follows the nearest bug of its own kind ahead of it (nearer you) within that distance, and with `fan` (m) a ranged bug holding at `stop` side-steps away from its own kind closer than that, so they stand in a line, not a stack.',
+    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you. With `lead` (s) it cuts you off: it heads for where you will be, your position plus your velocity times the time it would take to reach you (no more than `lead`), until it is within its attack range, then straight at you. A file: with `file` (m) it follows the nearest bug of its own kind ahead of it (nearer you) within that distance, and with `fan` (m) a ranged bug holding at `stop` side-steps away from its own kind closer than that, so they stand in a line, not a stack.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0, file: 0, fan: 0 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0, file: 0, fan: 0, lead: 0 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c, en) {
+        // where it heads for: you, or (lead) where you will be, till it is in attack range
+        let toward = c.flatDir;
+        const v = p.lead && c.pc === c.realPc ? en.player?.velocity : null;
+        if (v && v.x * v.x + v.z * v.z > 1e-4 && c.flat > e.T.reach + e.r + LEAD_NEAR) {
+          const t = Math.min(p.lead, c.flat / Math.max(speed * (p.rush && c.flat > p.rush ? p.stalk : 1), 0.05));   // Reynolds' pursuit: the time it would take to get there, capped
+          toward = _lead.set(c.pc.x + v.x * t - e.pos.x, 0, c.pc.z + v.z * t - e.pos.z);
+          if (toward.lengthSq() > 1e-8) toward.normalize(); else toward = c.flatDir;
+          // never into furniture or a wall: the floor map must reach three points along the way (else it chases where you are)
+          const N = en.nav;
+          if (toward !== c.flatDir && N && [0.12, 0.25, 0.4].some((d) => N.distAt(e.pos.x + toward.x * d, e.pos.y, e.pos.z + toward.z * d, e.r) === Infinity)) toward = c.flatDir;
+        }
         // round the furniture by the floor map (bug-nav.js), easing from the way it was going; straight at a decoy, or where the map has nothing
-        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir, p.hug)) {
+        if (c.pc === c.realPc && en.nav?.steer(e, en.list, toward, c.dir, p.hug)) {
           const h = (e.navDir ||= c.dir.clone());
           h.lerp(c.dir, 1 - Math.exp(-STEER_EASE * c.dt));
           if (h.lengthSq() < 1e-6) h.copy(c.dir);
           c.dir.copy(h.normalize());
-        } else { c.dir.copy(c.flatDir); e.navDir?.copy(c.flatDir); }
+        } else { c.dir.copy(toward); e.navDir?.copy(toward); }
         if (p.weave) c.dir.applyAxisAngle(UP, Math.sin(c.t * p.rate * Math.PI + e.phase) * p.weave);
         if (p.turn) {
           // its heading swings toward where it wants to go, no faster than `turn`

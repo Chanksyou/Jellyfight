@@ -30,6 +30,7 @@ import './stories/bug-ants.js';
 import './stories/bug-fliers.js';
 import './stories/bug-awareness.js';
 import './stories/arrivals.js';
+import './stories/bug-pursuit.js';
 import './stories/bug-attack-motion.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
