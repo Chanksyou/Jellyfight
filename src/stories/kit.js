@@ -498,9 +498,9 @@ const atClog = (a) => () => {
 };
 export const EVERY_ATTACK = {
   1: {
-    controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) }, arrow: { is: 'none' } },
-    mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'volume', start: held(() => { startCoffeeLob(); G().run.elites.list.find((x) => x.kind === 'mug').next = 1; }) } },
-    kettle: { 'steam-ball': { is: 'volume', start: held(() => startKettle(0)) }, 'boil-dry': { is: 'volume', start: held(() => startKettle(1)) } },
+    controller: { barrage: { is: 'volume', start: held(() => startController(0)) }, rumble: { is: 'volume', start: held(() => startController(1)) }, arrow: { is: 'none' }, drift: { is: 'volume', start: held(() => startController(3)) } },
+    mug: { coffee: { is: 'volume', start: held(startCoffeeLob) }, spill: { is: 'volume', start: held(() => { startCoffeeLob(); G().run.elites.list.find((x) => x.kind === 'mug').next = 1; }) }, stir: { is: 'volume', start: held(() => { startCoffeeLob(); G().run.elites.list.find((x) => x.kind === 'mug').next = 2; }) } },
+    kettle: { 'steam-ball': { is: 'volume', start: held(() => startKettle(0)) }, 'boil-dry': { is: 'volume', start: held(() => startKettle(1)) }, whistle: { is: 'volume', start: held(() => startKettle(2)) } },
     vacuum: {
       charge: { is: 'volume', start: atVacuum('charge') }, brushes: { is: 'sweep', start: atVacuum('brushes') }, spin: { is: 'shot', start: atVacuum('spin') },
       suction: { is: 'hazard' }, flies: { is: 'none' }, dump: { is: 'none' },

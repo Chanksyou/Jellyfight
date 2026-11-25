@@ -300,6 +300,18 @@ export class Enemies {
 
     // Everything that happens to an enemy arrives as an event; this system owns their HP,
     // status timers and position.
+    this.lostT = 0;          // after the jelly goes up a vent or onto furniture: the floor bugs mill about this long (content/waves.kdl lose-track)
+    bus.on('vent_ride', () => { this.lostT = CONTENT.waves?.loseTrack || 0; });
+    bus.on('enemy_killed', ({ pos, elite, floor, targetId }) => {   // the bugs beside one that dies step aside for a moment (waves.kdl startle)
+      const W = CONTENT.waves;
+      if (!W?.startleRange || elite || !pos) return;
+      for (const o of this.list) {
+        if (o.dead || o.proxy || o.elite || o.hold || o.T.fly || o.id === targetId || Math.abs(o.pos.y - floor) > 0.1) continue;
+        const dx = o.pos.x - pos.x, dz = o.pos.z - pos.z, d = Math.hypot(dx, dz);
+        if (d > W.startleRange + o.r || d < 1e-6) continue;
+        o.startleT = W.startleTime; (o.startleDir ||= new THREE.Vector3()).set(dx / d, 0, dz / d);
+      }
+    });
     bus.on('damage_taken', ({ targetId, amount, color, source, sound, feedback }) => {
       if (targetId !== PLAYER) this.applyDamage(this.byId.get(targetId), amount, color, sound || source, {
         targetId, element: ['fire', 'acid', 'lightning', 'poison'].includes(source) ? source : undefined,
@@ -1567,6 +1579,10 @@ export class Enemies {
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;
 
+    const up = !!this.nav?.job?.up;   // the jelly stepped up onto furniture: the floor bugs lose it for a moment too
+    if (up && !this.wasUp) this.lostT = Math.max(this.lostT, CONTENT.waves?.loseTrack || 0);
+    this.wasUp = up;
+    this.lostT = Math.max(0, this.lostT - dt);
     const locks = this.mods?.groundLock || [];
     const cam = this.fx?.camera, view = S.view, animFar = LOOK.num('bug-anim-far', 1.5);
     if (cam) view.setFromProjectionMatrix(S.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
@@ -1589,7 +1605,8 @@ export class Enemies {
       this.markLook(e, dt);
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
       e.trapT = Math.max(0, (e.trapT || 0) - dt);
-      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : e.wadeT > 0 ? 1 - e.wadeK : 1) * pace;
+      if (e.noticeT > 0) e.noticeT -= dt;   // a bug just out stands head up (waves.kdl notice): no walking, no attack starts
+      const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 || e.noticeT > 0 ? 0 : e.slowT > 0 ? 0.55 : e.wadeT > 0 ? 1 - e.wadeK : 1) * pace;
       let lure = null;
       if (decoys.length && !e.elite && e.state !== 'hold') {
         const at = this.center(e, tmp), you = at.distanceToSquared(pc);
@@ -1616,6 +1633,7 @@ export class Enemies {
       c.flatDir.normalize();
       c.speed = 0;
       c.dir.set(0, 0, 0);
+      if (e.noticeT > 0) c.wait = true;
       // ground-lock (Hoarfrost): a bug with the status can't start a leap, rise in the air or climb
       const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
       e.groundLocked = lock;
@@ -1625,6 +1643,13 @@ export class Enemies {
       if (c.start && !e.elite) { this.gapAt = t; this.gapBy = e.id; }
       if (c.want && cam && view.intersectsSphere(S.sphere.set(e.pos, e.r * 2))) this.seenWant = true;
       const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
+      if (!e.T.fly && !e.elite && e.state === 'approach' && (!e.atk || e.atk.phase === 'idle')) {
+        if (e.startleT > 0) { e.startleT -= dt; c.dir.copy(e.startleDir); c.speed = LOOK.num('bug-startle-speed', 0.3) * slow; }   // a neighbour just died: step aside
+        else if (this.lostT > 0 && !e.hold && !lure) {                                                                              // it lost you: mill about
+          const a = e.phase * 3 + t * LOOK.num('bug-wander-turn', 0.8);
+          c.dir.set(Math.sin(a), 0, Math.cos(a)); c.speed = LOOK.num('bug-wander-speed', 0.12) * slow;
+        }
+      }
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));
         e.vel.z += (c.dir.z * c.speed - e.vel.z) * (1 - Math.exp(-8 * dt));
