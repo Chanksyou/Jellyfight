@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { LOOK } from './look.js';
 import { ENCORE } from './stage4.js';
+import { sfx } from './sfx.js';
 
 const N = ENCORE.tiles, S = ENCORE.tileSize, HALF = (N * S) / 2;
 export const tileX = (col) => (col + 0.5) * S - HALF;
@@ -125,8 +126,8 @@ function pincer() {
   return out;
 }
 
-// a gesture is asked for until its accent has just passed (beats)
-const GESTURE_HOLD = 0.5;
+// a gesture is asked for until its release settles (beats)
+const GESTURE_HOLD = 1.6;
 const _c = new THREE.Color(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 const PARTS = ['pyramid', 'leftWing', 'rightWing'];
 
@@ -184,9 +185,10 @@ export class EncoreFloor {
     this.hot.fill(0);
     const boss = { pyramid: [0, 0], leftWing: [0, 0], rightWing: [0, 0] }, dancing = { silver: false, gold: false }, next = { silver: null, gold: null };
     for (const c of this.casts) {
-      const who = DJS.indexOf(c.dj);
+      const who = DJS.indexOf(c.dj), wasFired = c.fired;
       // steps whose time has come
       while (c.fired + 1 < c.steps.length && beat >= this.stepAt(c, c.fired + 1)) c.fired++;
+      if (wasFired < 0 && c.fired >= 0 && !skip) sfx.encoreFloor?.();
       // the wave: steps gone off, held near full then falling away over `fade` beats, so its front stays
       // solid. A tile hurts the jelly while it's lit (once a cast), so landing in the wave's wake is hit too
       for (let k = Math.max(0, c.fired - Math.ceil(fade / c.step)); k <= c.fired; k++) {
@@ -194,8 +196,9 @@ export class EncoreFloor {
         if (h > 0 && !skip && !c.hit && player && player.position.y < band && this.touches(c.steps[k], player)) { c.hit = true; this.onHit(c.dmg, c); }
         for (const i of c.steps[k]) if (h > this.hot[i]) { this.hot[i] = h; this.who[i] = who; }
       }
-      // the Encore winds up for it: its part fills over the bar before, flashes on the first step, fades after
-      const u = beat - c.at, b = u < -4 ? 0 : u < 0 ? (u + 4) / 4 * 0.6 : Math.max(0, 1 - u / 2);
+      // the Encore winds up for it: its part eases up with a subtle beat pulse over the bar before, flashes on the first step, fades after
+      const u = beat - c.at, w = u < -4 ? 0 : (u + 4) / 4;
+      const b = u < -4 ? 0 : u < 0 ? w * w * (0.55 + 0.15 * Math.exp(-((beat % 1 + 1) % 1) * 5)) : Math.max(0, 1 - u / 2);
       for (const part of [].concat(c.part)) if (b > boss[part][0]) boss[part] = [b, who];
       // and its DJ dances from the wind-up to the wave's end
       if (u >= -4 && beat <= this.endOf(c) + fade) dancing[c.dj] = true;
@@ -250,9 +253,9 @@ export class EncoreFloor {
     let hotAny = false;
     for (let i = 0; i < N * N; i++) {
       const h = this.hot[i], c = this.hotColors[this.who[i]];
-      // the wave: a tile lit in its DJ's colour as it goes off, fading behind; its volume shows how high it hits
+      // the wave: a tile lit in its DJ's colour as it goes off, fading behind; its volume eases down as it fades
       A.setTile((i / N) | 0, i % N, c, h * this.tileGain);
-      this.place(i, h > 0 ? band : 0);
+      this.place(i, h > 0 ? band * (0.35 + 0.65 * Math.sqrt(h)) : 0);
       this.volumes.setColorAt(i, _c.copy(c).multiplyScalar(h * this.volumeGain));
       if (h > 0) hotAny = true;
     }
