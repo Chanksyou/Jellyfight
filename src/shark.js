@@ -2,7 +2,7 @@
 // The quilt is its sea: only a dorsal fin remains above it during a dive.
 import * as THREE from 'three';
 import { buildShark, ghostly } from './shark-model.js';
-import { sharkWaterMaterial } from './shark-water.js';
+import { sharkWaterMaterial, SharkWaterSim, buildSharkArena } from './shark-water.js';
 import { CONTENT } from './content.js';
 import { LOOK } from './look.js';
 import { bus, PLAYER } from './events.js';
@@ -68,13 +68,20 @@ export class Shark {
     this.model.rig.clipPlane.constant=-this.floor;
     this.arrivalT=0;this.flooded=0;
     const A=arena,arrival=this.def.skills.arrival,width=A.arenaMax[0]-A.arenaMin[0],length=A.arenaMax[2]-A.arenaMin[2];
+    const cx=(A.arenaMin[0]+A.arenaMax[0])/2,cz=(A.arenaMin[2]+A.arenaMax[2])/2;
     if(!this.illusion){   // the illusion floods nothing: the real shark's sea is already there
     this.waterFloor=this.floorAt(V(this.position.x,0,A.arenaMin[2]+.3))-.003;
-    this.water=new THREE.Mesh(new THREE.BoxGeometry(width,arrival.depth,length),sharkWaterMaterial());
-    this.water.position.set((A.arenaMin[0]+A.arenaMax[0])/2,this.waterFloor,(A.arenaMin[2]+A.arenaMax[2])/2);
+    this.arenaWalls=buildSharkArena(A,this.waterFloor);scene.add(this.arenaWalls.group);
+    this.waterSim=new SharkWaterSim(A.arenaMin[0],A.arenaMax[0],A.arenaMin[2],A.arenaMax[2]);
+    const segX=IS_TOUCH?48:64,segZ=IS_TOUCH?40:54;
+    this.water=new THREE.Mesh(new THREE.PlaneGeometry(width,length,segX,segZ).rotateX(-Math.PI/2),sharkWaterMaterial());
+    this.water.position.set(cx,this.waterFloor,cz);
     this.water.userData.noCollide=true;this.water.name='Shark bed water';this.water.renderOrder=2;scene.add(this.water);
-    const U=this.water.material.uniforms;U.uCenter.value.set(this.water.position.x,this.water.position.z);U.uExtent.value.set(width/2,length/2);U.uSource.value.set(this.position.x,this.position.z);U.uFill.value=0;
-    U.uReach.value=Math.hypot(Math.max(this.position.x-A.arenaMin[0],A.arenaMax[0]-this.position.x),Math.max(this.position.z-A.arenaMin[2],A.arenaMax[2]-this.position.z))+.04;
+    const U=this.water.material.uniforms;
+    U.uCenter.value.set(cx,cz);U.uExtent.value.set(width/2,length/2);U.uSource.value.set(cx,cz);U.uFill.value=0;
+    U.uDepth.value=arrival.depth;U.uReach.value=Math.hypot(width/2,length/2)+.05;U.uWaveMap.value=this.waterSim.texture;
+    this._prevPlayer=V(1e4,0,1e4);this._prevGrounded=true;this._prevShark=this.position.clone();this._prevGhost=V(1e4,0,1e4);
+    this._wallDustT=0;this._barrierRumbled=false;this._breachSplashed=false;
     }
     this.start=V();this.target=V();this.warning=null;this.pools=[];this.tornadoes=[];this.shots=[];
     this.color=hostile('shark');this.dust=new THREE.Color(LOOK.color('shark-dust','#d6c5a7'));
@@ -123,7 +130,8 @@ export class Shark {
     d.normalize();g.position.copy(player.position).add(V(d.z*n,0,-d.x*n));g.clampIn(g.position);
     g.floor=g.floorAt(g.position);g.position.y=g.floor;g.model.rig.clipPlane.constant=-g.floor;
     g.heading=Math.atan2(player.position.x-g.position.x,player.position.z-g.position.z);
-    g.arrivalT=a.barrier;g.next=this.next+Math.ceil(ATTACKS.angry.length/2);g.summoned=true;g.holder.visible=true;
+    g.arrivalT=a.barrier+a.flood;g.next=this.next+Math.ceil(ATTACKS.angry.length/2);g.summoned=true;g.holder.visible=true;
+    this.waterSim?.splash(g.position.x,g.position.z,.24,.85,.85);
     this.fx.number(g.position.clone().add(V(0,.3,0)),'ILLUSION',this.color,15);sfx.sharkRumble(a.breach);
   }
   vanish(){   // the real shark is beaten: its illusion goes with it, and so do its hazards
@@ -168,6 +176,7 @@ export class Shark {
   burst(at,r,heavy=false){
     this.settle=1;
     this.squash=Math.max(this.squash,heavy?.62:.38);this.squashV+=heavy?6.8:4.2;
+    (this.real||this).waterSim?.splash(at.x,at.z,Math.max(.14,r*.85),heavy?1.15:.72,heavy?1:.75);
     this.fx.impact(at,this.color,r*.25,heavy?18:10);this.fx.ring(at,this.color,r,.4);
     for(let i=0;i<6;i++){const a=i*Math.PI/3;this.fx.puff(at.clone().add(V(Math.sin(a)*r*.5,.025,Math.cos(a)*r*.5)),this.dust,.028,.5);}
     this.fx.splat(at,this.dust,r*.7, 'dust');juice.feel(heavy?'impact-big':'impact');sfx.sharkSlam(heavy);
@@ -210,23 +219,26 @@ export class Shark {
       this.squashV-=4.5;this.fx.impact(this.center(),this.color,.035,6);sfx.sharkSwish();
     }else if(['dive','burrowBite','maelstrom','tornado'].includes(this.state)){
       this.phase='track';this.elapsed=0;this.clearWarning();this.model.visible=false;this.fin.visible=true;sfx.sharkDive();
+      (this.real||this).waterSim?.splash(this.position.x,this.position.z,.22,.95,.85);
       if(this.state==='maelstrom')this.pool(this.position,this.def.skills.maelstrom.radius,true);
     }else {this.squashV-=6.5;sfx.sharkSwish(1.4);this.fx.puff(this.position,this.dust,.08,.4);}
   }
   pool(at,r=this.def.skills.pools.radius,slow=false){
-    const sk=this.def.skills.pools;
+    const sk=this.def.skills.pools,owner=this.real||this;
     if(this.pools.length>=sk.max)this.removePool(this.pools.shift());
     const boundCol=LOOK.color('shark-pool-boundary','#ff5a42'),baseOp=LOOK.num('shark-pool-warning-opacity',.24);
+    const poolY=Math.max(at.y+.012,(owner.waterFloor??at.y)+this.def.skills.arrival.depth+.004);
     const floor=new THREE.Mesh(this.circleGeo,this.fx.tele(this.color,'circle'));
-    floor.position.copy(at).setY(at.y+.005);floor.scale.setScalar(r);floor.material.progress=1;floor.renderOrder=3;this.scene.add(floor);
+    floor.position.copy(at).setY(poolY+.002);floor.scale.setScalar(r);floor.material.progress=1;floor.renderOrder=4;this.scene.add(floor);
     floor.material.opacity=baseOp;
     floor.material.uniforms.uColor.value.set(boundCol);
     const volume=this.fx.volume(this.color,'disc',at,V(r,sk.height,r));volume.material.progress=1;
     volume.material.opacity=baseOp*.75;
     volume.material.uniforms.uColor.value.set(boundCol);
     const surface=new THREE.Mesh(this.circleGeo,sharkWaterMaterial().clone()),U=surface.material.uniforms;
-    surface.position.copy(at).setY(at.y+.012);surface.scale.setScalar(r);surface.renderOrder=2;surface.userData.noCollide=true;this.scene.add(surface);
+    surface.position.copy(at).setY(poolY);surface.scale.setScalar(r);surface.renderOrder=3;surface.userData.noCollide=true;this.scene.add(surface);
     U.uMurky.value=1;U.uCircular.value=1;U.uCenter.value.set(at.x,at.z);U.uExtent.value.set(r,r);U.uSource.value.set(at.x,at.z);U.uReach.value=r+.025;U.uFill.value=1;U.uWake.value=0;
+    owner.waterSim?.splash(at.x,at.z,r*.75,.65,.6);
     this.pools.push({at:at.clone(),r,floor,volume,surface,life:slow?this.def.skills.maelstrom.life:sk.life,slow,age:0,baseOp});
     this.fx.impact(at,this.color,.045,10);this.fx.ring(at,this.color,r*.85,.35);sfx.sharkFish(true);
   }
@@ -329,14 +341,72 @@ export class Shark {
   }
   recover(){this.clearWarning();this.phase='rest';this.elapsed=0;this.model.visible=true;this.fin.visible=false;this.lift=0;this.crouch=0;this.settle=Math.max(this.settle,.75);}
   updateWater(dt,player){
-    const a=this.def.skills.arrival,U=this.water.material.uniforms;
-    this.flooded=clamp((this.arrivalT-a.barrier-a.breach)/a.flood,0,1);
-    if(this.flooded>0&&!this.floodAnnounced){this.floodAnnounced=true;this.fx.ring(this.position,U.uFoam.value,.25,.7);sfx.mugSplash();}
-    U.uFill.value=this.flooded;U.uTime.value=this.t;U.uPlayer.value.set(player.position.x,player.position.z);U.uWake.value=clamp((player.speed||0)/.2,0,1);
-    this.water.scale.y=Math.max(.001,this.flooded);this.water.position.y=this.waterFloor+a.depth*this.flooded/2;
+    const a=this.def.skills.arrival,U=this.water.material.uniforms,A=this.arena,calm=juice.calm;
+    const barrierT=clamp(this.arrivalT/a.barrier,0,1);
+    this.wallRise=barrierT;
+    this.arenaWalls.setRise(barrierT);
+    if(barrierT>0&&!this._barrierRumbled){this._barrierRumbled=true;sfx.sharkRumble(a.barrier);}
+    if(!calm&&barrierT>0.02&&barrierT<0.98&&(this._wallDustT-=dt)<=0){
+      this._wallDustT=.09;
+      const side=Math.floor(Math.random()*4),u=Math.random();
+      const px=side<2?mix(A.arenaMin[0],A.arenaMax[0],u):(side===2?A.arenaMin[0]:A.arenaMax[0]);
+      const pz=side>=2?mix(A.arenaMin[2],A.arenaMax[2],u):(side===0?A.arenaMin[2]:A.arenaMax[2]);
+      this.fx.puff(this._pos.set(px,this.waterFloor+.02,pz),this.dust,.026,.4);
+    }
+    this.flooded=clamp((this.arrivalT-a.barrier)/a.flood,0,1);
+    const cx=U.uSource.value.x,cz=U.uSource.value.y;
+    if(this.flooded>0&&!this.floodAnnounced){
+      this.floodAnnounced=true;
+      this.fx.ring(this._pos.set(cx,this.waterFloor+.01,cz),U.uFoam.value,.22,.75);
+      this.waterSim.splash(cx,cz,.18,.9,.9);
+      sfx.mugSplash();
+    }
+    if(this.flooded>0&&this.flooded<1)this.waterSim.centerPulse(this.t,this.flooded);
+    const waterTop=this.waterFloor+a.depth*this.flooded;
+    const p=player.position,grounded=player.grounded!==false;
+    if(this.flooded>.05&&!this.dead&&!this.dying){
+      const safeDt=Math.max(dt,1/120);
+      // Jelly continuous wake + jump takeoff/landing splashes
+      const inArena=p.x>A.arenaMin[0]&&p.x<A.arenaMax[0]&&p.z>A.arenaMin[2]&&p.z<A.arenaMax[2];
+      if(this._prevPlayer.x<999&&inArena){
+        const pvx=(p.x-this._prevPlayer.x)/safeDt,pvz=(p.z-this._prevPlayer.z)/safeDt,pspd=Math.hypot(pvx,pvz);
+        if(p.y<waterTop+.045&&pspd>.04)this.waterSim.wake(p.x,p.z,pvx,pvz,.075,clamp(pspd*.7,.08,.42),clamp(pspd*.6,.12,.45));
+        if(this._prevGrounded&&!grounded&&p.y<waterTop+.12)this.waterSim.splash(p.x,p.z,.10,.45,.55);
+        else if(!this._prevGrounded&&grounded&&p.y<waterTop+.06)this.waterSim.splash(p.x,p.z,.13,.65,.75);
+      }
+      this._prevPlayer.copy(p);this._prevGrounded=grounded;
+      // Shark breach splash, dorsal-fin slicing V-wake, and surface body wake
+      if(this.rise>.05&&!this._breachSplashed){
+        this._breachSplashed=true;
+        this.waterSim.splash(this.position.x,this.position.z,.30,1.35,1.0);
+        sfx.mugSplash();
+      }
+      const svx=(this.position.x-this._prevShark.x)/safeDt,svz=(this.position.z-this._prevShark.z)/safeDt,sspd=Math.hypot(svx,svz);
+      if(this.buried){
+        this.waterSim.wake(this.position.x,this.position.z,svx||Math.sin(this.heading),svz||Math.cos(this.heading),.085,clamp(.25+sspd*.6,.25,.75),.65);
+      }else if(this.rise>.15&&this.lift<.09){
+        if(sspd>.04)this.waterSim.wake(this.position.x,this.position.z,svx,svz,.16,clamp(sspd*.9,.16,.7),.55);
+        else if(!calm)this.waterSim.splash(this.position.x,this.position.z,.16,Math.sin(this.t*4.2)*.035,0);
+      }
+      this._prevShark.copy(this.position);
+      // Half-HP illusion & tornado wakes
+      const G=this.ghost;
+      if(G?.summoned&&!G.dead){
+        if(this._prevGhost.x<999){
+          const gvx=(G.position.x-this._prevGhost.x)/safeDt,gvz=(G.position.z-this._prevGhost.z)/safeDt,gspd=Math.hypot(gvx,gvz);
+          if(gspd>.05&&G.lift<.09)this.waterSim.wake(G.position.x,G.position.z,gvx,gvz,.12,clamp(gspd*.6,.12,.45),.35);
+        }
+        this._prevGhost.copy(G.position);
+      }
+      for(const q of this.tornadoes)this.waterSim.wake(q.m.position.x,q.m.position.z,q.dir.x,q.dir.z,.10,.45,.5);
+    }
+    this.waterSim.step(dt,calm);
+    U.uFill.value=this.flooded;U.uTime.value=this.t;U.uCalm.value=calm?1:0;U.uDepth.value=a.depth;
+    U.uPlayer.value.set(p.x,p.z);U.uWake.value=clamp((player.speed||0)/.2,0,1);
+    this.water.position.y=this.waterFloor;
     this.water.visible=!this.dead&&!this.dying;
-    const p=player.position,A=this.arena;
-    if(this.flooded>0&&!this.dead&&!this.dying&&player.grounded!==false&&p.x>A.arenaMin[0]&&p.x<A.arenaMax[0]&&p.z>A.arenaMin[2]&&p.z<A.arenaMax[2]&&p.y>=this.waterFloor-.01&&p.y<this.waterFloor+a.depth+.005&&Math.hypot(p.x-U.uSource.value.x,p.z-U.uSource.value.y)<U.uReach.value*this.flooded)
+    this.arenaWalls.update(this.t,waterTop,this.flooded,calm);
+    if(this.flooded>0&&!this.dead&&!this.dying&&grounded&&p.x>A.arenaMin[0]&&p.x<A.arenaMax[0]&&p.z>A.arenaMin[2]&&p.z<A.arenaMax[2]&&p.y>=this.waterFloor-.01&&p.y<this.waterFloor+a.depth+.005&&Math.hypot(p.x-cx,p.z-cz)<U.uReach.value*this.flooded)
       bus.emit('status_applied',{targetId:PLAYER,status:'slow',strength:a.slow,duration:dt});
   }
   update(dt,player){
@@ -352,7 +422,7 @@ export class Shark {
       this.holder.position.y-=dt*.025;return{push:null};
     }
     const arrival=this.def.skills.arrival;
-    this.rise=clamp((this.arrivalT-arrival.barrier)/arrival.breach,0,1);
+    this.rise=clamp((this.arrivalT-arrival.barrier-arrival.flood)/arrival.breach,0,1);
     // Make room during anticipation, then hold that view through the jump.
     const room=this.ready&&this.phase!=='rest'?(this.skill()?.apex||0):0;
     this.cameraAirView=mix(this.cameraAirView,room,1-Math.exp(-6*dt));
@@ -563,10 +633,12 @@ export class Shark {
   }
   dispose(){
     this.ghost?.dispose();   // (its see-through materials stay alive like the shared ones: disposing them would drop the built shaders)
-    this.off();this.offStatus();this.clearWarning();this.clearHazards();this.scene.remove(this.holder,this.fin,this.fish,this.water,...this.tornadoVisuals);
+    this.off();this.offStatus();this.clearWarning();this.clearHazards();
+    this.scene.remove(this.holder,this.fin,this.fish,this.water,...this.tornadoVisuals);
+    if(this.arenaWalls){this.scene.remove(this.arenaWalls.group);this.arenaWalls.dispose();}
     // Shark model geometry/materials are shared with the warmed template and stay alive.
     this.fin.geometry.dispose();this.circleGeo.dispose();this.fish.dispose(); // hazard geometry/materials stay warmed too
-    this.water?.geometry.dispose();
+    this.water?.geometry.dispose();this.waterSim?.dispose();
     this.model.traverse(o=>{if(o.isSkinnedMesh)o.skeleton.dispose();});
   }
 }
