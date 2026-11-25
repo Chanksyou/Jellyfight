@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v702 the ground mist's flow round the jelly now eases in and out over half a second when it sets off, stops or turns back, so quick back-and-forth swimming no longer flicks the mist about.
+
 v701 - The ground mist is smoother and lower: its thin spots are now lighter mist that blends into the rest instead of open floor, it fades out by about 11 cm, a little above the jelly's height, and it is about a third lighter overall.
 
 v700 Shadows take the room's light: a bug's shadow leans and stretches away from the lamp that lights it and is darker where the room is bright, fainter in a dark corner; the jelly's glow pushes nearby bugs' shadows away from it; in act 4 the dawn sun takes over on its side of the line, long crisp shadows pointing away from the window; the Encore's arena has one fixed key light. The darkest part always stays under the creature, and it is still one draw.
