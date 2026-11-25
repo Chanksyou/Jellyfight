@@ -105,7 +105,7 @@ phone('xp-feedback', {
 });
 
 story('pickups/xp-is-a-spinning-crystal', {
-  about: 'An XP drop is a faceted gem (8 triangles) that turns while it waits and is still twice the old size; Health crumbs stay round beads.',
+  about: 'An XP drop is a double-terminated hexagonal crystal that turns while it waits and is still twice the old size; Health crumbs are plump beveled hearts.',
   setup,
   play() {
     const { xpDrops, run } = G();
@@ -117,6 +117,6 @@ story('pickups/xp-is-a-spinning-crystal', {
     const turn0 = small.m.rotation.y;
     step(30);
     const turned = small.m.rotation.y !== turn0;
-    return ok(kinds.join() === 'OctahedronGeometry,OctahedronGeometry,SphereGeometry' && width > 0.014 && height > width && turned, { kinds, width, height, turned });
+    return ok(kinds.join() === 'LatheGeometry,LatheGeometry,ExtrudeGeometry' && width > 0.014 && height > width && turned, { kinds, width, height, turned });
   },
 });

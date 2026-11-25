@@ -213,11 +213,16 @@ const add = (parent, geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mes
 // ------------------------------------------------------------------ models (meters, facing +z)
 function controllerModel() {
   const g = new THREE.Group();
-  const shell = std(0x2a2a32, { roughness: 0.35 }), dark = std(0x151518), grip = std(0x1c1c22, { roughness: 0.9 });
-  add(g, new RoundedBoxGeometry(0.11, 0.024, 0.055, 4, 0.011), shell, 0, 0.014, 0);
+  const shell = std(0x2a2a32, { roughness: 0.32, metalness: 0.12 }), dark = std(0x151518, { roughness: 0.5 }), grip = std(0x1b1b21, { roughness: 0.92 });
+  add(g, new RoundedBoxGeometry(0.112, 0.024, 0.056, 4, 0.011), shell, 0, 0.014, 0);
+  // recessed center touchpad
+  add(g, new RoundedBoxGeometry(0.038, 0.004, 0.024, 2, 0.002), std(0x202028, { roughness: 0.55 }), 0, 0.0255, 0.011);
   for (const s of [-1, 1]) {
-    const gp = add(g, new THREE.CapsuleGeometry(0.013, 0.03, 4, 12), grip, s * 0.04, 0.012, -0.03);   // textured grips
-    gp.rotation.x = Math.PI / 2 - 0.5; gp.rotation.z = s * 0.35;
+    // contoured shoulder bridge blending body into the angled grip
+    const bridge = add(g, new RoundedBoxGeometry(0.028, 0.02, 0.026, 3, 0.008), shell, s * 0.041, 0.013, -0.015);
+    bridge.rotation.y = -s * 0.3;
+    const gp = add(g, new THREE.CapsuleGeometry(0.0135, 0.032, 5, 14), grip, s * 0.043, 0.011, -0.032);   // textured grips
+    gp.rotation.x = Math.PI / 2 - 0.5; gp.rotation.z = s * 0.34;
     add(g, new RoundedBoxGeometry(0.026, 0.008, 0.01, 2, 0.003), dark, s * 0.034, 0.024, 0.029);        // bumpers
     const tr = add(g, new RoundedBoxGeometry(0.022, 0.012, 0.014, 2, 0.004), dark, s * 0.034, 0.018, 0.036); // triggers
     tr.rotation.x = -0.4;
@@ -225,15 +230,20 @@ function controllerModel() {
   const buttons = [];
   const btn = (c, x, z) => { const b = add(g, new THREE.SphereGeometry(0.0045, 12, 8), glow(c, 0.5), x, 0.027, z); b.scale.y = 0.5; buttons.push(b); };
   btn(0x3ad86a, 0.03, 0.006); btn(0xd83a3a, 0.038, -0.002); btn(0x3a8ad8, 0.022, -0.002); btn(0xf2c81a, 0.03, -0.01);
-  for (const [w, d] of [[0.016, 0.005], [0.005, 0.016]]) add(g, new THREE.BoxGeometry(w, 0.004, d), dark, -0.03, 0.027, -0.002);
-  for (const x of [-0.013, 0.013]) {
-    add(g, new THREE.CylinderGeometry(0.006, 0.007, 0.006, 14), dark, x, 0.028, -0.014);
-    add(g, new THREE.TorusGeometry(0.0055, 0.0012, 6, 16), std(0x3a3a44), x, 0.0315, -0.014).rotation.x = Math.PI / 2;
+  // rounded D-pad cross on a recessed dish
+  add(g, new THREE.CylinderGeometry(0.0105, 0.011, 0.002, 16), std(0x1f1f26, { roughness: 0.6 }), -0.03, 0.0255, -0.002);
+  for (const [w, d] of [[0.016, 0.005], [0.005, 0.016]]) add(g, new RoundedBoxGeometry(w, 0.0045, d, 2, 0.0014), dark, -0.03, 0.0275, -0.002);
+  // concave thumbsticks (stem + dished cap)
+  const capPts = [[0, 0.005], [0.005, 0.0055], [0.0072, 0.0072], [0.0062, 0.0078], [0.003, 0.0068], [0, 0.0065]].map(([r, y]) => new THREE.Vector2(r, y));
+  const capGeo = new THREE.LatheGeometry(capPts, 18);
+  for (const x of [-0.014, 0.014]) {
+    add(g, new THREE.CylinderGeometry(0.0038, 0.0055, 0.006, 12), dark, x, 0.0275, -0.014);
+    add(g, capGeo, std(0x2e2e38, { roughness: 0.65 }), x, 0.026, -0.014);
   }
-  add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.002, 16), glow(0xffffff, 1), 0, 0.0265, 0.008);    // home button
+  add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.002, 16), glow(0xffffff, 1), 0, 0.0265, -0.004);    // home button
   // light bar along the front edge: blue at rest, flashing red when it's about to rumble
   const barMat = glow(0x3a8aff, 2);
-  add(g, new THREE.BoxGeometry(0.05, 0.004, 0.004), barMat, 0, 0.02, 0.029);
+  add(g, new RoundedBoxGeometry(0.05, 0.0045, 0.0045, 2, 0.0018), barMat, 0, 0.02, 0.029);
   // the cable trailing off the back
   add(g, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.02, -0.03), new THREE.Vector3(0.01, 0.01, -0.07), new THREE.Vector3(-0.02, 0.003, -0.12), new THREE.Vector3(0.03, 0.002, -0.17)]), 16, 0.002, 5), dark);
   const face = angryEyes({ y: 0, z: 0, size: 0.3, gap: 0.42, glow: true });
@@ -373,28 +383,62 @@ function mugModel() {
   return { group: g, muzzle: new THREE.Vector3(0, 0.08, 0), r: 0.045 };
 }
 
+function kettleGaugeTex() {
+  const c = document.createElement('canvas');
+  c.width = 48; c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, '#c8ecff'); grad.addColorStop(0.35, '#8fd0f8'); grad.addColorStop(1, '#5caae0');
+  g.fillStyle = grad; g.fillRect(0, 0, 48, 128);
+  g.strokeStyle = '#1d2b38'; g.fillStyle = '#1d2b38'; g.lineWidth = 2; g.font = 'bold 11px sans-serif';
+  for (const [y, label] of [[24, 'MAX'], [60, '1.0'], [96, '0.5']]) {
+    g.beginPath(); g.moveTo(4, y); g.lineTo(18, y); g.stroke();
+    g.fillText(label, 20, y + 4);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 function kettleModel() {
   const g = new THREE.Group();
-  const steel = std(0xd8dcdf, { metalness: 0.85, roughness: 0.18 }), black = std(0x16161a, { roughness: 0.5 });
-  const pts = [[0, 0], [0.06, 0], [0.068, 0.02], [0.066, 0.06], [0.055, 0.09], [0.035, 0.105], [0.03, 0.11]].map(([r, y]) => new THREE.Vector2(r, y));
-  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 36), steel));
-  add(g, new THREE.CylinderGeometry(0.062, 0.064, 0.008, 36), black, 0, 0.004, 0);                         // base ring
-  // water gauge window
-  add(g, new RoundedBoxGeometry(0.012, 0.05, 0.004, 2, 0.002), std(0x9fd8ff, { transparent: true, opacity: 0.6, roughness: 0.05 }), 0.05, 0.045, 0.042).rotation.y = 0.9;
+  const steel = std(0xdce0e4, { metalness: 0.85, roughness: 0.16 }), black = std(0x16161a, { roughness: 0.48 });
+  // sculpted kettle body with waist flare and rolled collar rim
+  const pts = [[0, 0.006], [0.06, 0.006], [0.067, 0.016], [0.069, 0.038], [0.065, 0.066], [0.054, 0.092], [0.037, 0.105], [0.032, 0.109], [0.034, 0.112], [0.029, 0.112]].map(([r, y]) => new THREE.Vector2(r, y));
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), steel));
+  // stepped power base + chrome trim ring
+  add(g, new THREE.CylinderGeometry(0.062, 0.066, 0.01, 36), black, 0, 0.005, 0);
+  add(g, new THREE.TorusGeometry(0.062, 0.0018, 6, 36).rotateX(Math.PI / 2), steel, 0, 0.01, 0);
+  // water gauge window with dark bezel and level tick marks
+  const gauge = new THREE.Group();
+  gauge.position.set(0.052, 0.048, 0.041);
+  gauge.rotation.y = 0.9;
+  add(gauge, new RoundedBoxGeometry(0.016, 0.056, 0.004, 2, 0.0018), black);
+  add(gauge, new THREE.PlaneGeometry(0.011, 0.048), std(0xffffff, { map: kettleGaugeTex(), roughness: 0.12 }), 0, 0, 0.0024);
+  g.add(gauge);
+  // domed lid with recessed collar and flat-top ergonomic knob
   const lid = new THREE.Group();
   lid.position.y = 0.112;
-  add(lid, new THREE.CylinderGeometry(0.031, 0.031, 0.006, 24), steel);
-  add(lid, new THREE.SphereGeometry(0.009, 12, 8), black, 0, 0.008, 0);
+  const lidPts = [[0, 0.007], [0.022, 0.006], [0.031, 0.003], [0.0315, -0.002], [0.028, -0.002]].map(([r, y]) => new THREE.Vector2(r, y));
+  lid.add(new THREE.Mesh(new THREE.LatheGeometry(lidPts, 28), steel));
+  add(lid, new THREE.CylinderGeometry(0.009, 0.0065, 0.008, 16), black, 0, 0.01, 0);
+  add(lid, new THREE.TorusGeometry(0.009, 0.0016, 6, 16).rotateX(Math.PI / 2), steel, 0, 0.013, 0);
   g.add(lid);
-  const spout = add(g, new THREE.CylinderGeometry(0.007, 0.014, 0.06, 14), steel, 0, 0.07, 0.07);
-  spout.rotation.x = 0.9;
-  add(g, new THREE.TorusGeometry(0.0075, 0.002, 6, 14), black, 0, 0.09, 0.093).rotation.x = 0.9 - Math.PI / 2;   // spout tip
-  const handle = add(g, new THREE.TorusGeometry(0.045, 0.007, 10, 24, Math.PI), black, 0, 0.105, 0);
-  handle.rotation.y = Math.PI / 2;
-  const led = add(g, new THREE.SphereGeometry(0.004, 8, 6), glow(0xff3a2a, 2), -0.05, 0.02, 0.04);
+  // curved S-bend pouring spout + beveled lip
+  const spoutCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0.042, 0.062), new THREE.Vector3(0, 0.062, 0.082), new THREE.Vector3(0, 0.086, 0.092), new THREE.Vector3(0, 0.098, 0.101),
+  ]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(spoutCurve, 18, 0.0085, 12, false), steel));
+  add(g, new THREE.TorusGeometry(0.0086, 0.0018, 6, 14), black, 0, 0.098, 0.101).rotation.x = 0.85 - Math.PI / 2;
+  // ergonomic rear D-handle with upper collar and lower mount
+  const handleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0.098, -0.042), new THREE.Vector3(0, 0.096, -0.082), new THREE.Vector3(0, 0.062, -0.094), new THREE.Vector3(0, 0.024, -0.082), new THREE.Vector3(0, 0.02, -0.062),
+  ]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(handleCurve, 20, 0.0065, 10, false), black));
+  const led = add(g, new THREE.SphereGeometry(0.0042, 10, 8), glow(0xff3a2a, 2), -0.05, 0.02, 0.04);
   const face = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.42 });
   face.scale.setScalar(0.04);
-  face.position.set(0, 0.05, 0.066);
+  face.position.set(0, 0.05, 0.068);
   g.add(face);
   return { group: g, muzzle: new THREE.Vector3(0, 0.1, 0.1), r: 0.065, lid, led };
 }
@@ -431,9 +475,9 @@ function soapModel() {
   const white = std(0xefefea, { roughness: 0.35 });
   add(g, new RoundedBoxGeometry(W, H, W, 4, 0.008), glass, 0, H / 2, 0).renderOrder = 2;
   add(g, new RoundedBoxGeometry(W * 0.96, 0.009, W * 0.96, 2, 0.003), std(0xcfe2de, { transparent: true, opacity: 0.65, roughness: 0.05 }), 0, 0.0045, 0);   // the thick glass base
-  // the soap: a box from the base up, as tall as the soap left
+  // the soap: rounded to match the bottle's inner curve, scaled in y as health drops
   const liquidH = H * 0.8;
-  const liquid = add(g, new THREE.BoxGeometry(W * 0.86, 1, W * 0.86).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0xff6aa8, emissive: 0xff2a7a, emissiveIntensity: 0.5, transparent: true, opacity: 0.82, roughness: 0.12 }), 0, 0.009, 0);
+  const liquid = add(g, new RoundedBoxGeometry(W * 0.86, 1, W * 0.86, 3, 0.006).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0xff6aa8, emissive: 0xff2a7a, emissiveIntensity: 0.5, transparent: true, opacity: 0.82, roughness: 0.12 }), 0, 0.009, 0);
   liquid.scale.y = liquidH;
   const bubs = [];
   const bubMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, roughness: 0.05, emissive: 0xffd0e4, emissiveIntensity: 0.4 });
@@ -444,15 +488,19 @@ function soapModel() {
     bubs.push(b);
   }
   add(g, new THREE.PlaneGeometry(W * 0.82, H * 0.48), new THREE.MeshStandardMaterial({ map: soapLabel(), roughness: 0.6 }), 0, H * 0.4, W / 2 + 0.0008);
-  // collar, stem, and the pump head with its nozzle pointing out the front
-  add(g, new THREE.CylinderGeometry(0.014, 0.016, 0.012, 20), white, 0, H + 0.006, 0);
+  // ribbed screw collar, metallic stem, and contoured pump head with downward-curved nozzle
+  const collarPts = [[0.017, 0], [0.017, 0.003], [0.0158, 0.004], [0.0168, 0.006], [0.0155, 0.008], [0.0162, 0.011], [0.013, 0.013], [0.006, 0.013]].map(([r, y]) => new THREE.Vector2(r, y));
+  add(g, new THREE.LatheGeometry(collarPts, 24), white, 0, H, 0);
   const stem = add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.024, 10), std(0xdadad6, { metalness: 0.3 }), 0, H + 0.024, 0);
   const head = new THREE.Group();
   head.position.y = H + 0.034;
   g.add(head);
-  add(head, new RoundedBoxGeometry(0.03, 0.016, 0.028, 3, 0.005), white, 0, 0.008, 0);
-  add(head, new THREE.CylinderGeometry(0.0042, 0.005, 0.036, 10), white, 0, 0.011, 0.026).rotation.x = Math.PI / 2;
-  add(head, new THREE.SphereGeometry(0.0035, 8, 6), std(0xff6aa8, { emissive: 0xff2a7a, emissiveIntensity: 0.8 }), 0, 0.011, 0.045);   // a bead of soap at the tip
+  add(head, new RoundedBoxGeometry(0.03, 0.015, 0.028, 3, 0.005), white, 0, 0.0075, 0);
+  const nozzleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0.011, 0.011), new THREE.Vector3(0, 0.012, 0.028), new THREE.Vector3(0, 0.009, 0.041), new THREE.Vector3(0, 0.005, 0.045),
+  ]);
+  head.add(new THREE.Mesh(new THREE.TubeGeometry(nozzleCurve, 12, 0.0042, 10, false), white));
+  add(head, new THREE.SphereGeometry(0.0035, 8, 6), std(0xff6aa8, { emissive: 0xff2a7a, emissiveIntensity: 0.8 }), 0, 0.003, 0.045);   // a bead of soap at the tip
   const face = angryEyes({ y: 0, z: 0, size: 0.34, gap: 0.42 });
   face.scale.setScalar(0.034);
   face.position.set(0, H * 0.78, W / 2 + 0.002);

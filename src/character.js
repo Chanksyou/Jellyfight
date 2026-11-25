@@ -999,15 +999,25 @@ export function buildCharacter(look, heightMeters) {
     case 'partyhat': {
       const hat = mesh(new THREE.ConeGeometry(0.15, 0.36, 24), M.top, top, 0.04, 0.14, 0);
       hat.rotation.z = -0.18;
-      mesh(new THREE.SphereGeometry(0.05, 12, 8), M.white, hat, 0, 0.19, 0);
+      // ruffled base trim + pom-pom
+      const trim = new THREE.TorusGeometry(0.15, 0.022, 8, 28);
+      const tp = trim.attributes.position;
+      for (let i = 0; i < tp.count; i++) { const a = Math.atan2(tp.getY(i), tp.getX(i)); tp.setZ(i, tp.getZ(i) + Math.sin(a * 12) * 0.01); }
+      trim.computeVertexNormals();
+      mesh(trim, M.white, hat, 0, -0.175, 0).rotation.x = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.052, 12, 8), M.white, hat, 0, 0.19, 0);
       break;
     }
     case 'bow':
+      // pinched ribbon loops + dangling ribbon tails + center knot
       for (const s of [-1, 1]) {
-        const lobe = mesh(new THREE.ConeGeometry(0.08, 0.15, 16), M.top, top, 0.14 + s * 0.08, -0.02, 0.05);
-        lobe.rotation.z = s * Math.PI / 2;
+        const lobe = mesh(new THREE.SphereGeometry(0.085, 14, 10), M.top, top, 0.14 + s * 0.085, -0.015, 0.05);
+        lobe.scale.set(1.15, 0.72, 0.45);
+        lobe.rotation.z = s * 0.18;
+        const tail = mesh(new THREE.BoxGeometry(0.042, 0.12, 0.012), M.top, top, 0.14 + s * 0.036, -0.085, 0.046);
+        tail.rotation.z = s * 0.25;
       }
-      mesh(new THREE.SphereGeometry(0.045, 12, 8), M.top, top, 0.14, -0.02, 0.05);
+      mesh(new THREE.SphereGeometry(0.042, 12, 8), M.top, top, 0.14, -0.018, 0.055);
       break;
     case 'crown': {
       mesh(new THREE.CylinderGeometry(0.16, 0.15, 0.09, 24, 1, true), M.top, top, 0, 0.02, 0).material.side = THREE.DoubleSide;
@@ -1018,9 +1028,15 @@ export function buildCharacter(look, heightMeters) {
       break;
     }
     case 'horns':
+      // curved tapered demon horns sweeping out and up
       for (const s of [-1, 1]) {
-        const h = mesh(new THREE.ConeGeometry(0.055, 0.2, 12), M.top, top, s * 0.17, 0.02, 0);
-        h.rotation.z = -s * 0.55;
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(s * 0.12, -0.03, 0),
+          new THREE.Vector3(s * 0.22, 0.04, -0.01),
+          new THREE.Vector3(s * 0.26, 0.15, 0.01),
+          new THREE.Vector3(s * 0.21, 0.24, 0.03),
+        ]);
+        taper(new THREE.TubeGeometry(curve, 14, 0.052, 10, false), curve, 1, 0.08, M.top);
       }
       break;
     case 'tophat': {
@@ -1035,9 +1051,18 @@ export function buildCharacter(look, heightMeters) {
     case 'beanie': {
       const cap = mesh(new THREE.SphereGeometry(0.15, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.top, top, 0, -0.03, 0);
       cap.scale.y = 0.9;
-      const rim = mesh(new THREE.TorusGeometry(0.148, 0.028, 8, 28), M.top, top, 0, -0.025, 0);
+      // knit-ribbed cuff with vertical pleat ripples
+      const cuff = new THREE.CylinderGeometry(0.154, 0.158, 0.058, 36, 2, true);
+      const cp = cuff.attributes.position;
+      for (let i = 0; i < cp.count; i++) {
+        const a = Math.atan2(cp.getZ(i), cp.getX(i)), r = Math.hypot(cp.getX(i), cp.getZ(i)) * (1 + 0.032 * Math.sin(a * 18));
+        cp.setX(i, Math.cos(a) * r); cp.setZ(i, Math.sin(a) * r);
+      }
+      cuff.computeVertexNormals();
+      mesh(cuff, M.top, top, 0, -0.025, 0);
+      const rim = mesh(new THREE.TorusGeometry(0.152, 0.018, 8, 28), M.top, top, 0, -0.002, 0);
       rim.rotation.x = Math.PI / 2;
-      mesh(new THREE.SphereGeometry(0.048, 12, 10), M.white, top, 0, 0.12, 0);
+      mesh(new THREE.SphereGeometry(0.05, 12, 10), M.white, top, 0, 0.12, 0);
       break;
     }
     case 'witch': {
@@ -1164,17 +1189,27 @@ export function buildCharacter(look, heightMeters) {
       }
       break;
     case 'goldantlers':
-      // golden antlers: a curved beam each side with two tines
+      // golden antlers: curved tapered beam each side with two pointed branching tines
       for (const s of [-1, 1]) {
-        const beam = new THREE.Group();
-        beam.position.set(s * 0.1, 0.02, 0);
-        beam.rotation.z = -s * 0.45;
-        top.add(beam);
-        mesh(new THREE.CylinderGeometry(0.014, 0.022, 0.24, 8), M.award, beam, 0, 0.12, 0);
-        for (const [y, t] of [[0.1, 0.9], [0.18, 0.7]]) {
-          const tine = mesh(new THREE.CylinderGeometry(0.009, 0.014, 0.1, 6), M.award, beam, s * 0.03, y + 0.03, 0);
-          tine.rotation.z = -s * t;
-        }
+        const main = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(s * 0.09, -0.01, 0),
+          new THREE.Vector3(s * 0.16, 0.09, -0.02),
+          new THREE.Vector3(s * 0.24, 0.2, 0.01),
+          new THREE.Vector3(s * 0.22, 0.29, 0.04),
+        ]);
+        taper(new THREE.TubeGeometry(main, 14, 0.022, 8, false), main, 1, 0.14, M.award);
+        const brow = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(s * 0.15, 0.08, -0.01),
+          new THREE.Vector3(s * 0.18, 0.12, 0.06),
+          new THREE.Vector3(s * 0.16, 0.16, 0.1),
+        ]);
+        taper(new THREE.TubeGeometry(brow, 8, 0.015, 7, false), brow, 1, 0.12, M.award);
+        const upper = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(s * 0.22, 0.17, 0.0),
+          new THREE.Vector3(s * 0.29, 0.21, -0.02),
+          new THREE.Vector3(s * 0.31, 0.26, -0.01),
+        ]);
+        taper(new THREE.TubeGeometry(upper, 8, 0.014, 7, false), upper, 1, 0.12, M.award);
       }
       break;
     // --- the shop's (cosmetics.js PRICES): household bits at jelly scale. Each rests where the bell

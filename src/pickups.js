@@ -1,5 +1,6 @@
 // Things you collect: XP and treasures (each waiting in the room as a golden chest).
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { batcher } from './batch.js';
 import { LOOK } from './look.js';
 import { sfx } from './sfx.js';
@@ -10,6 +11,27 @@ const UP = new THREE.Vector3(0, 1, 0);
 const MAGNET = 0.09;          // meters: XP drifts to you from this far
 const BIG = 5;                // XP a big drop is worth: every 5 XP comes as one big drop, easier to read
 
+// double-terminated hexagonal crystal (24 tris, flat-shaded, still 1 instanced draw via Batcher)
+function hexCrystalGeo(r, hScale) {
+  const h = r * hScale;
+  const pts = [[0, -h], [r, -h * 0.36], [r, h * 0.36], [0, h]].map(([x, y]) => new THREE.Vector2(x, y));
+  return new THREE.LatheGeometry(pts, 6);
+}
+
+// plump beveled heart for Health crumbs (still 1 instanced draw via Batcher)
+function heartCrumbGeo(r) {
+  const s = new THREE.Shape();
+  s.moveTo(0, -0.85);
+  s.bezierCurveTo(-0.55, -0.45, -1.05, 0.1, -0.95, 0.55);
+  s.bezierCurveTo(-0.85, 0.98, -0.25, 1.0, 0, 0.52);
+  s.bezierCurveTo(0.25, 1.0, 0.85, 0.98, 0.95, 0.55);
+  s.bezierCurveTo(1.05, 0.1, 0.55, -0.45, 0, -0.85);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.24, bevelSize: 0.18, bevelSegments: 2, curveSegments: 6 });
+  geo.center();
+  geo.scale(r, r, r);
+  return geo;
+}
+
 // ---------------------------------------------------------------- XP
 // Health crumbs (the crumb-on-kill word) are the same pickups in another colour: `look` picks it
 export class XpDrops {
@@ -18,12 +40,11 @@ export class XpDrops {
     this.world = world;
     this.life = life;
     this.list = [];
-    this.r = look ? 0.0035 : LOOK.num('xp-size', 0.007);   // XP spheres are set in look.css; Health crumbs and leave-on-kill drops stay small
-    // XP is a faceted crystal (8 triangles, a little taller than wide); Health crumbs and leave-on-kill drops stay round beads
-    const gem = (r) => new THREE.OctahedronGeometry(r * LOOK.num('xp-gem-scale', 1.25), 0).scale(1, LOOK.num('xp-gem-height', 1.35), 1);
-    this.geo = look ? new THREE.SphereGeometry(this.r, 12, 8) : gem(this.r);
+    this.r = look ? 0.0035 : LOOK.num('xp-size', 0.007);   // XP crystals are set in look.css; Health crumbs and leave-on-kill drops stay small
+    const gem = (r) => hexCrystalGeo(r * LOOK.num('xp-gem-scale', 1.25), LOOK.num('xp-gem-height', 1.35));
+    this.geo = look ? heartCrumbGeo(this.r) : gem(this.r);
     this.mat = look
-      ? new THREE.MeshStandardMaterial({ color: LOOK.color(look, '#ffb47a'), emissive: LOOK.color(look, '#ffb47a'), emissiveIntensity: 0.35, roughness: 0.6 })
+      ? new THREE.MeshStandardMaterial({ color: LOOK.color(look, '#ffb47a'), emissive: LOOK.color(look, '#ffb47a'), emissiveIntensity: 0.35, roughness: 0.5 })
       : new THREE.MeshStandardMaterial({ color: LOOK.color('xp-color', '#ffd25a'), emissive: LOOK.color('xp-glow', '#e8a21b'), emissiveIntensity: 0.5, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9, flatShading: true });
     // a big drop (worth BIG): about twice as wide and brighter, so a 5-XP drop reads as one thing
     this.bigGeo = gem(this.r * 1.9);
@@ -115,21 +136,55 @@ export class XpDrops {
 // The chest's materials and shapes are shared by every chest, so a second one needs no new shaders.
 // Contents are unknown until opening: both sources use a neutral gold glow, ring and burst.
 let CHEST = null;
+function paintChest(geo, hex) {
+  geo = geo.index ? geo.toNonIndexed() : geo;
+  if (geo.attributes.uv) geo.deleteAttribute('uv');
+  const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return geo;
+}
+
 function chestParts(fx) {
   if (CHEST) return CHEST;
-  const lit = (c, k, metal = 0.6) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: k, roughness: 0.3, metalness: metal, toneMapped: false });
   const gold = new THREE.Color(0xffc93a);
+  // Single vertex-coloured material for both base and lid (cuts 8 draws/chest -> 2)
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, emissive: 0xffb830, emissiveIntensity: 0.42, roughness: 0.28, metalness: 0.65, toneMapped: false });
+  const G = 0xffc83e, TRIM = 0x8a5010, DARK = 0x3b1f05, BRIGHT = 0xfff098;
+  // Base: hollow walls so popping the lid reveals a glowing mound of coins, plus brass straps, corner brackets, rivets, side ring handles & keyhole lock
+  const baseParts = [
+    paintChest(new THREE.BoxGeometry(0.036, 0.005, 0.024).translate(0, 0.0025, 0), G),
+    paintChest(new THREE.BoxGeometry(0.036, 0.013, 0.003).translate(0, 0.0115, 0.0105), G),
+    paintChest(new THREE.BoxGeometry(0.036, 0.013, 0.003).translate(0, 0.0115, -0.0105), G),
+    paintChest(new THREE.BoxGeometry(0.003, 0.013, 0.018).translate(-0.0165, 0.0115, 0), G),
+    paintChest(new THREE.BoxGeometry(0.003, 0.013, 0.018).translate(0.0165, 0.0115, 0), G),
+    paintChest(new THREE.BoxGeometry(0.031, 0.004, 0.019).translate(0, 0.007, 0), DARK),       // dark inner lining
+    paintChest(new THREE.SphereGeometry(0.012, 10, 6).scale(1.1, 0.45, 0.68).translate(0, 0.0115, 0), BRIGHT),   // glowing gold mound inside
+    paintChest(new THREE.BoxGeometry(0.0368, 0.0018, 0.0248).translate(0, 0.0178, 0), DARK),   // lid seam
+    paintChest(new THREE.BoxGeometry(0.0085, 0.0095, 0.003).translate(0, 0.0155, 0.0126), TRIM),  // lock plate
+    paintChest(new THREE.BoxGeometry(0.002, 0.0038, 0.0015).translate(0, 0.0148, 0.014), DARK),   // keyhole
+  ];
+  for (const x of [-0.012, 0.012]) {
+    baseParts.push(paintChest(new THREE.BoxGeometry(0.0042, 0.0182, 0.025).translate(x, 0.0091, 0), TRIM));
+    for (const z of [-0.0128, 0.0128]) for (const y of [0.004, 0.013])
+      baseParts.push(paintChest(new THREE.BoxGeometry(0.0016, 0.0016, 0.0012).translate(x, y, z), BRIGHT));
+  }
+  for (const s of [-1, 1]) {
+    baseParts.push(paintChest(new THREE.TorusGeometry(0.0032, 0.0009, 6, 12).rotateY(Math.PI / 2).translate(s * 0.0188, 0.0105, 0), TRIM));
+  }
+  // Lid (local to lidPivot at y=0.018, z=-0.012, so offset +0.012 in z)
+  const lidParts = [
+    paintChest(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).translate(0, 0, 0.012), G),
+    paintChest(new THREE.BoxGeometry(0.006, 0.0045, 0.0026).translate(0, 0.001, 0.0245), TRIM),   // front clasp tongue
+  ];
+  for (const x of [-0.012, 0.012]) {
+    lidParts.push(paintChest(new THREE.CylinderGeometry(0.0124, 0.0124, 0.0042, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).translate(x, 0, 0.012), TRIM));
+  }
   CHEST = {
     gold,
-    body: lit(0xffc23a, 1.05),                 // bright gold that glows without blowing out to white
-    trim: lit(0x9a5a10, 0.45, 0.8),            // dark brass straps and lock, so it reads as a chest
-    dark: lit(0x5a3208, 0.25, 0.3),            // the seam under the lid
-    box: new THREE.BoxGeometry(0.036, 0.018, 0.024),
-    lid: new THREE.CylinderGeometry(0.0122, 0.0122, 0.0362, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2),   // a half-round lid along x, domed up
-    band: new THREE.BoxGeometry(0.004, 0.0185, 0.0248),
-    lidBand: new THREE.CylinderGeometry(0.0124, 0.0124, 0.004, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2),   // a half-round lid along x, domed up
-    seam: new THREE.BoxGeometry(0.0365, 0.0015, 0.0245),
-    lock: new THREE.BoxGeometry(0.008, 0.009, 0.003),
+    mat,
+    baseGeo: mergeGeometries(baseParts),
+    lidGeo: mergeGeometries(lidParts),
     ringMat: new THREE.MeshBasicMaterial({ color: gold, transparent: true, depthWrite: false, toneMapped: false }),
   };
   return CHEST;
@@ -143,17 +198,12 @@ export class RoomTreasure {
     this.gold = C.gold;
     this.g = new THREE.Group();
     this.chest = new THREE.Group();
-    const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); this.chest.add(m); return m; };
+    this.chest.add(new THREE.Mesh(C.baseGeo, C.mat));
     // the lid and its bands ride on a hinge at the back edge, so opening can pop it
     this.lidPivot = new THREE.Group();
     this.lidPivot.position.set(0, 0.018, -0.012);
+    this.lidPivot.add(new THREE.Mesh(C.lidGeo, C.mat));
     this.chest.add(this.lidPivot);
-    const addLid = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z + 0.012); this.lidPivot.add(m); return m; };
-    add(C.box, C.body, 0, 0.009, 0);
-    addLid(C.lid, C.body);
-    add(C.seam, C.dark, 0, 0.018, 0);
-    for (const x of [-0.012, 0.012]) { add(C.band, C.trim, x, 0.009, 0); addLid(C.lidBand, C.trim, x); }
-    add(C.lock, C.trim, 0, 0.016, 0.0125);
     this.chest.scale.setScalar(1.5);
     // each chest's own timer: a thin gold arc that drains (its own geometry, so its draw range is its own).
     // Plain on purpose: the filled, flowing circle (vfx.js TeleMaterial) belongs to danger Warnings only

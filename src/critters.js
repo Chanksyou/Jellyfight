@@ -2485,18 +2485,48 @@ export function buildCicada() {
     hinge.add(m); body.add(hinge);
     return { hinge, s };
   }));
-  // the mound it leaves on the floor while it is under (one shared dome and rim, drawn instanced with the rest)
-  const D = (GEO.cicadaMound ||= { dome: new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), rim: new THREE.RingGeometry(0.8, 1.2, 28).rotateX(-Math.PI / 2).translate(0, 0.02, 0) });
+  // the mound, mud chimney and crater left by the burrow (shared geometries, drawn instanced with the rest)
+  const D = (GEO.cicadaMound ||= (() => {
+    // craggy dirt mound: hemisphere displaced by deterministic radial lumps
+    const dome = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dp = dome.attributes.position;
+    for (let i = 0; i < dp.count; i++) {
+      const x = dp.getX(i), y = dp.getY(i), z = dp.getZ(i);
+      const a = Math.atan2(z, x), n = 1 + 0.14 * Math.sin(a * 5 + y * 4) + 0.08 * Math.cos(a * 9 - y * 3);
+      dp.setXYZ(i, x * n, y * (0.95 + 0.12 * Math.cos(a * 4)), z * n);
+    }
+    dome.computeVertexNormals();
+    // hollow tapered mud chimney with irregular lip
+    const chPts = [[1.05, 0], [0.82, 0.25], [0.56, 0.65], [0.46, 0.96], [0.32, 1.0], [0.24, 0.5]].map(([r, y]) => new THREE.Vector2(r, y));
+    const chimney = new THREE.LatheGeometry(chPts, 14);
+    const cp = chimney.attributes.position;
+    for (let i = 0; i < cp.count; i++) {
+      const x = cp.getX(i), y = cp.getY(i), z = cp.getZ(i), a = Math.atan2(z, x);
+      const n = 1 + 0.12 * Math.sin(a * 5 + y * 5);
+      cp.setXYZ(i, x * n, y * (y > 0.8 ? 0.94 + 0.1 * Math.sin(a * 3) : 1), z * n);
+    }
+    chimney.computeVertexNormals();
+    // annular sunken crater with raised jagged dirt rim
+    const crPts = [[0, 0.06], [0.55, 0.08], [0.78, 0.65], [0.92, 0.95], [1.08, 0.45], [1.18, 0]].map(([r, y]) => new THREE.Vector2(r, y));
+    const crater = new THREE.LatheGeometry(crPts, 16);
+    const rp = crater.attributes.position;
+    for (let i = 0; i < rp.count; i++) {
+      const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), a = Math.atan2(z, x);
+      rp.setY(i, y * (0.85 + 0.25 * Math.sin(a * 7)));
+    }
+    crater.computeVertexNormals();
+    return { dome, chimney, crater, rim: new THREE.RingGeometry(0.8, 1.2, 28).rotateX(-Math.PI / 2).translate(0, 0.02, 0) };
+  })());
   const glow = hostile('cicada');
-  M.mound ||= new THREE.MeshStandardMaterial({ color: 0x2a2018, emissive: glow, emissiveIntensity: 0.08, roughness: 1 });
+  M.mound ||= new THREE.MeshStandardMaterial({ color: 0x2a2018, emissive: glow, emissiveIntensity: 0.08, roughness: 1, flatShading: true });
   M.moundRim ||= new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: LOOK.num('burrow-mound-rim', 0.25), depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 });   // dim: only the locked Warning is bright
   const mound = new THREE.Group();
   mound.add(new THREE.Mesh(D.dome, M.mound), new THREE.Mesh(D.rim, M.moundRim));
   mound.visible = false;
   // the mud chimney it pushes up through the hush, and the brown shell it leaves behind (the mound's material, drawn instanced)
-  M.burrowCrater ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-crater', '#3a2a1c'), roughness: 1 });   // harmless leftovers: plain brown, no hostile glow
+  M.burrowCrater ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-crater', '#3a2a1c'), roughness: 1, flatShading: true });   // harmless leftovers: plain brown, no hostile glow
   M.burrowShell ||= new THREE.MeshStandardMaterial({ color: LOOK.color('burrow-shell', '#9a7448'), roughness: 0.75 });
-  const chimney = new THREE.Mesh(D.dome, M.mound), shell = new THREE.Mesh(G.body, M.burrowShell), crater = new THREE.Mesh(D.dome, M.burrowCrater);
+  const chimney = new THREE.Mesh(D.chimney, M.mound), shell = new THREE.Mesh(G.body, M.burrowShell), crater = new THREE.Mesh(D.crater, M.burrowCrater);
   crater.visible = false;
   outer.add(crater);
   chimney.visible = shell.visible = false;

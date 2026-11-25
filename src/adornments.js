@@ -467,14 +467,16 @@ export class Adornments {
     } };
   }
 
-  // Man o' War: a translucent sail-crest standing on the bell
+  // Man o' War: a translucent sculpted sail-crest standing on the bell
   make_sail() {
     const group = new THREE.Group(), h = this.h;
-    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.6, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
+    const mat = glowMat('sail', '#9fb6ff', { transparent: true, opacity: 0.62, emissiveIntensity: 1.6, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false });
     const s = new THREE.Shape();
     s.moveTo(-1, 0); s.bezierCurveTo(-0.9, 0.9, -0.2, 1.2, 0.3, 0.9); s.bezierCurveTo(0.7, 0.7, 0.9, 0.5, 1, 0); s.lineTo(-1, 0);
-    const sail = new THREE.Mesh(new THREE.ShapeGeometry(s, 12), mat);
-    sail.scale.set(h * 0.2, h * 0.22, 1);   // across the bell, so the camera behind you sees it
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 2, curveSegments: 12 });
+    geo.translate(0, 0, -0.04);
+    const sail = new THREE.Mesh(geo, mat);
+    sail.scale.set(h * 0.2, h * 0.22, h * 0.12);   // across the bell, so the camera behind you sees it
     sail.position.y = h * 0.93;         // standing on top of the bell
     group.add(sail);
     return { group, tick: () => { sail.rotation.z = Math.sin(this.t * 2) * 0.08; sail.rotation.x = -0.25; } };
@@ -497,11 +499,14 @@ export class Adornments {
     };
   }
 
-  // Bloody Fangs: two fangs under the front of the rim, found from the tentacles' roots so they sit on every species'
+  // Bloody Fangs: two curved fangs under the front of the rim, found from the tentacles' roots so they sit on every species'
   // rim (in the room, following the bell's flex); a jelly with no tentacles wears them at its usual rim height
   make_fangs() {
     const group = new THREE.Group(), h = this.h, mat = glowMat('treasure-bloodyFangs', '#ffb8c8', { emissiveIntensity: 0.5, roughness: 0.25 });
-    const geo = new THREE.ConeGeometry(1, 1, 6).rotateX(Math.PI).translate(0, -0.5, 0);   // tip down, hanging from its top
+    const geo = new THREE.ConeGeometry(1, 1, 8, 5).rotateX(Math.PI).translate(0, -0.5, 0);   // tip down, hanging from its top
+    const fp = geo.attributes.position;
+    for (let i = 0; i < fp.count; i++) { const t = -fp.getY(i); fp.setZ(i, fp.getZ(i) - t * t * 0.45); }   // gentle backward curve toward mouth
+    geo.computeVertexNormals();
     const fangs = [-1, 1].map(() => { const m = new THREE.Mesh(geo, mat); group.add(m); return m; });
     this.batch.track(group);
     const c = this._v, f = new THREE.Vector3(), s = new THREE.Vector3(), r = new THREE.Vector3();
@@ -520,6 +525,7 @@ export class Adornments {
       const len = h * 0.18 * k, w = h * 0.04 * k;
       fangs.forEach((m, i) => {
         m.position.copy(c).addScaledVector(f, R * 0.9).addScaledVector(s, (i ? 1 : -1) * R * 0.3);
+        m.rotation.y = P.facing;
         m.scale.set(w, len, w);
       });
     } };
