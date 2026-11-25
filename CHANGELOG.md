@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v714 adds Bioluminescent Wake, an Epic Treasure: swimming leaves a glowing cyan-to-violet trail that slows bugs 30%, and a jump off the ground sends a pulse down it that sets every piece off as a Blast for 2x Attack damage.
+
 v713 adds Tether Current, an Epic Treasure: every 5th attack ties a crackling beam from the jelly to the bug it hits for 4 s, cutting every other bug it touches.
 
 v712 makes a walking bug face the way it is going instead of always at you, and gives the Stag beetle and the Cicada a slow turn so they swing round heavily.
