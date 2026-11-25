@@ -144,6 +144,7 @@ const boardOpen = (tab, pin = false) => {
 const pastOpen = () => { const { run } = G(), boards = { ...fixture(), ...pastFixture() }; boardWorker = fakeWorker(boards); run.realBoard = run.board; run.board = webBoard(boards); run.board.season = 2; run.showPast(() => {}, 'champions'); };
 const boardClose = () => { const { run } = G(); run.board.onChange = null; run.ui.close(); run.board = run.realBoard; boardWorker?.restore(); };
 const spinClose = () => { const { menus } = G(); menus.close(); menus.spinOn = false; };
+let easySaved = [];
 export const SCREENS = {
   title: { open() { const m = G().mainMenu; m.show(); over().hidden = false; }, close() { const m = G().mainMenu; m.restore(); m.home = false; over().classList.remove('menu-home'); over().hidden = true; } },
   pause: { open() { over().hidden = false; }, close() { over().hidden = true; } },
@@ -169,6 +170,9 @@ export const SCREENS = {
   'change-look': { open() { over().hidden = false; over().querySelector('[data-act="creator"]').click(); }, close() { document.querySelector('#creator [data-act="done"]').click(); over().hidden = true; } },
   'act-complete': { open() { const { run } = G(); run.devRun(); run.actComplete({ id: 2, subtitle: 'the bathroom' }); }, close() { G().run.ui.close(); } },
   death: { open() { const { run } = G(); run.devRun(); run.phase = 'dead'; run.driedOut.begin(); run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); }, close() { G().run.ui.close(); G().run.start(); } },
+  // a second death in act 1, never cleared: the death screen offers Easy mode (easy.js)
+  'death-easy-offer': { open() { const { run } = G(); easySaved = Object.entries(localStorage); localStorage.setItem('jellyrun.act1deaths', '2'); localStorage.removeItem('jellyrun.found'); localStorage.removeItem('jellyrun.easy'); run.phase = 'dead'; run.driedOut.begin(); run.endRun('You dried out', 'Back to a polyp. Another run awaits.', 'Try again'); },
+    close() { G().run.ui.close(); G().run.start(); localStorage.clear(); for (const [k, v] of easySaved) localStorage.setItem(k, v); } },
   win: { open() { const { run } = G(); run.devRun(); run.phase = 'won'; run.endRun('Run complete', '', 'Play again from act 1', { parts: true }); }, close() { G().run.ui.close(); } },
   'win-sea': { open() { const { run } = G(); run.devRun(); run.victory.begin(() => {}); step(120); }, close() { G().run.victory.cancel(); } },
   'bench-start': { open() { benchMod.offer(); }, close() { document.querySelector('.jf-bench')?.remove(); } },

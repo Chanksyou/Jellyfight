@@ -40,7 +40,7 @@ import { FirstRun, markPlayed, deathHint } from './first-run.js';
 import { juice } from './juice.js';
 import { sfx, calm, wantPacks } from './sfx.js';
 import { bus, PLAYER } from './events.js';
-import { EASY, easyChosen } from './easy.js';
+import { EASY, easyChosen, chooseEasy, noteAct1Death, easyOffered } from './easy.js';
 import { FRIENDLY as friendlyColor } from './vfx.js';
 import { esc } from './leaderboard.js';
 import { icon } from './icons.js';
@@ -1925,6 +1925,7 @@ export class Run {
     this.tpc.dropKeep();
     if (!this.dev) forgetRun();
     if (!this.dev) markPlayed();
+    if (!this.dev && this.stage.id === 1) noteAct1Death();   // the death screen offers Easy mode after the second (easy.js)
     this.health = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     this.hud.setBoss(null);
@@ -1983,8 +1984,10 @@ export class Run {
       ...(dead && B?.localBest && !best ? [['Your best', B.localBest.score.toLocaleString()]] : []),
       ...(next ? [[`${icon('lock')} Next unlock`, `${unlockFace ? `<img class="jf-unlock" src="${unlockFace}" alt="">` : ''}${OPTIONS[next.key].find(([v]) => v === next.id)?.[1] || next.id} <small>· ${needShort(next.need, feats())}</small>`]] : []),
     ];
+    // Easy mode offered after a second act 1 death by a player who has never cleared it (easy.js)
+    const offerEasy = dead && !this.dev && !this.easy && this.stage.id === 1 && easyOffered(isFound('bosses', STAGES[0].boss.kind));
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
-    const hint = dead && this.stage.id <= 2 ? deathHint(!!this.attack) : parts ? this.scoreHint(this.scoreParts()) : '';   // or, on a win, what Clean play and Boss pace are
+    const hint = offerEasy ? 'Try Easy mode: you deal twice the damage and take half. You earn half the Pearls and your score is not on the leaderboard. Turn it off in Settings.' : dead && this.stage.id <= 2 ? deathHint(!!this.attack) : parts ? this.scoreHint(this.scoreParts()) : '';   // or, on a win, what Clean play and Boss pace are
     const finds = this.newFinds.length ? [[`${icon('book')} New in your book`, `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
     let last = null;
@@ -2011,6 +2014,7 @@ export class Run {
       // a run always starts over from act 1; after a death, starting again is the big button (Enter still submits)
       const tryAgain = { label: again, go: dead || !canPost, onClick: () => { if (this.stage.id > 1) goToAct(1); else if (!this.pickType?.()) { this.start(); this.resume(); } } };
       if (dead) buttons.push(tryAgain);
+      if (offerEasy) buttons.push({ label: 'Try Easy mode', onClick: () => { chooseEasy(true); tryAgain.onClick(); } });
       if (canPost) {
         buttons.push({ label: `${icon('share')} Submit score`, go: !dead, enter: true, onClick: (v) => {
           typed = (v.player || '').trim().slice(0, 20);
