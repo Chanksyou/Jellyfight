@@ -80,8 +80,12 @@ const num = (flag, d) => Math.max(1, Number((args.find((a) => a.startsWith(flag)
 const JOBS = num('--jobs=', 3), BOOTS = num('--boots=', 2);
 // A story that takes longer than this has hung: it fails, and the rest play on a fresh page (--story-timeout=SECONDS).
 // The slowest honest story is about a minute in CI; without a limit a hung page sat until the job's own timeout.
+// With one job (the CI) each story's line prints as it finishes, so a log that stops shows which story it stopped in.
+const LIVE = JOBS === 1;
 const STORY_MS = num('--story-timeout=', 240) * 1000;
 class StoryHang extends Error {}
+// Closing a page or the browser waits for the software GPU to finish every frame it was handed; the stories are done by then, so give up after a minute (the process exit ends the browser).
+const quit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 60000))]);
 let free = BOOTS; const waiting = [];
 const gate = async (f) => {
   if (free > 0) free--; else await new Promise((r) => waiting.push(r));
@@ -141,7 +145,7 @@ const pageTask = (P, played) => async (e) => {
       got = await boot(e, P.opts);
     }
   }
-  await got.page.close();
+  await quit(got.page.close());
   return out;
 };
 const BOOT_COST = 180;
@@ -205,10 +209,10 @@ if (!tasks.length) throw new Error('No story tasks selected; check the filter an
 if (shardArg) console.log(`Story shard ${shardIndex + 1}/${shardCount}: ${jobs.map((j) => j.label).join(', ')}`);
 const envs = [env];
 await Promise.all(Array.from({ length: Math.min(JOBS, tasks.length) }, async (_, w) => {
-  for (let t; (t = tasks.shift());) console.log((await t(envs[w] ||= await start())).join('\n'));
+  for (let t; (t = tasks.shift());) { const lines = (await t(envs[w] ||= await start())).filter(Boolean).join('\n'); if (lines) console.log(lines); }
 }));
-if (listing) await listing.page.close();
-await Promise.all(envs.slice(1).map((e) => e.close()));
+if (listing) await quit(listing.page.close());
+await Promise.all(envs.slice(1).map((e) => quit(e.close())));
 
 async function playAll(page, errors, names, out = []) {
   for (const name of names) {
@@ -229,7 +233,7 @@ async function playAll(page, errors, names, out = []) {
   }
   return out;
 }
-function result(good, ...a) { good ? passed++ : failed++; return text(good, ...a); }
+function result(good, ...a) { good ? passed++ : failed++; const line = text(good, ...a); if (LIVE) console.log(line); return LIVE ? '' : line; }
 
 // --- a player's first run survives a real reload, and ends for good once a run ends (first-run.js)
 async function firstRunReload(e) {
@@ -357,8 +361,8 @@ async function touchControls(e) {
 }
 
 
-await env.close();
 console.log(`\n${passed} passed, ${failed} failed`);
+await quit(env.close());
 // a full green run on a clean checkout records its commit: the pre-push hook (.githooks/pre-push)
 // lets that commit go to main
 if (!shardArg && !failed && filters.join('') === '' && MOBILE && SEED === DEFAULT_SEED) {
