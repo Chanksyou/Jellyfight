@@ -1,0 +1,1 @@
+new bugs no longer pop up in plain sight: they come in out of the camera's view, crawling out from under the edge of furniture (or out of a floor vent) a short walk away, and fliers come down from above. A first run's first few bugs still appear close by in view.

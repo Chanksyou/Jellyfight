@@ -79,16 +79,17 @@ function attackPhases(children) {
   return any ? A : null;
 }
 
-// spawning { rate … cap … }, attack-gap, and  bug "id" weight= from= act=
+// spawning { rate … cap … arrive … }, attack-gap, and  bug "id" weight= from= act=
 export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
-  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, attackGap: 0, bugs: [] };
+  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, arrive: null, attackGap: 0, bugs: [] };
   for (const n of nodes) {
     const where = `${file}:${n.line}`;
     if (n.name === 'spawning') {
       for (const s of n.children) {
         if (s.name === 'rate') { w.rate = s.args[0]; w.grow = s.props.grow ?? 0; }
         else if (s.name === 'cap') { w.cap = s.args[0]; w.capEvery = s.props.every ?? Infinity; w.capMax = s.props.max ?? w.cap; }
-        else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap)`);
+        else if (s.name === 'arrive') w.arrive = { near: s.props.near ?? 0.3, far: s.props.far ?? 0.75, cover: s.props.cover ?? s.props.far ?? 0.75, vents: s.props.vents ?? 0, firstRun: s.props['first-run'] ?? 0 };
+        else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap, arrive)`);
       }
     } else if (n.name === 'attack-gap') w.attackGap = n.args[0];
     else if (n.name === 'bug') {

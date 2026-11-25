@@ -53,6 +53,7 @@ import { loadLayout } from './layout.js';
 import { actParts, SEASON } from './score.js';
 
 const DOWN = new THREE.Vector3(0, -1, 0);
+const _view = new THREE.Frustum(), _vp = new THREE.Matrix4(), _ball = new THREE.Sphere(), _at = new THREE.Vector3(), _body = { point: new THREE.Vector3(), normal: new THREE.Vector3() };   // arriveFrom
 const _drop = new THREE.Vector3(), p0 = new THREE.Vector3(), _mid = new THREE.Vector3(), _bug = new THREE.Vector3();
 const UP_AIR = new THREE.Vector3(0, 1, 0), _near = new THREE.Vector3(), NEARBY = 0.3;   // per of="burning-nearby": how close a Burning bug counts (m)
 const UNHURT = 4;   // while "unhurt": seconds without a hit before it holds
@@ -443,7 +444,7 @@ export class Run {
       this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
     }
-    this.spawnAcc = 0;
+    this.spawnAcc = 0; this.arrived = 0;
     this.bursts = [];
     this.nightT = 0;
 
@@ -914,12 +915,54 @@ export class Run {
       const w = bugs.map((b) => [b.id, this.t >= b.from ? b.weight : 0]);
       let r = Math.random() * w.reduce((a, [, x]) => a + x, 0), type = bugs[0].id;
       for (const [k, x] of w) if ((r -= x) <= 0) { type = k; break; }
-      const pos = this.spawnPoint(type) || (type !== bugs[0].id ? this.spawnPoint((type = bugs[0].id)) : null);
-      if (pos) this.enemies.spawn(type, pos, this.stage.toughness || 1);
+      // out of view from cover (arriveFrom), unless a first run is still showing its first bugs; else in view, growing in
+      const A = W.arrive, first = this.firstRun.active && (this.arrived || 0) < (A?.firstRun || 0);
+      let pos = A && !first && this.arriveFrom(type, A);
+      const hidden = !!pos;
+      if (!pos) pos = this.spawnPoint(type) || (type !== bugs[0].id ? this.spawnPoint((type = bugs[0].id)) : null);
+      if (!pos) continue;
+      const e = this.enemies.spawn(type, pos, this.stage.toughness || 1);
+      this.arrived = (this.arrived || 0) + 1;
+      if (hidden && e) e.spawnT = 1;   // it crawls out (or flies in) whole: nothing grows from nothing where you can see
     }
   }
 
   inStage(x, z) { return this.rooms.some(([, poly]) => inPoly(x, z, poly)); }
+
+  // Where a new bug comes in out of sight (content/waves.kdl arrive): a ground bug from the edge of
+  // cover under furniture, a floor vent, or else any floor out of view, on squares the floor map
+  // reaches, a walk of near..far m from you; a flier from above
+  // the camera's view. Null when there is none (no floor map: duels, arenas, the dev kit)
+  arriveFrom(type, A) {
+    const nav = this.enemies.nav, cam = this.tpc.camera, T = TYPES[type];
+    if (!nav?.ready || !cam) return null;
+    cam.updateMatrixWorld();
+    const view = _view.setFromProjectionMatrix(_vp.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    const unseen = (x, y, z) => !view.intersectsSphere(_ball.set(_at.set(x, y + (T.fly ? 0 : T.r), z), Math.max(T.r * 3, 0.15)));
+    const P = this.player.position;
+    if (T.fly) {
+      // above the view, a way out from you, with a clear flight down to you
+      const pc = P.clone().setY(P.y + this.cfg.height * 0.5);
+      for (let i = 0; i < 12; i++) {
+        const a = Math.random() * Math.PI * 2, d = A.near + Math.random() * (A.far - A.near), x = P.x + Math.cos(a) * d, z = P.z + Math.sin(a) * d;
+        if (!this.inStage(x, z)) continue;
+        for (const up of [0.35, 0.55, 0.8]) {
+          const at = new THREE.Vector3(x, pc.y + up, z);
+          if (!unseen(at.x, at.y, at.z) || this.world.sweepSphere(pc, at.clone().sub(pc), T.r, _body)) continue;
+          return at;
+        }
+      }
+      return null;
+    }
+    const out = new THREE.Vector3();
+    // a floor vent some of the time: the nearest few that fit, at random
+    if (Math.random() < A.vents) {
+      const vents = (this.traversal.bossMode ? [] : this.traversal.vents).filter((v) => { const d = nav.distAt(v.x, v.y, v.z, T.r); return d >= A.near && d <= A.cover && unseen(v.x, v.y, v.z); });
+      if (vents.length) { const v = vents[Math.floor(Math.random() * vents.length)]; return out.set(v.x, v.y, v.z); }
+    }
+    // from under the edge of furniture (a little farther off is fine: cover is rare close by); else from any floor out of view
+    return nav.spot(T.r, A.near, A.cover, true, unseen, out) || nav.spot(T.r, A.near, A.far, false, unseen, out) ? out : null;
+  }
 
   spawnPoint(type) {
     const P = this.player.position;
