@@ -429,6 +429,7 @@ export class Bubbles {
     b.off = o.off || null;               // its place beside the others in its blow: it aims that far to the side of the target
     b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
     b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
+    b.split = false; b.small = false;
     b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;

@@ -577,11 +577,12 @@ export class Run {
   // reads these, never treasure ids
   get mods() {
     const el = this.evolved?.length || 0, ul = this.upgrades?.length || 0, j = this.attack ? this.jelly : '';
-    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsEL !== el || this._modsUL !== ul || this._modsJ !== j) {
+    if (!this._modsE || this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsEL !== el || this._modsUL !== ul || this._modsJ !== j) {
       this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
       this._modsEL = el; this._modsUL = ul; this._modsJ = j;
+      this._modsE = true;
     }
     return this._mods;
   }
