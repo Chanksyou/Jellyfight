@@ -55,6 +55,7 @@ import './stories/shield.js';
 import './stories/rebound-mirage.js';
 import './stories/fire-trail.js';
 import './stories/tether.js';
+import './stories/turrets.js';
 import './stories/wake.js';
 import './stories/looks.js';
 import './stories/bell-flex.js';

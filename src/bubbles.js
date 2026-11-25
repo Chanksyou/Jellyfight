@@ -38,7 +38,7 @@ import { bus } from './events.js';
 import { batcher } from './batch.js';
 import { FRIENDLY } from './vfx.js';
 import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
-import { elementParams } from './words.js';
+import { elementParams, newMods } from './words.js';
 import { rollChance } from './chance.js';
 import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
 
@@ -79,6 +79,7 @@ export const ELEMENT = {
 const GATHER = 0.8;
 // your starting Fire rate: element attacks fire faster as yours goes up
 const BASE_FIRE_RATE = BASE_STATS.fireRate;
+const PLAIN = newMods();   // a run with no Treasures: what a Jelly Mould's jelly's shots fly and hit with
 
 export class Bubbles {
   constructor(scene, enemies, fx, world) {
@@ -414,6 +415,26 @@ export class Bubbles {
     this.onBlow?.();
   }
 
+  // A Jelly Mould's jelly (turrets.js) fires one shot of `kind` (the jelly type's own attack: 'bubble' or an
+  // Element) from `origin` at the nearest bug in your Range, for `k` of your Attack damage: its Element's
+  // starting numbers and none of your Treasures (fly hits it with PLAIN), never counted as one of your attacks.
+  // The bug it aimed at, or null when nothing is in range.
+  turretShot(origin, kind, stats, k) {
+    const id = EL[kind] ? kind : null, P = id ? { ...elementParams(id), rate: BASE_FIRE_RATE, dmg: this.hit, main: true } : null;
+    const range = stats.range * (P?.range ?? 1), target = this.inRange(origin, range)[0];
+    if (!target) return null;
+    const keep = this.mods; this.mods = PLAIN;   // blow reads shot-speed from it
+    const each = stats.bubbleDamage * k, size = stats.bubbleSize;
+    const b = id ? this.blow(origin, target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range })
+      : this.blow(origin, target, { size, dmg: each * this.hit, pierce: 1 });
+    this.mods = keep;
+    b.turret = true; b.pushMul = 1;
+    if (id === 'wind') sfx.windLaunch();
+    else if (id && id !== 'fire') { this.looks.launch(id, origin, size * 0.6); sfx.elementLaunch(id); }
+    else if (!id) sfx.blow();
+    return target;
+  }
+
   blow(origin, target, o) {
     const m = o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);   // a golden Element shot keeps its look, with a gold glow
     m.position.copy(origin);
@@ -429,7 +450,7 @@ export class Bubbles {
     b.off = o.off || null;               // its place beside the others in its blow: it aims that far to the side of the target
     b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
     b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
-    b.split = false; b.small = false;
+    b.split = false; b.small = false; b.turret = false;
     b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
@@ -455,9 +476,11 @@ export class Bubbles {
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
+      const M = b.turret ? PLAIN : mods;   // a Jelly Mould's jelly's shot: none of your Treasures (turretShot)
+      this.mods = M;
       if (b.done) continue;   // popped already: by the one before it (pop-chain)
       b.t += dt;
-      if (b.rebound === undefined) b.rebound = !!mods.rebound && !b.tint;
+      if (b.rebound === undefined) b.rebound = !!M.rebound && !b.tint;
       if (b.rebound && b.returning && this.origin) {
         const d = c.copy(this.origin).sub(b.m.position), distance = d.length();
         if (distance < b.r + b.speed * dt) { this.fx.puff(b.m.position, this.friendly, b.r, 0.15); b.done = true; continue; }
@@ -475,22 +498,22 @@ export class Bubbles {
         if (d < b.r * 2 || to.dot(b.vel) <= 0) b.homing = false;
         else b.vel.lerp(to.multiplyScalar(b.speed / d), 1 - Math.exp(-3 * dt)).setLength(b.speed);
       }
-      if (mods.homing && !b.returning && !b.orb) this.seek(b, mods.homing, dt);
-      if (b.orb) { this.orbit(b, dt, stats, mods); if (b.done) continue; }
+      if (M.homing && !b.returning && !b.orb) this.seek(b, M.homing, dt);
+      if (b.orb) { this.orbit(b, dt, stats, M); if (b.done) continue; }
       const step = b.vel.length() * dt;
       // walls only count once the bubble has left the jelly's own body: blown from the top of the
       // bell while you're pressed under or against something, it would otherwise pop at once
       const wall = b.travel > this.grace && this.world.cast(b.m.position, this._dir.copy(b.vel).normalize(), step + b.r);
       if (wall || (b.travel > this.grace && this.blocked(b.m.position, this._dir, step + b.r, b.r))) {
-        if (wall?.normal && !b.tint && !b.orb && (b.bounces || 0) < mods.ricochet) this.ricochet(b, wall);   // rebound walls-only: off the wall, flying on (before Rebound turns it home)
+        if (wall?.normal && !b.tint && !b.orb && (b.bounces || 0) < M.ricochet) this.ricochet(b, wall);   // rebound walls-only: off the wall, flying on (before Rebound turns it home)
         else if (b.rebound && !b.returning) { this.turn(b); continue; }
-        else { this.pop(b, null, stats, mods); continue; }
+        else { this.pop(b, null, stats, M); continue; }
       }
       b.m.position.addScaledVector(b.vel, dt);
-      if (mods.wobble && !b.orb) this.wobble(b, mods.wobble, dt);
+      if (M.wobble && !b.orb) this.wobble(b, M.wobble, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
-      if (mods.swat) E.swatShots(b.m.position, b.r + mods.swat.reach);   // Badminton Racket: knocks a bug's Shot back
+      if (M.swat) E.swatShots(b.m.position, b.r + M.swat.reach);   // Badminton Racket: knocks a bug's Shot back
       if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
         b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
         if(!this.treasureLooks.quiet)this.treasureLooks.streak(b.m.position.clone().addScaledVector(b.vel,-.045),b.m.position,this.treasureLooks.disco,.0008,.14);
@@ -509,18 +532,19 @@ export class Bubbles {
         if (this.touches(b, E.center(e, c), e.hitR || e.r)) {   // hitR: a millipede's ball
           b.hit.add(e);
           const chilled = b.ep?.chillPierce && e.chillT > 0;   // Icicle Lance: a shard flies through a bug that was already Chilled
-          this.strike(b, e, mods);
+          this.strike(b, e, M);
           if (chilled) b.free = (b.free || 0) + 1;
           if (b.ep?.grow) b.r *= 1 + b.ep.grow;                // Snowball
-          if (b.rebound) { this.pop(b, e, stats, mods, true); continue; }
-          if (b.hit.size - (b.free || 0) >= b.pierce) { this.pop(b, e, stats, mods); break; }
+          if (b.rebound) { this.pop(b, e, stats, M, true); continue; }
+          if (b.hit.size - (b.free || 0) >= b.pierce) { this.pop(b, e, stats, M); break; }
           if (b.hit.size === 1) this.splash(b);   // a piercing bubble splashes where it first hits, then flies on
         }
       }
       const reach = b.range ? b.range * 1.4 : maxTravel;
       if (!b.done && b.rebound && !b.returning && b.travel > reach) this.turn(b);
-      if (!b.done && !b.orb && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.expire(b, stats, mods);
+      if (!b.done && !b.orb && (b.rebound ? b.t > reach / b.speed * 3 + 1 : b.travel > reach || b.t > reach / b.speed + 0.5)) this.expire(b, stats, M);
     }
+    this.mods = mods;
     this.looks.tickBolts(dt);
     this.looks.endFrame();
     const done = this.list.filter((b) => b.done);
@@ -681,7 +705,7 @@ export class Bubbles {
     if (b.tint && color === '#bfe8ff') color = EL[b.tint].text;
     // a shove in the direction the bubble was going: the harder the hit, the further
     if (!e.T.fly && !el.has('wind')) bus.emit('knockback', { targetId: e.id, dir, force: knockFor(dmg * this.enemies.statusMore(e, b.tint || 'bubble')) });   // status-damage lands harder, shoves further
-    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir, golden: !!b.golden } });
+    bus.emit('damage_taken', { targetId: e.id, amount: dmg, color, source: b.turret ? 'turret' : 'bubble', sound: el.has('fire') ? 'fireball' : undefined, feedback: { crit, element: b.tint, dir, golden: !!b.golden } });
     this.enemies.freshBurn = null;
     if (mods.trap && !e.dead && !e.proxy && rollChance(mods.trap.chance, mods)) this.trapBug(e, mods.trap.time);   // trap-on-hit
     if (slide && !e.dead && !e.proxy) this.slide(e, dir, slide);

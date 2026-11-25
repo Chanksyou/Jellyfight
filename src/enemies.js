@@ -1552,7 +1552,9 @@ export class Enemies {
   }
 
   // player: { position, radius, height }
-  update(dt, player, t, decoy = null) {
+  // decoys: what ordinary bugs can go for instead of you, each { position, center, range }; one that `takes`
+  // (a Jelly Mould's jelly, src/turrets.js) is real: a bug nearer it than you aims its hits at it, and they land on it
+  update(dt, player, t, decoys = []) {
     this.frame++;
     this.now = t;
     if (this.passes.length) this.deliverPasses();
@@ -1584,16 +1586,25 @@ export class Enemies {
       e.stunT = Math.max(0, (e.stunT || 0) - dt);                    // lightning
       e.trapT = Math.max(0, (e.trapT || 0) - dt);
       const slow = (e.freezeT > 0 || e.stunT > 0 || e.trapT > 0 ? 0 : e.slowT > 0 ? 0.55 : e.wadeT > 0 ? 1 - e.wadeK : 1) * pace;
-      const lure = decoy && !e.elite && e.state !== 'hold' && this.center(e, tmp).distanceToSquared(decoy.center) <= decoy.range ** 2;
-      const aim = lure ? decoy.center : pc;
+      let lure = null;
+      if (decoys.length && !e.elite && e.state !== 'hold') {
+        const at = this.center(e, tmp), you = at.distanceToSquared(pc);
+        let best = Infinity;
+        for (const d of decoys) {
+          const q = d && at.distanceToSquared(d.center);
+          if (d && q <= d.range ** 2 && q < best && !(d.takes && q >= you)) { best = q; lure = d; }
+        }
+      }
+      const aim = lure ? lure.center : pc;
       const toP = this._d.copy(aim).sub(this.center(e, tmp));
       const dist = toP.length();
       const near = dist < 1.4;
 
       // its behaviour words (content/enemies.kdl, src/words.js), in the order it lists them
       const c = this._c;
-      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? decoy.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
-      c.realPc = pc; c.realFoot = player.position;
+      c.dt = dt; c.t = t; c.beat = this.beat ?? t * 2; c.spb = 60 / (this.bpm || 120); c.wait = false; c.pc = aim; c.foot.copy(lure ? lure.position : player.position); c.slow = slow; c.dist = dist; c.near = near; c.toP = toP;
+      const real = lure?.takes ? lure : null;   // its hits check against that jelly, and run.js hands them to it (striking)
+      c.realPc = real ? real.center : pc; c.realFoot = real ? real.position : player.position;
       c.flatDir.copy(toP).setY(0);
       c.flat = c.flatDir.length();
       c.flatDir.normalize();
@@ -1602,7 +1613,9 @@ export class Enemies {
       // ground-lock (Hoarfrost): a bug with the status can't start a leap, rise in the air or climb
       const lock = locks.length > 0 && locks.some((k) => this.statuses[k](e)), y0 = e.pos.y, x0 = e.pos.x, z0 = e.pos.z;
       e.groundLocked = lock;
+      this.striking = real;
       if (!e.hold) for (const w of e.T.words) w.tick?.(e, c, this);
+      this.striking = null;
       const unseen = dist > animFar || (cam && !view.intersectsSphere(S.sphere.set(e.pos, e.r * 2)));
       if (!e.T.fly) {                        // ground bugs walk where their words point, with collision
         e.vel.x += (c.dir.x * c.speed - e.vel.x) * (1 - Math.exp(-8 * dt));

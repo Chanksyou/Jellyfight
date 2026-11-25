@@ -1175,6 +1175,15 @@ export const TIMED_WORDS = {
       return { kind: 'whirl', ...p };
     },
   },
+  // Jelly Mould (src/turrets.js)
+  turret: {
+    doc: 'Sets a little jelly down on the floor under you for `time` s (at most `most` at once: a new one sends the oldest away). It has `health` Health: ordinary bugs nearer it than you go for it, and their hits and touches land on it instead. It fires your jelly type\'s own attack, none of your Treasures or Attack upgrades, at your Fire rate and Range, for `dmg` of your Attack damage. A Tentacle jelly has no shot to give it.',
+    props: { time: 8, health: 8, dmg: 0.4, most: 4 },
+    make: (_, p) => {
+      if (!(p.time > 0 && p.health > 0 && p.dmg > 0 && Number.isInteger(p.most) && p.most >= 1)) throw new Error('turret: time, health and dmg must be above 0, most a whole number, 1 or more');
+      return { kind: 'turret', ...p };
+    },
+  },
   // Lightning jelly (P8b)
   orb: {
     doc: 'A slow ball of lightning drifts out toward the nearest bug (or the way you face) at `speed` m/s for `life` s, zapping every bug within `radius` m of it for `dmg` (once each).',
@@ -1583,7 +1592,7 @@ export const TREASURE_WORDS = {
   ghosts: { doc: '`chance` that a bug you clear rises as a glowing ghost for `time` s: it flies (`speed` m/s) at the nearest bug, slams it for `dmg` times your power, bounces off and goes again after `rest` s. At most `most` at once. Copies add their chances.', props: { chance: 0.1, time: 8, dmg: 0.6, speed: 0.5, rest: 0.5, most: 5 }, make: (_, p) => (m) => { m.ghosts = { ...p, chance: (m.ghosts?.chance || 0) + p.chance }; } },
   'more-bugs': { doc: '`times` as many bugs come out of the vents (the cap on bugs at once grows too).', args: ['times'], make: ([k]) => (m) => { m.moreBugs *= k; } },
   every: {
-    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl, next-attack.',
+    doc: 'Every `seconds` (the first time after `first` s, 60% of the period by default), does the effects in its { block }: ring, zap, shards, brick, marble, cone, grab, reach-flare, orb, xp, whirl, next-attack, turret.',
     args: ['seconds'],
     props: { first: null },
     block: TIMED_WORDS,
