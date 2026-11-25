@@ -239,7 +239,7 @@ export class EncoreFloor {
 
   place(i, h) {
     _p.set(tileX(i % N), 0, tileZ((i / N) | 0));
-    if (h > 0) _s.set(1, h, 1); else _s.set(0, 0, 0);
+    if (h > 0) _s.set(1, h, 1); else _s.set(1e-6, 1e-6, 1e-6);
     this.volumes.setMatrixAt(i, _m.compose(_p, _q, _s));
   }
 
