@@ -79,9 +79,9 @@ function attackPhases(children) {
   return any ? A : null;
 }
 
-// spawning { rate … cap … }  and  bug "id" weight= from= act=
+// spawning { rate … cap … }, attack-gap, and  bug "id" weight= from= act=
 export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
-  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, bugs: [] };
+  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, attackGap: 0, bugs: [] };
   for (const n of nodes) {
     const where = `${file}:${n.line}`;
     if (n.name === 'spawning') {
@@ -90,11 +90,12 @@ export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
         else if (s.name === 'cap') { w.cap = s.args[0]; w.capEvery = s.props.every ?? Infinity; w.capMax = s.props.max ?? w.cap; }
         else throw new Error(`${file}:${s.line}: unknown spawning setting "${s.name}" (rate, cap)`);
       }
-    } else if (n.name === 'bug') {
+    } else if (n.name === 'attack-gap') w.attackGap = n.args[0];
+    else if (n.name === 'bug') {
       const id = n.args[0];
       if (!enemies[id]) throw new Error(`${where}: no enemy called "${id}" in content/enemies.kdl`);
       w.bugs.push({ id, weight: n.props.weight ?? 1, from: n.props.from ?? 0, act: n.props.act ?? 1 });
-    } else throw new Error(`${where}: expected "spawning" or "bug", got "${n.name}"`);
+    } else throw new Error(`${where}: expected "spawning", "attack-gap" or "bug", got "${n.name}"`);
   }
   if (!w.bugs.length) throw new Error(`${file}: no bugs listed`);
   return w;

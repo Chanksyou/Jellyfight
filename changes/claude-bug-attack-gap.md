@@ -1,0 +1,1 @@
+spaces out bug attacks: no bug starts its wind-up within 0.3 s of another bug's, so a crowd's hits land one after another instead of all at once (bugs on screen go first). Elites, Bosses and the act 4 bugs that keep time with the music aren't held.
