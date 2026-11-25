@@ -924,6 +924,7 @@ export class Run {
       const e = this.enemies.spawn(type, pos, this.stage.toughness || 1);
       this.arrived = (this.arrived || 0) + 1;
       if (hidden && e) e.spawnT = 1;   // it crawls out (or flies in) whole: nothing grows from nothing where you can see
+      if (e && W.noticeMax && !this.firstRun.active) e.noticeT = W.noticeMin + Math.random() * (W.noticeMax - W.noticeMin);   // it notices you first (a first run's bugs don't wait)
     }
   }
 

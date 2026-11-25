@@ -1,0 +1,1 @@
+makes bugs a little more alive: a bug the night sends out stands head up for about half a second before it moves, the floor bugs lose you for a moment when you go up a vent or onto furniture, and a bug beside one that dies steps aside.
