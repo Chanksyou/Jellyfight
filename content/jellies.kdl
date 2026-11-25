@@ -20,12 +20,13 @@
 
 jelly "normal" name="Normal Jelly" icon="🫧" about="Blows a steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1 aura="bubbles"
 
-// Fire: the Fire shot at full Fire rate. hit=0.5 lands it at 11.4 damage a second on one bug
-// (7.5 x 0.5 x 1.5/s = 5.6 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
-// the top of the 9-12 budget, for a glass cannon (docs/jelly-types/spec-core.md)
+// Fire: the Fire shot at full Fire rate. hit=0.6 lands it at 12.5 damage a second on one bug
+// (7.5 x 0.6 x 1.5/s = 6.8 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
+// just over the 9-12 budget on purpose: Burn doesn't grow with Fire rate cards, so Fire fell behind
+// on the Vacuum and Clog once levelled (hit 0.5 -> 0.6, Nov 24: Vacuum fight about 20% shorter, Clog about 8%)
 // hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
 // about half of Fire's damage
-jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, and a Burning bug that dies lights its neighbours." attack="fire" hit=0.5 adorn="ember" aura="flames" {
+jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, and a Burning bug that dies lights its neighbours." attack="fire" hit=0.6 adorn="ember" aura="flames" {
     stat bubble-damage 7.5
     stat move-speed 1.05
     stat health 19
