@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v709 makes walking bugs find their way round furniture by the floor map instead of walking straight at you and getting stuck behind it, and spread out round each other on the way in; with you up on furniture they gather on the floor under you.
+
 v708 tunes twelve Treasures' numbers: Bobby Pin pierces 4/8/12 bugs, Reed Stick's big bubble hits for 4 and comes every 3rd bubble at Level 3, Nail Clipper crits 10% of hits, Cotton Ball's shockwave hits for 1.2, Bath Salt's burst hits for 1.5/2 at Levels 2 and 3, Ice Cube's puddle is wider, TV Remote zaps every 5/4/3 s, Lego Brick's brick is bigger, Marble lasts 4 s, and Dustpan gives +15% Fire rate per dust bunny.
 
 v707 adds the bugs' floor map: 5 cm squares over each act's floor and the Clog's tub, marked at load with the same body test a walking bug makes, and a walking distance to the jelly that goes round furniture, flooded off the frame clock. No bug uses it yet; the dev panel's Bug map switch shows it.
