@@ -14,16 +14,19 @@ elite "controller" name="The Controller" icon="🎮" hp=250 aggro=1.1 {
     barrage dmg=3 windup=1.4 gap=0.35 radius=0.075 height=0.06 spread=0.19 rest=1.6   // gap: tempo s between symbols going off, in their buttons' order
     rumble dmg=3
     arrow dmg=3 warn=1 lock=0.6 strike=0.12 radius=0.07 reach=0.4 size=0.05 air=0.03 rest=1.6   // a pad arrow hovers reach= m off you for warn= real s (no circle or dome; following you until lock= of it), then flies in over strike= s; air= m off the floor is 'in the air' (only then can it come up from below)
+    drift dmg=3 windup=1.0 dash=0.35 width=0.11 height=0.06 reach=0.34 push=0.7 rest=1.7   // left stick jams forward, then it skids down the lane and hops back
 }
 
 elite "mug" name="The Mug" icon="☕" hp=250 aggro=0.9 {
     coffee dmg=3 lobs=5 drain=3
     spill dmg=3 puddles=7 width=0.08 height=0.06 carry=0.4 push=0.7   // a lane wave (m); caught, washed along at push= m/s for carry= s
+    stir dmg=3 windup=1.0 radius=0.28 height=0.055 speed=0.55 rest=1.7   // spoon whips a swirling coffee ring out across the desk: jump over it
 }
 
 elite "kettle" name="The Kettle" icon="♨️" hp=275 aggro=1.4 {
     ball dmg=3 shots=3 every=0.4 lead=1 gusts=3 gap=0.15 charge=1.4 flight=0.6 radius=0.06   // charge is in tempo time (1.4 is 1 s at tempo 1.4); every, flight and gap are real s; lead: each ball aims where you'll be as it lands (1: all the way, 0: where you are)
     boil dmg=3 reach=0.5 safe=0.08 away=0.2 flight=0.6 fill=1.6   // lid lands at least away= m from you, a safe circle of safe= m round it; steam over reach= m round the Kettle once fill= tempo s are up
+    whistle dmg=3 windup=1.1 sweep=0.75 reach=0.38 arc=1.57 height=0.065 push=0.6 rest=1.8   // rising kettle whistle, then a sweeping steam jet across the arc: jump or circle behind
 }
 
 elite "soap" name="The Soap Dispenser" icon="🧼" hp=400 aggro=1.2 angry=0.75 {

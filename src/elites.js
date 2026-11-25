@@ -156,7 +156,7 @@ import { juice } from './juice.js';
 import { sfx, deepen } from './sfx.js';
 import { bus, PLAYER } from './events.js';
 import { CONTENT } from './content.js';
-import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, FLOOR_SHAPES, floorShapeGeometry, floorShapeHits, blastHits, coneHits, coneVolume, laneHits, shotHits, ringHits, shotTarget, SHOT_HEIGHT } from './vfx.js';
+import { hostile, TeleMaterial, VolumeMaterial, volumeGeometry, FLOOR_SHAPES, floorShapeGeometry, floorShapeHits, blastHits, coneHits, coneVolume, laneHits, shotHits, ringHits, arcHits, ARC_IN, ARC_STEP, shotTarget, SHOT_HEIGHT } from './vfx.js';
 import { buildClock, CLOCK } from './clock-model.js';
 import { buildWhipper, buildBalloon } from './whipper-model.js';
 import { buildCroc } from './croc-model.js';
@@ -169,7 +169,7 @@ import { buildHeadphones } from './headphones-model.js';
 // every elite's attacks, in the order it takes them (e.attack is the index); the clock strikes the
 // hour (its last) only once it's angry. The stories check each one's Warning (attacks/…, act2/attacks-…)
 export const ATTACKS = {
-  controller: ['barrage', 'rumble', 'arrow'], mug: ['coffee', 'spill'], kettle: ['steam-ball', 'boil-dry'],
+  controller: ['barrage', 'rumble', 'arrow', 'drift'], mug: ['coffee', 'spill', 'stir'], kettle: ['steam-ball', 'boil-dry', 'whistle'],
   soap: ['bubble-trap', 'bubble-ring'], clock: ['sweep', 'wreath', 'hour'], whipper: ['balloon', 'piping'],
   croc: ['volley', 'tail-slam', 'pounce'], bull: ['rush', 'spiral', 'minis'], coffer: ['accordion', 'tongue', 'jewels'],
   bowl: ['ring', 'hum'], pillow: ['spores', 'fairy'], headphones: ['shove', 'stereo'],
@@ -226,6 +226,7 @@ function controllerModel() {
   add(g, new RoundedBoxGeometry(0.112, 0.024, 0.056, 4, 0.011), shell, 0, 0.014, 0);
   // recessed center touchpad
   add(g, CTRL_STATIC.pad, dark, 0, 0.0255, 0.011);
+  const triggers = [], dpad = [], sticks = [];
   for (const s of [-1, 1]) {
     // contoured shoulder bridge blending body into the angled grip
     const bridge = add(g, CTRL_STATIC.bridge, shell, s * 0.041, 0.013, -0.015);
@@ -235,17 +236,19 @@ function controllerModel() {
     add(g, new RoundedBoxGeometry(0.026, 0.008, 0.01, 2, 0.003), dark, s * 0.034, 0.024, 0.029);        // bumpers
     const tr = add(g, new RoundedBoxGeometry(0.022, 0.012, 0.014, 2, 0.004), dark, s * 0.034, 0.018, 0.036); // triggers
     tr.rotation.x = -0.4;
+    triggers.push(tr);
   }
   const buttons = [];
   const btn = (c, x, z) => { const b = add(g, new THREE.SphereGeometry(0.0045, 12, 8), glow(c, 0.5), x, 0.027, z); b.scale.y = 0.5; buttons.push(b); };
   btn(0x3ad86a, 0.03, 0.006); btn(0xd83a3a, 0.038, -0.002); btn(0x3a8ad8, 0.022, -0.002); btn(0xf2c81a, 0.03, -0.01);
   // rounded D-pad cross on a recessed dish
   add(g, new THREE.CylinderGeometry(0.0105, 0.011, 0.002, 16), capMat, -0.03, 0.0255, -0.002);
-  for (const geo of CTRL_STATIC.dpad) add(g, geo, dark, -0.03, 0.0275, -0.002);
+  for (const geo of CTRL_STATIC.dpad) dpad.push(add(g, geo, dark, -0.03, 0.0275, -0.002));
   // concave thumbsticks (stem + dished cap)
   for (const x of [-0.014, 0.014]) {
-    add(g, new THREE.CylinderGeometry(0.0038, 0.0055, 0.006, 12), dark, x, 0.0275, -0.014);
-    add(g, CTRL_STATIC.cap, capMat, x, 0.026, -0.014);
+    const stem = add(g, new THREE.CylinderGeometry(0.0038, 0.0055, 0.006, 12), dark, x, 0.0275, -0.014);
+    const cap = add(g, CTRL_STATIC.cap, capMat, x, 0.026, -0.014);
+    sticks.push({ x, stem, cap });
   }
   add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.002, 16), glow(0xffffff, 1), 0, 0.0265, -0.004);    // home button
   // light bar along the front edge: blue at rest, flashing red when it's about to rumble
@@ -258,7 +261,7 @@ function controllerModel() {
   face.position.set(0, 0.03, -0.02);
   face.rotation.x = -0.9;
   g.add(face);
-  return { group: g, muzzle: new THREE.Vector3(0, 0.03, 0.03), r: 0.05, buttons, barMat };
+  return { group: g, muzzle: new THREE.Vector3(0, 0.03, 0.03), r: 0.05, buttons, barMat, triggers, dpad, sticks, face };
 }
 
 // ------------------------------------------------------------------ the Mug
@@ -374,9 +377,9 @@ function mugModel() {
     relief(blob(0.0042, 0.002, 0.0006, 0x9a7648), -2.55, 0.0805, 0.0002),
   ];
   add(g, mergeGeometries(parts), std(0xffffff, { vertexColors: true, roughness: 0.27, side: THREE.DoubleSide }));
-  // the coffee, with its meniscus ring where it meets the wall
-  const coffee = mergeGeometries([new THREE.CircleGeometry(0.0342, 40).rotateX(-Math.PI / 2).translate(0, 0.0735, 0), new THREE.TorusGeometry(0.0334, 0.0011, 8, 40).rotateX(Math.PI / 2).translate(0, 0.0735, 0)]);
-  add(g, coffee, std(0x3a2214, { roughness: 0.08 }));
+  // the coffee, with its meniscus ring where it meets the wall (positioned at y=0.0735 so it tilts in place)
+  const coffeeGeo = mergeGeometries([new THREE.CircleGeometry(0.0342, 40).rotateX(-Math.PI / 2), new THREE.TorusGeometry(0.0334, 0.0011, 8, 40).rotateX(Math.PI / 2)]);
+  const coffee = add(g, coffeeGeo, std(0x3a2214, { roughness: 0.08 }), 0, 0.0735, 0);
   // a spoon left in it
   const spoon = new THREE.Group();
   spoon.position.set(0.012, 0.07, -0.01);
@@ -387,7 +390,7 @@ function mugModel() {
   face.scale.setScalar(0.03);
   face.position.set(0, 0.052, 0.0352);
   g.add(face);
-  return { group: g, muzzle: new THREE.Vector3(0, 0.08, 0), r: 0.045 };
+  return { group: g, muzzle: new THREE.Vector3(0, 0.08, 0), r: 0.045, coffee, spoon, face };
 }
 
 function kettleGaugeTex() {
@@ -452,7 +455,7 @@ function kettleModel() {
   face.scale.setScalar(0.04);
   face.position.set(0, 0.05, 0.068);
   g.add(face);
-  return { group: g, muzzle: new THREE.Vector3(0, 0.1, 0.1), r: 0.065, lid, led };
+  return { group: g, muzzle: new THREE.Vector3(0, 0.1, 0.1), r: 0.065, lid, led, face };
 }
 
 // the soap dispenser's label: a pastel citrus print with its name across it
@@ -659,6 +662,15 @@ class Elite {
     this.state = 'idle';
     this.next = 0;                       // which attack comes next (they alternate)
     this.hitPop = 0;
+    this.springY = 0; this.springYV = 0; // underdamped vertical squash-and-stretch spring
+    this.flinch = 0; this.flinchV = 0;   // lateral stagger spring on hit
+    this.tilt = 0; this.tiltV = 0;       // pitch recoil/anticipation spring
+    this.flinchSide = 1;
+    this.eyePop = 0;
+    this.wasAwake = false;
+    this.wakeHop = 0;
+    this.spoonAng = 0; this.spoonV = 0;  // Mug spoon pendulum spring
+    this.lidOff = 0; this.lidV = 0;      // Kettle lid chatter spring
     this.tele = [];                      // telegraph meshes for the current attack
     // stand in for the real object while alive
     this.hidden = spec.hide ? owner.findObject(spec.hide) : null;
@@ -687,6 +699,14 @@ class Elite {
     if (this.dead) return;
     this.hp -= amount;
     this.hitPop = 1;
+    const heavy = amount >= 15;
+    this.flinchSide = -this.flinchSide;
+    this.springYV -= heavy ? 3.2 : 1.9;
+    this.flinchV += this.flinchSide * (heavy ? 5.5 : 3.2);
+    this.tiltV -= heavy ? 3.0 : 1.5;
+    this.eyePop = 1;
+    if (this.kind === 'mug') this.spoonV += this.flinchSide * (heavy ? 8 : 5);
+    if (this.kind === 'kettle') this.lidV += heavy ? 0.14 : 0.08;
     const c = this.center();
     this.owner.fx.number(c.setY(c.y + this.r * 0.6), amount, color, 16, feedback);
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
@@ -711,7 +731,7 @@ class Elite {
     });
     for (const b of this.minis || []) if (b.state === 'warn') { b.done = true; this.owner.scene.remove(b.m); }
     // These are local windup/choreography fields. Released attacks live in the manager and continue.
-    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','pipe','fired','arrowDir','arrowAt','arrowAir','arrowSide','arrowMesh','arrowT','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','humAt','humDone','fromBeat','turn','beatWas']) delete this[key];
+    for (const key of ['aim','beam','blasted','burst','chimed','combo','struck','washed','spillDir','hours','round','blowing','lidFly','lane','dizzyT','pounceAt','pounceFrom','creamed','pipe','fired','arrowDir','arrowAt','arrowAir','arrowSide','arrowMesh','arrowT','gems','hissed','landed','lash','launched','leapt','minis','popped','poured','rained','rhythm','rings','rushed','slams','spots','sprayed','squirted','stamped','strike','swept','threw','thrown','volleyed','strikes','struckN','humAt','humDone','fromBeat','turn','beatWas','stirred','whistleDir','whistleSweep','whistleHit','whistlePrev','driftDir','driftTo','driftLen','driftHit','driftDashed','driftRet']) delete this[key];
     for (const o of this.model.loose || []) o.visible = false;
     if (this.model.wreath) this.model.wreath.visible = !this.owner.thrown.some(w => w.owner === this);
     if (this.model.lever) this.model.lever.rotation.z = 0;
@@ -720,7 +740,8 @@ class Elite {
     if (this.model.needles) this.model.needles.forEach(n => { n.rotation.z = 1.2; });
     if (this.kind === 'clock') this.spin = 0;
     if (this.kind === 'kettle' && this.lidFly) { this.owner.scene.remove(this.lidFly.lid); this.model.lid.visible = true; this.lidFly = null; }
-    if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
+    if (this.kind === 'kettle') { this.model.lid.position.y = 0.112; this.lidOff = 0; this.lidV = 0; this.model.led.material.emissiveIntensity = 2; this.owner.fx.free(this.ball); this.ball = null; this.flights = []; this.bursts = []; this.sinceShot = null; }
+    if (this.kind === 'controller') { this.holder.position.copy(this.base); this.model.barMat.emissive.setHex(0x3a8aff); this.model.barMat.emissiveIntensity = 2; }
     if (this.kind === 'bowl') { this.model.pose('rest'); this.charge = 0; }
     if (this.kind === 'pillow') { this.dropSpores(); this.holder.position.copy(this.base); this.plan = null; this.charge = 0; }   // 
     if (this.kind === 'headphones') { this.plan = null; this.lit = [0, 0]; }
@@ -788,10 +809,14 @@ export class Elites {
     this.stripGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
     // a 50° wedge pointing +z (Circle geometry's sector starts at +x, so rotate it round)
     this.coneGeo = new THREE.CircleGeometry(1, 24, -0.45, 0.9).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);
+    // a 90° wedge pointing +z for the Kettle's Pressure Whistle Sweep (6 ARC_STEP pieces)
+    this.whistleGeo = new THREE.CircleGeometry(1, 24, -Math.PI / 4, Math.PI / 2).rotateX(-Math.PI / 2).rotateY(-Math.PI / 2);
     // floor warnings (vfx.js): outline, a fill that grows to the hit, stripes toward where it lands
     this.T = {
       brown: new TeleMaterial(hostile('mug'), 'strip'), red: new TeleMaterial(hostile('controller')), orange: new TeleMaterial(hostile('kettle')),
       mugCircle: new TeleMaterial(hostile('mug')),
+      drift: new TeleMaterial(hostile('controller'), 'strip'),
+      whistle: new TeleMaterial(hostile('kettle'), 'wedge', Math.PI / 4),
       symbols: FLOOR_SHAPES.map(shape => new TeleMaterial(hostile('controller'), shape)),
       puddle: new TeleMaterial(hostile('mug')),
       soap: new TeleMaterial(hostile('soap')), soapRing: new TeleMaterial(hostile('soap')), slick: new TeleMaterial(hostile('soap')),
@@ -904,7 +929,7 @@ export class Elites {
   // Show one of each projectile and telegraph so their shaders compile before play (main.js warmUp)
   warm(on, at) {
     if (on) {
-      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, ...this.T.symbols].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.arrowGeo, this.arrowMat), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
+      this._warm = [...[this.T.brown, this.T.red, this.T.orange, this.T.puddle, this.T.soap, this.T.sweep, this.T.beam, this.T.drift, this.T.whistle, ...this.T.symbols].map((m) => new THREE.Mesh(this.flat, m)), new THREE.Mesh(this.arrowGeo, this.arrowMat), new THREE.Mesh(this.flat, this.coffeeMat), new THREE.Mesh(this.flat, this.soapMat), new THREE.Mesh(this.bubbleGeo, this.bubbleMat)];
       const soap = soapModel();
       soap.group.traverse((o) => { if (o.isMesh) this._warm.push(o.clone()); });   // its own materials too
       const whip = buildWhipper(), bal = buildBalloon();
@@ -1326,6 +1351,9 @@ export class Elites {
           const c = e.center();
           this.fx.puff(c, 0xffd23a, e.r * 2.5, 0.6);
           this.fx.ring(e.base.clone().setY(e.base.y + 0.004), 0xffd23a, e.r * 3, 0.6);
+          if (e.kind === 'mug') this.fx.burst(c, ['#f1e7d3', '#7e8f74', '#3a2214'], 12, 0.004, 0.35, e.base.y);
+          else if (e.kind === 'kettle') { this.fx.burst(c, ['#dce0e4', '#16161a', '#ff7a3a'], 12, 0.004, 0.35, e.base.y); this.fx.puff(c, 0xffffff, e.r * 2.2, 0.65); }
+          else if (e.kind === 'controller') this.fx.burst(c, ['#2a2a32', '#3a8aff', '#d83a3a', '#3ad86a'], 12, 0.0035, 0.32, e.base.y);
           if (e.wall) { e.retire(); this.decor.push(e); }   // back up on its wall, just a clock again
           else e.remove();
           bus.emit('elite_defeated', { elite: e });
@@ -1334,8 +1362,18 @@ export class Elites {
       }
       e.t += dt;
       e.hitPop = Math.max(0, e.hitPop - dt * 6);
+      e.eyePop = Math.max(0, (e.eyePop || 0) - dt * 4);
+      e.wakeHop = Math.max(0, (e.wakeHop || 0) - dt * 3.5);
+      const quiet = juice.calm || this.fx.reducedMotion.matches, sdt = Math.min(dt, 0.05);
+      if (quiet) { e.springY = e.springYV = e.flinch = e.flinchV = e.tilt = e.tiltV = 0; }
+      else {
+        e.springYV += (-240 * e.springY - 18 * e.springYV) * sdt; e.springY = THREE.MathUtils.clamp(e.springY + e.springYV * sdt, -0.25, 0.25);
+        e.flinchV += (-220 * e.flinch - 16 * e.flinchV) * sdt; e.flinch = THREE.MathUtils.clamp(e.flinch + e.flinchV * sdt, -0.35, 0.35);
+        e.tiltV += (-200 * e.tilt - 15 * e.tiltV) * sdt; e.tilt = THREE.MathUtils.clamp(e.tilt + e.tiltV * sdt, -0.35, 0.35);
+      }
       const g = e.model.group;
-      g.scale.setScalar(e.size * (1 + e.hitPop * 0.08));
+      const sy = e.springY;
+      g.scale.set(e.size * (1 + e.hitPop * 0.08) * (1 - sy * 0.5), e.size * (1 + e.hitPop * 0.08) * (1 + sy), e.size * (1 + e.hitPop * 0.08) * (1 - sy * 0.5));
       e.bar.quaternion.copy(camQ);
       const k = Math.max(0, e.hp / e.maxHp);
       e.fill.scale.x = Math.max(0.001, k);
@@ -1343,6 +1381,12 @@ export class Elites {
       const to = pc.clone().sub(e.base);
       // awake: you're within aggro of it, and on its ground if it has one (spec.wake: a box)
       const onIts = this.onPlatform(e,P), awake = onIts && to.length() < e.aggro;
+      const act1 = e.kind === 'mug' || e.kind === 'kettle' || e.kind === 'controller';
+      if (awake && !e.wasAwake && act1 && !quiet) {
+        e.wakeHop = 1; e.eyePop = 1; e.springYV += 2.6;
+        this.fx.puff(e.base.clone().setY(e.base.y + 0.008), 0xe8e0d0, e.r * 0.65, 0.32);
+      }
+      e.wasAwake = awake;
       e.awake = awake;
       const raining = e.kind === 'coffer' && e.attack === 2 && e.gems; // fixed landing spots for airborne jewels
       if (raining && !onIts) for (let i = e.gems.length - 1; i >= 0; i--) if (!e.gems[i].out) {
@@ -1359,22 +1403,66 @@ export class Elites {
         e.ready = Math.abs(e.holder.position.y - e.fightY) < 0.03;
       }
       // face you (unless an attack has locked its aim, or it hangs on a wall), and bob so it reads as alive
+      let turnRate = 0;
       if (!e.locked && !e.wall) {
         const rest = !awake && e.state === 'idle' && e.spec.face != null;   // asleep: back the way it rests
         let d = (rest ? e.spec.face : Math.atan2(to.x, to.z)) - e.holder.rotation.y;
         d = Math.atan2(Math.sin(d), Math.cos(d));
-        e.holder.rotation.y += d * (1 - Math.exp(-(awake ? 6 : 1.5) * dt));
+        const stepYaw = d * (1 - Math.exp(-(awake ? 6 : 1.5) * dt));
+        e.holder.rotation.y += stepYaw;
+        turnRate = sdt > 1e-4 ? stepYaw / sdt : 0;
       }
-      g.position.set(0, Math.abs(Math.sin(e.t * (awake ? 4 : 1.5))) * 0.004, 0);
-      g.rotation.set(0, 0, 0);
+      const lowHp = k < 0.5 && act1 && awake && !quiet;
+      const wakeArc = e.wakeHop > 0 ? Math.sin(e.wakeHop * Math.PI) * 0.018 : 0;
+      const turnHop = e.kind === 'mug' && awake && !quiet ? Math.min(0.008, Math.abs(turnRate) * 0.002) : 0;
+      g.position.set(0, Math.abs(Math.sin(e.t * (awake ? (lowHp ? 5.5 : 4) : 1.5))) * 0.004 + wakeArc + turnHop, 0);
+      g.rotation.set(e.tilt, 0, e.flinch);
+      if (act1 && e.model.face) {
+        const wantEye = !awake && e.state === 'idle' ? 0.45 : e.state !== 'idle' ? 0.78 : 1;
+        const baseScale = e.kind === 'kettle' ? 0.04 : 0.03;
+        e.model.face.scale.y = baseScale * (wantEye + e.eyePop * 0.35);
+      }
       e.kick = Math.max(0, (e.kick || 0) - dt * 6);   // an attack's kick (the Mug's, the Kettle's): it leans back and squashes
-      if (e.kick) { g.rotation.x = -e.kick * LOOK.num('elite-recoil', 0.15); g.scale.y *= 1 - e.kick * LOOK.num('elite-recoil-squash', 0.12); }
+      if (e.kick) { g.rotation.x -= e.kick * LOOK.num('elite-recoil', 0.15); g.scale.y *= 1 - e.kick * LOOK.num('elite-recoil-squash', 0.12); }
       if (e.kind === 'controller') {
         e.controllerKick = Math.max(0, (e.controllerKick || 0) - dt * 6);
-        g.rotation.x = -e.controllerKick * LOOK.num('controller-recoil', 0.2);
+        g.rotation.x -= e.controllerKick * LOOK.num('controller-recoil', 0.2);
         g.scale.y *= 1 - e.controllerKick * LOOK.num('controller-recoil-squash', 0.15);
         e.model.buttons.forEach(b => { b.position.y = 0.027; b.material.emissive.copy(b.material.color); b.material.emissiveIntensity = 0.5; });
         e.model.barMat.emissiveIntensity = 2;
+        if (e.model.triggers) e.model.triggers.forEach(tr => { tr.rotation.x = -0.4; });
+        if (e.model.dpad) e.model.dpad.forEach(dp => { dp.rotation.set(0, 0, 0); });
+        if (e.model.sticks) {
+          const aimLocal = awake ? Math.atan2(to.x, to.z) - e.holder.rotation.y : 0;
+          const lx = awake && !quiet ? Math.sin(aimLocal) * 0.28 : 0, lz = awake && !quiet ? Math.cos(aimLocal) * 0.28 : 0;
+          e.model.sticks[0].stem.rotation.set(lz, 0, -lx); e.model.sticks[0].cap.rotation.set(lz, 0, -lx);
+          const rx = awake && !quiet ? Math.sin(e.t * 3.1) * 0.14 : 0, rz = awake && !quiet ? Math.cos(e.t * 2.7) * 0.14 : 0;
+          e.model.sticks[1].stem.rotation.set(rz, 0, -rx); e.model.sticks[1].cap.rotation.set(rz, 0, -rx);
+        }
+      }
+      if (e.kind === 'mug' && e.model.spoon && e.model.coffee) {
+        if (!quiet) {
+          e.spoonV += (-160 * e.spoonAng - 10 * e.spoonV - turnRate * 1.4) * sdt;
+          e.spoonAng = THREE.MathUtils.clamp(e.spoonAng + e.spoonV * sdt, -0.5, 0.5);
+        } else { e.spoonAng = e.spoonV = 0; }
+        e.model.spoon.rotation.set(e.spoonAng * 0.4, 0, -0.35 + e.spoonAng);
+        e.model.coffee.rotation.set(-g.rotation.x * 0.5 + Math.sin(e.t * (awake ? 4.5 : 1.8)) * 0.03, 0, -g.rotation.z * 0.5 + Math.cos(e.t * (awake ? 3.8 : 1.5)) * 0.03);
+      }
+      if (e.kind === 'kettle') {
+        if (!quiet) {
+          e.lidV += (-320 * e.lidOff - 14 * e.lidV) * sdt;
+          e.lidOff = Math.max(0, e.lidOff + e.lidV * sdt);
+          if (e.state === 'idle' && awake) {
+            const boil = lowHp ? 1.6 : 1;
+            g.scale.y *= 1 + Math.sin(e.t * 3.5 * boil) * 0.02 * boil;
+            e.model.lid.position.y = 0.112 + e.lidOff + Math.max(0, Math.sin(e.t * 22 * boil)) * (lowHp ? 0.0025 : 0.0012);
+          } else if (e.state === 'idle') {
+            e.model.lid.position.y = 0.112 + e.lidOff;
+          }
+        } else {
+          e.lidOff = e.lidV = 0;
+          if (e.state === 'idle') e.model.lid.position.y = 0.112;
+        }
       }
       // act 3's elites answer their own attacks: squash (a landing, a stomp) and recoil (a shot), easing back
       if (e.squash || e.recoil) {
@@ -1541,6 +1629,7 @@ export class Elites {
           }
           const charge = Math.min(1, s / D.windup), next = e.combo[e.fired];
           g.rotation.x = s < last ? charge * LOOK.num('controller-windup-tilt', 0.12) : g.rotation.x;
+          if (M.triggers) M.triggers.forEach(tr => { tr.rotation.x = -0.4 - charge * 0.25; });
           M.buttons.forEach((b, i) => {   // the next button to go lights hot; the ones still to come glow; spent ones go dark
             const k = e.combo.indexOf(i), spent = k < e.fired, lit = i === next ? 1 : spent ? 0 : 0.35;
             b.position.y -= (spent ? 1 : charge) * LOOK.num('controller-button-press', 0.002);
@@ -1560,11 +1649,12 @@ export class Elites {
             pulse.material.progress = 1;
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', .22) });
             for (const m of parts) { this.scene.remove(m); e.tele.splice(e.tele.indexOf(m), 1); }
+            M.barMat.emissive.copy(M.buttons[i].material.color); M.barMat.emissiveIntensity = 4.5;
             sfx.controllerFire(); sfx.controllerContact(); if (struck) sfx.controllerHit(); juice.feel(e.fired === FLOOR_SHAPES.length ? 'impact-big' : 'impact');
-            e.controllerKick = 1;
+            e.controllerKick = 1; e.springYV -= 1.8;
           }
           if (e.fired >= FLOOR_SHAPES.length) {
-            e.clearTele(); g.rotation.x = -LOOK.num('controller-recoil', .2);
+            e.clearTele(); M.barMat.emissive.setHex(0x3a8aff); g.rotation.x = -LOOK.num('controller-recoil', .2);
             g.scale.y *= 1 - LOOK.num('controller-recoil-squash', .15);
             e.combo = null; e.state = 'idle'; e.cool = D.rest; e.locked = false;
           }
@@ -1590,6 +1680,10 @@ export class Elites {
           } else if (!e.locked) { e.locked = true; sfx.controllerLock(); }
           // where the arrow is: hovering reach m out, then flying in to the Blast's centre
           const dir = e.arrowDir, side = dir === 'left' ? -1 : 1, fly = Math.min(1, Math.max(0, (w - D.warn) / D.strike));
+          if (M.dpad) {
+            const rx = dir === 'up' ? -0.3 : dir === 'down' ? 0.3 : 0, rz = dir === 'left' ? 0.3 : dir === 'right' ? -0.3 : 0;
+            M.dpad.forEach(dp => dp.rotation.set(rx * k, 0, rz * k));
+          }
           mid.set(at.x, e.arrowAir ? at.y : at.y + H / 2, at.z);
           const out = (1 - fly * fly) * D.reach + Math.sin(e.t * 9) * 0.004 * (1 - fly);
           if (dir === 'down' || dir === 'up') mid.y += dir === 'down' ? out : -out; else mid.addScaledVector(e.arrowSide, side * out);
@@ -1604,9 +1698,62 @@ export class Elites {
             this.fx.impact(at, hostile('controller'), LOOK.num('controller-symbol-impact', 0.03), LOOK.num('controller-symbol-sparks', 8));
             this.fx.burst(at, [LOOK.color('controller-debris', '#aaa5a0')], LOOK.num('controller-symbol-chips', 3), LOOK.num('controller-chip-size', 0.002), 0.1, floorY);
             sfx.controllerFire(); sfx.controllerContact(); if (struck) sfx.controllerHit(); juice.feel('impact-big');
-            e.clearTele(); e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
+            e.clearTele(); e.controllerKick = 1; e.springYV -= 2.2; g.rotation.x = -LOOK.num('controller-recoil', 0.2);
             for (const key of ['arrowDir', 'arrowAt', 'arrowAir', 'arrowSide', 'arrowMesh']) delete e[key];
             e.state = 'idle'; e.cool = D.rest; e.locked = false;
+          }
+        } else if (e.attack === 3) {
+          // Stick Drift Dash: left thumbstick jams forward while a lane Warning fills, then it skids
+          // down the lane across its platform and hops cleanly back to its spot: jump or sidestep
+          const D = SK.drift, ret = 0.35;
+          if (!e.driftTo) {
+            e.locked = true; e.driftHit = false; e.driftDashed = false;
+            const raw = e.base.clone().addScaledVector(fwd, D.reach);
+            e.driftTo = this.platformTarget(e, raw, e.r + 0.02);
+            const dx = e.driftTo.x - e.base.x, dz = e.driftTo.z - e.base.z;
+            e.driftLen = Math.max(0.08, Math.hypot(dx, dz));
+            e.driftDir = new THREE.Vector3(dx / e.driftLen, 0, dz / e.driftLen);
+            const yaw = Math.atan2(e.driftDir.x, e.driftDir.z);
+            e.holder.rotation.y = yaw;
+            this.mark(e, this.stripGeo, this.T.drift, surf, new THREE.Vector3(D.width, 1, e.driftLen), yaw);
+            const vol = this.volume(hostile('controller'), 'lane', surf, new THREE.Vector3(D.width, D.height, e.driftLen));
+            vol.rotation.y = yaw; e.tele.push(vol);
+            sfx.controllerDriftWind();
+          }
+          if (s < D.windup) {
+            const u = s / D.windup;
+            for (const m of e.tele) m.material.progress = u;
+            g.rotation.x = -u * 0.2;
+            g.scale.y *= 1 - u * 0.1;
+            if (M.sticks) { M.sticks[0].stem.rotation.set(0.45 * u, 0, 0); M.sticks[0].cap.rotation.set(0.45 * u, 0, 0); }
+            if (M.triggers) M.triggers.forEach(tr => { tr.rotation.x = -0.4 - u * 0.3; });
+            M.barMat.emissiveIntensity = 2 + u * 3.5;
+          } else if (s < D.windup + D.dash) {
+            if (!e.driftDashed) {
+              e.driftDashed = true; e.clearTele();
+              sfx.controllerDrift(); juice.feel('impact');
+              this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.03, 10);
+            }
+            const u = (s - D.windup) / D.dash, ease = 1 - Math.pow(1 - u, 3);
+            e.holder.position.lerpVectors(e.base, e.driftTo, ease);
+            g.rotation.x = 0.18 * (1 - ease);
+            if (!quiet && Math.random() < dt * 28) this.fx.puff(e.holder.position.clone().setY(e.base.y + 0.01), 0x80c8ff, 0.015, 0.25);
+            if (!e.driftHit && laneHits(e.base, e.driftDir, e.driftLen, D.width, D.height, P, cfg)) {
+              e.driftHit = true; hit(D.dmg, 'controller', e.holder.position); knock(e.holder.position, D.push);
+              this.fx.impact(pc, hostile('controller'), 0.03, 10); sfx.controllerHit(); juice.feel('impact-big');
+            }
+          } else if (s < D.windup + D.dash + ret) {
+            if (!e.driftRet) {
+              e.driftRet = true; e.springYV += 2.2;
+              this.fx.splat(e.driftTo.clone().setY(e.driftTo.y + 0.002), LOOK.color('controller-scuff', '#514949'), 0.018, 'dust');
+            }
+            const u = (s - D.windup - D.dash) / ret;
+            e.holder.position.lerpVectors(e.driftTo, e.base, u);
+            e.holder.position.y = e.base.y + Math.sin(u * Math.PI) * 0.035;
+          } else {
+            e.holder.position.copy(e.base); e.clearTele(); e.springYV -= 1.6;
+            for (const key of ['driftDir', 'driftTo', 'driftLen', 'driftHit', 'driftDashed', 'driftRet']) delete e[key];
+            e.locked = false; e.state = 'idle'; e.cool = D.rest;
           }
         } else {
           // Rumble: buzz while a red dome fills over its circle, then a shockwave: a floor Blast
@@ -1619,10 +1766,11 @@ export class Elites {
             }
             e.tele[0].userData.fill(s / wind);
             e.tele[1].material.progress = s / wind;
-            const charge = s / wind, quiet = juice.calm || this.fx.reducedMotion.matches;
+            const charge = s / wind;
             const shake = quiet ? 0 : LOOK.num('controller-vibration', 0.004) * charge;
             g.position.x = Math.sin(e.t * 110) * shake; g.position.z = Math.cos(e.t * 93) * shake;
             g.scale.y *= 1 - charge * LOOK.num('controller-load-squash', 0.12);
+            if (M.triggers) M.triggers.forEach(tr => { tr.rotation.x = -0.4 - charge * 0.35; });
             M.barMat.emissiveIntensity = 2 + charge * LOOK.num('controller-bar-glow', 4);
             M.barMat.emissive.setHex(Math.sin(e.t * 25) > 0 ? 0xff2a2a : 0x3a8aff);
           } else {
@@ -1635,7 +1783,7 @@ export class Elites {
             this.controllerPulses.push({ m: pulse, t: 0, life: LOOK.num('controller-pulse-life', 0.22) });
             this.fx.burst(surf, [LOOK.color('controller-debris', '#aaa5a0')], 8, LOOK.num('controller-chip-size', 0.002), 0.18, e.base.y);
             this.fx.splat(surf, LOOK.color('controller-scuff', '#514949'), LOOK.num('controller-scuff-size', 0.018), 'dust');
-            e.controllerKick = 1; g.rotation.x = -LOOK.num('controller-recoil', 0.2); g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15);
+            e.controllerKick = 1; e.springYV += 2.6; g.rotation.x = -LOOK.num('controller-recoil', 0.2); g.scale.y *= 1 - LOOK.num('controller-recoil-squash', 0.15);
             juice.feel('impact-big'); sfx.controllerRumble();
             if (blastHits(e.base, R, P, cfg)) { hit(SK.rumble.dmg, 'controller', e.base); knock(e.base, 0.9); }
             e.state = 'idle'; e.cool = 1.8;
@@ -1645,7 +1793,7 @@ export class Elites {
 
       // ---------------------------------------------------------- mug
       if (e.kind === 'mug') {
-        const SK = e.def.skills;
+        const M = e.model, SK = e.def.skills;
         if (e.attack === 0) {
           // Coffee lob: lobs a beat apart, each at where you're standing then; each lands as a
           // floor Blast (jump it) and leaves a scalding puddle
@@ -1659,11 +1807,35 @@ export class Elites {
           };
           const throwAt = () => {
             const target = this.platformTarget(e,P.clone(),R); this.lob(muzzle, target, 1.0, hostile('mug'), this.T.mugCircle, R, land, { dome: true });
-            e.hitPop = 0.6; e.kick = 1; this.fx.impact(muzzle, hostile('mug'), 0.012, 5); sfx.mugLob();   // flung: a flash at the rim as it leans back
+            e.hitPop = 0.6; e.kick = 1; e.springYV += 1.6; e.spoonV += 6; this.fx.impact(muzzle, hostile('mug'), 0.012, 5); sfx.mugLob();   // flung: a flash at the rim as it leans back
           };
           if (!e.thrown) e.thrown = 0;
           if (e.thrown < SK.coffee.lobs && s >= e.thrown * 0.6) { e.thrown++; throwAt(); }
           if (s > SK.coffee.lobs * 0.6) { e.state = 'idle'; e.cool = 1.6; e.thrown = 0; }
+        } else if (e.attack === 2) {
+          // Espresso Ring: whips its spoon round while a low ring Warning fills round the mug,
+          // then flings a scalding coffee ring outward across the desk: jump over it
+          const S = SK.stir;
+          if (s < S.windup) {
+            if (!e.tele.length) {
+              e.tele.push(this.warnCircle(surf, S.radius, this.T.mugCircle), this.volume(hostile('mug'), 'ring', surf, new THREE.Vector3(S.radius, S.height, S.radius)));
+              sfx.mugStir(false);
+            }
+            const u = s / S.windup;
+            e.tele[0].userData.fill(u);
+            e.tele[1].material.progress = u;
+            g.scale.y *= 1 - u * 0.1;
+            if (M.spoon) M.spoon.rotation.y += dt * (8 + 22 * u);
+            if (M.coffee) M.coffee.rotation.y += dt * (6 + 14 * u);
+          } else {
+            e.clearTele();
+            e.kick = 1; e.springYV += 2.4; e.spoonV -= 10;
+            this.fx.impact(muzzle, hostile('mug'), 0.025, 10);
+            this.fx.burst(muzzle, ['#3a2214', '#6a4a2a', '#f1e7d3'], 8, 0.003, 0.25, e.base.y);
+            this.ring(surf, hostile('mug'), S, 'mug-stir', { band: 0.045, speed: S.speed, max: S.radius, r: e.r * 0.6, h: S.height, follow: true, onHit: () => sfx.mugSplash(true) });
+            juice.feel('impact'); sfx.mugStir(true);
+            e.state = 'idle'; e.cool = S.rest;
+          }
         } else {
           // Spill: tips toward you while a lane Warning (a strip and the box over it) fills along the
           // line, then pours a wave down it: caught, you're scalded and washed along to its end
@@ -1684,7 +1856,7 @@ export class Elites {
             if (e.tele.length) e.clearTele();
             const k = Math.floor((s - wind) / 0.12), front = e.r + 0.05 + ((s - wind) / pour) * (len - 0.05);
             if (k !== e.poured && k < W.puddles) {
-              if (e.poured < 0) { e.kick = 1; this.fx.impact(muzzle, hostile('mug'), 0.015, 6); juice.feel('hit'); sfx.mugPour(); }   // the release: it lets go
+              if (e.poured < 0) { e.kick = 1; e.springYV -= 1.8; e.spoonV += 8; this.fx.impact(muzzle, hostile('mug'), 0.015, 6); juice.feel('hit'); sfx.mugPour(); }   // the release: it lets go
               e.poured = k;
               const at = e.base.clone().addScaledVector(e.spillDir, e.r + 0.05 + k * 0.075);
               if (this.onPlatform(e,at)) {
@@ -1700,9 +1872,9 @@ export class Elites {
               e.washed = true; hit(W.dmg, 'mug', P); this.washT = W.carry; this.washDir = e.spillDir.clone().multiplyScalar(W.push);
               this.fx.impact(pc, hostile('mug'), LOOK.num('act2-contact-flash', 0.03), 10); juice.feel('impact'); sfx.mugSplash(true);
             }
-          } else { e.clearTele(); e.locked = false; e.state = 'idle'; e.cool = 1.8; }
+          } else { e.clearTele(); e.springYV += 1.4; e.locked = false; e.state = 'idle'; e.cool = 1.8; }
         }
-        if (Math.random() < dt * 3) this.fx.puff(e.base.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.1, (Math.random() - 0.5) * 0.02)), 0xffffff, 0.008, 0.8);   // steam wisps
+        if (Math.random() < dt * (lowHp ? 6 : 3)) this.fx.puff(e.base.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.1, (Math.random() - 0.5) * 0.02)), 0xffffff, 0.008, 0.8);   // steam wisps
       }
 
       // ---------------------------------------------------------- kettle
@@ -1744,7 +1916,7 @@ export class Elites {
               e.fired++; e.sinceShot = 0; e.launched = true;
               this.fx.free(e.ball); e.ball = null;
               const at = this.platformTarget(e, P.clone().addScaledVector(player.velocity, B.lead * B.flight).setY(P.y), R * 0.5);   // where you'll be as it lands, if you keep going: change direction
-              e.kick = 1; M.lid.position.y = 0.13; M.led.material.emissiveIntensity = 2 + 2 * (B.shots - e.fired);
+              e.kick = 1; e.springYV -= 2.0; M.lid.position.y = 0.13; M.led.material.emissiveIntensity = 2 + 2 * (B.shots - e.fired);
               this.fx.impact(muzzle, hostile('kettle'), 0.025, 12); this.fx.puff(muzzle, 0xffffff, 0.03, 0.35);
               juice.feel('hit'); sfx.kettleBlast();
               e.flights.push(this.lob(muzzle, at, B.flight, hostile('kettle'), this.T.orange, R, (p) => { e.bursts.push(this.steamBurst(p, R, B)); }, { dome: true, arc: 0.1, size: big }));
@@ -1760,6 +1932,52 @@ export class Elites {
               e.state = 'idle'; e.cool = 1.6; M.lid.position.y = 0.112; M.led.material.emissiveIntensity = 2;
             }
           }
+        } else if (e.attack === 2) {
+          // Pressure Whistle Sweep: builds a rising kettle whistle while a 90° arc Warning fills
+          // ahead of it, then sweeps a pressurized steam jet across the arc: jump over or circle behind
+          const W = SK.whistle, half = Math.PI / 4;
+          if (e.whistleDir === undefined) {
+            e.locked = true; e.whistleDir = heading; e.whistleSweep = false; e.whistleHit = false;
+            e.whistlePrev = heading - half;
+            this.mark(e, this.whistleGeo, this.T.whistle, surf, new THREE.Vector3(W.reach, 1, W.reach), heading);
+            for (let i = 0; i < 6; i++) {
+              const v = this.volume(hostile('kettle'), 'arc', surf, new THREE.Vector3(W.reach, W.height, W.reach));
+              v.rotation.y = heading - half + (i + 0.5) * ARC_STEP;
+              e.tele.push(v);
+            }
+            sfx.kettleWhistleWind();
+          }
+          if (s < W.windup) {
+            const u = s / W.windup;
+            for (const m of e.tele) m.material.progress = u;
+            e.holder.rotation.y = e.whistleDir - half * u;
+            g.scale.y *= 1 + u * 0.08;
+            M.lid.position.y = 0.112 + Math.abs(Math.sin(e.t * (35 + 30 * u))) * (0.004 + 0.005 * u);
+            M.led.material.emissiveIntensity = 2 + 4 * u;
+          } else if (s < W.windup + W.sweep) {
+            if (!e.whistleSweep) {
+              e.whistleSweep = true; e.clearTele(); e.kick = 0.8; e.springYV -= 1.6;
+              sfx.kettleWhistleJet(); juice.feel('impact');
+              this.fx.impact(muzzle, hostile('kettle'), 0.03, 12);
+            }
+            const u = (s - W.windup) / W.sweep, sm = u * u * (3 - 2 * u);
+            const curYaw = e.whistleDir - half + sm * (half * 2);
+            e.holder.rotation.y = curYaw;
+            M.lid.position.y = 0.118 + Math.abs(Math.sin(e.t * 50)) * 0.004;
+            if (!quiet && Math.random() < dt * 36) {
+              const r = e.r + Math.random() * (W.reach - e.r);
+              this.fx.puff(this._mid.set(e.base.x + Math.sin(curYaw) * r, e.base.y + 0.03, e.base.z + Math.cos(curYaw) * r), 0xf2f6ff, 0.022, 0.3);
+            }
+            if (!e.whistleHit && arcHits(e.base, e.r * 0.5, W.reach, e.whistlePrev, curYaw, W.height, P, cfg)) {
+              e.whistleHit = true; hit(W.dmg, 'kettle', e.base); knock(e.base, W.push);
+              this.fx.puff(pc, 0xffffff, 0.025, 0.4); sfx.kettleGust(true, false); juice.feel('impact-big');
+            }
+            e.whistlePrev = curYaw;
+          } else {
+            e.clearTele(); M.lid.position.y = 0.112; M.led.material.emissiveIntensity = 2;
+            for (const key of ['whistleDir', 'whistleSweep', 'whistleHit', 'whistlePrev']) delete e[key];
+            e.locked = false; e.state = 'idle'; e.cool = W.rest;
+          }
         } else {
           // Boil dry: the lid pops off and lands on the stove away from you, a white circle round it;
           // then a big Warning (a circle and the half dome over it, reach= round the Kettle) fills and
@@ -1767,7 +1985,7 @@ export class Elites {
           const D = SK.boil, fill = D.flight + D.fill;
           if (!e.lidFly) {
             M.led.material.emissiveIntensity = 4;
-            e.kick = 0.7; this.fx.impact(M.lid.getWorldPosition(this._mid), hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettlePop();   // the release: the lid jumps off
+            e.kick = 0.7; e.springYV += 2.0; this.fx.impact(M.lid.getWorldPosition(this._mid), hostile('kettle'), 0.02, 10); juice.feel('hit'); sfx.kettlePop();   // the release: the lid jumps off
             // where it lands: in reach, on the stove, at least `away` from you and clear of the Kettle
             const at = new THREE.Vector3();
             for (let i = 0; i < 60; i++) {
@@ -1782,8 +2000,17 @@ export class Elites {
             e.tele.push(this.warnCircle(surf, D.reach, this.T.orange), this.volume(hostile('kettle'), 'dome', surf, D.reach));
           }
           const F = e.lidFly, u = Math.min(1, s / D.flight), k = Math.min(1, s / fill);
-          F.lid.position.lerpVectors(F.from, F.at, u); F.lid.position.y += Math.sin(u * Math.PI) * 0.12;
-          F.lid.rotation.x += dt * (u < 1 ? 14 : 0); if (u >= 1) F.lid.rotation.x = 0;
+          const bounceT = Math.max(0, s - D.flight);
+          const bounce = bounceT < 0.3 ? Math.abs(Math.sin(bounceT * Math.PI / 0.15)) * 0.018 * (1 - bounceT / 0.3) : 0;
+          if (s <= fill) {
+            F.lid.position.lerpVectors(F.from, F.at, u);
+            F.lid.position.y += Math.sin(u * Math.PI) * 0.12 + bounce;
+            F.lid.rotation.x += dt * (u < 1 ? 14 : 0); if (u >= 1) F.lid.rotation.x = 0;
+          } else {
+            const ret = Math.min(1, (s - fill) / 0.45);
+            F.lid.position.lerpVectors(F.at, F.from, ret);
+            F.lid.position.y += Math.sin(ret * Math.PI) * 0.08;
+          }
           if (u >= 1 && !F.landed) {   // it clatters down: its safe circle shows
             F.landed = true; sfx.kettleDrop(false); this.fx.puff(F.at, 0xffffff, 0.02, 0.3);
             const safe = this.mark(e, this.flat, this.T.safe, F.at.clone().setY(F.at.y + 0.003), new THREE.Vector3(D.safe, D.safe, D.safe));
