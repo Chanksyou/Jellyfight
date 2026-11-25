@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v694 gives every bug, awake Elite and boss a soft shadow on the surface below it: bugs out to about what the camera shows, flyers and thrown bugs wider and fainter by their height, and the jelly's shadow never fades below a floor, so a jump still shows where it will land.
+
 v693 offers "Try Easy mode" on the death screen after a second act 1 death, for players who have never cleared act 1.
 
 v692 tunes five Treasures: Lego Brick hits harder (4, 4.5 and 5 damage), Marble hits harder (1.5, 1.65 and 1.8), Nail Clipper crits on 15% of hits, Cat Toy Mouse hits for 7, and Wind-Up Key is Epic.
