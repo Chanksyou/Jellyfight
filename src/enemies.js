@@ -1556,6 +1556,7 @@ export class Enemies {
     if (this.passes.length) this.deliverPasses();
     this.playerRadius = player.radius;
     this.player = player;
+    this.nav?.update(dt, player.position);   // the floor map floods from the jelly's square when it changes (bug-nav.js)
     const pace = this.pace ?? 1;   // bug-speed (treasures): every bug's speed
     const pc = this._o.copy(player.position).setY(player.position.y + player.height * 0.5);
     const list = this.list;

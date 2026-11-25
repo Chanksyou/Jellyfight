@@ -25,6 +25,7 @@ import { addBathroomDetails } from './bathroom.js';
 import { dressSet, DRESSED } from './set-dressing.js';
 import { addDendi } from './cat.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
+import { BugNav } from './bug-nav.js';
 import { juice } from './juice.js';
 import { addSkyline } from './skyline.js';
 import { addRain } from './rain.js';
@@ -339,6 +340,7 @@ if (lightSlots) APT.lights.rescan();
 const air = ARENA ? null : new AirLight(scene, stage, { low: () => gfx.quality === 'low', calm: () => juice.calm });   // lamp halos and dust in the light (air-light.js)
 window.air = air;
 const enemies = new Enemies(scene, world, fx);
+if (!ARENA) enemies.nav = new BugNav(world, plan, stage);   // the bugs' floor map (bug-nav.js): built during the warm-up below
 const lash = new Lash(scene, enemies, fx);
 lash.getRig = () => player.avatar?.tentacles || null;
 const xpDrops = new XpDrops(scene, world);
@@ -927,8 +929,8 @@ const kit = new TestKit(document.body);
 const tuner = new BalanceEditor(document.body);
 initDevPanel(sheets.dev, {
   overlay, run, kit, tuner, openSheet, play, endContinue, openLayout, enableDebug,
-  passOn: (pass) => (pass === 'lamps' ? lampsOn : pass === 'bake' ? BAKED_LIGHT.on : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
-  togglePass: (pass) => (pass === 'lamps' ? toggleLamps() : pass === 'bake' ? setBakedLight(!BAKED_LIGHT.on) : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
+  passOn: (pass) => (pass === 'nav' ? !!enemies.nav?.view : pass === 'lamps' ? lampsOn : pass === 'bake' ? BAKED_LIGHT.on : pass === 'overdraw' ? gfx.overdraw : !gfx.off.has(pass)),
+  togglePass: (pass) => (pass === 'nav' ? enemies.nav?.show(scene, !enemies.nav.view) : pass === 'lamps' ? toggleLamps() : pass === 'bake' ? setBakedLight(!BAKED_LIGHT.on) : pass === 'overdraw' ? (gfx.overdraw = !gfx.overdraw) : gfx.toggle(pass)),
 });
 window.kit = kit;       // stories drive them (dev/test-kit, dev/balance-editor)
 window.tuner = tuner;
@@ -988,6 +990,7 @@ let warming = true;   // no frames drawn meanwhile: a frame would build every pr
 async function warmUp() {
   playBtn.disabled = true;
   playBtn.textContent = 'Loading…';
+  const mapped = enemies.nav?.build(nextTask);   // alongside the shaders building (the GPU's work leaves the CPU free)
   const P = player.position;
   const kinds = Object.keys(TYPES), temp = [...kinds, kinds[0], kinds[0]].map((t, i) => {   // every bug, and two more to wear the hit flash and the acid melt
     const e = enemies.spawn(t, P.clone().add(new THREE.Vector3(0.03 * i, 0.01, 0.06)));
@@ -1089,6 +1092,7 @@ async function warmUp() {
     camera.layers.enable(0);
     try { gfx.render(); } catch (e) { reportError(e, 'preparing graphics'); } finally { camera.layers.mask = mask; }
   }
+  await mapped;
   playBtn.disabled = false;
   playBtn.textContent = 'Play';
   warming = false;
