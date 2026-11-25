@@ -183,7 +183,7 @@ export class BugNav {
   // another bug on the floor is that way (danger); a way the map closes scores nothing. The good ways
   // are summed, weighted by their score squared, plus a push away from the bugs that close (SPREAD),
   // into `out` (flat, unit length). Over the last
-  // stretch (NEAR) interest is simply the straight line to the jelly. Returns false, leaving `out`
+  // stretch (NEAR) they walk the straight line (with the jelly up on furniture, interest is the line to it). Returns false, leaving `out`
   // alone, when the map has nothing for it (not built, another level, off the floor, no flood there)
   // or when the straight line will do: no bug close, and the way round no longer than the line (OPEN).
   // Each bug works it out every other frame (half the bugs each frame) and keeps the answer between.
@@ -202,6 +202,8 @@ export class BugNav {
     if (!L.flooded || k < 0 || !(Math.abs(p.y - L.floor[k]) <= 0.03)) return false;
     const s = this.sizeOf(e.r), D = L.dist[s], here = D[k];
     if (here === NONE) return this.backOn(L, D, k, p, out);
+    const near = here <= NEAR || this.close(L, p);
+    if (near && !L.up) return false;   // the last stretch: they close in on the straight line, as before (pushed apart there, a ring of them would circle you)
     const danger = _danger.fill(0);
     let sx = 0, sz = 0;   // and a push away from them, so a crowd walking in widens instead of filing on top of itself
     for (let n = 0; n < list.length; n++) {
@@ -214,9 +216,9 @@ export class BugNav {
       sx -= dx / d * w; sz -= dz / d * w;
       for (let m = 0; m < 8; m++) { const a = (UX[m] * dx + UZ[m] * dz) / d; if (a > 0 && a * w > danger[m]) danger[m] = a * w; }
     }
-    const ways = L.steps[s][k], near = here <= NEAR || this.close(L, p), cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
+    const ways = L.steps[s][k], cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
     // alone, with nothing much in the way (the flood's way is about as long as the straight line), the jelly not up on furniture: the straight line, exactly as before the map
-    if (sx === 0 && sz === 0 && !L.up && (near || here / STRAIGHT * CELL <= Math.sqrt((p.x - L.sx) ** 2 + (p.z - L.sz) ** 2) * OPEN + 2 * CELL)) return false;
+    if (sx === 0 && sz === 0 && !L.up && (here / STRAIGHT * CELL <= Math.sqrt((p.x - L.sx) ** 2 + (p.z - L.sz) ** 2) * OPEN + 2 * CELL)) return false;
     let bx = 0, bz = 0;
     for (let m = 0; m < 8; m++) {
       if (!(ways & (1 << m))) continue;
@@ -231,7 +233,7 @@ export class BugNav {
     }
     if (bx === 0 && bz === 0) return false;
     const len = Math.hypot(bx, bz);
-    const spread = near ? 0 : SPREAD;   // (not over the last stretch: there they close in as before)
+    const spread = near ? 0 : SPREAD;   // (not under a jelly up on furniture: there they gather)
     out.set(bx / len + sx * spread, 0, bz / len + sz * spread);
     // never pushed aside into a way the map closes (a pocket by the wall): then just the way on
     let m = 0, best = -2;
