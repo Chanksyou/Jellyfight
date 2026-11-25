@@ -1,0 +1,1 @@
+makes ground bugs move in rhythms: the Cockroach scurries and stops with its antennae working (never faster than you swim), the Spotted lanternfly crawls in short spells, the House spider stalks in steps and side-steps while it holds its distance, and the Praying mantis sways as it stalks then rushes the last stretch.

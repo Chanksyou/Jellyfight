@@ -17,11 +17,13 @@
 // and add a story (src/stories/<area>.js) that proves it.
 import * as THREE from 'three';
 import { hitSpot } from './collision.js';
+import { LOOK } from './look.js';
 import { STYLES, TIERS, knobs } from './attack-motion.js';
 const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame (World.cast `out`: no hit allocated)
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
@@ -48,14 +50,14 @@ export const ENEMY_WORDS = {
     },
   },
   chase: {
-    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
+    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting. Rhythm, each bug out of step with the rest, and only while it is farther than --bug-rhythm-from from you (closer in it walks as ever): with `bursts` (s) it walks in bursts, going for `go` of each burst at 1/`go` of its speed and standing dead still the rest, so its average speed is `speed`; with `rush` (m) it walks at `stalk` times its speed and sways `sway` radians as it goes until that close, then `rushx` times; with `side` (m/s) a ranged bug that has held at `stop` for a while side-steps instead of standing; with `hug` it keeps to the edges of furniture and walls while far from you.',
     args: ['speed'],
-    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0 },
+    props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0, bursts: 0, go: 0.85, rush: 0, stalk: 1, rushx: 1.5, sway: 0, side: 0, hug: 0 },
     make: ([speed], p) => ({
       ground: true,
       tick(e, c, en) {
         // round the furniture by the floor map (bug-nav.js), easing from the way it was going; straight at a decoy, or where the map has nothing
-        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir)) {
+        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir, p.hug)) {
           const h = (e.navDir ||= c.dir.clone());
           h.lerp(c.dir, 1 - Math.exp(-STEER_EASE * c.dt));
           if (h.lengthSq() < 1e-6) h.copy(c.dir);
@@ -71,10 +73,21 @@ export const ENEMY_WORDS = {
           c.dir.copy(h.set(Math.sin(a), 0, Math.cos(a)));
         }
         c.speed = speed * c.slow;
-        e.backing = false;
+        e.backing = e.resting = false;
+        const far = c.flat > RHYTHM_FROM();
+        if (p.sway && far && c.flat > p.rush) c.dir.applyAxisAngle(UP, Math.sin(c.t * 0.8 * Math.PI * 2 + e.phase) * p.sway);
+        if (p.bursts && far) {   // go for `go` of each burst, faster by the same share, stand the rest: the same distance in the end
+          const on = (c.t / p.bursts + e.phase * 0.159) % 1 < p.go;
+          c.speed *= on ? 1 / p.go : 0; e.resting = !on;
+        }
+        if (p.rush && far) c.speed *= c.flat < p.rush ? p.rushx : p.stalk;
         if (!p.stop || c.flat > p.stop) return;
-        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; e.backing = true; }   // too close: back off
-        else c.speed = 0;                                                      // in range: hold
+        if (c.flat < p.stop * 0.75) e.holdT = 0;
+        if (c.flat < p.stop * 0.75) { c.dir.negate(); c.speed *= p.back; e.backing = true; }   // too close: back off (and still faces you)
+        else {                                                                  // in range: hold, or side-step slowly once it has held a while
+          c.speed = 0; e.resting = false; e.holdT = (e.holdT || 0) + c.dt;
+          if (p.side && e.holdT > SIDE_AFTER) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(Math.sin(c.t * 0.5 + e.phase) > 0 ? 1 : -1); c.speed = p.side * c.slow; e.backing = true; }
+        }
       },
     }),
   },

@@ -34,6 +34,7 @@ const AVOID = 0.06;                       // m past touching: another bug closer
 const NEAR = 3 * STRAIGHT;
 const OPEN = 1.1;   // a flood way at most this much longer than the straight line (eight ways on squares run up to 8% long) counts as open
 const UNDER = 0.15;                       // m: with the jelly up on furniture, the floor this close under it is where the flood starts                // the last 15 cm by foot: steer by the straight line to the jelly
+const HUG_FAR = 0.5;                      // m of walking from the jelly: farther than this a bug that hugs edges does
 const SPREAD = 1;                       // how hard bugs that close push each other aside, against the pull of the way on
 const _danger = new Float32Array(8);
 const E = 1, N = 2;                       // a square's open edges: to +x, to +z
@@ -186,16 +187,17 @@ export class BugNav {
   // stretch (NEAR) they walk the straight line (with the jelly up on furniture, interest is the line to it). Returns false, leaving `out`
   // alone, when the map has nothing for it (not built, another level, off the floor, no flood there)
   // or when the straight line will do: no bug close, and the way round no longer than the line (OPEN).
+  // `hug` (the chase word) adds that to the score of a way that ends beside furniture or a wall, while it is far from the jelly.
   // Each bug works it out every other frame (half the bugs each frame) and keeps the answer between.
-  steer(e, list, toward, out) {
+  steer(e, list, toward, out, hug = 0) {
     const n = e.nav || (e.nav = { at: -9, odd: (this.born++ & 1) === 1, ok: false, dir: out.clone() });   // (its own count, not the bug's id: a replay walks the same; every other bug born works on the other frames)
     if ((n.at === this.frame - 1 || n.at === -9) && !n.odd) { n.odd = true; n.at = this.frame; if (n.ok) out.copy(n.dir); return n.ok; }
-    n.odd = false; n.at = this.frame; n.ok = this.way(e, list, toward, out);
+    n.odd = false; n.at = this.frame; n.ok = this.way(e, list, toward, out, hug);
     if (n.ok) n.dir.copy(out);
     return n.ok;
   }
 
-  way(e, list, toward, out) {
+  way(e, list, toward, out, hug) {
     const p = e.pos, l = this.ready ? this.levelAt(p.x, p.y, p.z) : -1;
     if (l < 0) return false;
     const L = this.levels[l], k = this.cellOf(L, p.x, p.z);
@@ -218,14 +220,15 @@ export class BugNav {
     }
     const ways = L.steps[s][k], cx = L.x0 + (k % L.nx + 0.5) * CELL, cz = L.z0 + (((k / L.nx) | 0) + 0.5) * CELL;
     // alone, with nothing much in the way (the flood's way is about as long as the straight line), the jelly not up on furniture: the straight line, exactly as before the map
-    if (sx === 0 && sz === 0 && !L.up && (here / STRAIGHT * CELL <= Math.sqrt((p.x - L.sx) ** 2 + (p.z - L.sz) ** 2) * OPEN + 2 * CELL)) return false;
+    const edging = hug > 0 && !near && here * CELL / STRAIGHT > HUG_FAR;   // far off, a bug that hugs keeps to the edges of furniture and walls
+    if (!edging && sx === 0 && sz === 0 && !L.up && (here / STRAIGHT * CELL <= Math.sqrt((p.x - L.sx) ** 2 + (p.z - L.sz) ** 2) * OPEN + 2 * CELL)) return false;
     let bx = 0, bz = 0;
     for (let m = 0; m < 8; m++) {
       if (!(ways & (1 << m))) continue;
       const t = D[k + DX[m] + DZ[m] * L.nx];
       if (t === NONE) continue;
       const interest = near ? UX[m] * toward.x + UZ[m] * toward.z : (here - t) / COST[m];
-      const score = interest - danger[m];
+      const score = interest - danger[m] + (edging && L.steps[s][k + DX[m] + DZ[m] * L.nx] !== 255 ? hug : 0);
       if (score <= 0) continue;
       // toward the middle of that square, not just its way: off the middle line a body clips the corner of a leg the map stepped past
       const vx = cx + DX[m] * CELL - p.x, vz = cz + DZ[m] * CELL - p.z, vl = Math.sqrt(vx * vx + vz * vz) || 1, w = score * score / vl;
