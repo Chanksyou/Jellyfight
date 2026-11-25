@@ -1667,6 +1667,12 @@ export class Enemies {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         e.root.rotation.y += THREE.MathUtils.clamp(d * (1 - Math.exp(-10 * dt)), -6 * dt, 6 * dt);
       }
+      if (e.climbK > 0 || e.climb) {   // the climbs word: body flat to the side it climbs, nose up
+        if (!e.climb) e.climbK = Math.max(0, e.climbK - dt * 6);
+        e.root.rotation.order = 'YXZ';
+        e.root.rotation.x = -Math.PI / 2 * THREE.MathUtils.smoothstep(e.climbK, 0, 1);
+        if (!e.climbK) { e.root.rotation.x = 0; e.root.rotation.order = 'XYZ'; }
+      }
       e.pop = Math.max(0, e.pop - dt * 6);
       // white hit flash: swap every mesh to a flat white for a moment
       if (e.flashCd > 0) e.flashCd -= dt;
@@ -1705,8 +1711,12 @@ export class Enemies {
       if (e.recT > 0 && !e.dead && !e.proxy) {   // physical backward recoil slide from firing a projectile
         const rk = e.recT / e.recMax;
         e.recT = Math.max(0, e.recT - dt);
-        const step = rk * rk * dt;
-        this.move(e, S.ray.set(e.recVx * step, 0, e.recVz * step), 1, true);
+        const step = rk * rk * dt, C = this.nav?.climb;
+        if (C && e.grounded && C.onTop(e.pos.x, e.pos.y, e.pos.z)) {   // up on furniture: the slide stops at the edge, never off it
+          const v = Math.hypot(e.recVx, e.recVz) || 1, a = e.r + 0.02;
+          if (!C.onTop(e.pos.x + e.recVx / v * a, e.pos.y, e.pos.z + e.recVz / v * a)) e.recT = 0;
+        }
+        if (e.recT > 0) this.move(e, S.ray.set(e.recVx * step, 0, e.recVz * step), 1, true);
         e.root.position.copy(e.pos);
       }
       if (e.anim) {   // a far or off-screen bug's legs move at half rate (on alternate frames, with both frames' time): nobody sees it, a crowd costs less
@@ -1839,8 +1849,23 @@ export class Enemies {
 
   moveTo(e, target) { return this.move(e, S.moveTo.subVectors(target, e.pos)); }
 
+  // The climbs word: a bug goes up the side ahead of it (dir, flat) onto the top at (x, top, z). It
+  // holds against the side (the face found by a cast) and turns to it; letGo ends the climb, on top or falling
+  startClimb(e, dir, top, x, z) {
+    const from = S.o.copy(e.pos).setY(e.pos.y + e.r * 0.5), hit = this.world.cast(from, dir, 0.1);
+    if (hit) { e.pos.x = hit.point.x - dir.x * e.r * 0.4; e.pos.z = hit.point.z - dir.z * e.r * 0.4; }
+    e.climb = { x: e.pos.x, z: e.pos.z, dx: dir.x, dz: dir.z, top, tx: x, tz: z, up: true };
+    e.climbK = e.climbK || 0;
+    e.faceLock = true; e.root.rotation.y = Math.atan2(dir.x, dir.z);
+    e.vel.x = e.vel.z = 0; e.vy = 0;
+  }
+  letGo(e, onTop = false) {
+    e.climb = null; e.faceLock = false; e.grounded = onTop; e.vy = 0;
+    if (!onTop) e.vel.x = e.vel.z = 0;   // falls straight down off the side
+  }
+
   moveGround(e, dt, near) {
-    if (e.airborne) return;               // mid-leap: the leap word flies it
+    if (e.airborne || e.climb) return;    // mid-leap: the leap word flies it; climbing: the climbs word moves it
     const blocked = this.move(e, S.step.set(e.vel.x * dt, 0, e.vel.z * dt));
     if (blocked && e.state === 'dash') { e.state = 'rest'; e.stateT = 0.6; }
     // Gravity uses the same sweep, including for bugs outside the camera's nearby list.

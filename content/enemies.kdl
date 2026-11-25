@@ -9,6 +9,7 @@ enemy "roach" name="Cockroach" hp=25 r=0.034 dmg=1 xp=1 model="roach" {
     death-motion "belly-up" weight="light"
     attack-motion "nip" tier="fodder"
     chase 0.35 bursts=2 go=0.85 hug=0.4   // a little slower than you swim (0.42) on average, and never faster in a dash (0.35 / 0.85 = 0.41): it scurries and stops, antennae working
+    climbs 0.2                       // up on furniture is no rest from it: it runs to a side and up
 }
 
 // The ant (from 0:30): a red wood ant with a pushpin in its jaws. It walks after you and keeps a
@@ -49,6 +50,7 @@ enemy "spider" name="House spider" hp=65 r=0.042 dmg=2 xp=5 model="spider" {
     death-motion "curl-pop" weight="mid"
     attack-motion "throw" tier="mid"
     chase 0.3 stop=0.55 bursts=2 go=0.6 side=0.05 hug=0.4 // stalks in steps, and side-steps slowly while it holds; keeps its distance (backs off if you close in) so it can lob webs
+    climbs 0.15                      // and climbs after you, slower than a Cockroach
     spit every=2 reach=1 speed=0.8 life=2.5 dmg=3 aim=0.7 shot="web" height=0.5 arc=0.7 slow=2
 }
 

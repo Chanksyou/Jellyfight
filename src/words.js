@@ -109,7 +109,7 @@ export const ENEMY_WORDS = {
           }
           if (best < p.file * p.file) { const l = Math.sqrt(best); c.dir.x += bx / l * FILE_PULL; c.dir.z += bz / l * FILE_PULL; c.dir.normalize(); }
         }
-        c.speed = speed * c.slow;
+        c.speed = speed * c.slow; e.walkSpeed = speed;   // (climbs walks it to a side at this)
         e.backing = e.resting = false;
         const far = c.flat > RHYTHM_FROM();
         if (p.sway && far && c.flat > p.rush) c.dir.applyAxisAngle(UP, Math.sin(c.t * 0.8 * Math.PI * 2 + e.phase) * p.sway);
@@ -136,6 +136,46 @@ export const ENEMY_WORDS = {
           }
           if (p.side && e.holdT > SIDE_AFTER) { c.dir.set(-c.flatDir.z, 0, c.flatDir.x).multiplyScalar(Math.sin(c.t * 0.5 + e.phase) > 0 ? 1 : -1); c.speed = p.side * c.slow; e.backing = true; }
         }
+      },
+    }),
+  },
+
+  climbs: {
+    doc: 'Climbs after you: while you are up on furniture it walks to a side it can climb (the floor map\'s climb links, src/bug-climb.js) and goes straight up it at `speed` m/s, its body flat to the side and its legs walking, then over onto the top. While climbing it can be hit and still hurts to touch, but can\'t start an attack; knocked off the side it falls, and ground-locked it can\'t climb (it lets go). List it after the walking word and before its attack word.',
+    args: ['speed'],
+    make: ([speed]) => ({
+      tick(e, c, en) {
+        const K = e.climb, C = en.nav?.climb;
+        if (K) {
+          c.wait = true; c.gapped = false; c.speed = 0;   // no attack starts on a side (and it holds no place in the attack gap)
+          const off = Math.hypot(e.pos.x - K.x, e.pos.z - K.z) > 0.012;   // knocked off the side
+          if (off || e.groundLocked) { en.letGo(e); return; }
+          const s = speed * c.slow * c.dt;
+          e.vel.set(K.dx * speed * c.slow, 0, K.dz * speed * c.slow); e.vy = 0;   // (its legs walk at the climbing speed)
+          if (K.up) {
+            e.pos.y = Math.min(K.top, e.pos.y + s);
+            e.climbK = Math.min(1, e.climbK + c.dt * 6);
+            if (e.pos.y >= K.top) K.up = false;
+          } else {
+            const dx = K.tx - e.pos.x, dz = K.tz - e.pos.z, d = Math.hypot(dx, dz);
+            e.climbK = Math.max(0, e.climbK - c.dt * 6);
+            if (d <= s) { e.pos.x = K.tx; e.pos.z = K.tz; en.letGo(e, true); return; }
+            e.pos.x += dx / d * s; e.pos.z += dz / d * s;
+            K.x = e.pos.x; K.z = e.pos.z;
+          }
+          return;
+        }
+        if (C && e.grounded && c.speed > 0 && C.onTop(e.pos.x, e.pos.y, e.pos.z)) {   // up top: it doesn't walk (or back) off the edge
+          const a = e.r + 0.02;
+          if (!C.onTop(e.pos.x + c.dir.x * a, e.pos.y, e.pos.z + c.dir.z * a)) c.speed = 0;
+        }
+        if (!C || e.groundLocked || c.pc !== c.realPc || !e.grounded || e.state !== 'approach' || e.aimT > 0) return;
+        if (c.realFoot.y - e.pos.y < 0.1) return;   // you aren't up above it
+        const way = C.step(e, _want);
+        if (way === 1) { c.dir.copy(_want); c.speed = (e.walkSpeed || speed) * c.slow; return; }
+        if (way !== 2) return;
+        en.startClimb(e, _want, C.ly, C.lx, C.lz);
+        c.wait = true; c.gapped = false; c.speed = 0;
       },
     }),
   },
