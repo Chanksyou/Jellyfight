@@ -1,6 +1,7 @@
 // The floor map's second level (src/bug-climb.js): the tops of furniture and the climb links that
 // join them to the floor, and the climbers' flood that crosses them while the jelly is up.
-import { G, V, holdJelly, ok, setupFight, step, story, tp } from './kit.js';
+import { CONTENT } from '../content.js';
+import { G, V, holdJelly, ok, setupFight, spawn, step, story, stub, tp } from './kit.js';
 
 // the jelly up on the coffee table (where its vent lands you), the climbers' flood finished
 function onTable() {
@@ -45,5 +46,102 @@ story('nav/climb-flood-runs-only-with-the-jelly-up', {
     tp(3.2, 0.05, 3.0, 0); holdJelly(); step(30);
     const down = !C.tops.some((T) => T.flooded) && C.dist(3.5, 0, 3.0, 0.034) === Infinity;
     return ok(up && down, { up, down });
+  },
+});
+
+// ---------------------------------------------------------------- the climbs word (Cockroach, House spider)
+const calm = () => { const { run } = G(); stub(run, 'hurt', () => {}); stub(run, 'hit', () => {}); run.health = 1e6; };
+// a bug released on the floor 50 cm from the coffee table the jelly is up on; what it does for `secs`
+function climbAfter(type, secs, before = null) {
+  const { P } = onTable(); calm();
+  const { enemies, run } = G(), L = enemies.nav.levels[0];
+  let at = null;
+  for (let a = 0; a < 32 && !at; a++) {
+    const x = P.x + Math.cos(a * 0.7) * 0.5, z = P.z + Math.sin(a * 0.7) * 0.5;
+    if (enemies.nav.climb.dist(x, L.y, z, CONTENT.enemies[type].r) < Infinity && run.world.cast(V(x, 0.1, z), V(0, -1, 0), 0.2)) at = V(x, 0, z);
+  }
+  const e = spawn(type, at, { hp: 1e7 });
+  before?.(e);
+  const log = { e, P, start: at, top: false, pitched: false, highest: 0, arrivedAt: null, near: Infinity, aimed: false, rate: 0, fell: false };
+  let y0 = null, f0 = 0;
+  step(secs * 60, (f) => {
+    log.highest = Math.max(log.highest, e.pos.y);
+    if (e.climb?.up) {   // the climb rate between 5 cm up and 5 cm under the top, and no wind-up meanwhile
+      if (e.aimT > 0) log.aimed = true;
+      if (y0 === null && e.pos.y > 0.05) { y0 = e.pos.y; f0 = f; }
+      if (y0 !== null && e.pos.y < P.y - 0.05 && f > f0) log.rate = (e.pos.y - y0) / ((f - f0) / 60);
+    }
+    if (e.root.rotation.x < -1.2) log.pitched = true;
+    if (log.top && e.pos.y < P.y - 0.1) log.fell = true;   // up top it stays: it doesn't walk, back or slide off
+    if (Math.abs(e.pos.y - P.y) < 0.04 && !e.climb) { log.top = true; log.near = Math.min(log.near, Math.hypot(e.pos.x - P.x, e.pos.z - P.z)); if (log.arrivedAt === null) log.arrivedAt = f / 60; }
+  });
+  return log;
+}
+const report = (l) => ({ fell: l.fell, rate: +l.rate.toFixed(3), aimed: l.aimed, top: l.top, pitched: l.pitched, highest: +l.highest.toFixed(2), jellyAt: +l.P.y.toFixed(2), secs: l.arrivedAt, near: +l.near.toFixed(2) });
+
+story('bugs/cockroach-climbs-after-the-jelly', {
+  about: 'With the jelly up on the coffee table, a Cockroach released on the floor 50 cm off runs to a side, climbs straight up it with its body flat to the side (nose up), gets onto the top within 15 s and comes within 15 cm of the jelly.',
+  setup() {},
+  play() { const l = climbAfter('roach', 15); return ok(l.top && l.pitched && l.near < 0.15, report(l)); },
+});
+
+story('bugs/spider-climbs-after-the-jelly', {
+  about: 'With the jelly up on the coffee table, a House spider released on the floor 50 cm off climbs up a side after it and gets onto the top within 20 s.',
+  setup() {},
+  play() { const l = climbAfter('spider', 20); return ok(l.top && l.pitched, report(l)); },
+});
+
+story('bugs/ground-locked-bugs-do-not-climb', {
+  about: 'A ground-locked Cockroach (Hoarfrost\'s rule: a bug with the status can\'t leap, rise or climb) never climbs after a jelly up on the coffee table: in 12 s it stays on the floor.',
+  setup() {},
+  play() {
+    const l = climbAfter('roach', 12, (e) => { stub(G().run.mods, 'groundLock', ['marked']); e.markT = 1e6; });
+    return ok(!l.top && l.highest < l.start.y + 0.05, report(l));
+  },
+});
+
+story('bugs/knocked-off-a-side-it-falls', {
+  about: 'A Cockroach knocked away while it climbs a side lets go and falls back to the floor (it may climb again after).',
+  setup() {},
+  play() {
+    const { P } = onTable(); calm();
+    const { enemies } = G(), L = enemies.nav.levels[0];
+    let e = null;
+    for (let a = 0; a < 32 && !e; a++) {
+      const x = P.x + Math.cos(a * 0.7) * 0.4, z = P.z + Math.sin(a * 0.7) * 0.4;
+      if (enemies.nav.climb.dist(x, L.y, z, 0.034) < Infinity) e = spawn('roach', V(x, 0, z), { hp: 1e7 });
+    }
+    const up = step(12 * 60, () => e.climb && e.pos.y > 0.15) < 12 * 60;
+    const was = e.pos.y;
+    G().enemies.push(e, V(-e.climb.dx, 0, -e.climb.dz), 0.05);
+    step(3);
+    const letGo = !e.climb;
+    const landed = step(120, () => e.grounded && e.pos.y < 0.03) < 120;
+    return ok(up && letGo && landed, { up, from: +was.toFixed(2), letGo, landed, y: +e.pos.y.toFixed(3) });
+  },
+});
+
+story('bugs/other-bugs-gather-beneath', {
+  about: 'Bugs that don\'t climb (Ants) still gather on the floor under a jelly up on the coffee table: after 12 s every one is on the floor within 45 cm of it.',
+  setup() {},
+  play() {
+    const { P } = onTable(); calm();
+    const { enemies, run } = G(), ants = [];
+    for (let a = 0; a < 40 && ants.length < 4; a++) {
+      const x = P.x + Math.cos(a * 0.9) * 0.7, z = P.z + Math.sin(a * 0.9) * 0.7;
+      if (enemies.nav.distAt(x, 0, z, 0.029) < Infinity && run.world.cast(V(x, 0.1, z), V(0, -1, 0), 0.2)) ants.push(spawn('ants', V(x, 0, z), { hp: 1e7 }));
+    }
+    step(12 * 60);
+    const where = ants.map((e) => ({ y: +e.pos.y.toFixed(2), d: +Math.hypot(e.pos.x - P.x, e.pos.z - P.z).toFixed(2) }));
+    return ok(ants.length === 4 && where.every((w) => w.y < 0.05 && w.d < 0.45), { where });
+  },
+});
+
+story('words/climbs', {
+  about: 'climbs: a House spider (climbs 0.15) goes up a side of the coffee table at its climbing speed (within 20% of 0.15 m/s), starts no attack (no spit wind-up) while it is on the side, and gets onto the top and stays there (its web throw\'s recoil stops at the edge).',
+  setup() {},
+  play() {
+    const l = climbAfter('spider', 20);
+    return ok(l.top && !l.fell && Math.abs(l.rate - 0.15) < 0.03 && !l.aimed, report(l));
   },
 });

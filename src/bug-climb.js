@@ -2,7 +2,7 @@
 // climb links between the floor and those tops, where a bug can go straight up a side. A second
 // flood, run only while the jelly is up on furniture, crosses the links (a climb costs its height
 // like a walk), so a climbing bug knows its way: along the floor to a side, up it, across the top.
-// Nothing reads it yet but the stories; non-climbers keep the first flood (bug-nav.js), unchanged.
+// The climbs word (words.js) follows it; bugs that don't climb keep the first flood (bug-nav.js), unchanged.
 //
 // A top is a level-like object over the same squares as its floor (`floor` holds the top's height,
 // NaN where there is none), so the floor map's own edge and step marking (markEdges, markSteps)
@@ -194,6 +194,46 @@ export class Climb {
       if (q >= 0 && D[q] !== NONE) return D[q] / STRAIGHT * CELL;
     }
     return Infinity;
+  }
+
+  // Whether (x, z) is a top square at height y (within 3 cm): a climber up top keeps to it (the climbs word)
+  onTop(x, y, z) {
+    for (const T of this.tops) {
+      const k = cell(T, x, z);
+      if (k >= 0 && Math.abs(y - T.floor[k]) < 0.03) return true;
+    }
+    return false;
+  }
+
+  // Which way the climbers' flood sends a climber on the floor (the climbs word): 1 with `out` the
+  // flat way to walk (toward the middle of the next square down the flood), 2 when the next step is
+  // up a side (`out` the flat way to the face; this.lx, ly, lz the top square it climbs onto), or 0:
+  // no climb flood, or none reaches it
+  step(e, out) {
+    const p = e.pos, s = this.nav.sizeOf(e.r);
+    for (const T of this.tops) {
+      if (!T.flooded) continue;
+      const k = cell(T, p.x, p.z), L = T.base;
+      if (k < 0 || !(Math.abs(p.y - L.floor[k]) < 0.03)) continue;
+      const D = T.dist[s], n = T.n, nx = T.nx;
+      let best = D[k], to = -1, up = false;
+      if (best === NONE) return 0;
+      const ways = L.steps[s][k], links = T.up[s][k];
+      for (let m = 0; m < 8; m++) if ((ways & (1 << m)) && D[k + DX[m] + DZ[m] * nx] < best) { best = D[k + DX[m] + DZ[m] * nx]; to = m; up = false; }
+      for (let m = 0; m < 4; m++) if ((links & (1 << m)) && D[n + k + DX[m] + DZ[m] * nx] < best) { best = D[n + k + DX[m] + DZ[m] * nx]; to = m; up = true; }
+      if (to < 0) return 0;
+      const i = k % nx + DX[to], j = ((k / nx) | 0) + DZ[to];
+      if (up) {
+        this.lx = T.x0 + (i + 0.5) * CELL; this.lz = T.z0 + (j + 0.5) * CELL; this.ly = T.floor[j * nx + i];
+        out.set(DX[to], 0, DZ[to]);
+        return 2;
+      }
+      out.set(T.x0 + (i + 0.5) * CELL - p.x, 0, T.z0 + (j + 0.5) * CELL - p.z);
+      if (out.lengthSq() < 1e-8) out.set(DX[to], 0, DZ[to]);
+      out.normalize();
+      return 1;
+    }
+    return 0;
   }
 
   // (stories, dev) how many links each size has, and how many top squares

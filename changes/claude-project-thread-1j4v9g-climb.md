@@ -1,0 +1,1 @@
+cockroaches and House spiders climb after you: get up on furniture and they run to a side, go straight up it and come over the top, so a table is no longer a rest from them. While climbing they can be hit and still hurt to touch, but can't attack; knock one off the side and it falls, and a ground-locked bug can't climb. Other bugs still gather underneath.
