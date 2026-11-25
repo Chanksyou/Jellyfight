@@ -84,8 +84,9 @@ phone('easy/dev-run-says-why-no-submit', {
 });
 
 // --- the death screen's offer of Easy mode (easy.js easyOffered, run.js endRun)
-const keep = (keys) => keys.map((k) => [k, localStorage.getItem(k)]);
-const restore = (saved) => { for (const [k, v] of saved) v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); };
+// a finished run writes to the save (Pearls, lifetime totals, played flag), so the whole save is put back after
+const keep = () => Object.entries(localStorage);
+const restore = (saved) => { localStorage.clear(); for (const [k, v] of saved) localStorage.setItem(k, v); };
 const dieAt = (run, deaths, cleared) => {
   localStorage.setItem(DEATHS_KEY, String(deaths));
   localStorage.setItem(FOUND_KEY, JSON.stringify(cleared ? { bosses: ['vacuum'] } : {}));
@@ -98,18 +99,19 @@ story('easy/offered-after-a-second-act-1-death', {
   about: 'After a second death in act 1 by a player who has never cleared it, the death screen says what Easy mode is and offers "Try Easy mode"; tapping it turns Easy on for the next run. Not offered after the first death, once act 1 is cleared, in a dev run, or when Easy is already on; the death itself is counted.',
   setup() { fresh({ elites: false }); },
   play() {
-    const { run } = G(), saved = keep([DEATHS_KEY, FOUND_KEY, EASY_KEY]);
+    const { run } = G(), saved = keep();
     try {
       localStorage.removeItem(DEATHS_KEY); chooseEasy(false);
       run.die(); const counted = act1Deaths() === 1;
-      run.phase = 'explore'; run.ui.close();
+      run.start();   // a new run: the death's own end screen (a timer, run.later) never lands
       const first = !!dieAt(run, 1, false);
       const cleared = !!dieAt(run, 5, true);
       run.dev = true; const dev = !!dieAt(run, 5, false); run.dev = false;
       chooseEasy(true); const already = !!dieAt(run, 5, false); chooseEasy(false);
       const btn = dieAt(run, 2, false), says = /deal twice the damage and take half/.test(modal().innerText);
       btn?.click();
+      G().picker.close(); run.ui.close();
       return ok(counted && !first && !cleared && !dev && !already && !!btn && says && easyChosen(), { counted, first, cleared, dev, already, btn: !!btn, says, chosen: easyChosen() });
-    } finally { restore(saved); }
+    } finally { run.start(); restore(saved); }
   },
 });
