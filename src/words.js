@@ -25,6 +25,7 @@ const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THRE
 const UP = new THREE.Vector3(0, 1, 0);
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
+const SWAP_LEAD = 0.3, JERK_SHARE = 0.2;   // the part of each `jerk` run the bug spends turning
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
@@ -158,9 +159,9 @@ export const ENEMY_WORDS = {
   },
 
   hover: {
-    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s. With `bob` (m) it bobs that far up and down as it goes; with `pause` (0 to 1) it hangs still that share of the time, in short spells (a firefly drifting).',
+    doc: 'Flies `distance` m from you and `above` m higher, circling round you at `circle` radians a second, at up to `speed` m/s. With `bob` (m) it bobs that far up and down as it goes; with `pause` (0 to 1) it hangs still that share of the time, in short spells (a firefly drifting). With `swap` (s) each bug, after its first change (a few `swap` in), picks its own way round you and changes it about that often, so a crowd circles both ways; with `jerk` (s) it flies straight and turns in sudden quick swings, one a `jerk`, at the same turn rate overall (a fly-style turn). After its first change a bug with `swap` really orbits you, at `circle` radians a second or as fast as its `speed` allows.',
     args: ['distance'],
-    props: { above: 0.07, speed: 0.33, circle: 0.4, bob: 0, pause: 0 },
+    props: { above: 0.07, speed: 0.33, circle: 0.4, bob: 0, pause: 0, swap: 0, jerk: 0 },
     make: ([distance], p) => {
       const still = Math.sin(Math.PI * (p.pause - 0.5));   // under this, the slow wave below means hang still: `pause` of the time
       return {
@@ -170,7 +171,14 @@ export const ENEMY_WORDS = {
         const s = p.speed * c.slow * (p.pause > 0 && Math.sin(c.t * 1.3 + e.phase) < still ? 0 : 1);
         const away = _away.copy(e.pos).sub(c.pc).setY(0);
         if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.normalize().applyAxisAngle(UP, c.dt * p.circle * (s > 0 ? 1 : 0));
+        let turn = c.dt * p.circle * (s > 0 ? 1 : 0);
+        if (p.swap) {   // the way it circles, as it always has until its first change, then its own (e.phase seeds them)
+          if (e.swapT === undefined) { e.swapT = p.swap * (1.25 + 0.75 * ((e.phase * 0.37) % 1)); e.swapDir = 1; e.swaps = 0; }
+          if ((e.swapT -= c.dt) <= 0) { e.swapT = p.swap * (0.7 + (e.phase * 7.3 + e.swaps) % 0.6); e.swapDir = Math.sin(e.phase * 12.9898 + e.swaps * 78.233) > 0 ? 1 : -1; e.swaps++; }
+          turn = e.swaps ? p.circle * SWAP_LEAD * e.swapDir * (s > 0 ? 1 : 0) : turn * e.swapDir;   // after the first change it really circles: its mark is that many seconds ahead of it round you
+        }
+        if (p.jerk && e.swaps) turn *= ((c.t / p.jerk + e.phase * 0.159) % 1 < JERK_SHARE ? 1 / JERK_SHARE : 0);   // after its first change: all the turning in a quick swing at the start of each run
+        away.normalize().applyAxisAngle(UP, turn);
         const to = _spot.copy(c.pc).addScaledVector(away, distance).setY(c.pc.y + p.above + p.bob * Math.sin(c.t * 2.1 + e.phase * 3)).sub(e.pos);
         e.vel.lerp(to.clampLength(0, 1).multiplyScalar(s * 6).clampLength(0, s), 1 - Math.exp(-3 * c.dt));
         en.move(e, e.vel, c.dt);

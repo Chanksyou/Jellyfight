@@ -26,6 +26,7 @@ import './stories/bug-steering.js';
 import './stories/bug-facing.js';
 import './stories/bug-rhythm.js';
 import './stories/bug-ants.js';
+import './stories/bug-fliers.js';
 import './stories/bug-attack-motion.js';
 import './stories/runtime-efficiency.js';
 import './stories/treasures.js';
