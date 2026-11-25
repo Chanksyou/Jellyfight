@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v704 builds carved dark-stone tide-pool arena walls around Act 3's bed that rise first, then fills deeper 3 cm interactive moonlit water outward from the center before the shark breaches, with real-time waves reacting to the jelly, the shark, its fin, slams, illusion, and tornadoes.
+
 v703 shortens the jelly's no-hurt time after a hit from 1 s to 0.25 s, so bugs can land hits more often (Shield, Hand Mirror and Cryo Sleep times are unchanged).
 
 v702 the ground mist's flow round the jelly now eases in and out over half a second when it sets off, stops or turns back, so quick back-and-forth swimming no longer flicks the mist about.
