@@ -84,6 +84,7 @@ import './stories/night4-singing-bowl.js';
 import './stories/night4-mushroom.js';
 import './stories/night4-headphones.js';
 import './stories/sunrise.js';
+import './stories/shadow-light.js';
 import './stories/dressing.js';
 import './stories/act4-perf.js';
 import './stories/bench.js';

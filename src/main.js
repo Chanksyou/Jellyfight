@@ -512,7 +512,7 @@ const systems = {
   avatar: new AvatarSystem({ state, player, menuOpen }),
   input: new InputSystem({ state, input, menuOpen }),
   camera: camSys,
-  shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player, enemies }),
+  shadow: new ShadowSystem({ state, scene, world, player, cfg: CONFIG.player, enemies, arena: !!ARENA }),
   hud: new HudSystem({ state, hud, player, tpc, run }),
   debug: new DebugSystem({ state, hud, player, run, enemies, xpDrops, gfx, extra: () => pacingReadout() }),
   render: new RenderSystem({ gfx, statics }),

@@ -12,6 +12,8 @@ import { batcher, updateShown } from './batch.js';
 import { hitSpot } from './collision.js';
 import { LOOK } from './look.js';
 import { ShadowShapes } from './shadow-shapes.js';
+import { GRID_GLSL, BAKED_LIGHT } from './baked-light.js';
+import { BAKED_AO } from './baked-ao.js';
 
 const IDLE = { speed: 0, walkSpeed: 1, vy: 0 };
 
@@ -127,26 +129,73 @@ export class CameraSystem {
 }
 
 // The shadows' one shader: each instance is a square on the surface below its caster, showing that caster's cell of
-// the shapes picture (shadow-shapes.js), sharp on the ground and softer the higher it is, faded into the room's haze
+// the shapes picture (shadow-shapes.js), sharp on the ground and softer the higher it is, faded into the room's haze.
+// It reads the baked light grid where its caster stands (GRID_GLSL, the same light the furniture takes): the shadow
+// leans and stretches away from where the light comes from, further the higher the caster, and is darker where the
+// room is bright and one-sided, fainter in a dark corner or between lamps. The jelly's glow pushes the bugs' shadows
+// away from it; act 4's sun takes over on its side of the line as the day comes; the arena has one fixed key light.
+// The far half stretches, the near half stays: the darkest part is always under the creature (the landing cue).
 const SHADOW_VERT = /* glsl */`
 attribute vec4 look;   // its cell's corner in the picture (xy), how dark (z), how soft (w)
-attribute float crop;  // how much of its cell the circle covers (the shape's own reach)
+attribute vec3 caster;   // how high its caster is above the surface (x, m), 1 for the jelly's own (y), how much of its cell the circle covers (z: the shape's own reach)
+uniform vec3 jellyPos, keyDir, sunDir;
+uniform float jellyReach, jellyPush, keyK, leanBase, leanPerM, stretchMax, shift, minDark, lightLo, lightHi, oneSided, softBetween, sunLine, sunK, sunCrisp, flicker, time;
 varying vec2 vUv;
 varying vec3 vLook;
+varying float vJelly;
+${GRID_GLSL}
 #include <common>
 #include <fog_pars_vertex>
+float shLum(vec3 L) { return dot(L, vec3(0.3, 0.59, 0.11)); }
 void main() {
-  vUv = look.xy + (position.xz * crop * 0.5 + 0.5) * ${(1 / 8).toFixed(4)};
-  vLook = vec3(look.zw, length(position.xz) * crop);
-  vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+  vUv = look.xy + (position.xz * caster.z * 0.5 + 0.5) * ${(1 / 8).toFixed(4)};
+  vec3 c = instanceMatrix[3].xyz;
+  float hw = length(instanceMatrix[0].xyz), dark = look.z, soft = look.w;
+  vec2 away = vec2(0.0);   // where the shadow is pushed, 0..about 1
+  float light = 1.0;       // how much of its darkness the room's light gives it
+  if (lbGridGain > 0.0) {
+    vec3 g = (c + vec3(0.0, 0.06, 0.0) - lbGridMin) / lbGridStep + 0.5;   // the air just over the surface
+    if (all(greaterThanEqual(g, vec3(0.0))) && all(lessThanEqual(g, lbGridDims))) {
+      float xp = shLum(lbGridDir(g, 0.0)), xn = shLum(lbGridDir(g, 1.0)), up = shLum(lbGridDir(g, 2.0)), zp = shLum(lbGridDir(g, 4.0)), zn = shLum(lbGridDir(g, 5.0));
+      vec2 from = vec2(xp - xn, zp - zn);   // the side the light comes from
+      float total = (xp + xn + zp + zn + up) * lbGridGain, side = length(from) / max(xp + xn + zp + zn + up, 1e-5);
+      away = -from / max(length(from), 1e-5) * side;
+      light = max(minDark, smoothstep(lightLo, lightHi, total) * mix(1.0 - oneSided, 1.0, min(1.0, side * 2.0)));
+      soft = min(1.0, soft + (1.0 - min(1.0, side * 2.0)) * softBetween);   // light from all round: a softer shadow
+    }
+  } else if (keyK > 0.0) away = -normalize(keyDir.xz) * keyK;   // the arena's key light
+  if (caster.y < 0.5) {   // a bug near the jelly: its glow pushes the bug's shadow away from it
+    vec2 d = c.xz - jellyPos.xz;
+    float r = length(d);
+    away += d / max(r, 1e-4) * jellyPush * max(0.0, 1.0 - r / jellyReach);
+  } else away = vec2(0.0);   // the jelly's own stays straight below it (but for the sun's)
+  if (sunK > 0.0 && c.z < sunLine) {   // in act 4's sun: from it, crisper and longer as the day comes
+    vec2 s = -normalize(sunDir.xz) * length(sunDir.xz) / max(sunDir.y, 0.2);
+    away = mix(away, s, sunK);
+    soft *= 1.0 - sunCrisp * sunK;
+    light = mix(light, 1.0, sunK);
+  }
+  dark *= light * (1.0 + flicker * sin(time * 23.0 + c.x * 7.0) * sin(time * 17.0));
+  vec4 p = instanceMatrix * vec4(position, 1.0);
+  float k = length(away);
+  if (k > 1e-4) {
+    vec2 u = away / k, q = p.xz - c.xz;
+    float along = max(0.0, dot(q, u)), st = min(stretchMax - 1.0, k * (leanBase + leanPerM * caster.x));
+    p.xz += u * (along * st + hw * shift * min(1.0, k));
+  }
+  vLook = vec3(dark, soft, length(position.xz) * caster.z);
+  vJelly = caster.y;
+  vec4 mvPosition = viewMatrix * p;
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
 const SHADOW_FRAG = /* glsl */`
 uniform sampler2D atlas;
 uniform float core;
+uniform vec3 jellyTint;
 varying vec2 vUv;
 varying vec3 vLook;
+varying float vJelly;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
@@ -159,7 +208,7 @@ void main() {
       a *= 1.0 - smoothstep(fogNear, fogFar, vFogDepth);
     #endif
   #endif
-  gl_FragColor = vec4(0.0, 0.0, 0.0, a);
+  gl_FragColor = vec4(jellyTint * vJelly, a);   // the jelly's own takes a little of its colour
 }`;
 
 // what an Elite's or a boss's shadow is drawn from: its model, not its holder (which carries its health bar)
@@ -174,7 +223,7 @@ const shapeKey = (o) => `proxy:${o.kind ?? o.constructor.name}`;
 // softer one at the height of that surface, found by a few casts a frame in turn and remembered, so the cost stays
 // the same however big the crowd.
 export class ShadowSystem {
-  constructor({ state, scene, world, player, cfg, enemies }) {
+  constructor({ state, scene, world, player, cfg, enemies, arena = false }) {
     Object.assign(this, { state, world, player, cfg, enemies });
     this.shapes = new ShadowShapes();
     this.jellyCell = this.shapes.put('jelly', (x, z) => {   // the bell, with a soft tail behind it where the tentacles trail
@@ -190,10 +239,25 @@ export class ShadowSystem {
     const geo = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);   // round, sized to the shape's reach: no clear corners drawn
     this.look = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('look', this.look);
-    this.crop = new THREE.InstancedBufferAttribute(new Float32Array(MAX).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
-    geo.setAttribute('crop', this.crop);
+    this.cast = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('caster', this.cast);
+    const L = BAKED_LIGHT.uniforms, A = BAKED_AO.uniforms, n = (k, d) => ({ value: LOOK.num(k, d) });
+    this.u = {
+      ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), atlas: { value: this.shapes.texture }, core: n('shadow-core', 0.3),
+      // the baked light grid and act 4's sun, shared with the room (not copies: they follow the act and the dawn)
+      lbGrid: L.lbGrid, lbGridDay: L.lbGridDay, lbGridMin: L.lbGridMin, lbGridDims: L.lbGridDims, lbGridStep: L.lbGridStep, lbGridGain: L.lbGridGain, lbDayK: L.lbDayK,
+      sunLine: A.sunLine, sunDir: A.sunDir, sunK: { value: 0 }, sunCrisp: n('shadow-sun-crisp', 0.8),
+      jellyPos: { value: new THREE.Vector3(0, -1e4, 0) }, jellyReach: n('jelly-light-reach', 0.4), jellyPush: n('shadow-jelly-push', 0.6),
+      jellyTint: { value: new THREE.Color() },
+      keyDir: { value: new THREE.Vector3(...LOOK.nums('shadow-arena-key', [-0.4, 1, 0.5])) }, keyK: { value: arena ? LOOK.num('shadow-arena-lean', 0.6) : 0 },
+      leanBase: n('shadow-lean', 0.9), leanPerM: n('shadow-lean-per-m', 8), stretchMax: n('shadow-stretch-max', 2.5), shift: n('shadow-shift', 0.15),
+      minDark: n('shadow-min-dark', 0.35), lightLo: n('shadow-light-lo', 0.05), lightHi: n('shadow-light-hi', 0.6), oneSided: n('shadow-one-sided', 0.4), softBetween: n('shadow-soft-between', 0.4),
+      flicker: n('shadow-candle-flicker', 0), time: { value: 0 },
+    };
+    this.sunGain = LOOK.num('shadow-sun', 1);   // the sun's share of the shadows: this x act 4's daylight (--dawn-daylight*)
+    this.jellyTintK = LOOK.num('shadow-jelly-tint', 0.15);
     const mat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), atlas: { value: this.shapes.texture }, core: { value: LOOK.num('shadow-core', 0.3) } },
+      uniforms: this.u,
       vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, fog: true,
     });
     this.bugs = new THREE.InstancedMesh(geo, mat, MAX);
@@ -251,9 +315,13 @@ export class ShadowSystem {
     for (const o of proxies) { const b = o && bodyOf(o); if (b && !S.has(shapeKey(o))) S.draw(renderer, shapeKey(o), b); }
     S.finish();
   }
-  update() {
+  update(dt = 0) {
     if (this.state.mode === 'layout') return;
-    const P = this.player.position, J = this.jelly;
+    const P = this.player.position, J = this.jelly, u = this.u;
+    u.time.value += dt;
+    u.jellyPos.value.copy(P);
+    u.sunK.value = Math.min(1, BAKED_LIGHT.uniforms.lbDayK.value * this.sunGain);
+    if (this.tintHex !== this.state.look.color) { this.tintHex = this.state.look.color; u.jellyTint.value.set(this.tintHex).multiplyScalar(this.jellyTintK); }
     this.glow.position.set(P.x, P.y + this.cfg.height * 0.65, P.z);
     if (this.glowHex !== this.state.look.color) { this.glowHex = this.state.look.color; this.glow.color.set(this.glowHex); }
     const hit = this.world.cast(this.from.copy(P).setY(P.y + this.cfg.height * 0.5), this.down, 3, null, false, this.hit);
@@ -263,15 +331,15 @@ export class ShadowSystem {
       const h = Math.max(0, P.y - hit.point.y);
       J.scale = this.state.look.size * (1 + h * 4);
       J.opacity = Math.max(this.blobFloor, this.blobOpacity / (1 + h * 20));
-      n = this.place(0, this.jellyCell, P.x, hit.point.y + 0.0008, P.z, this.player.facing, this.jellyHalf * J.scale, J.opacity, h);
+      n = this.place(0, this.jellyCell, P.x, hit.point.y + 0.0008, P.z, this.player.facing, this.jellyHalf * J.scale, J.opacity, h, 1);
     }
     this.bugShadows(n);
   }
   // instance i: `cell`'s shape at (x, y, z), turned to `yaw`, `half` wide each way, `dark` at its darkest, `h` above its surface
-  place(i, cell, x, y, z, yaw, half, dark, h, reach = Infinity) {
-    const c = Math.min(cell.crop ?? 1, reach / half), m = this._m.makeRotationY(yaw).scale(this._s.set(half * c, 1, half * c)).setPosition(x, y, z), L = this.look.array;
-    this.crop.array[i] = c;
+  place(i, cell, x, y, z, yaw, half, dark, h, jelly = 0, reach = Infinity) {
+    const cr = Math.min(cell.crop ?? 1, reach / half), m = this._m.makeRotationY(yaw).scale(this._s.set(half * cr, 1, half * cr)).setPosition(x, y, z), L = this.look.array, C = this.cast.array;
     this.bugs.setMatrixAt(i, m);
+    C[i * 3] = h; C[i * 3 + 1] = jelly; C[i * 3 + 2] = cr;
     L[i * 4] = cell.u; L[i * 4 + 1] = cell.v; L[i * 4 + 2] = dark; L[i * 4 + 3] = Math.min(1, h * this.softPerM);
     return i + 1;
   }
@@ -326,10 +394,10 @@ export class ShadowSystem {
         for (let k = 0; k < L.length && n < max; k += this.linkStep) { const l = L[k].position, lx = l.x * k0, lz = l.z * k0; n = this.place(n, S.cell('disc'), x + lx * c + lz * sn, floor + 0.0015, z - lx * sn + lz * c, 0, spot, d, h); }
         continue;
       }
-      n = this.place(n, cell, x, floor + 0.0015, z, yaw, half * (1 + h * this.airWiden), Math.max(dark * this.airFloor, dark / (1 + h * this.airFade)), h, o ? e.r * this.eliteReach * (1 + h * this.airWiden) : Infinity);
+      n = this.place(n, cell, x, floor + 0.0015, z, yaw, half * (1 + h * this.airWiden), Math.max(dark * this.airFloor, dark / (1 + h * this.airFade)), h, 0, o ? e.r * this.eliteReach * (1 + h * this.airWiden) : Infinity);
     }
     inst.count = n;
-    if (n) { inst.instanceMatrix.needsUpdate = true; this.look.needsUpdate = true; this.crop.needsUpdate = true; }
+    if (n) { inst.instanceMatrix.needsUpdate = true; this.look.needsUpdate = true; this.cast.needsUpdate = true; }
   }
 }
 
