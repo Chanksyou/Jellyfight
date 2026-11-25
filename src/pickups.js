@@ -15,7 +15,9 @@ const BIG = 5;                // XP a big drop is worth: every 5 XP comes as one
 function hexCrystalGeo(r, hScale) {
   const h = r * hScale;
   const pts = [[0, -h], [r, -h * 0.36], [r, h * 0.36], [0, h]].map(([x, y]) => new THREE.Vector2(x, y));
-  return new THREE.LatheGeometry(pts, 6);
+  const geo = new THREE.LatheGeometry(pts, 6);
+  geo.parameters.radius = r;
+  return geo;
 }
 
 // plump beveled heart for Health crumbs (still 1 instanced draw via Batcher)

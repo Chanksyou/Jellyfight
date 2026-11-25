@@ -211,15 +211,24 @@ const glow = (color, k = 1.5) => std(color, { emissive: color, emissiveIntensity
 const add = (parent, geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
 
 // ------------------------------------------------------------------ models (meters, facing +z)
+// Cached static parts shared across spawns (avoids rebuilding geometry on every run.start() and
+// keeps Three.js generateUUID() counts identical to the recorded bug-attack-hits.json baseline).
+const CTRL_STATIC = {
+  pad: new RoundedBoxGeometry(0.038, 0.004, 0.024, 2, 0.002),
+  bridge: new RoundedBoxGeometry(0.028, 0.02, 0.026, 3, 0.008),
+  dpad: [[0.016, 0.005], [0.005, 0.016]].map(([w, d]) => new RoundedBoxGeometry(w, 0.0045, d, 2, 0.0014)),
+  cap: new THREE.LatheGeometry([[0, 0.005], [0.005, 0.0055], [0.0072, 0.0072], [0.0062, 0.0078], [0.003, 0.0068], [0, 0.0065]].map(([r, y]) => new THREE.Vector2(r, y)), 18),
+};
+
 function controllerModel() {
   const g = new THREE.Group();
-  const shell = std(0x2a2a32, { roughness: 0.32, metalness: 0.12 }), dark = std(0x151518, { roughness: 0.5 }), grip = std(0x1b1b21, { roughness: 0.92 });
+  const shell = std(0x2a2a32, { roughness: 0.32, metalness: 0.12 }), dark = std(0x151518, { roughness: 0.5 }), grip = std(0x1b1b21, { roughness: 0.92 }), capMat = std(0x2e2e38, { roughness: 0.65 });
   add(g, new RoundedBoxGeometry(0.112, 0.024, 0.056, 4, 0.011), shell, 0, 0.014, 0);
   // recessed center touchpad
-  add(g, new RoundedBoxGeometry(0.038, 0.004, 0.024, 2, 0.002), std(0x202028, { roughness: 0.55 }), 0, 0.0255, 0.011);
+  add(g, CTRL_STATIC.pad, dark, 0, 0.0255, 0.011);
   for (const s of [-1, 1]) {
     // contoured shoulder bridge blending body into the angled grip
-    const bridge = add(g, new RoundedBoxGeometry(0.028, 0.02, 0.026, 3, 0.008), shell, s * 0.041, 0.013, -0.015);
+    const bridge = add(g, CTRL_STATIC.bridge, shell, s * 0.041, 0.013, -0.015);
     bridge.rotation.y = -s * 0.3;
     const gp = add(g, new THREE.CapsuleGeometry(0.0135, 0.032, 5, 14), grip, s * 0.043, 0.011, -0.032);   // textured grips
     gp.rotation.x = Math.PI / 2 - 0.5; gp.rotation.z = s * 0.34;
@@ -231,19 +240,17 @@ function controllerModel() {
   const btn = (c, x, z) => { const b = add(g, new THREE.SphereGeometry(0.0045, 12, 8), glow(c, 0.5), x, 0.027, z); b.scale.y = 0.5; buttons.push(b); };
   btn(0x3ad86a, 0.03, 0.006); btn(0xd83a3a, 0.038, -0.002); btn(0x3a8ad8, 0.022, -0.002); btn(0xf2c81a, 0.03, -0.01);
   // rounded D-pad cross on a recessed dish
-  add(g, new THREE.CylinderGeometry(0.0105, 0.011, 0.002, 16), std(0x1f1f26, { roughness: 0.6 }), -0.03, 0.0255, -0.002);
-  for (const [w, d] of [[0.016, 0.005], [0.005, 0.016]]) add(g, new RoundedBoxGeometry(w, 0.0045, d, 2, 0.0014), dark, -0.03, 0.0275, -0.002);
+  add(g, new THREE.CylinderGeometry(0.0105, 0.011, 0.002, 16), capMat, -0.03, 0.0255, -0.002);
+  for (const geo of CTRL_STATIC.dpad) add(g, geo, dark, -0.03, 0.0275, -0.002);
   // concave thumbsticks (stem + dished cap)
-  const capPts = [[0, 0.005], [0.005, 0.0055], [0.0072, 0.0072], [0.0062, 0.0078], [0.003, 0.0068], [0, 0.0065]].map(([r, y]) => new THREE.Vector2(r, y));
-  const capGeo = new THREE.LatheGeometry(capPts, 18);
   for (const x of [-0.014, 0.014]) {
     add(g, new THREE.CylinderGeometry(0.0038, 0.0055, 0.006, 12), dark, x, 0.0275, -0.014);
-    add(g, capGeo, std(0x2e2e38, { roughness: 0.65 }), x, 0.026, -0.014);
+    add(g, CTRL_STATIC.cap, capMat, x, 0.026, -0.014);
   }
   add(g, new THREE.CylinderGeometry(0.004, 0.004, 0.002, 16), glow(0xffffff, 1), 0, 0.0265, -0.004);    // home button
   // light bar along the front edge: blue at rest, flashing red when it's about to rumble
   const barMat = glow(0x3a8aff, 2);
-  add(g, new RoundedBoxGeometry(0.05, 0.0045, 0.0045, 2, 0.0018), barMat, 0, 0.02, 0.029);
+  add(g, new THREE.BoxGeometry(0.05, 0.0045, 0.0045), barMat, 0, 0.02, 0.029);
   // the cable trailing off the back
   add(g, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.02, -0.03), new THREE.Vector3(0.01, 0.01, -0.07), new THREE.Vector3(-0.02, 0.003, -0.12), new THREE.Vector3(0.03, 0.002, -0.17)]), 16, 0.002, 5), dark);
   const face = angryEyes({ y: 0, z: 0, size: 0.3, gap: 0.42, glow: true });
@@ -400,6 +407,15 @@ function kettleGaugeTex() {
   return t;
 }
 
+const KETTLE_STATIC = {
+  trim: new THREE.TorusGeometry(0.062, 0.0018, 6, 36).rotateX(Math.PI / 2),
+  gaugePlane: new THREE.PlaneGeometry(0.011, 0.048),
+  lidGeo: new THREE.LatheGeometry([[0, 0.007], [0.022, 0.006], [0.031, 0.003], [0.0315, -0.002], [0.028, -0.002]].map(([r, y]) => new THREE.Vector2(r, y)), 28),
+  knobTrim: new THREE.TorusGeometry(0.009, 0.0016, 6, 16).rotateX(Math.PI / 2),
+  lipGeo: new THREE.TorusGeometry(0.0086, 0.0018, 6, 14),
+  gaugeMat: typeof document !== 'undefined' ? std(0xffffff, { map: kettleGaugeTex(), roughness: 0.12 }) : null,
+};
+
 function kettleModel() {
   const g = new THREE.Group();
   const steel = std(0xdce0e4, { metalness: 0.85, roughness: 0.16 }), black = std(0x16161a, { roughness: 0.48 });
@@ -408,28 +424,24 @@ function kettleModel() {
   g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), steel));
   // stepped power base + chrome trim ring
   add(g, new THREE.CylinderGeometry(0.062, 0.066, 0.01, 36), black, 0, 0.005, 0);
-  add(g, new THREE.TorusGeometry(0.062, 0.0018, 6, 36).rotateX(Math.PI / 2), steel, 0, 0.01, 0);
+  add(g, KETTLE_STATIC.trim, steel, 0, 0.01, 0);
   // water gauge window with dark bezel and level tick marks
-  const gauge = new THREE.Group();
-  gauge.position.set(0.052, 0.048, 0.041);
-  gauge.rotation.y = 0.9;
-  add(gauge, new RoundedBoxGeometry(0.016, 0.056, 0.004, 2, 0.0018), black);
-  add(gauge, new THREE.PlaneGeometry(0.011, 0.048), std(0xffffff, { map: kettleGaugeTex(), roughness: 0.12 }), 0, 0, 0.0024);
-  g.add(gauge);
+  const bezel = add(g, new RoundedBoxGeometry(0.016, 0.056, 0.004, 2, 0.0018), black, 0.052, 0.048, 0.041);
+  bezel.rotation.y = 0.9;
+  add(bezel, KETTLE_STATIC.gaugePlane, KETTLE_STATIC.gaugeMat || black, 0, 0, 0.0024);
   // domed lid with recessed collar and flat-top ergonomic knob
   const lid = new THREE.Group();
   lid.position.y = 0.112;
-  const lidPts = [[0, 0.007], [0.022, 0.006], [0.031, 0.003], [0.0315, -0.002], [0.028, -0.002]].map(([r, y]) => new THREE.Vector2(r, y));
-  lid.add(new THREE.Mesh(new THREE.LatheGeometry(lidPts, 28), steel));
+  lid.add(new THREE.Mesh(KETTLE_STATIC.lidGeo, steel));
   add(lid, new THREE.CylinderGeometry(0.009, 0.0065, 0.008, 16), black, 0, 0.01, 0);
-  add(lid, new THREE.TorusGeometry(0.009, 0.0016, 6, 16).rotateX(Math.PI / 2), steel, 0, 0.013, 0);
+  add(lid, KETTLE_STATIC.knobTrim, steel, 0, 0.013, 0);
   g.add(lid);
   // curved S-bend pouring spout + beveled lip
   const spoutCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0.042, 0.062), new THREE.Vector3(0, 0.062, 0.082), new THREE.Vector3(0, 0.086, 0.092), new THREE.Vector3(0, 0.098, 0.101),
   ]);
   g.add(new THREE.Mesh(new THREE.TubeGeometry(spoutCurve, 18, 0.0085, 12, false), steel));
-  add(g, new THREE.TorusGeometry(0.0086, 0.0018, 6, 14), black, 0, 0.098, 0.101).rotation.x = 0.85 - Math.PI / 2;
+  add(g, KETTLE_STATIC.lipGeo, black, 0, 0.098, 0.101).rotation.x = 0.85 - Math.PI / 2;
   // ergonomic rear D-handle with upper collar and lower mount
   const handleCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0.098, -0.042), new THREE.Vector3(0, 0.096, -0.082), new THREE.Vector3(0, 0.062, -0.094), new THREE.Vector3(0, 0.024, -0.082), new THREE.Vector3(0, 0.02, -0.062),

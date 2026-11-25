@@ -293,32 +293,6 @@ function buildTrashCan(box) {
   return g;
 }
 
-// Hollow walnut cubby bench: real open cubby cavity with divider, upholstered cream seat pad & tapered legs (1 draw).
-function buildCubbyBench(box) {
-  const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
-  const g = new THREE.Group();
-  const w = s.x, h = s.y, d = s.z, bot = -h / 2, legH = 0.09, bodyH = Math.max(0.2, h - legH - 0.04), t = 0.024;
-  const W = 0x5c3c24, W2 = 0x442a18, PAD = 0xe8dfd0;
-  const parts = [
-    paint(new RoundedBoxGeometry(w, t, d, 2, 0.005).translate(0, bot + legH + bodyH - t / 2, 0), W),            // top board
-    paint(new RoundedBoxGeometry(w, t, d, 2, 0.005).translate(0, bot + legH + t / 2, 0), W),                    // bottom board
-    paint(new THREE.BoxGeometry(w - 0.01, bodyH - t, t).translate(0, bot + legH + bodyH / 2, -d / 2 + t / 2), W2), // back panel
-    paint(new THREE.BoxGeometry(t, bodyH - t, d - 0.005).translate(-w / 2 + t / 2, bot + legH + bodyH / 2, 0), W), // left side
-    paint(new THREE.BoxGeometry(t, bodyH - t, d - 0.005).translate(w / 2 - t / 2, bot + legH + bodyH / 2, 0), W),  // right side
-    paint(new THREE.BoxGeometry(t * 0.8, bodyH - t, d - 0.02).translate(0, bot + legH + bodyH / 2, -0.005), W2),   // center divider
-    paint(new RoundedBoxGeometry(w * 0.96, 0.042, d * 0.94, 3, 0.014).translate(0, bot + legH + bodyH + 0.02, 0), PAD), // seat cushion
-  ];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const leg = new THREE.CylinderGeometry(0.015, 0.01, legH + 0.01, 10);
-    leg.rotateZ(-sx * 0.1); leg.rotateX(sz * 0.08);
-    leg.translate(sx * (w / 2 - 0.045), bot + legH / 2, sz * (d / 2 - 0.045));
-    parts.push(paint(leg, W2));
-  }
-  g.add(new THREE.Mesh(merge(parts), std({ roughness: 0.62 })));
-  g.position.copy(c);
-  return g;
-}
-
 // Walnut nightstand: overhanging beveled top, proud drawer front with shadow reveal, brass pull & splayed legs (1 draw).
 function buildNightstand(box) {
   const s = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
@@ -426,7 +400,6 @@ const BUILDERS = [
   ['PC tower', buildPC],
   ['Glass side table', buildSideTable],
   ['Trash and recycling', buildTrashCan],
-  ['Cubby bench', buildCubbyBench],
   ['Nightstand', buildNightstand],
   ['Air purifier', buildAirPurifier],
   ['Bedside floor lamp', buildBedsideLamp],
