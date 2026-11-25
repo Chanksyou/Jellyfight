@@ -695,6 +695,7 @@
   --mist-curl-spread: 0.004;   /* m2/s: how fast that core widens as it ages */
   --mist-curl-flow: 1;         /* how hard the patches slide round the jelly as it swims (0 = not at all) */
   --mist-curl-flow-radius: 0.2;/* m: the circle the mist flows round */
+  --mist-curl-ease: 0.5;       /* s: how long the flow round the jelly takes to build when it sets off, fade when it stops, and swing round when it turns */
   --mist-wisp: 0.8;            /* fine wisps on a parted edge (0 = a smooth edge) */
   --mist-vent: 0.6;            /* how much a vent thins it over itself while it blows */
   --mist-vent-radius: 0.12;    /* m: how far round a vent */
