@@ -89,6 +89,7 @@ function hideJelly(move) {
 }
 
 story('mist/parts-round-the-jelly-and-fills-back-in', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The mist is thinner where the jelly is than with nothing parting it, and no thinner 60 cm off; a spot the jelly swam through is thinner just after and back to full once --mist-part-refill has passed; a big hit punches a hole too. None of it builds a shader in play.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); },
   async play() {
