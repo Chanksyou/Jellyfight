@@ -189,7 +189,12 @@ export class TentacleRig {
       if (!this.fresh) {
         this.work += n * SEG;
         const slip = 1 - this.alongDrag, sink = this.weight * h, bend = 1 / (1 + this.compliance / (h * h));   // share of a fold undone per substep
-        for (let it = 0; it < n; it++) stepChain(T.sim, T.vel, T.goal, this.K, this.C, h, slip, sink, bend, KEEP);
+        const segLen = T.segLen || (T.segLen = new Float32Array(SEG + 1)), bendLen = T.bendLen || (T.bendLen = new Float32Array(SEG + 1));
+        for (let j = 1; j <= SEG; j++) {
+          segLen[j] = T.goal[j].distanceTo(T.goal[j - 1]);
+          if (j > 1) bendLen[j] = T.goal[j].distanceTo(T.goal[j - 2]);
+        }
+        for (let it = 0; it < n; it++) stepChain(T.sim, T.vel, T.goal, this.K, this.C, h, slip, sink, bend, KEEP, undefined, segLen, bendLen);
       }
       // back to the parent's frame (drawn off the floor; the chain itself just swings back up)
       const floor = 0.015 * (1 - fall);

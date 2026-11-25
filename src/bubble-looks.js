@@ -222,8 +222,11 @@ export class BubbleLooks {
   frame() { this.arcN = 0; }
   endFrame() {
     this.arcs.geometry.setDrawRange(0, this.arcN);
-    this.arcs.geometry.attributes.position.needsUpdate = true;
     this.arcs.visible = this.arcN > 0;
+    if (this.arcN > 0) {
+      const p = this.arcs.geometry.attributes.position;
+      p.clearUpdateRanges(); p.addUpdateRange(0, this.arcN * 3); p.needsUpdate = true;
+    }
   }
 
   windGather(pos, progress, size) {

@@ -165,10 +165,12 @@ export class Vacuum {
     this.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), new TeleMaterial(hostile('vacuum'), 'strip'));
     this.line.material.opacity = 0;
     this.line.renderOrder = 3;
+    this.line.visible = false;
     scene.add(this.line);
     this.swirl = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), new TeleMaterial(hostile('vacuum'), 'circle'));
     this.swirl.material.opacity = 0;
     this.swirl.renderOrder = 3;
+    this.swirl.visible = false;
     scene.add(this.swirl);
     // over them, the space each attack fills (vfx.js volumes): the charge's lane, as tall as the
     // Vacuum, over its strip; the brushes' sweep, a low wall spreading out from it
@@ -269,6 +271,7 @@ export class Vacuum {
       if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
       this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
       this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.line.visible = this.swirl.visible = false;
       this.lane.visible = this.sweep.visible = false;
       this.dome.visible = this.tethers.visible = false;
       if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
@@ -301,6 +304,7 @@ export class Vacuum {
       this.enrageT = 1.8;
       this.state = 'chase'; this.locked = false; this.chargeWind = null;
       this.line.material.opacity = this.swirl.material.opacity = 0;
+      this.line.visible = this.swirl.visible = false;
       this.lane.visible = this.sweep.visible = false;
       this.sweepT = this.sweepLife;
       sfx.vacAngry();
@@ -327,10 +331,11 @@ export class Vacuum {
         this.lane.rotation.y = this.heading;
         this.chargeWind ??= Math.max(0.01, this.stateT);
         this.line.material.opacity = 0.8 + Math.sin(this.t * 30) * 0.2;
+        this.line.visible = true;
         this.lane.visible = true;
         this.line.material.progress = this.lane.material.progress = 1 - this.stateT / this.chargeWind;   // fills as the ram gets closer
         if (this.stateT <= 0) {
-          this.locked = true; this.stateT = SK.charge.time; this.line.material.opacity = 0; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
+          this.locked = true; this.stateT = SK.charge.time; this.line.material.opacity = 0; this.line.visible = false; this.lane.visible = false; this.chargeWind = null; sfx.vacRam();
           this.laneAt.copy(p); this.laneDir.set(Math.sin(this.heading), 0, Math.cos(this.heading)); this.laneHit = false;
           // the release: it rears as its wheels bite, a flash at its bumper, dust kicked out behind
           this.kick = 0.8;
@@ -364,6 +369,7 @@ export class Vacuum {
       this.swirl.position.copy(p).setY(0.003);
       this.swirl.scale.setScalar(0.45 + this.r);
       this.swirl.material.opacity = 0.75;              // its stripes pour into the middle: you're being pulled in
+      this.swirl.visible = true;
       const pull = toP.clone().normalize().multiplyScalar(-SK.suction.pull * THREE.MathUtils.clamp(1.4 - dist * 1.5, 0.3, 1.2));
       out.push = pull;
       if (!this.sucking) {   // the release: its motor kicks in, a flash at its intake and a puff out of the bin
@@ -382,7 +388,7 @@ export class Vacuum {
         this.fx.puff(p.clone().add(new THREE.Vector3(Math.cos(a) * rr, 0.01, Math.sin(a) * rr)), 0xcfc6b8, 0.008, 0.25);
       }
       if (this.stateT <= 0) {
-        this.swirl.material.opacity = 0; this.sucking = false;
+        this.swirl.material.opacity = 0; this.swirl.visible = false; this.sucking = false;
         this.fx.splat(p, LOOK.color('vacuum-dust', '#8a8278'), this.r + 0.12, 'dust');   // the swept floor round it: a fading ring of dust
         this.fx.puff(_rel.set(-Math.sin(this.heading), 0, -Math.cos(this.heading)).multiplyScalar(this.r + 0.02).add(p).setY(p.y + 0.04), 0x9c958b, 0.05, 0.6);
         this.toChase();
@@ -610,6 +616,10 @@ export class Vacuum {
       spin: () => sfx.vacSpin(this.stateT), flies: () => sfx.vacFliesWind(), dump: () => sfx.vacDumpWind() })[this.state]?.();
     this.prevT = this.stateT;
     this.locked = false; this.sucking = false;
+  }
+
+  warm(on) {
+    this.line.visible = this.swirl.visible = on;
   }
 
   dispose() {

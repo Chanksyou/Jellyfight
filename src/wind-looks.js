@@ -113,13 +113,16 @@ export class WindLooks {
   }
 
   update(dt) {
-    if (this.busy) {
-      let any = false;
+    if (!this.busy) {
+      this.lines.visible = this.flecks.visible = false;
+    } else {
+      let anyL = false, anyF = false, anyW = false, dirtyL = false, dirtyF = false;
       this.streakList.forEach((s, i) => {
         if (!s.life) return;
+        dirtyL = true;
         s.t += dt;
         if (s.t >= s.life) { s.life = 0; this.lines.setMatrixAt(i, _m.makeScale(0, 0, 0)); return; }
-        any = true;
+        anyL = true;
         s.p.addScaledVector(s.v, dt);
         const k = s.t / s.life, grow = Math.min(1, k * 4);   // stretches out, then thins and fades
         this.lines.setMatrixAt(i, _m.compose(s.p, s.q, _s.set(s.w * (1 - k * 0.6), s.w * (1 - k * 0.6), s.len * grow)));
@@ -127,9 +130,10 @@ export class WindLooks {
       });
       this.fleckList.forEach((f, i) => {
         if (!f.life) return;
+        dirtyF = true;
         f.t += dt;
         if (f.t >= f.life) { f.life = 0; this.flecks.setMatrixAt(i, _m.makeScale(0, 0, 0)); return; }
-        any = true;
+        anyF = true;
         if (!f.down) {
           f.v.multiplyScalar(Math.exp(-3 * dt)); f.v.y -= 0.9 * dt;         // air drag, a gentle fall
           f.p.addScaledVector(f.v, dt);
@@ -144,7 +148,7 @@ export class WindLooks {
         if (!w.life) continue;
         w.t += dt;
         if (w.t >= w.life) { w.life = 0; continue; }
-        any = true;
+        anyW = true;
         // three wisps climbing a spiral that widens as it rises
         const k = w.t / w.life;
         for (let a = 0; a < 3; a++) {
@@ -152,9 +156,11 @@ export class WindLooks {
           glow.emit(_v.set(w.p.x + Math.cos(ang) * rad, w.p.y + w.r * k * 1.4, w.p.z + Math.sin(ang) * rad), this.wisps[a], w.r * 0.28, w.r * 0.1, 0.16, 0.7 * (1 - k));
         }
       }
-      this.lines.instanceMatrix.needsUpdate = true; this.lines.instanceColor.needsUpdate = true;
-      this.flecks.instanceMatrix.needsUpdate = true;
-      this.busy = any;
+      this.lines.visible = anyL;
+      this.flecks.visible = anyF;
+      if (dirtyL) { this.lines.instanceMatrix.needsUpdate = true; this.lines.instanceColor.needsUpdate = true; }
+      if (dirtyF) this.flecks.instanceMatrix.needsUpdate = true;
+      this.busy = anyL || anyF || anyW;
     }
     // bugs blown away: tumbling up and off along the gust, shrinking to nothing, then a puff of dust
     const time = LOOK.num('wind-blow-time', 0.7);

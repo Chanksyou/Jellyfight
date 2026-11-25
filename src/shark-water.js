@@ -384,7 +384,7 @@ export function sharkWaterMaterial() {
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: true,
+    transparent: true, depthWrite: false, side: THREE.FrontSide, toneMapped: true,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
   });
   return shared;

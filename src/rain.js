@@ -26,14 +26,16 @@ const RAIN_FRAGMENT = /* glsl */`
     // a running drop in some columns, with its thin trail above it
     float col = floor(p.x / rainStreaks.x), fx = fract(p.x / rainStreaks.x) - 0.5;
     float runs = step(rainHash(vec2(col, 9.1)), rainStreaks.y) * step(0.5, ambientOn);
-    float speed = rainStreaks.z * mix(0.6, 1.4, rainHash(vec2(col, 3.3)));
-    float head = 2.6 - mod(ambientTime * speed + rainHash(vec2(col, 5.7)) * 3.0, 3.0);
-    float wob = (rainHash(vec2(col, 7.7)) - 0.5) * 0.4 + sin(p.y * 37.0 + col) * 0.06;
-    float hx = (fx - wob) * rainStreaks.x, hy = p.y - head, hr = rainDrops.x * rainDrops.z * 0.8;
-    float drop = smoothstep(hr, hr * 0.55, length(vec2(hx, hy * 0.75)));
-    float trail = step(0.0, hy) * smoothstep(rainStreaks.w, 0.0, hy) * smoothstep(hr * 0.35, hr * 0.12, abs(hx));
-    water = max(water, runs * max(drop, trail * 0.6));
-    glint = max(glint, runs * drop * smoothstep(hr * 0.5, 0.0, length(vec2(hx + hr * 0.3, hy - hr * 0.4))));
+    if (runs > 0.5) {
+      float speed = rainStreaks.z * mix(0.6, 1.4, rainHash(vec2(col, 3.3)));
+      float head = 2.6 - mod(ambientTime * speed + rainHash(vec2(col, 5.7)) * 3.0, 3.0);
+      float wob = (rainHash(vec2(col, 7.7)) - 0.5) * 0.4 + sin(p.y * 37.0 + col) * 0.06;
+      float hx = (fx - wob) * rainStreaks.x, hy = p.y - head, hr = rainDrops.x * rainDrops.z * 0.8;
+      float drop = smoothstep(hr, hr * 0.55, length(vec2(hx, hy * 0.75)));
+      float trail = step(0.0, hy) * smoothstep(rainStreaks.w, 0.0, hy) * smoothstep(hr * 0.35, hr * 0.12, abs(hx));
+      water = max(water, max(drop, trail * 0.6));
+      glint = max(glint, drop * smoothstep(hr * 0.5, 0.0, length(vec2(hx + hr * 0.3, hy - hr * 0.4))));
+    }
     return vec2(water, glint * rainDrops.w);
   }
 `;

@@ -104,6 +104,7 @@ export async function dressSurfaces(root) {
       if (surface) found.push([surface, m]);
     }
   });
+  await Promise.all([...new Set(found.map(([s]) => s.file))].map(picture));
   const copies = new Map();
   for (const [surface, m] of found) {
     const image = await picture(surface.file);

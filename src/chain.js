@@ -9,7 +9,7 @@ import * as THREE from 'three';
 
 const _d = new THREE.Vector3(), _o = new THREE.Vector3(), _r = new THREE.Vector3(), STILL = new THREE.Vector3();
 
-export function stepChain(sim, vel, goal, K, C, h, slip, sink, bend, keep, flow = STILL) {
+export function stepChain(sim, vel, goal, K, C, h, slip, sink, bend, keep, flow = STILL, segLen = null, bendLen = null) {
   const N = sim.length - 1;
   sim[0].copy(goal[0]);
   for (let j = 1; j <= N; j++) {
@@ -26,11 +26,11 @@ export function stepChain(sim, vel, goal, K, C, h, slip, sink, bend, keep, flow 
     // undo most of the fold, so it curves instead of kinking
     if (j > 1) {
       _d.copy(p).sub(sim[j - 2]);
-      const len = _d.length(), want = goal[j].distanceTo(goal[j - 2]);
+      const len = _d.length(), want = bendLen ? bendLen[j] : goal[j].distanceTo(goal[j - 2]);
       if (len < want && len > 1e-6) p.addScaledVector(_d, (want - len) / len * bend);
     }
     // keep the segment its length: it bends, it doesn't stretch
-    const seg = goal[j].distanceTo(goal[j - 1]);
+    const seg = segLen ? segLen[j] : goal[j].distanceTo(goal[j - 1]);
     _d.copy(p).sub(sim[j - 1]);
     const len = _d.length();
     if (len > 1e-6) p.copy(sim[j - 1]).addScaledVector(_d, seg / len);

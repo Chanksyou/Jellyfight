@@ -78,7 +78,7 @@ export class EncoreRecords {
     // the records: one instanced draw, always drawn (unused ones scaled to nothing) so its shader is built with the arena
     this.mesh = new THREE.InstancedMesh(recordGeometry(this.r, LOOK.color('encore-record-label', '#9bbaff')),
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }), RECORDS);
-    this.mesh.name = 'Encore records'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true;
+    this.mesh.name = 'Encore records'; this.mesh.frustumCulled = false; this.mesh.userData.noCollide = true; this.mesh.visible = false;
     for (let i = 0; i < RECORDS; i++) this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0));
     this.slots = Array.from({ length: RECORDS }, (_, i) => ({ i, cast: null }));
     // the Warnings: a floor strip and the lane over it each
@@ -175,6 +175,7 @@ export class EncoreRecords {
       }
     }
     if (dropped) this.casts = this.casts.filter((c) => c.slot.cast === c);
+    this.mesh.visible = this.casts.length > 0;
     if (this.casts.length || dropped) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
@@ -263,9 +264,10 @@ export class EncoreRecords {
   reset() {
     for (const c of this.casts) this.drop(c);
     this.casts.length = 0; this.beat = null; this.pushX = this.pushZ = 0; this.px = this.pz = null;
+    this.mesh.visible = false;
     this.mesh.instanceMatrix.needsUpdate = true;
   }
   // show the Warnings for the shader build at load (main.js warmUp)
-  warm(on) { for (const w of this.warnings) w.band.visible = w.lane.visible = on && !w.cast; }
+  warm(on) { this.mesh.visible = on || this.casts.length > 0; for (const w of this.warnings) w.band.visible = w.lane.visible = on && !w.cast; }
   dispose() { this.mesh.removeFromParent(); for (const w of this.warnings) { w.band.removeFromParent(); w.lane.removeFromParent(); } for (const o of this.owned) o.dispose(); this.mesh.dispose(); }
 }

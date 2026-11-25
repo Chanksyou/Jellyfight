@@ -1661,7 +1661,7 @@ export class Enemies {
         const q = (e.squashT / e.squashFor) ** 2, k = LOOK.num('stomp-squash', 0.55) * q;
         e.mesh.scale.y *= 1 - k; e.mesh.scale.x *= 1 + k * 0.5; e.mesh.scale.z *= 1 + k * 0.5;
       }
-      if (e.elite) { const h = e.root.getObjectByName('halo'); if (h) h.rotation.z += dt * 3; }
+      if (e.elite) { const h = e._halo !== undefined ? e._halo : (e._halo = e.root.getObjectByName('halo') || null); if (h) h.rotation.z += dt * 3; }
       if (e.recT > 0 && !e.dead && !e.proxy) {   // physical backward recoil slide from firing a projectile
         const rk = e.recT / e.recMax;
         e.recT = Math.max(0, e.recT - dt);
@@ -1681,7 +1681,8 @@ export class Enemies {
       else if (e.T.rolls) e.mesh.rotation.x += Math.hypot(e.vel.x, e.vel.z) * dt / e.r;
     }
 
-    // keep them from stacking into one blob
+    // keep them from stacking into one blob: accumulate separation forces first so each bug calls sweepSphere at most once
+    let anySep = false;
     for (let i = 0; i < list.length; i++) {
       const a = list[i];
       if (a.dead || a.proxy || a.under) continue;   // (a mound under the floor is nobody's to shove: it must stay on its Warning)
@@ -1693,8 +1694,18 @@ export class Enemies {
         const d2 = dx * dx + dz * dz;
         if (d2 >= min * min || d2 < 1e-10 || Math.abs(a.pos.y - b.pos.y) > min) continue;
         const d = Math.sqrt(d2), push = (min - d) * 0.5 / d;
-        this.move(a, S.separate.set(-dx * push, 0, -dz * push));
-        this.move(b, S.separate.set(dx * push, 0, dz * push));
+        a._sepX = (a._sepX || 0) - dx * push; a._sepZ = (a._sepZ || 0) - dz * push;
+        b._sepX = (b._sepX || 0) + dx * push; b._sepZ = (b._sepZ || 0) + dz * push;
+        anySep = true;
+      }
+    }
+    if (anySep) {
+      for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (e._sepX || e._sepZ) {
+          this.move(e, S.separate.set(e._sepX, 0, e._sepZ));
+          e._sepX = e._sepZ = 0;
+        }
       }
     }
 

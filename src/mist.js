@@ -155,7 +155,13 @@ export const MIST_GLSL = /* glsl */`
   float mistWake(vec2 p, out vec2 q) {
     q = p;
     float keep = 1.0;
-    for (int i = 0; i < 6; i++) { vec4 h = mistHoles[i]; vec2 d = p - h.xy; keep *= 1.0 - h.w * exp(-dot(d, d) / (h.z * h.z)); }
+    for (int i = 0; i < 6; i++) {
+      vec4 h = mistHoles[i];
+      if (h.w <= 0.0 || h.z <= 0.0) continue;
+      vec2 d = p - h.xy;
+      float rr = h.z * h.z, d2 = dot(d, d);
+      if (d2 < rr * 6.0) keep *= 1.0 - h.w * exp(-d2 / rr);
+    }
     vec2 dj = p - mistJ.xy;
     float rj = dot(dj, dj);
     if (rj > mistBound) return keep;
@@ -165,30 +171,38 @@ export const MIST_GLSL = /* glsl */`
       if (mistCurl > 0.0) {
         for (int i = 0; i < ${TRAIL}; i++) {   // a counter-rotating pair at each spot, one each side of the path (Lamb-Oseen: the core widens with age)
           vec4 a = mistTrail[i];
+          if (a.w <= 0.0 || a.z >= refill) continue;
           vec2 ab = mistTrail[i + 1].xy - a.xy;
           float L = length(ab);
-          if (L < 1e-3 || a.w <= 0.0) continue;
+          if (L < 1e-3) continue;
           vec2 n = vec2(-ab.y, ab.x) * (R / L);
           float R2 = mistCurlP.x + mistCurlP.y * a.z;
           float ang = mistCurl * a.w * smoothstep(0.0, 0.35, a.z) * (1.0 - smoothstep(0.3 * refill, refill, a.z)) * mistCurlP.x / R2;
+          if (abs(ang) < 1e-3) continue;
           vec2 c = a.xy + n, d = q - c;
-          q = mistSpin(q, c, ang * exp(-dot(d, d) / R2));
+          float d2 = dot(d, d);
+          if (d2 < R2 * 6.0) q = mistSpin(q, c, ang * exp(-d2 / R2));
           c = a.xy - n; d = q - c;
-          q = mistSpin(q, c, -ang * exp(-dot(d, d) / R2));
+          d2 = dot(d, d);
+          if (d2 < R2 * 6.0) q = mistSpin(q, c, -ang * exp(-d2 / R2));
         }
       }
     #endif
     vec2 qv = q;
     for (int i = 0; i < ${TRAIL}; i++) {   // the trail: a soft band along each piece, refilling (and widening a little) with age
       vec4 a = mistTrail[i], b = mistTrail[i + 1];
+      if (a.w <= 0.0 && b.w <= 0.0) continue;
       vec2 ab = b.xy - a.xy, e = qv - a.xy;
       float t = clamp(dot(e, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
       e -= ab * t;
-      float age = mix(a.z, b.z, t), s = mix(a.w, b.w, t) * (i == 0 ? mistJk.w : 1.0), rr = R * (1.0 + 0.6 * age / refill);
-      keep *= 1.0 - s * (1.0 - smoothstep(0.0, refill, age)) * exp(-dot(e, e) / (rr * rr));
+      float age = mix(a.z, b.z, t);
+      if (age >= refill) continue;
+      float s = mix(a.w, b.w, t) * (i == 0 ? mistJk.w : 1.0), rr = R * (1.0 + 0.6 * age / refill);
+      float e2 = dot(e, e), rr2 = rr * rr;
+      if (e2 < rr2 * 6.0) keep *= 1.0 - s * (1.0 - smoothstep(0.0, refill, age)) * exp(-e2 / rr2);
     }
     #ifndef LAMBERT
-      if (mistCurl > 0.0) {   // potential flow past a circle round the jelly (z + a2/z, in its own frame): the patches slide round it
+      if (mistCurl > 0.0 && mistJk.y > 0.0) {   // potential flow past a circle round the jelly (z + a2/z, in its own frame): the patches slide round it
         vec2 z = vec2(dot(dj, mistJ.zw), dot(dj, vec2(-mistJ.w, mistJ.z)));
         vec2 bend = mistJk.y * mistCurlP.z / max(rj, mistCurlP.z) * vec2(z.x, -z.y);
         q += vec2(bend.x * mistJ.z - bend.y * mistJ.w, bend.x * mistJ.w + bend.y * mistJ.z);
@@ -208,7 +222,7 @@ export const MIST_GLSL = /* glsl */`
     float c = sin((p.x + p.y) * 11.0 + sin((p.x - p.y) * 9.0 + ph * 9.0) + ph * 13.0);
     return 0.55 * a + 0.3 * b + 0.15 * c;   // soft, never clipped: thin spots fade into thick ones
   }
-  vec4 mistAt(vec3 pos, vec3 liteLight) {
+  vec4 mistAt(vec3 pos, vec3 liteLight, bool useLite) {
     if (mistK <= 0.0) return vec4(0.0);
     vec3 rv = pos - cameraPosition;
     float T = max(length(rv), 1e-3), b = 1.0 / mistH;
@@ -223,11 +237,15 @@ export const MIST_GLSL = /* glsl */`
     float f = min(1.0 - exp(-max(k * ray, 0.0)), mistMax);
     vec3 col = mistBase;
     #ifndef LAMBERT
-      vec3 g = (vec3(pos.x, 0.1, pos.z) - lbGridMin) / lbGridStep + 0.5;
-      if (lbGridGain > 0.0 && all(greaterThanEqual(g, vec3(0.0))) && all(lessThanEqual(g, lbGridDims))) col += lbGridDir(g, 2.0) * lbGridGain * mistLit;
+      if (useLite) {
+        col += liteLight * mistLit;
+      } else {
+        vec3 g = (vec3(pos.x, 0.1, pos.z) - lbGridMin) / lbGridStep + 0.5;
+        if (lbGridGain > 0.0 && all(greaterThanEqual(g, vec3(0.0))) && all(lessThanEqual(g, lbGridDims))) col += lbGridDir(g, 2.0) * lbGridGain * mistLit;
+      }
     #else
       col += liteLight * mistLit;
     #endif
     return vec4(col, f);
   }
-  vec4 mistAt(vec3 pos) { return mistAt(pos, vec3(0.0)); }`;
+  vec4 mistAt(vec3 pos) { return mistAt(pos, vec3(0.0), false); }`;

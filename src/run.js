@@ -576,12 +576,12 @@ export class Run {
   // The combined effects of your treasures (content/treasures.kdl, src/words.js): every system
   // reads these, never treasure ids
   get mods() {
-    const picks = `${this.evolved?.length || 0}/${this.upgrades?.length || 0}/${this.attack ? this.jelly : ''}`;   // evolutions and Attack upgrades taken, and the jelly type's own effects
-    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsE !== picks) {
+    const el = this.evolved?.length || 0, ul = this.upgrades?.length || 0, j = this.attack ? this.jelly : '';
+    if (this._modsOf !== this.owned || this._modsV !== this.owned.version || this._modsEL !== el || this._modsUL !== ul || this._modsJ !== j) {
       this._mods = compileMods(this.owned, this.evolved || [], this.upgrades || [], this.attack ? this.jelly : null);
       this._modsOf = this.owned;
       this._modsV = this.owned.version;
-      this._modsE = picks;
+      this._modsEL = el; this._modsUL = ul; this._modsJ = j;
     }
     return this._mods;
   }
@@ -2374,7 +2374,10 @@ export class Run {
     h.setShield(this.shield); this.shield.state = null;
     this.healthPulse = false;
     h.setXp(this.level, this.xp, xpToNext(this.level), this.purse);
-    h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
+    if (this._hudItemsOf !== this.owned || this._hudItemsV !== this.owned.version || this._hudItemsE !== this.evolved.length) {
+      this._hudItemsOf = this.owned; this._hudItemsV = this.owned.version; this._hudItemsE = this.evolved.length;
+      h.setItems([...this.evolved.map((id) => EVOLUTIONS.find((e) => e.id === id)), ...[...this.owned].map((id) => { const t = TREASURES.find((x) => x.id === id), n = this.owned.count(id); return n > 1 ? { ...t, icon: `${t.icon}<sub>×${n}</sub>` } : t; })]);
+    }
     h.setCooldowns(this.cooldowns());
     const [c0, c1] = this.stage.clock;
     const mins = c0 + (c1 - c0) * this.night;

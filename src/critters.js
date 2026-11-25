@@ -41,7 +41,7 @@ const rod = (a, b, r0, r1, hex) => tint(rodGeo(a, b, r0, r1), hex);
 const merge = (parts) => { const g = mergeGeometries(parts); g.computeVertexNormals(); g.computeBoundingSphere(); return g; };
 
 const MAT = {};
-const isLowGfx = () => typeof window !== 'undefined' && window.GAME?.gfx?.quality === 'low';
+const isLowGfx = () => typeof window !== 'undefined' && (window.gfx?.quality === 'low' || window.GAME?.gfx?.quality === 'low');
 function mats() {
   const low = isLowGfx();
   MAT.shell ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1 });

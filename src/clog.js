@@ -236,7 +236,7 @@ function buildClog(r) {
   const pin = new THREE.Mesh(pinGeo, new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.3 }));
   pin.position.set(-r * 0.7, r * 0.35, r * 0.55); pin.rotation.set(0.4, 0, 1.1);
   addProp(pin, 'twang', 1.75, 1.6);
-  const scum = new THREE.MeshPhysicalMaterial({ color: 0xe8e4d4, roughness: 0.3, transmission: 0.2, transparent: true, opacity: 0.85, clearcoat: 0.8 });
+  const scum = new THREE.MeshPhysicalMaterial({ color: 0xe8e4d4, roughness: 0.3, transparent: true, opacity: 0.85, clearcoat: 0.8 });
   for (let k = 0; k < 7; k++) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(r * (0.08 + R() * 0.08), 10, 8), scum);
     b.position.copy(new THREE.Vector3().randomDirection().multiplyScalar(r * 0.95));
@@ -1322,11 +1322,23 @@ export class Clog {
           this._rn.normalize();
         }
         this._rb.crossVectors(this._rt, this._rn);
-        const twist = j * 0.65;
+        let lut = Clog._ropeLut;
+        if (!lut) {
+          lut = Clog._ropeLut = new Float32Array((ROPE_SEG + 1) * ROPE_RAD * 3);
+          for (let sj = 0; sj <= ROPE_SEG; sj++) {
+            const tw = sj * 0.65;
+            for (let sk = 0; sk < ROPE_RAD; sk++) {
+              const ang = (sk / ROPE_RAD) * Math.PI * 2 + tw;
+              const o = (sj * ROPE_RAD + sk) * 3;
+              lut[o] = Math.cos(ang);
+              lut[o + 1] = Math.sin(ang);
+              lut[o + 2] = 1 + 0.16 * Math.cos(3 * (sk / ROPE_RAD) * Math.PI * 2 + sj * 0.9);
+            }
+          }
+        }
+        const base = j * ROPE_RAD * 3;
         for (let k = 0; k < ROPE_RAD; k++) {
-          const ang = (k / ROPE_RAD) * Math.PI * 2 + twist;
-          const braid = 1 + 0.16 * Math.cos(3 * (k / ROPE_RAD) * Math.PI * 2 + j * 0.9);   // 3-lobe twisted hair braid
-          const ca = Math.cos(ang), sa = Math.sin(ang);
+          const lo = base + k * 3, ca = lut[lo], sa = lut[lo + 1], braid = lut[lo + 2];
           const nx = this._rn.x * ca + this._rb.x * sa;
           const ny = this._rn.y * ca + this._rb.y * sa;
           const nz = this._rn.z * ca + this._rb.z * sa;

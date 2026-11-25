@@ -58,13 +58,13 @@ export class GlitterLooks {
   }
 
   update(dt) {
-    if (!this.busy) return;
-    let any = false;
+    if (!this.busy) { this.mesh.visible = false; return; }
+    let any = false, moved = false;
     const cam = this.camera.position, t0 = performance.now() / 1000;
     this.list.forEach((f, i) => {
       if (!f.life) return;
       f.t += dt;
-      if (f.t >= f.life) { f.life = 0; this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); return; }
+      if (f.t >= f.life) { f.life = 0; this.mesh.setMatrixAt(i, _m.makeScale(0, 0, 0)); moved = true; return; }
       any = true;
       if (!f.down) {
         // flutter: heavy air drag, a gentle fall, tumbling as it goes
@@ -73,17 +73,20 @@ export class GlitterLooks {
         f.p.addScaledVector(f.v, dt);
         _q.setFromEuler(_e.set(f.spin.x * dt, f.spin.y * dt, f.spin.z * dt)); f.q.multiply(_q);
         if (f.p.y <= f.floor) { f.p.y = f.floor; f.down = true; f.q.setFromUnitVectors(NORMAL, UP).multiply(_q.setFromAxisAngle(NORMAL, f.seed)); }   // lands flat
+        this.mesh.setMatrixAt(i, _m.compose(f.p, f.q, _s.setScalar(f.size)));
+        moved = true;
       }
       // the glint: bright when the flake faces you, dark edge-on, twinkling while it lies there
-      _n.copy(NORMAL).applyQuaternion(f.q); _to.copy(cam).sub(f.p).normalize();
-      // (lying flat they rarely face the camera, so on the floor each one twinkles now and then instead)
-      const sparkle = f.down ? Math.max(0, Math.sin(t0 * 5 + f.seed * 7)) ** 16 : Math.abs(_n.dot(_to)) ** 10;
+      let sparkle;
+      if (f.down) sparkle = Math.max(0, Math.sin(t0 * 5 + f.seed * 7)) ** 16;
+      else { _n.copy(NORMAL).applyQuaternion(f.q); _to.copy(cam).sub(f.p).normalize(); sparkle = Math.abs(_n.dot(_to)) ** 10; }
       const k = f.t / f.life, fade = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
       const glint = (0.6 + 3 * sparkle) * fade;
-      this.mesh.setMatrixAt(i, _m.compose(f.p, f.q, _s.setScalar(f.size)));
       this.mesh.setColorAt(i, _c.copy(f.col).multiplyScalar(glint));
     });
-    this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true;
+    this.mesh.visible = any;
+    if (moved) this.mesh.instanceMatrix.needsUpdate = true;
+    this.mesh.instanceColor.needsUpdate = true;
     this.busy = any;
   }
 

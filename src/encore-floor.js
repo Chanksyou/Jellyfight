@@ -238,21 +238,25 @@ export class EncoreFloor {
   }
 
   place(i, h) {
-    _p.set(tileX(i % N), 0, tileZ((i / N) | 0)); _s.set(1, Math.max(1e-4, h), 1);
+    _p.set(tileX(i % N), 0, tileZ((i / N) | 0));
+    if (h > 0) _s.set(1, h, 1); else _s.set(0, 0, 0);
     this.volumes.setMatrixAt(i, _m.compose(_p, _q, _s));
   }
 
   draw(band, boss) {
     const any = this.casts.length > 0;
-    if (!any && !this.lit) return;
+    if (!any && !this.lit) { this.volumes.visible = false; return; }
     const A = this.arena;
+    let hotAny = false;
     for (let i = 0; i < N * N; i++) {
       const h = this.hot[i], c = this.hotColors[this.who[i]];
       // the wave: a tile lit in its DJ's colour as it goes off, fading behind; its volume shows how high it hits
       A.setTile((i / N) | 0, i % N, c, h * this.tileGain);
       this.place(i, h > 0 ? band : 0);
       this.volumes.setColorAt(i, _c.copy(c).multiplyScalar(h * this.volumeGain));
+      if (h > 0) hotAny = true;
     }
+    this.volumes.visible = hotAny;
     this.volumes.instanceMatrix.needsUpdate = true; this.volumes.instanceColor.needsUpdate = true;
     for (const part of PARTS) A.boss.setLighting(part, this.colors[boss[part][1]], boss[part][0]);
     this.lit = any;

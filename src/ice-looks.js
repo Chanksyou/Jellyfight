@@ -97,13 +97,14 @@ export class IceLooks {
   }
 
   update(dt) {
-    if (!this.busy) return;
-    let any = false;
+    if (!this.busy) { this.shards.visible = this.flowers.visible = false; return; }
+    let anyS = false, anyF = false, dirtyS = false, dirtyF = false;
     this.list.forEach((s, i) => {
       if (!s.life) return;
+      dirtyS = true;
       s.t += dt;
       if (s.t >= s.life) { s.life = 0; this.shards.setMatrixAt(i, _m.makeScale(0, 0, 0)); return; }
-      any = true;
+      anyS = true;
       s.v.y -= 2.2 * dt; s.p.addScaledVector(s.v, dt);
       if (s.p.y < s.floor + s.size * 0.3 && s.v.y < 0) { s.p.y = s.floor + s.size * 0.3; s.v.y *= -0.3; s.v.x *= 0.5; s.v.z *= 0.5; s.spin.multiplyScalar(0.5); }   // skips off the floor
       s.rot.x += s.spin.x * dt; s.rot.y += s.spin.y * dt; s.rot.z += s.spin.z * dt;
@@ -112,16 +113,19 @@ export class IceLooks {
     });
     this.blooms.forEach((f, i) => {
       if (!f.life) return;
+      dirtyF = true;
       f.t += dt;
       if (f.t >= f.life) { f.life = 0; this.flowers.setMatrixAt(i, _m.makeScale(0, 0, 0)); return; }
-      any = true;
+      anyF = true;
       const k = f.t / f.life, grow = 1 - (1 - Math.min(1, f.t / 0.18)) ** 3;   // spreads in a blink, then fades
       this.flowers.setMatrixAt(i, _m.compose(f.p, _q.setFromEuler(_e.set(0, f.turn, 0)), _s.setScalar(f.r * grow)));
       this.flowers.setColorAt(i, _c.copy(this.frost).multiplyScalar(1.4 * (1 - k) ** 1.5));
     });
-    this.shards.instanceMatrix.needsUpdate = true;
-    this.flowers.instanceMatrix.needsUpdate = true; this.flowers.instanceColor.needsUpdate = true;
-    this.busy = any;
+    this.shards.visible = anyS;
+    this.flowers.visible = anyF;
+    if (dirtyS) this.shards.instanceMatrix.needsUpdate = true;
+    if (dirtyF) { this.flowers.instanceMatrix.needsUpdate = true; this.flowers.instanceColor.needsUpdate = true; }
+    this.busy = anyS || anyF;
   }
 
   // how many shards and flowers are showing (stories)
