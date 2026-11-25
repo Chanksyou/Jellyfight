@@ -1766,7 +1766,7 @@ export class Enemies {
       for (let i = 0; i < list.length; i++) {
         const e = list[i];
         if (e._sepX || e._sepZ) {
-          this.move(e, S.separate.set(e._sepX, 0, e._sepZ));
+          if (!e.climb) this.move(e, S.separate.set(e._sepX, 0, e._sepZ));   // (a bug on a side isn't shoved off it by the crowd)
           e._sepX = e._sepZ = 0;
         }
       }

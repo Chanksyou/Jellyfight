@@ -22,7 +22,7 @@ import { STYLES, TIERS, knobs } from './attack-motion.js';
 const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame (World.cast `out`: no hit allocated)
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
-const UP = new THREE.Vector3(0, 1, 0), _lead = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0), _lead = new THREE.Vector3(), LEAD_PROBE = [0.12, 0.25, 0.4];   // (the Mantis's lead: how far along it the floor map must reach)
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
 // Where a rotor flung now should go: you, led by `lead` of the way you will move before it arrives (its flight time, found in two steps, no more than WHIRL_LEAD_MAX)
@@ -80,7 +80,7 @@ export const ENEMY_WORDS = {
           if (toward.lengthSq() > 1e-8) toward.normalize(); else toward = c.flatDir;
           // never into furniture or a wall: the floor map must reach three points along the way (else it chases where you are)
           const N = en.nav;
-          if (toward !== c.flatDir && N && [0.12, 0.25, 0.4].some((d) => N.distAt(e.pos.x + toward.x * d, e.pos.y, e.pos.z + toward.z * d, e.r) === Infinity)) toward = c.flatDir;
+          if (toward !== c.flatDir && N) for (let i = 0; i < LEAD_PROBE.length; i++) if (N.distAt(e.pos.x + toward.x * LEAD_PROBE[i], e.pos.y, e.pos.z + toward.z * LEAD_PROBE[i], e.r) === Infinity) { toward = c.flatDir; break; }
         }
         // round the furniture by the floor map (bug-nav.js), easing from the way it was going; straight at a decoy, or where the map has nothing
         if (c.pc === c.realPc && en.nav?.steer(e, en.list, toward, c.dir, p.hug)) {
@@ -165,7 +165,7 @@ export const ENEMY_WORDS = {
           }
           return;
         }
-        if (C && e.grounded && c.speed > 0 && C.onTop(e.pos.x, e.pos.y, e.pos.z)) {   // up top: it doesn't walk (or back) off the edge
+        if (C && e.grounded && c.speed > 0 && C.onTop(e.pos.x, e.pos.y, e.pos.z) && C.onTop((c.realFoot || c.foot).x, e.pos.y, (c.realFoot || c.foot).z)) {   // up top with you: it doesn't walk (or back) off the edge (once you've gone, it walks off and drops)
           const a = e.r + 0.02;
           if (!C.onTop(e.pos.x + c.dir.x * a, e.pos.y, e.pos.z + c.dir.z * a)) c.speed = 0;
         }

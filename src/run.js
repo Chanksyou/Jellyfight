@@ -989,6 +989,7 @@ export class Run {
       else {
         const hit = this.world.cast(new THREE.Vector3(x, P.y + 0.12, z), DOWN, 0.3);
         if (!hit || Math.abs(hit.point.y - P.y) >= 0.1) continue;
+        if (this.enemies.nav?.ready && this.enemies.nav.walledIn(hit.point.x, hit.point.y, hit.point.z, TYPES[type].r)) continue;   // never in a closed pocket the floor map knows of
         at = hit.point.clone();
       }
       const center = at.clone();

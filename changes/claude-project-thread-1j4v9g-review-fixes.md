@@ -1,0 +1,1 @@
+climbing bugs come back down once you leave the furniture (they no longer wait at the edge of a table, holding up the next bugs), a crowd at one side no longer shoves a climber off it again and again, and a bug never appears shut in somewhere it can't walk out of.
