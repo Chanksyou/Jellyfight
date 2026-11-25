@@ -330,6 +330,8 @@ Most changes are edits to plain-text files, not code. `CLAUDE.md` is the full ma
 - **`content/enemies.kdl`**: every bug as a few numbers and a few behaviour words, e.g. `chase 0.3`, or `spit every=2.6 dmg=2 aim=0.7 shot="pin" still=true`.
   Each word is defined once in `src/words.js` with what its numbers mean.
   A typo stops loading with a message naming the file and line.
+  Bugs find their way round furniture by a floor map (`src/bug-nav.js`), and the Cockroach and House spider climb furniture sides (`src/bug-climb.js`).
+  Where a bug walks, how it arrives and how it times its attacks are set by `chase`, `climbs`, `hover` and the `arrive`, `attack-gap`, `notice`, `lose-track` and `startle` lines in `content/waves.kdl`.
 - **`content/waves.kdl`**: how fast bugs arrive, how many at once (living bugs only: the elites and the boss don't take a place), how much tougher they get, and from when each kind appears.
 - **`content/treasures.kdl`**: all 102 treasures, each a name, icon, text and effect words (and `stack=N` for stackable ones, or `level 2 text="…" { … }` / `level 3 …` blocks for ones that level up), e.g. `pierce 3`, `crit chance=0.2 mult=3`, or `every 5 { ring 0.13 dmg=1 push=0.035 }`.
   A new treasure that combines existing effects needs no code.
