@@ -1739,26 +1739,23 @@ export class Elites {
             if (!e.driftDashed) {
               e.driftDashed = true; e.clearTele();
               sfx.controllerDrift(); juice.feel('impact');
+              e.controllerKick = 1; e.springYV += 2.4;
               this.fx.impact(surf.clone().setY(surf.y + 0.01), hostile('controller'), 0.03, 10);
+              const pulse = this.volume(hostile('controller'), 'lane', surf, new THREE.Vector3(D.width, D.height, e.driftLen));
+              pulse.rotation.y = e.holder.rotation.y; pulse.material.progress = 1;
+              this.controllerPulses.push({ m: pulse, t: 0, life: D.dash + 0.12 });
             }
             const u = (s - D.windup) / D.dash, ease = 1 - Math.pow(1 - u, 3);
-            e.holder.position.lerpVectors(e.base, e.driftTo, ease);
-            g.rotation.x = 0.18 * (1 - ease);
-            if (!quiet && Math.random() < dt * 28) this.fx.puff(e.holder.position.clone().setY(e.base.y + 0.01), 0x80c8ff, 0.015, 0.25);
-            if (!e.driftHit && laneHits(e.base, e.driftDir, e.driftLen, D.width, D.height, P, cfg)) {
-              e.driftHit = true; hit(D.dmg, 'controller', e.holder.position); knock(e.holder.position, D.push);
+            g.rotation.x = 0.24 * (1 - ease);
+            const waveAt = this._mid.lerpVectors(e.base, e.driftTo, ease);
+            if (!quiet && Math.random() < dt * 32) this.fx.puff(waveAt.clone().setY(e.base.y + 0.015), 0x80c8ff, 0.018, 0.25);
+            if (!e.driftHit && laneHits(e.base, e.driftDir, e.driftLen * ease, D.width, D.height, P, cfg)) {
+              e.driftHit = true; hit(D.dmg, 'controller', waveAt); knock(e.base, D.push);
               this.fx.impact(pc, hostile('controller'), 0.03, 10); sfx.controllerHit(); juice.feel('impact-big');
             }
-          } else if (s < D.windup + D.dash + ret) {
-            if (!e.driftRet) {
-              e.driftRet = true; e.springYV += 2.2;
-              this.fx.splat(e.driftTo.clone().setY(e.driftTo.y + 0.002), LOOK.color('controller-scuff', '#514949'), 0.018, 'dust');
-            }
-            const u = (s - D.windup - D.dash) / ret;
-            e.holder.position.lerpVectors(e.driftTo, e.base, u);
-            e.holder.position.y = e.base.y + Math.sin(u * Math.PI) * 0.035;
           } else {
-            e.holder.position.copy(e.base); e.clearTele(); e.springYV -= 1.6;
+            this.fx.splat(e.driftTo.clone().setY(e.driftTo.y + 0.002), LOOK.color('controller-scuff', '#514949'), 0.018, 'dust');
+            e.clearTele(); e.springYV -= 1.4;
             for (const key of ['driftDir', 'driftTo', 'driftLen', 'driftHit', 'driftDashed', 'driftRet']) delete e[key];
             e.locked = false; e.state = 'idle'; e.cool = D.rest;
           }
