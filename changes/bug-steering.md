@@ -1,0 +1,1 @@
+makes walking bugs find their way round furniture by the floor map instead of walking straight at you and getting stuck behind it, and spread out round each other on the way in; with you up on furniture they gather on the floor under you.

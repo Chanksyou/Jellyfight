@@ -22,6 +22,7 @@ const WALL_HIT = hitSpot();   // a dive's or bite's wall ahead, cast every frame
 
 const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 const broodCount = (en, e) => { let n = 0; for (const x of en.list) if (!x.dead && x.motherId === e.id) n++; return n; };   // a nest's live brood (the brood word)
 
 export const ENEMY_WORDS = {
@@ -47,13 +48,19 @@ export const ENEMY_WORDS = {
     },
   },
   chase: {
-    doc: 'Walks straight at you at `speed` m/s. With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
+    doc: 'Walks at you at `speed` m/s, round the furniture by the floor map and spreading round other bugs (straight at you where the map has nothing). With `stop` (m), a ranged bug keeps its distance: it stops that far from you and backs away (at `back` times its speed) when you come closer than 3/4 of it. With `weave` (radians), it snakes from side to side as it comes, `rate` swings a second. With `turn` (radians a second), it can only turn that fast, so it swings round in arcs instead of pivoting.',
     args: ['speed'],
     props: { stop: 0, back: 0.6, weave: 0, rate: 2.5, turn: 0 },
     make: ([speed], p) => ({
       ground: true,
-      tick(e, c) {
-        c.dir.copy(c.flatDir);
+      tick(e, c, en) {
+        // round the furniture by the floor map (bug-nav.js), easing from the way it was going; straight at a decoy, or where the map has nothing
+        if (c.pc === c.realPc && en.nav?.steer(e, en.list, c.flatDir, c.dir)) {
+          const h = (e.navDir ||= c.dir.clone());
+          h.lerp(c.dir, 1 - Math.exp(-STEER_EASE * c.dt));
+          if (h.lengthSq() < 1e-6) h.copy(c.dir);
+          c.dir.copy(h.normalize());
+        } else { c.dir.copy(c.flatDir); e.navDir?.copy(c.flatDir); }
         if (p.weave) c.dir.applyAxisAngle(UP, Math.sin(c.t * p.rate * Math.PI + e.phase) * p.weave);
         if (p.turn) {
           // its heading swings toward where it wants to go, no faster than `turn`
