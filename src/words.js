@@ -859,6 +859,7 @@ export function newMods() {
     rebirth: null,                   // rebirth: { time } once an act, a killing blow makes you a polyp for a while
     shield: { faster: 0, sooner: 0, fullDamage: 0, bursts: [], fromHealth: false, near: [], invuln: 0 },   // the Shield stat's treasures (src/shield.js)
     rebound: false, decoy: null, fireTrail: null,
+    wake: null,                      // wake: { time, radius, slow, dmg, blast, ignite, cooldown } a slowing trail a jump sets off (src/wake.js)
     tether: null,                    // tether: { every, time, range, dps, tick, width } a beam to a hit bug that cuts what it touches (src/tether.js)
     noRegen: false,                  // no-regen: Health regen does nothing (true), or only once rebirth has saved you ('revived')
     touch: null,                     // touch-sting: { dmg, every, reach }
@@ -1319,6 +1320,14 @@ export const TREASURE_WORDS = {
     make: (_, p) => {
       if (!(p.time > 0 && p.radius > 0 && p.height > 0 && p.dps > 0 && p.tick > 0)) throw new Error('fire-trail: time, radius, height, dps and tick must be positive');
       return m => { m.fireTrail = { ...p }; };
+    },
+  },
+  'wake': {
+    doc: 'Swimming along anything you stand on leaves a glowing trail `radius` m either side of your path that lasts `time` s. Bugs walking in it lose `slow` (0.3 = 30%) of their speed (Elites and the Boss only a light slow; flying bugs not at all). Jumping off the ground sets the whole trail off: a pulse runs from you to its far end in `ignite` s, and every piece goes off as a Blast `blast` m round for `dmg` x Attack damage (each bug hit once). That uses the trail up; at most once every `cooldown` s. A mid-air jump sets nothing off.',
+    props: { time: 4, radius: 0.018, slow: 0.3, dmg: 2, blast: 0.04, ignite: 0.3, cooldown: 1 },
+    make: (_, p) => {
+      if (!(p.time > 0 && p.radius > 0 && p.slow > 0 && p.slow < 1 && p.dmg > 0 && p.blast > 0 && p.ignite > 0 && p.cooldown >= 0)) throw new Error('wake: time, radius, dmg, blast and ignite must be positive, slow between 0 and 1, cooldown 0 or more');
+      return (m) => { m.wake = { ...p }; };
     },
   },
   'tether': {
