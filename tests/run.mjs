@@ -84,6 +84,7 @@ const JOBS = num('--jobs=', 3), BOOTS = num('--boots=', 2);
 const LIVE = JOBS === 1;
 const STORY_MS = num('--story-timeout=', 240) * 1000;
 class StoryHang extends Error {}
+const SMALL = Number((args.find((a) => a.startsWith('--small=')) || '').slice(8)) || 0.25;
 // Closing a page or the browser waits for the software GPU to finish every frame it was handed; the stories are done by then, so give up after a minute (the process exit ends the browser).
 const quit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 60000))]);
 let free = BOOTS; const waiting = [];
@@ -98,7 +99,7 @@ const gate = async (f) => {
 // shown(page, f) puts the picture back for a failure screenshot.
 const prep = async (page) => page.evaluate(() => { APT.renderer.setAnimationLoop(null); APT.renderer.domElement.style.opacity = '0'; });
 const shown = async (page, f) => {
-  await page.evaluate(() => { APT.renderer.domElement.style.opacity = ''; GAME.render(); }).catch(() => {});
+  await page.evaluate(async () => { APT.renderer.setPixelRatio(1); (await import('/src/stories/kit.js')).G().gfx.resize(); APT.renderer.domElement.style.opacity = ''; GAME.render(); }).catch(() => {});
   try { return await f(); } finally { await page.evaluate(() => { APT.renderer.domElement.style.opacity = '0'; }).catch(() => {}); }
 };
 const boot = (e, opts) => gate(async () => { const got = await openGame(e, { ...opts, seed: SEED }); await prep(got.page); return got; });
@@ -217,6 +218,8 @@ await Promise.all(envs.slice(1).map((e) => quit(e.close())));
 async function playAll(page, errors, names, out = []) {
   for (const name of names) {
     const before = errors.length;
+    // frames are drawn in software and their cost is paid later, in bulk: stories that never look at the picture draw it small
+    await page.evaluate(async ({ ratio }) => { APT.renderer.setPixelRatio(ratio); (await import('/src/stories/kit.js')).G().gfx.resize(); }, { ratio: readback.has(name) ? 1 : SMALL }).catch(() => {});
     let timer;
     const r = await Promise.race([
       page.evaluate(async ({ name, seed }) => (await import('/src/stories.js')).runStory(name, seed), { name, seed: SEED }),
