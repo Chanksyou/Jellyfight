@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v722 - **Act 1 Elites overhaul (The Mug, The Kettle, The Controller)**: - Shared physicality springs: volume-preserving squash-and-stretch, lateral hit stagger, wake-up hops with dust puffs, reactive eye expressions, <50% HP micro-life, and themed death debris bursts (respecting Reduced Motion / Calm mode). - **The Mug**: inertial coffee slosh, pendulum spoon spring, caffeinated hop-turns, and new **Espresso Ring (`stir`)** attack (spoon whips a jumpable scalding coffee ring across the desk). - **The Kettle**: spring-driven lid chatter, boiler breath, damped metallic lid bounces + arc-back re-cap on `boil-dry`, and new **Pressure Whistle Sweep (`whistle`)** attack (rising tea-kettle whistle into a 90° sweeping steam jet). - **The Controller**: live thumbstick tracking, D-pad rocking during `arrow`, trigger clamping and light-bar color flashes on `barrage`/`rumble`, and new **Stick Drift Dash (`drift`)** attack (clamped platform skid-dash with spring-hop return).
+
 v721 makes bugs a little more alive: a bug the night sends out stands head up for about half a second before it moves, the floor bugs lose you for a moment when you go up a vent or onto furniture, and a bug beside one that dies steps aside.
 
 v720 new bugs no longer pop up in plain sight: they come in out of the camera's view, crawling out from under the edge of furniture (or out of a floor vent) a short walk away, and fliers come down from above. A first run's first few bugs still appear close by in view.

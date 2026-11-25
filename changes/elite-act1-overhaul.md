@@ -1,5 +1,0 @@
-- **Act 1 Elites overhaul (The Mug, The Kettle, The Controller)**:
-  - Shared physicality springs: volume-preserving squash-and-stretch, lateral hit stagger, wake-up hops with dust puffs, reactive eye expressions, <50% HP micro-life, and themed death debris bursts (respecting Reduced Motion / Calm mode).
-  - **The Mug**: inertial coffee slosh, pendulum spoon spring, caffeinated hop-turns, and new **Espresso Ring (`stir`)** attack (spoon whips a jumpable scalding coffee ring across the desk).
-  - **The Kettle**: spring-driven lid chatter, boiler breath, damped metallic lid bounces + arc-back re-cap on `boil-dry`, and new **Pressure Whistle Sweep (`whistle`)** attack (rising tea-kettle whistle into a 90° sweeping steam jet).
-  - **The Controller**: live thumbstick tracking, D-pad rocking during `arrow`, trigger clamping and light-bar color flashes on `barrage`/`rumble`, and new **Stick Drift Dash (`drift`)** attack (clamped platform skid-dash with spring-hop return).
