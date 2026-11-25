@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v721 makes bugs a little more alive: a bug the night sends out stands head up for about half a second before it moves, the floor bugs lose you for a moment when you go up a vent or onto furniture, and a bug beside one that dies steps aside.
+
 v720 new bugs no longer pop up in plain sight: they come in out of the camera's view, crawling out from under the edge of furniture (or out of a floor vent) a short walk away, and fliers come down from above. A first run's first few bugs still appear close by in view.
 
 v719 spaces out bug attacks: no bug starts its wind-up within 0.3 s of another bug's, so a crowd's hits land one after another instead of all at once (bugs on screen go first). Elites, Bosses and the act 4 bugs that keep time with the music aren't held.
