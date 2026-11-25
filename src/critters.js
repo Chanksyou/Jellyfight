@@ -1352,6 +1352,7 @@ export function buildMillipede() {
   anim.reset = () => { t = 0; move = 0; W.length = 0; body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); body.scale.set(1, 1, 1); face.children.forEach((c) => { c.scale.y = 1; c.rotation.x = 0; }); };
   return {
     body: outer, face: new THREE.Group(), anim, ballRadius: spiral.radius,
+    shadowLinks: segs.map((S) => S.seg),   // its shadow: a soft spot under each link of the chain, so it bends as the body does (systems.js)
     deathParts: [segs[3].shell],
     deathRig: { detach: [segs[3].shell, segs[7].shell, segs[11].shell, segs[15].shell, segs[19].shell, segs[23].shell], split: [segs[0].seg, segs[12].seg] },
   };   // radius units: how big the rolling ball is
