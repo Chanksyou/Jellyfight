@@ -25,6 +25,16 @@ const _away = new THREE.Vector3(), _spot = new THREE.Vector3(), _want = new THRE
 const UP = new THREE.Vector3(0, 1, 0), _lead = new THREE.Vector3();
 const RHYTHM_FROM = () => LOOK.num('bug-rhythm-from', 0.5), SIDE_AFTER = 3;   // rhythms only farther out than this (m); a ranged bug side-steps after holding this long (s)
 const FILE_PULL = 3, FAN_SPEED = 0.6;   // how hard a file's leader pulls a bug round, and how fast a fan slides (of its speed)
+// Where a rotor flung now should go: you, led by `lead` of the way you will move before it arrives (its flight time, found in two steps, no more than WHIRL_LEAD_MAX)
+function aimAhead(e, c, en, p) {
+  e.whirlAt.copy(c.pc);
+  const v = p.lead ? en.player?.velocity : null;
+  if (!v || v.x * v.x + v.z * v.z < 1e-4) return;
+  let t = 0;
+  for (let i = 0; i < 2; i++) t = Math.min(WHIRL_LEAD_MAX, Math.hypot(c.pc.x + v.x * t - e.pos.x, c.pc.z + v.z * t - e.pos.z) / p.speed);
+  e.whirlAt.x += v.x * t * p.lead; e.whirlAt.z += v.z * t * p.lead;
+}
+const WHIRL_LEAD_MAX = 1.5;
 const LEAD_NEAR = 0.1, SWAP_LEAD = 0.3, JERK_SHARE = 0.2;   // the part of each `jerk` run the bug spends turning
 const STEER_EASE = 8;   // how fast a walking bug's heading follows the floor map's way (per second): no jitter between squares
 // An attack word starts its attack only through go(c): false while c.wait (the attack gap, or on-beat off the beat), and a start
@@ -466,9 +476,9 @@ export const ENEMY_WORDS = {
   },
 
   whirlwind: {
-    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a spinning rotor of two blades in front of it for `windup` s (the blades grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m in radius at `speed` m/s for up to `life` s. `count` rotors fly in a row along that line, `gap` s apart. Touching one: `dmg`. It rests `rest` s after the last. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
+    doc: 'Within `range` m every `every` s or so, holds still while its wings whip up a spinning rotor of two blades in front of it for `windup` s (the blades grow and blur, air drawn into them, a rising whirr; the aim locks `lock` of the way through), then flings it at your middle: a Shot `size` m in radius at `speed` m/s for up to `life` s. With `lead` (0 to 1: 0 aims at where you are, 1 at where you will be when it arrives, no more than 1.5 s ahead), a moving jelly is led while the aim still tracks; once it locks, the line is fixed as ever. `count` rotors fly in a row along that line, `gap` s apart. Touching one: `dmg`. It rests `rest` s after the last. Freezing, stunning or a dodge breaks it off. List it after the flying word.',
     phases: { whirl: 'build', 'whirl-rest': 'fire' }, thrown: true, lock: { whirl: (p) => p.lock }, timer: { whirl: 'whirlT', 'whirl-rest': 'whirlT' },   // how its attack moves (src/attack-motion.js)
-    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.061, life: 2.2, count: 3, gap: 0.3, dmg: 2, rest: 0.5 },
+    props: { range: 0.6, every: 4, windup: 0.7, lock: 0.6, speed: 0.45, size: 0.061, life: 2.2, count: 3, gap: 0.3, dmg: 2, rest: 0.5, lead: 0 },
     make: (_, p) => ({
       init(e) { e.whirlCd = 4 + Math.random() * 2; e.whirlAt = new THREE.Vector3(); e.whirlK = 0; e.whirlKick = 0; e.whirlT = 0; e.whirlVol = 0; e.whirlGap = 0; },
       tick(e, c, en) {
@@ -485,7 +495,7 @@ export const ENEMY_WORDS = {
           e.vel.set(0, 0, 0);
           e.whirlT -= c.dt;
           e.whirlK = Math.min(1, 1 - e.whirlT / p.windup);
-          if (e.whirlK < p.lock) { e.whirlAt.copy(c.pc); e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z); }
+          if (e.whirlK < p.lock) { aimAhead(e, c, en, p); e.root.rotation.y = Math.atan2(c.toP.x, c.toP.z); }
           if (e.whirlT <= 0) { en.whirlFling(e, e.whirlAt, p); e.whirlK = 0; e.whirlKick = 0.2; e.state = 'whirl-rest'; e.whirlT = p.rest; e.whirlVol = p.count - 1; e.whirlGap = p.gap; }
         } else if (e.state === 'whirl-rest') {
           if (e.whirlVol > 0) {                               // the rest of the volley, along the same line
@@ -497,7 +507,7 @@ export const ENEMY_WORDS = {
         } else if (e.state === 'approach' && live && !e.flyHeld && e.whirlCd <= 0 && c.dist < p.range && go(c)) {
           e.state = 'whirl'; e.whirlT = p.windup; e.whirlK = 0; e.flyHeld = true; e.faceLock = true;   // its own timer: other attack words run stateT down too
           e.vel.set(0, 0, 0);
-          e.whirlAt.copy(c.pc);
+          aimAhead(e, c, en, p);
           en.whirlCharge(e, p);
         }
       },
