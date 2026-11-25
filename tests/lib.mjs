@@ -82,7 +82,7 @@ export async function openGame({ url, browser }, { act, seed, newPlayer = false,
   }
   await page.goto(url, { waitUntil: 'commit', timeout: 180000 });   // the wait below is for the game; the page's own "load" can take past 30 s on a busy runner
   try {
-    await page.waitForFunction(() => window.GAME && window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 180000 });
+    await page.waitForFunction(() => window.GAME && window.run && document.querySelector('#g-over .play') && !document.querySelector('#g-over .play').disabled, null, { timeout: 240000 });
   } catch {
     // the game didn't start: show what it says on screen (content errors name the file and line)
     console.log('✗ the game did not start\n    ' + (await page.evaluate(() => document.body.innerText.slice(0, 600)).catch(() => '')).replace(/\n+/g, '\n    '));

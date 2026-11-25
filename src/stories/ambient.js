@@ -183,7 +183,7 @@ story('ambient/clog-fight-curtain-still-faint-and-moving', {
 
 // --- Dendi asleep in his box by the cat scratcher (acts 1 and 4; cat.js addDendi, a stage's `cat`)
 const BOX = [4.155, 0.006, 4.53];
-const drawn = (n) => { for (let i = 0; i < n; i++) { G().GAME.step(1 / 60); G().GAME.render(); } };
+const drawn = (n, dt = 1 / 60) => { for (let i = 0; i < n; i++) { G().GAME.step(dt); G().GAME.render(); } };
 const calls = () => { const R = G().APT.renderer; R.info.reset(); R.info.autoReset = false; G().GAME.render(); const c = R.info.render.calls; R.info.autoReset = true; return c; };
 function asleepInBox() {
   const d = G().dendi;
@@ -208,19 +208,21 @@ story('ambient/dendi-breathes-in-view-and-costs-nothing-out-of-it', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); stub(juice, 'calm', false); },
   play() {
     const { dendi: d, tpc } = G(), spine = () => d.bones.spine.quaternion.clone();
-    const look = (yaw, x = 3.95, z = 4.05) => { tp(x, 0, z, yaw); tpc.yaw = yaw; tpc.snapTo(G().player.position); drawn(10); };
+    // Dendi's sleep pose steps at 12 fps while seen (onBeforeRender); 0.1 s per render advances his breath
+    // without queueing ~180 full composer frames onto CI's software GPU.
+    const look = (yaw, x = 3.95, z = 4.05) => { tp(x, 0, z, yaw); tpc.yaw = yaw; tpc.snapTo(G().player.position); drawn(2, 0.1); };
     // in view: he moves, and costs his draws
     look(Math.PI);
-    const a = spine(); drawn(40); const breathes = a.angleTo(spine()) > 1e-4;
+    const a = spine(); drawn(6, 0.1); const breathes = a.angleTo(spine()) > 1e-4;
     const withCat = calls(); d.group.visible = false; const without = calls(); d.group.visible = true;
     // out of view: no posing, no draw
     look(0, 3.5, 3.0);
-    const b = spine(); drawn(60); const still = b.equals(spine());   // (equals, not angleTo: a quaternion that isn't exactly unit is a tiny angle from itself)
+    const b = spine(); drawn(3, 0.1); step(40); const still = b.equals(spine());   // (equals, not angleTo: a quaternion that isn't exactly unit is a tiny angle from itself)
     const awayWith = calls(); d.group.visible = false; const awayWithout = calls(); d.group.visible = true;
     // Reduce effects: one pose, held
     look(Math.PI);
-    juice.calm = true; drawn(5);
-    const c = spine(); drawn(40); const calm = c.equals(spine());
+    juice.calm = true; drawn(2, 0.1);
+    const c = spine(); drawn(5, 0.1); const calm = c.equals(spine());
     juice.calm = false;
     return ok(breathes && still && awayWith === awayWithout && withCat > without && calm,
       { breathes, still, drawsInView: withCat - without, drawsAway: awayWith - awayWithout, calm });
@@ -251,7 +253,7 @@ story('ambient/rain-adds-no-draws', {
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const panes = rainyPanes(), { tpc } = G();
-    tp(3.4, 0, 0.9, 0); tpc.yaw = 0; tpc.snapTo(G().player.position); drawn(10);
+    tp(3.4, 0, 0.9, 0); tpc.yaw = 0; tpc.snapTo(G().player.position); drawn(2);
     const wet = calls(), u = panes[0]?.material.userData.rain, was = u?.rainTint.value.w;
     if (u) u.rainTint.value.w = 0;
     const dry = calls();
