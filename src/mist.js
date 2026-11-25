@@ -45,7 +45,7 @@ export const MIST = {
   part: { every: 0.5, step: 0.3, hit: 0, hitSize: 3, refill: 2.5, vent: 0.6, ventR: 0.12, ventGust: 1.5, curl: 2 },
 };
 
-const S = { at: null, x: 0, z: 0, hx: 1, hz: 0, since: 0, moved: 0, hits: [0, 0, 0], next: 0, vents: [null, null, null] };   // the trail's own clock and the last place it was seen
+const S = { at: null, x: 0, z: 0, hx: 1, hz: 0, since: 0, moved: 0, hits: [0, 0, 0], next: 0, flow: 0, vents: [null, null, null] };   // the trail's own clock and the last place it was seen
 
 // act: (name, fallback) readers with the act's own mood (main.js actNum / actColor)
 export function readMist(num, color, off) {
@@ -62,7 +62,7 @@ export function readMist(num, color, off) {
   const P = MIST.part, refill = num('mist-part-refill', 2.5), core = num('mist-curl-core', 0.08), flowR = num('mist-curl-flow-radius', 0.2);
   Object.assign(P, { refill, every: refill / (TRAIL - 1), step: num('mist-part-step', 0.3), hit: num('mist-hole', 0.9), hitSize: num('mist-hole-size', 3),
     vent: num('mist-vent', 0.6), ventR: num('mist-vent-radius', 0.12), ventGust: num('mist-vent-gust', 1.5), curl: num('mist-curl', 2),
-    part: num('mist-part', 0.85), flow: num('mist-curl-flow', 1), lift: num('mist-part-lift', 0.3) });
+    part: num('mist-part', 0.85), flow: num('mist-curl-flow', 1), ease: Math.max(0.01, num('mist-curl-ease', 0.5)), lift: num('mist-part-lift', 0.3) });
   U.mistJk.value.z = num('mist-part-radius', 0.14);
   U.mistPartP.value.set(num('mist-part-trail', 0.1), refill, 0, 0);
   U.mistCurlP.value.set(core * core, num('mist-curl-spread', 0.004), flowR * flowR, 0);
@@ -101,10 +101,11 @@ export function updateMist(dt, calm, vents = [], air = null) {
   if (!S.at || d > 1) {   // a first frame or a jump (a new act, a teleport): no trail across the room
     for (const t of trail) t.set(wake.x, wake.z, P.refill, 0);
     S.at = true; S.since = 0; S.moved = 0;
-  } else if (d > 1e-4) { S.hx += (dx / d - S.hx) * 0.3; S.hz += (dz / d - S.hz) * 0.3; }
+  } else if (d > 1e-4) { const a = 1 - Math.exp(-dt / P.ease); S.hx += (dx / d - S.hx) * a; S.hz += (dz / d - S.hz) * a; }
+  S.flow += (wake.w - S.flow) * (1 - Math.exp(-dt / P.ease));   // starts and stops ease in and out over --mist-curl-ease s
   S.x = wake.x; S.z = wake.z; S.moved += d; S.since += dt;
   for (let i = 0; i < TRAIL; i++) trail[i].z += dt;
-  now.set(wake.x, wake.z, 0, k * (0.5 + 0.5 * wake.w));
+  now.set(wake.x, wake.z, 0, k * (0.5 + 0.5 * S.flow));
   if (S.since >= P.every || S.moved >= P.step) {   // drop a spot: the oldest slot becomes the newest (no allocation)
     const old = trail[0];
     for (let i = 0; i < TRAIL - 1; i++) trail[i] = trail[i + 1];
@@ -114,7 +115,7 @@ export function updateMist(dt, calm, vents = [], air = null) {
   const hl = Math.hypot(S.hx, S.hz) || 1;
   U.mistJ.value.set(wake.x, wake.z, S.hx / hl, S.hz / hl);
   U.mistJk.value.x = P.part * k;
-  U.mistJk.value.y = P.flow * k * wake.w;
+  U.mistJk.value.y = P.flow * k * S.flow * Math.min(1, hl);   // (a quick turn back shrinks the heading first, so the flow fades through it instead of flipping)
   U.mistJk.value.w = 1 - Math.min(1, Math.max(S.since / P.every, S.moved / P.step));   // the oldest piece fades out before its slot is reused
   let far = 0;
   for (const t of trail) far = Math.max(far, Math.hypot(t.x - wake.x, t.y - wake.z));
