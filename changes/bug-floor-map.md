@@ -1,1 +1,0 @@
-adds the bugs' floor map: 5 cm squares over each act's floor and the Clog's tub, marked at load with the same body test a walking bug makes, and a walking distance to the jelly that goes round furniture, flooded off the frame clock. No bug uses it yet; the dev panel's Bug map switch shows it.

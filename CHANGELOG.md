@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v707 adds the bugs' floor map: 5 cm squares over each act's floor and the Clog's tub, marked at load with the same body test a walking bug makes, and a walking distance to the jelly that goes round furniture, flooded off the frame clock. No bug uses it yet; the dev panel's Bug map switch shows it.
+
 v706 brightens Low graphics to match Medium: Low's plain materials now receive an environment fill matching the room's night/dawn fill (respecting baked corner shadows) and light the ground mist with the room's already-sampled baked light instead of darkening the floor toward flat mist colour, with no extra draw calls or texture reads.
 
 v705 speeds up startup loading and removes the freeze at 97% by sharing WebGL programs across standOut/fireChurn uniforms, draining ready shaders without head-of-line blocking, and running the post-processing warm-up on the clean culled scene.
