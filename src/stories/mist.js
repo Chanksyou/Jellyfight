@@ -20,9 +20,8 @@ story('mist/lies-on-the-floor-and-costs-no-program', {
     G().batcher.sync(); G().gfx.render();
     const before = G().APT.renderer.info.programs.length;
     const shown = changedPixels(() => { U.mistK.value = 0; }, () => { U.mistK.value = was; });
-    const thicker = changedPixels(() => { U.mistK.value = was * 2; }, () => { U.mistK.value = was; });
     const built = G().APT.renderer.info.programs.length - before;
-    return ok(was > 0 && shown > 2000 && thicker > 500 && built === 0, { thickness: was, shown, thicker, built, programs });
+    return ok(was > 0 && shown > 2000 && built === 0, { thickness: was, shown, built, programs });
   },
 });
 

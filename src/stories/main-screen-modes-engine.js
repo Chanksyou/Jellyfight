@@ -12,6 +12,7 @@ import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
 import { BAKED_AO, fingerprint } from '../baked-ao.js';
 import { BAKED_LIGHT, bakeFingerprint, setBakedLight } from '../baked-light.js';
+import { MIST } from '../mist.js';
 import { NEEDS, PRICES, FEATS_KEY, PEARLS_KEY, lifetime, requirement, requirementText, unlocked, bank, pearlsFor, feats } from '../cosmetics.js';
 import { FOUND_KEY } from '../collection.js';
 import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '../character.js';
@@ -1394,13 +1395,15 @@ story('engine/baked-light-lights-the-furniture', {
       for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { gl.readPixels(x + i, y + j, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); sum += px[0] + px[1] + px[2]; }
       return sum / 9;
     };
+    const mist = MIST.uniforms.mistK.value;
     try {
+      MIST.uniforms.mistK.value = 0;   // (this measures the lamps' light: the ground mist would wash both pictures)
       setBakedLight(true);
       const baked = at(); GAME.toggleLamps(); const bakedDark = at(); GAME.toggleLamps();
       setBakedLight(false);
       const live = at(); GAME.toggleLamps(); const liveDark = at(); GAME.toggleLamps();
       return ok(bakedDark > baked * 0.8 && liveDark < live * 0.75 && baked > 20, { spot: spot.toArray(), baked, bakedDark, live, liveDark });
-    } finally { setBakedLight(true); }
+    } finally { setBakedLight(true); MIST.uniforms.mistK.value = mist; }
   },
 });
 story('engine/baked-ao-shades-corners', {
