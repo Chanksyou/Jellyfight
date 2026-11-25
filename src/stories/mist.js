@@ -15,6 +15,7 @@ function changedPixels(change, undo) {
 }
 
 story('mist/lies-on-the-floor-and-zero-is-none', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The ground mist changes the room\'s picture (the floor reads mistier than with it capped at nothing); --mist at 0 (or ?mist=0) draws none of it; and neither is a new shader in play, only a number.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.4, 0.05, 2.6, 0.8); step(10); },
   async play() {
@@ -43,6 +44,7 @@ story('mist/the-patches-hold-still-in-reduce-effects', {
 });
 
 story('mist/the-jelly-and-bugs-sit-in-it-a-little', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The jelly and the bugs take the mist at --mist-actors of its strength through the baked-light tint (no extra shader), so they sit in the fog and stay readable; turning it to nothing changes how they are drawn.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); },
   async play() {
@@ -87,6 +89,7 @@ function hideJelly(move) {
 }
 
 story('mist/parts-round-the-jelly-and-fills-back-in', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
   about: 'The mist is thinner where the jelly is than with nothing parting it, and no thinner 60 cm off; a spot the jelly swam through is thinner just after and back to full once --mist-part-refill has passed; a big hit punches a hole too. None of it builds a shader in play.',
   setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(3.2, 0.05, 3.0, 0); },
   async play() {
