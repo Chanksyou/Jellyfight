@@ -59,12 +59,14 @@ export class EncoreLasers {
     // the emitters: a dark housing with a green lens on each corner post
     const box = new THREE.BoxGeometry(0.03, 0.022, 0.03), lens = new THREE.CircleGeometry(0.011, 16);
     this.housing = new THREE.MeshStandardMaterial({ color: '#0c1014', roughness: 0.5, metalness: 0.6 });
-    this.lensMat = new THREE.MeshBasicMaterial({ color: this.color, toneMapped: false });
-    this.owned = [box, lens, this.housing, this.lensMat];
-    this.lenses = CORNERS.map(([x, z]) => {
+    this.lensMats = CORNERS.map(() => new THREE.MeshBasicMaterial({ color: this.color, toneMapped: false }));
+    this.lensMat = this.lensMats[0];
+    this.owned = [box, lens, this.housing, ...this.lensMats];
+    this.housings = [];
+    this.lenses = CORNERS.map(([x, z], i) => {
       const h = new THREE.Mesh(box, this.housing); h.position.set(x, this.height, z); h.lookAt(0, this.height * 0.4, 0); h.userData.noCollide = true;
-      const l = new THREE.Mesh(lens, this.lensMat); l.position.set(0, 0, 0.0155); h.add(l); l.userData.noCollide = true;
-      this.root.add(h); return l;
+      const l = new THREE.Mesh(lens, this.lensMats[i]); l.position.set(0, 0, 0.0155); h.add(l); l.userData.noCollide = true;
+      this.root.add(h); this.housings.push(h); return l;
     });
     // the pool: a plane and its floor band each
     this.pool = Array.from({ length: POOL }, () => {
@@ -123,12 +125,12 @@ export class EncoreLasers {
     const skip = this.beat !== null && beat - this.beat > 1;
     this.beat = beat;
     const lead = this.lead, fire = LOOK.num('encore-laser-fire', 1), fade = 0.25;
-    let lit = 0;
+    const lit = [0, 0, 0, 0];
     for (const c of this.casts) {
       const { plane, band } = c.slot, u = beat - c.at;
       if (u < -lead) { plane.visible = band.visible = false; continue; }
       if (!c.on) c.on = c.target?.() ?? [0, 0.3];                          // aimed as its Warning starts
-      const s = Math.min(1, Math.max(0, u / fire));
+      const lin = Math.min(1, Math.max(0, u / fire)), s = lin * lin * (3 - 2 * lin);
       // the floor band: a thin line where it will land, flashing on each half beat until it fires
       const { ux, uz, far } = this.line(c, 0), w = LOOK.num('encore-laser-band', 0.03);
       band.visible = u < fire;
@@ -149,7 +151,8 @@ export class EncoreLasers {
         pos.setXYZ(0, cx, this.height, cz); pos.setXYZ(1, _a.x, 0.001, _a.z); pos.setXYZ(2, _b.x, 0.001, _b.z);
         pos.needsUpdate = true;
         plane.material.uniforms.uOn.value = on; plane.material.uniforms.uTime.value = beat;
-        lit = Math.max(lit, on);
+        this.housings[c.corner]?.lookAt((_a.x + _b.x) * 0.5, 0.05, (_a.z + _b.z) * 0.5);
+        lit[c.corner] = Math.max(lit[c.corner], on);
       }
       // it fires: a flash at its emitter on the same frame as the sound (its release, and the emitter's kick)
       if (u >= 0 && !c.fired) { c.fired = true; if (!skip) { sfx.encoreLaser?.(); const [cx, cz] = CORNERS[c.corner]; this.fx?.impact(_a.set(cx, this.height, cz), this.color, 0.02, 6); } }
@@ -158,12 +161,13 @@ export class EncoreLasers {
     }
     for (const c of this.casts) if (beat - c.at > fire + fade) { c.slot.plane.visible = c.slot.band.visible = false; c.slot.cast = null; }
     this.casts = this.casts.filter((c) => c.slot.cast === c);
-    this.lensMat.color.set(this.color).multiplyScalar(0.5 + 0.5 * lit);
+    for (let i = 0; i < 4; i++) this.lensMats[i].color.set(this.color).multiplyScalar(0.5 + 0.5 * lit[i]);
   }
 
   reset() {
     for (const c of this.casts) { c.slot.plane.visible = c.slot.band.visible = false; c.slot.cast = null; }
     this.casts.length = 0; this.beat = null;
+    for (let i = 0; i < 4; i++) this.lensMats[i].color.set(this.color).multiplyScalar(0.5);
   }
   dispose() { this.root.removeFromParent(); for (const o of this.owned) o.dispose(); }
 }

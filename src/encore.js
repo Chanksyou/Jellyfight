@@ -145,7 +145,7 @@ export class Encore {
     this.disco = new EncoreDisco(A, { fx, onHit: (dmg) => this.hurtPlayer(dmg, hostile('encore-disco')), quiet: (b) => this.quiet(b) || this.walling(b) });
     this.shove = { x: 0, z: 0 };
     this.contact = new EncoreContact(scene, A.shockSolids, { onShock: (dmg, point) => {
-      this.hurtPlayer(dmg); sfx.zap?.();
+      this.hurtPlayer(dmg, LOOK.color('encore-contact', '#ff6a2a')); sfx.zap?.(); juice.feel('hit');
       const away = new THREE.Vector3().subVectors(this.player.position, point).setY(0);
       if (away.lengthSq() > 1e-8) bus.emit('knockback', { targetId: PLAYER, dir: away.normalize(), force: 0.4 });
     } });
@@ -158,17 +158,19 @@ export class Encore {
     this.solo = null; this.soloTurn = { last: null }; this.restBow = false; this.hints = new EncoreHints(); this.toldLast = false;
     this.spots = Object.fromEntries(DJS.map((who) => [who, spotlight(A, who)]));
     this.spotHome = Object.fromEntries(DJS.map((who) => [who, this.spots[who].position.clone()]));
-    this.flinchT = 0; this.watch = { w: 0, who: null, of: null }; this.keep = [0, 0, 0];   // (a DJ on the floor: his flinch, his partner's look, his records' keep-out)
+    this.flinchT = 0; this.flinchSide = 1; this.watch = { w: 0, who: null, of: null }; this.keep = [0, 0, 0];   // (a DJ on the floor: his flinch, his partner's look, his records' keep-out)
     for (const who of DJS) { A.boss.travel(who, 'home', { secs: 1e-3 }); A.boss.perform(who, null); }   // (the arena outlives a fight: a DJ a last fight left out goes home)
+    A.boss.setSlump?.(0); A.boss.setLedPulse?.(1); A.boss.root.rotation.z = 0;
     this.bowLift = Number(LOOK.list('encore-dance-bow', [])[3]) || 1.5;    // beats a bow takes to come back up
     // a hit on the jelly during a solo spoils it: the bow after is the short one
     // (up to a beat before its end, when he goes into his bow and its length is settled)
     this.offHurt = bus.on('damage_taken', (e) => { const S = this.solo; if (e.targetId === PLAYER && e.amount > 0 && S && !S.bowing && this.beat !== null && this.beat >= S.at) S.clean = false; });
     this.colors = { silver: hostile('encore-silver'), gold: hostile('encore-gold'), duet: hostile('encore-wall') };
     this.set = null;
-    this.field = forceField(A.boss); A.root.add(this.field); this.fieldScale = this.field.scale.clone();
+    this.field = forceField(A.boss); A.root.add(this.field); this.fieldScale = this.field.scale.clone(); this.fieldBounce = 0;
     this.booth = boothBox(A.boss);
     this.broken = false; this.cut = null; this.hurtT = 0; this.sparkT = 0; this.home = A.boss.root.position.clone();
+    this.boothSquash = 0; this.boothSquashV = 0; this.boothJoltX = 0; this.boothJoltZ = 0; this.lastStage = null;
     this.sparks = new Sparks(A.root);
   }
 
@@ -237,7 +239,12 @@ export class Encore {
   // its first-time lines: the last song (a toast each fight), and the hints (once ever): the first bow,
   // the first DJ landing on the floor, the first duet record standing before its wall
   announce() {
-    if (this.stage === 'last' && !this.toldLast) { this.toldLast = true; bus.emit('toast', { text: 'The last song! Waves come two at a time.', ms: 2800 }); }
+    const st = this.stage, M = this.arenaView.boss;
+    if (this.lastStage && this.lastStage !== st && (st === 'set2' || st === 'last') && !this.solo && this.beat !== null) {
+      for (const who of DJS) { M.perform(who, 'hands-up', Math.ceil(this.beat), 1, 1); M.kickSpring?.(who, { squash: 1.5 }); }
+    }
+    this.lastStage = st;
+    if (st === 'last' && !this.toldLast) { this.toldLast = true; bus.emit('toast', { text: 'The last song! Waves come two at a time.', ms: 2800 }); }
     const S = this.solo, b = this.beat;
     const id = this.exposed && S?.bowing ? 'bow' : S?.mark && b !== null && b >= S.at && this.outDj() && !this.hints.seen.has('floor') ? 'floor' : S?.who === 'duet' && this.records.casts.some((c) => c.state === 'stand') ? 'cover' : null, text = id && this.hints.take(id);
     if (text) bus.emit('toast', { text, ms: 3600 });
@@ -282,7 +289,12 @@ export class Encore {
     }
     if (S.who === 'gold' && !S.slammed && beat >= S.at + 2) {
       S.slammed = true;
-      if (beat < S.at + 3) { sfx.floorSlam(); this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6); juice.feel('hit'); }
+      if (beat < S.at + 3) {
+        sfx.floorSlam();
+        M.kickSpring?.('gold', { squash: -2.4 });
+        this.fx.puff(_hit.set(S.mark[0], 0.01, S.mark[2]), LOOK.color('encore-smoke', '#8c8c99'), LOOK.num('encore-landing-dust', 0.04), 0.6);
+        juice.feel('hit');
+      }
     }
     // the duet: both DJs throw their hands up as the wall's Warning fills, held till they bow
     if (S.warnAt != null && !S.bowing && beat >= S.warnAt) for (const d of DJS) M.perform(d, 'hands-up', S.warnAt + 1, 1, Math.max(0, S.end - S.warnAt - 3.5));
@@ -290,16 +302,17 @@ export class Encore {
     if (!S.bowing && beat >= S.end - 1) {
       const bow = S.bow ?? (S.clean ? K.clean ?? 4 : K.bow ?? 2) * 4;
       S.bowing = true; S.bowEnd = S.end + bow;
-      const up = S.mark ? (F.crouch ?? 2) + (F.air ?? 2) : 0;   // (on the floor, up in time to vault home)
-      S.down = Math.max(0, S.bowEnd - (S.bowAt ?? S.end) - up - this.bowLift);
+      const homeCrouch = S.who === 'duet' ? 0.5 : (F.crouch ?? 2), lift = S.who === 'duet' ? this.bowLift * 0.5 : this.bowLift;
+      const up = S.mark ? homeCrouch + (F.air ?? 2) : 0;   // (on the floor, up in time to vault home; duet uses a snappy crouch so the bow holds longer)
+      S.down = Math.max(0, S.bowEnd - (S.bowAt ?? S.end) - up - lift);
       for (const d of who) if (S.bowAt > S.end) M.perform(d, 'push', S.end); else M.perform(d, 'bow', S.end, 1, S.down);
     }
     // the duet on the floor: both push the wall out as it rolls, then bow
     if (S.bowAt > S.end && S.bowing && !S.bowed && beat >= S.bowAt - 1) { S.bowed = true; for (const d of who) M.perform(d, 'bow', S.bowAt, 1, S.down); }
     if (S.bowing && !S.exhaled && beat >= (S.bowAt ?? S.end)) { S.exhaled = true; if (beat < (S.bowAt ?? S.end) + 1) { sfx.bowExhale(); if (S.clean) sfx.crowdCheer(); } }
-    // the spotlight and his wing come up over the beat before his solo and go down over the beat after
-    // (on the floor: up over the beat after he is booked, and on him till he is home)
-    S.on = S.mark ? Math.min(1, Math.max(0, beat - (S.at - 5))) : beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
+    // the spotlight and his wing come up over the beat before his solo and fade out over the last beat
+    const fadeOut = S.bowEnd !== null && beat > S.bowEnd - 1 ? Math.max(0, S.bowEnd - beat) : 1;
+    S.on = S.mark ? Math.min(1, Math.max(0, beat - (S.at - 5))) * fadeOut : beat < S.at - 1 ? 0 : beat < S.at ? beat - (S.at - 1) : beat < S.end ? 1 : Math.max(0, 1 - (beat - S.end));
     for (const d of who) this.spotOn(d, S.on);
     if (S.bowEnd !== null && beat >= S.bowEnd) this.endSolo();
   }
@@ -319,15 +332,20 @@ export class Encore {
     if (S.bowAt > S.end) once('push', S.end, () => sfx.wallShove());
   }
   floorStep(S, beat) {
-    const M = this.arenaView.boss, F = this.def.skills.floor || {}, air = F.air ?? 2, crouch = F.crouch ?? 2, djs = SOLOISTS[S.who];
-    const home = S.bowEnd !== null && beat >= S.bowEnd - air - crouch, next = this.records.casts.find((c) => c.state === 'wind'), aim = this.records.casts.find((c) => c.state === 'wind' || c.state === 'fly');
+    const M = this.arenaView.boss, F = this.def.skills.floor || {}, air = F.air ?? 2, crouch = F.crouch ?? 2, homeCrouch = S.who === 'duet' ? 0.5 : crouch, djs = SOLOISTS[S.who];
+    const home = S.bowEnd !== null && beat >= S.bowEnd - air - homeCrouch, next = this.records.casts.find((c) => c.state === 'wind'), aim = this.records.casts.find((c) => c.state === 'wind' || c.state === 'fly');
     this.floorSounds(S, beat, air);
     for (const who of djs) {
       if (!home) {
         if (beat < S.at - 0.3) { if (beat >= S.off - crouch) M.perform(who, 'vault', S.off, 1, Math.max(0, S.at - S.off - 0.5)); }
         else if (beat < S.at + 1) M.perform(who, 'land', S.at);
         M.travel(who, S.marks[who], S.off, S.at);
-      } else { const off = S.bowEnd - air; M.perform(who, 'vault', off, 1, Math.max(0, air - 0.5)); M.travel(who, 'home', off, S.bowEnd); }
+      } else {
+        const off = S.bowEnd - air;
+        if (beat < S.bowEnd - 0.25) M.perform(who, 'vault', off, 1, Math.max(0, air - 0.5));
+        else M.perform(who, 'land', S.bowEnd);
+        M.travel(who, 'home', off, S.bowEnd);
+      }
       if (S.bowing) M.face(who, null);
       else if (S.warnAt != null && beat >= S.warnAt) { const f = (this._down ||= [0, 0]); f[0] = S.marks[who][0]; f[1] = FLOOR_BACK; M.face(who, f); }
       else if (who === 'gold' && S.who === 'duet') {
@@ -367,14 +385,15 @@ export class Encore {
     if (S?.mark && beat !== null) for (const d of SOLOISTS[S.who]) {
       const m = this.spots[d], h = this.spotHome[d], to = S.marks[d];
       if (M.out(d) && beat >= S.at) { M.rigs[d].body.getWorldPosition(m.position); this.arenaView.root.worldToLocal(m.position); m.position.y = 0.02; }
+      else if (S.bowEnd !== null && beat >= S.bowEnd - 1) { m.position.copy(h); }
       else { const u = THREE.MathUtils.smoothstep(beat, S.at - 5, S.at - 4); m.position.set(h.x + (to[0] - h.x) * u, h.y + (0.02 - h.y) * u, h.z + (to[2] - h.z) * u); }
     }
     this.flinchT = Math.max(0, this.flinchT - dt * 6);
-    if (this.flinchT > 0) for (const d of outs) M.rigs[d].torso.rotation.x -= this.flinchT * LOOK.num('encore-floor-flinch', 0.3);
+    if (this.flinchT > 0) for (const d of outs) M.rigs[d].torso.rotation.x -= this.flinchT * LOOK.num('encore-floor-flinch', 0.22);
     // (in the duet nobody is left in the booth to watch)
     const W = this.watch, solo = out && S.who !== 'duet';
     if (solo) { W.of = out; W.who = out === 'silver' ? 'gold' : 'silver'; }
-    W.w += ((solo ? 1 : 0) - W.w) * Math.min(1, dt * 4);
+    W.w += ((solo ? 1 : 0) - W.w) * (1 - Math.exp(-4 * dt));
     if (W.who && W.w > 1e-3) {
       const a = M.rigs[W.who], side = W.who === 'silver' ? -1 : 1;
       a.head.getWorldPosition(_wa); M.rigs[W.of].body.getWorldPosition(_wb);
@@ -384,7 +403,8 @@ export class Encore {
   spotOn(who, on) {
     const m = this.spots[who];
     m.visible = on > 0;
-    m.material.opacity = LOOK.num(this.solo?.mark ? 'encore-spotlight-floor-opacity' : 'encore-spotlight-opacity', 0.22) * on;   // (fainter on the floor: he is the target, seen through it)
+    const flick = this.flinchT > 0 && this.arenaView.boss.out(who) ? 1 + this.flinchT * 0.5 : 1;
+    m.material.opacity = LOOK.num(this.solo?.mark ? 'encore-spotlight-floor-opacity' : 'encore-spotlight-opacity', 0.22) * on * flick;   // (fainter on the floor: he is the target, seen through it)
   }
   // the solo over (its bow done, or cut short): spotlight off, his wing dark
   endSolo() {
@@ -398,9 +418,14 @@ export class Encore {
   // stop the DJs' acts: no solo, no records, no move (the short-out, its defeat, a song rewind); a DJ
   // out on the floor goes home in `hop` s on the clock (a trip out not yet begun is called off)
   stopActs(hop = this.def.skills.floor?.hop ?? 0.4) {
-    for (const who of DJS) this.arenaView.boss.travel(who, 'home', { secs: hop });
+    const M = this.arenaView.boss;
+    const wasOut = DJS.filter((who) => M.out(who));
+    for (const who of DJS) M.travel(who, 'home', { secs: hop });
     this.records.reset(); this.wall.reset(); this.pyro.reset(); this.endSolo(); this.restBow = false; this.restExhale = null; this.floor.held.silver = this.floor.held.gold = false;
-    for (const who of DJS) this.arenaView.boss.perform(who, null);
+    for (const who of DJS) {
+      M.perform(who, null);
+      if (wasOut.includes(who) && hop > 0.05) M.kickSpring?.(who, { flinch: -2.8, squash: -1.6 });
+    }
   }
 
   quiet(b) { return !!this.song?.quiet?.(b); }
@@ -416,17 +441,42 @@ export class Encore {
 
   damage(amount, color = '#fff', feedback = {}) {
     if (this.dead || this.cut || this.falling) return;              // (nothing lands while it shorts out or falls)
-    if (this.shielded) { this.flash = 1; this.fx.number(this.center().setY(this.holder.position.y + 0.1), 'SHIELDED', LOOK.color('encore-shield', '#3fd0ff'), 12); return; }   // it bounces off the force field
-    if (this.exposed) amount *= this.def.skills.solo?.exposed ?? 1.5;   // bowing: wide open
+    const M = this.arenaView.boss;
+    if (this.shielded) {
+      this.flash = 1; this.fieldBounce = 1;
+      const blue = LOOK.color('encore-shield', '#3fd0ff');
+      sfx.encoreShieldHit?.();
+      this.fx.impact(_hit.copy(this.holder.position).setY(this.holder.position.y + 0.06), blue, 0.035, 10);
+      this.fx.number(this.center().setY(this.holder.position.y + 0.1), 'SHIELDED', blue, 12);
+      return;
+    }   // it bounces off the force field
+    const exposed = this.exposed;
+    if (exposed) { amount *= this.def.skills.solo?.exposed ?? 1.5; sfx.encoreExposedHit?.(); }   // bowing: wide open
     this.hp -= amount;
-    this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, 16, feedback);
-    const out = this.outDj();
-    if (out) this.flinchT = 1;                                        // a DJ on the floor was hit: he flinches (floorFollow)
-    else this.hurtT = 1;                                              // the booth flinches: its panels flash white, it jolts
-    // and the nearer DJ (silver stands on the -x side) flinches, at most once a beat
-    if (!out && this.beat !== null && Math.floor(this.beat) !== this.flinched) {
-      this.flinched = Math.floor(this.beat);
-      this.floor.react(this.player && this.player.position.x > this.center().x ? 'gold' : 'silver', 'flinch', this.beat + 0.15);
+    this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, exposed ? 19 : 16, feedback);
+    const outs = this.outDjs(), out = outs[0] ?? null, mult = exposed ? 1.55 : 1;
+    this.flinchSide = -this.flinchSide;
+    if (out) {
+      this.flinchT = 1;
+      for (const d of outs) {
+        M.flashHit?.(d, exposed ? 1.3 : 0.9);
+        M.kickSpring?.(d, { squash: -1.5 * mult, flinch: -2.0 * mult, tilt: this.flinchSide * 1.7 * mult });
+      }
+      this.fx.impact(_hit.copy(this.holder.position), exposed ? '#ffd46c' : color, exposed ? 0.045 : 0.025, exposed ? 12 : 6);
+    } else {
+      this.hurtT = 1;                                                 // the booth flinches: its panels flash white, it jolts
+      this.boothSquashV -= 1.8 * mult;
+      this.boothJoltX = this.flinchSide * 0.008 * mult;
+      this.boothJoltZ = -0.006 * mult;
+      const nearer = this.player && this.player.position.x > this.center().x ? 'gold' : 'silver';
+      M.flashHit?.(nearer, exposed ? 1.2 : 0.7);
+      M.kickSpring?.(nearer, { squash: -1.1 * mult, flinch: -1.6 * mult, tilt: this.flinchSide * 1.2 * mult });
+      if (this.broken && Math.random() < 0.35) this.sparks.emit(_hit.copy(this.holder.position), 10, 0.55);
+      // and the nearer DJ (silver stands on the -x side) flinches, at most once a beat
+      if (this.beat !== null && Math.floor(this.beat) !== this.flinched) {
+        this.flinched = Math.floor(this.beat);
+        this.floor.react(nearer, 'flinch', this.beat + 0.15);
+      }
     }
     if (this.hp <= 0) this.beaten();
     else if (!this.broken && this.hp <= this.maxHp * (this.def.skills.meltdown?.at ?? 0.5)) this.meltdown();
@@ -435,7 +485,7 @@ export class Encore {
   meltdown() {
     this.broken = true;
     const b = this.booth, c = b.getCenter(new THREE.Vector3()), short = juice.calm || !!this.fx.reducedMotion?.matches;
-    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.disco.visit(null); this.set = null; this.stopActs(short ? 1e-3 : this.def.skills.floor?.knock ?? 0.3);   // (knocked home as the cut opens)
+    this.floor.reset(); this.lasers.reset(); this.contact.reset(); this.disco.reset(); this.set = null; this.stopActs(short ? 1e-3 : this.def.skills.floor?.knock ?? 0.3);   // (knocked home as the cut opens)
     this.cut = { t: 0, length: LOOK.num(short ? 'encore-meltdown-calm-time' : 'encore-meltdown-time', short ? 1.2 : 3.4), next: 0, blown: false,
       // the shot: in front of the booth and off to one side, easing in
       from: new THREE.Vector3(c.x + 0.34, b.max.y * 0.75, b.max.z + 0.62), to: new THREE.Vector3(c.x + 0.18, b.max.y * 0.6, b.max.z + 0.42), look: c.clone().setY(b.max.y * 0.5) };
@@ -489,16 +539,18 @@ export class Encore {
     // its panels die section by section: still lit ones stutter, then go dark for good
     const n = M.triangleCount || 0, alive = Math.ceil(n * (1 - Math.min(1, u / 0.62)));
     for (let i = 0; i < n; i++) M.setTriangle(i, Math.random() < 0.5 ? 0xffffff : LOOK.color('encore-broken', '#ff2a3a'), i < alive ? Math.random() * 0.8 : 0);
+    M.setLedPulse?.(Math.max(0, 1 - u * 1.45));
     // it shudders, and after the blow-out sags a little to one side
     const sag = THREE.MathUtils.smoothstep(u, 0.6, 0.75);
     M.root.position.copy(this.home).add(_hit.set((Math.random() - 0.5) * 0.01 * (1 - sag), -0.012 * sag, 0));
     M.root.rotation.z = 0.04 * sag;
-    // the DJs slump over their decks
+    // the DJs slump over their decks (torso, arms, and helmets via setSlump)
     const slump = THREE.MathUtils.smoothstep(u, 0.15, 0.7);
-    for (const h of M.heads) { h.rotation.x += slump * 0.7; h.rotation.z = (Math.random() - 0.5) * 0.3 * (1 - slump); }
+    M.setSlump?.(slump);
+    for (const h of M.heads) h.rotation.z = (Math.random() - 0.5) * 0.3 * (1 - slump);
     // the disco ball (if it was down) snaps off and crashes onto the floor, shattering
     if (F.ball && !F.ball.down) {
-      if (u > 0.25) { F.ball.v -= 2.5 * dt; F.ball.y += F.ball.v * dt; }
+      if (u > 0.25) { D.spots.visible = D.beams.visible = false; F.ball.v -= 2.5 * dt; F.ball.y += F.ball.v * dt; }
       D.hanger.position.y = F.ball.y; D.hanger.rotation.z += dt * (u > 0.25 ? 3 : 0);
       if (F.ball.y < 0.12) {
         F.ball.down = true; D.hanger.visible = D.spots.visible = D.beams.visible = false;
@@ -509,6 +561,9 @@ export class Encore {
     }
     if (F.t >= F.length) {
       this.falling = null; this.cut = null; this.dead = true; this.state = 'beaten';
+      M.setSlump?.(1); M.setLedPulse?.(0);
+      M.root.position.copy(this.home).add(_hit.set(0, -0.012, 0));
+      M.root.rotation.z = 0.04;
       D.reset(); M.clearLighting?.();
     }
   }
@@ -524,7 +579,7 @@ export class Encore {
     this.player = player;
     this.t += dt;
     this.shove.x = this.shove.z = 0;
-    const A = this.arenaView, M = A.boss;
+    const A = this.arenaView, M = A.boss, calm = juice.calm || !!this.fx.reducedMotion?.matches;
     let beat = this.dead ? null : this.beatNow(dt);
     if (this.falling) { /* its fall: fallDown, after the model's update */ }
     else if (this.cut) this.shortOut(dt, beat);
@@ -536,7 +591,7 @@ export class Encore {
       } else if (this.beat !== null && beat < this.beat) beat = this.clock = this.beat;
       this.beat = beat;
       const S = this.def.skills.set || {};
-      this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + 4, { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],
+      this.set ||= new SetList(this.floor, Math.ceil(beat / 4) * 4 + (this.broken ? 0 : 4), { quiet: (b) => this.quiet(b), drop: (b) => !!this.song?.drop?.(b), target: () => [player.position.x, player.position.z],
         lasers: this.lasers, disco: this.disco, stage: () => this.stage, slot: (kind, at) => this.slot(kind, at), soloing: (at) => this.soloing(at), solo: S.solo, soloLast: S.last, discoEvery: S.disco, waveBars: S.wave, turn: this.soloTurn });
       this.set.update(beat);
       this.floor.update(beat, player);
@@ -567,7 +622,7 @@ export class Encore {
       // broken: it keeps sparking and smoking, every second or two
       if (this.broken && (this.sparkT -= dt) <= 0) { this.sparkT = 0.8 + Math.random() * 1.4; this.spark(); }
     }
-    this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches);
+    this.contact.update(dt, player, !this.dead && !this.cut, !!this.fx.reducedMotion?.matches, this.dead);
     A.updateAmbience?.(this.dead || this.falling ? null : beat, !!this.fx.reducedMotion?.matches, beat !== null && this.quiet(beat), this.wall.swell);
     M.update(dt, !!this.fx.reducedMotion?.matches, this.dead || this.falling ? null : beat);
     this.floorFollow(dt, this.dead || this.falling || this.cut ? null : beat);
@@ -584,12 +639,27 @@ export class Encore {
       else if (S?.lit && !S.on) { M.setLighting(WING[S.who], 0, 0); S.lit = false; this.floor.lit = true; }
     }
     this.sparks.update(dt);
-    // on the beat the DJs nod and the booth pumps; a hit squashes it a touch (the short-out shakes it)
-    const on = !this.cut && !this.dead && beat !== null && !this.quiet(beat), kick = on ? Math.exp(-((beat % 1 + 1) % 1) * 6) : 0;
-    if (!this.cut) { M.root.position.copy(this.home); for (const h of M.heads) h.rotation.x += kick * 0.22; }
-    M.root.scale.set(1 + kick * 0.008, 1 - this.hurtT * 0.015 - kick * 0.012, 1 + kick * 0.008);
-    // the force field: grows in over its booth, flares when hit, and shatters in a
-    // spray of cyan shards when it drops
+    // on the beat the DJs nod smoothly and the booth pumps with 2nd-order squash/jolt springs
+    const on = !this.cut && !this.dead && beat !== null && !this.quiet(beat);
+    const frac = beat !== null ? (beat % 1 + 1) % 1 : 0;
+    const kick = on ? Math.min(1, frac / 0.08) * Math.exp(-frac * 6) : 0;
+    if (!this.cut && !this.dead) {
+      const stepDt = Math.min(dt, 0.05);
+      if (calm) { this.boothSquash = this.boothSquashV = this.boothJoltX = this.boothJoltZ = 0; }
+      else {
+        const a = -135 * this.boothSquash - 9 * this.boothSquashV;
+        this.boothSquashV += a * stepDt; this.boothSquash += this.boothSquashV * stepDt;
+        const jd = Math.exp(-16 * dt); this.boothJoltX *= jd; this.boothJoltZ *= jd;
+      }
+      M.root.position.set(this.home.x + this.boothJoltX, this.home.y, this.home.z + this.boothJoltZ);
+      for (const h of M.heads) h.rotation.x += kick * 0.22;
+      M.setLedPulse?.(on ? 0.88 + kick * 0.28 : 0.72);
+      const sy = THREE.MathUtils.clamp(1 + this.boothSquash * 0.035 - kick * 0.014, 0.92, 1.06), sxz = 1 / Math.sqrt(sy);
+      M.root.scale.set(sxz, sy, sxz);
+    } else if (this.dead) {
+      M.root.scale.set(1, 1, 1);
+    }
+    // the force field: grows in over its booth, bounces & flares when hit, flickers before dropping, and shatters
     if (this.wasShielded && !this.shielded && !this.dead) {
       const c = this.booth.getCenter(new THREE.Vector3()), blue = LOOK.color('encore-shield', '#3fd0ff');
       this.fx.burst(c.setY(this.booth.max.y * 0.6), [blue, '#ffffff', blue], 24, 0.006, 0.7, 0);
@@ -598,9 +668,13 @@ export class Encore {
     this.fieldUp = this.shielded ? Math.min(1, (this.fieldUp || 0) + dt * 3) : 0;
     this.wasShielded = this.shielded;
     this.field.visible = this.shielded;
-    this.field.scale.copy(this.fieldScale).multiplyScalar(0.6 + 0.4 * (1 - (1 - this.fieldUp) ** 3));
+    this.fieldBounce = Math.max(0, this.fieldBounce - dt * 5);
+    const bounce = calm ? 0 : Math.sin(this.fieldBounce * Math.PI * 3) * this.fieldBounce * 0.04;
+    this.field.scale.copy(this.fieldScale).multiplyScalar(0.6 + 0.4 * (1 - (1 - this.fieldUp) ** 3) + bounce);
     this.flash = Math.max(0, this.flash - dt * 4);
-    this.field.material.opacity = LOOK.num('encore-shield-opacity', 0.55) * (0.85 + 0.15 * Math.sin(this.t * 3)) + this.flash;
+    const beatPulse = beat !== null ? 0.88 + 0.12 * Math.cos(beat * Math.PI * 2) : 0.88 + 0.12 * Math.sin(this.t * 3);
+    const warnDrop = this.shielded && this.guardT > 0 && this.guardT < 2 && !calm ? (0.65 + 0.35 * Math.sin(this.t * 28)) : 1;
+    this.field.material.opacity = Math.min(1, LOOK.num('encore-shield-opacity', 0.62) * beatPulse * warnDrop + this.flash * 0.55);
     bus.emit('boss_health', { name: this.B.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: this.guardT > 0 ? `Shielded: ${this.opening ? 'warming up' : 'rebooting'} (${Math.ceil(this.guardT)} s)` : undefined, exposed: this.exposed, tag: this.tag });
     return { push: dt > 0 && (this.shove.x || this.shove.z) ? { x: this.shove.x / dt, z: this.shove.z / dt } : null };
   }
@@ -612,14 +686,19 @@ export class Encore {
     const C = this.cut, M = this.arenaView.boss, u = C.t / C.length;
     C.t += dt;
     if (C.t >= C.next) { C.next = C.t + 0.22 - 0.15 * u; this.spark(); }
-    if (!C.blown && u >= 0.62) { C.blown = true; this.spark(true); this.spark(true); juice.feel('elite-kill'); sfx.boom(); }
+    if (!C.blown && u >= 0.62) {
+      C.blown = true; this.spark(true); this.spark(true); juice.feel('elite-kill'); sfx.boom();
+      for (const who of DJS) M.kickSpring?.(who, { squash: -2.2, flinch: -2.5 });
+    }
     // its panels fail: mostly a dying, stuttering red, now and then a white surge
     const surge = Math.random() < 0.18;
     M.setLighting('all', surge ? 0xffffff : LOOK.color('encore-broken', '#ff2a3a'), surge ? 0.7 : Math.random() < 0.35 ? 0 : 0.2 + Math.random() * 0.7);
-    M.root.position.copy(this.home).add(new THREE.Vector3((Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.004, 0).multiplyScalar(1 - u * 0.5));
+    M.setLedPulse?.(surge ? 1.4 : Math.random() < 0.35 ? 0.15 : 0.6);
+    const amp = 1 - u * 0.5;
+    M.root.position.set(this.home.x + (Math.random() - 0.5) * 0.008 * amp, this.home.y + (Math.random() - 0.5) * 0.004 * amp, this.home.z);
     for (const h of M.heads) h.rotation.z = (Math.random() - 0.5) * 0.5 * (1 - u);
     if (C.t >= C.length) {
-      for (const h of M.heads) h.rotation.z = 0; this.cut = null; M.root.position.copy(this.home); this.floor.lit = true;
+      for (const h of M.heads) h.rotation.z = 0; this.cut = null; M.root.position.copy(this.home); M.setLedPulse?.(1); this.floor.lit = true;
       // it reboots behind its force field: it can't be hurt for a while (bosses.kdl meltdown `guard`)
       this.guardT = this.def.skills.meltdown?.guard ?? 10; this.opening = false;
     }
@@ -634,7 +713,8 @@ export class Encore {
     this.floor.dispose(); this.lasers.dispose(); this.disco.dispose(); this.contact.dispose();
     this.field.removeFromParent(); this.field.material.dispose();
     this.arenaView.boss.clearLighting?.();
-    this.arenaView.boss.root.position.copy(this.home); this.arenaView.boss.root.scale.setScalar(1);
+    this.arenaView.boss.setSlump?.(0); this.arenaView.boss.setLedPulse?.(1);
+    this.arenaView.boss.root.position.copy(this.home); this.arenaView.boss.root.rotation.z = 0; this.arenaView.boss.root.scale.setScalar(1);
   }
 }
 

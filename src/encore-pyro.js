@@ -134,8 +134,9 @@ export class EncorePyro {
       if (t0 === null) continue;
       const t = beat - t0, s = t / burn;
       if (t > scorch) { this.burnAt[l] = null; this.flames.setMatrixAt(l, _m.makeScale(0, 0, 0)); this.scorch.setMatrixAt(l, _m.makeScale(0, 0, 0)); fade.setX(l, 0); any = true; continue; }
-      // the burst: up fast, then down; it flickers as it burns
-      const h = s >= 1 ? 0 : height * (s < 0.2 ? 0.3 + 0.7 * s / 0.2 : 1 - (s - 0.2) / 0.8), f = 1 + 0.08 * Math.sin(beat * 40 + l * 2);
+      // the burst: snappy ease-out rise, smooth fall; it flickers as it burns
+      const rise = Math.min(1, s / 0.18), fall = Math.max(0, 1 - (s - 0.18) / 0.82);
+      const h = s >= 1 ? 0 : height * (s < 0.18 ? 1 - (1 - rise) ** 3 : fall * fall), f = 1 + 0.08 * Math.sin(beat * 40 + l * 2);
       if (h > 0) anyFlames = true;
       anyScorch = true;
       this.flames.setMatrixAt(l, _m.compose(_p.set(this.laneX(l), 0, LIP + reach / 2), _q.identity(), _s.set(this.w * 0.9 * f, Math.max(0, h), reach * 0.95 * f)));
@@ -151,6 +152,7 @@ export class EncorePyro {
   // everything gone at once (a song rewind, the short-out, its defeat)
   reset() {
     this.casts.length = 0; this.beat = null;
+    this.flames.visible = this.scorch.visible = false;
     for (let l = 0; l < this.lanes; l++) {
       const w = this.warnings[l]; w.band.visible = w.lane.visible = false; w.cast = null;
       this.flames.setMatrixAt(l, _m.makeScale(0, 0, 0)); this.scorch.setMatrixAt(l, _m.makeScale(0, 0, 0));

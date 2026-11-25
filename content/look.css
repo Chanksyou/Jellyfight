@@ -1126,8 +1126,8 @@
   --death-jelly-x-short: 0.93;    /* the same on a screen under 500 px tall (a phone on its side) */
   --death-jelly-y-short: 0.7;
   --death-camera-distance: 3.2;   /* jelly heights */
-  --encore-shield: #3fd0ff;      /* the Encore's force field while its beetles live (encore.js) */
-  --encore-shield-opacity: 0.9;
+  --encore-shield: #3fd0ff;      /* the Encore's force field while warming up or rebooting (encore.js) */
+  --encore-shield-opacity: 0.62;
   --encore-shield-hex: 28;        /* its hex cells per metre: big enough to read across the arena */
   --encore-shield-glow: 2.4;
   --encore-shield-room: 1.3;      /* how much bigger than the booth the dome is */
