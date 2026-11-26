@@ -1,0 +1,1 @@
+adds frame script time, browser callback rate, longest hitch and load timings (step times, time hidden, network against cache) to each act's field numbers, so a slow frame can be told from the browser's pacing and a slow load from a hidden page.
