@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v739 The soft shadows under furniture are gone, so phones draw less see-through weight. The baked room shadow still darkens the floor under furniture; only the flat see-through pictures laid on top are left out. The overdraw ceilings for every act drop to match (a quiet act 2 room 0.8 to 0.12 layers, the Clog's acid 1.53 to 0.63).
+
 v738 Music costs a phone far less to play. Hats, snares, claps and crashes now reuse a few long-lived noise lanes instead of building three new audio nodes for every hit. The same hits play with the same sound; an offline render of Medusa Bloom at full intensity takes 98 ms per second of music instead of 242, and Domestic Machinery 121 instead of 377.
 
 v737 makes N8AO (233 KB) load after the game is up on phones instead of before it (Medium and Low in a baked room never draw it; High and unbaked rooms still wait for it), and drops its early download hint.
