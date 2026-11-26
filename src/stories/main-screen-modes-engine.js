@@ -19,7 +19,7 @@ import { normalizeLook, buildCharacter, DEFAULT_LOOK, OPTIONS, SPECIES } from '.
 import { TYPES } from '../enemies.js';
 import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
-import { FieldPerf } from '../field-perf.js';
+import { FieldPerf, loadFacts } from '../field-perf.js';
 import { markMoved } from '../static-batch.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, startVacuum, step, story, phone, stub, tp } from './kit.js';
 
@@ -43,7 +43,7 @@ story('engine/field-numbers-ride-the-summary', {
     run.recordRun('in-progress');
     const d = rows.at(-1).details, p = d.perf, s = d.settings;
     const sane = p && p.n === 41 && p.ms > 16 && p.ms < 18 && p.p95 > 16 && p.p95 < 18 && p.slow > 0.04 && p.slow < 0.06 && p.minRatio > 0 && p.tier === gfx.quality
-      && p.dpr === Math.round(devicePixelRatio * 100) / 100 && p.w === innerWidth && p.h === innerHeight && p.cap === (pacing.pacer.fps || 0) && p.lost === 0 && p.loadMs >= 0;
+      && p.dpr === Math.round(devicePixelRatio * 100) / 100 && p.w === innerWidth && p.h === innerHeight && p.cap === (pacing.pacer.fps || 0) && p.lost === 0 && p.loadMs >= 0 && p.work >= 0 && p.longest >= 0;
     const picks = s && s.graphics === gfx.choice && typeof s.easy === 'boolean' && typeof s.music === 'boolean' && typeof s.sound === 'boolean' && typeof s.calm === 'boolean' && typeof s.calmOs === 'boolean' && ['normal', 'large'].includes(s.text);
     const count = rows.length;
     run.devRun(); run.recordRun('ended');
@@ -62,6 +62,25 @@ story('engine/field-numbers-count-played-frames', {
     const s = f.summary({ tier: 'medium' });
     return ok(none && f.hist.length === 64 && s.n === 100 && s.ms === 11 && s.p95 === 127 && s.slow === 0.1 && s.minRatio === 1 && s.tier === 'medium',
       { none, s });
+  },
+});
+story('engine/field-numbers-tell-our-work-from-the-browser', {
+  about: 'The frame numbers also carry the script time of a drawn frame, the gap between browser callbacks and the share the pacer held, the longest interval, how many hitches were dropped, and how the load went (step times, hidden time, network against cache).',
+  setup() {},
+  play() {
+    const f = new FieldPerf();
+    for (let i = 0; i < 100; i++) { f.sample(33.3, 33.3, 1); f.work(i < 90 ? 3 : 20); }
+    for (let i = 0; i < 100; i++) f.callback(1000 + i * 16.7, i % 2 === 1);   // a 60 Hz browser at a 30 cap
+    f.sample(900, 33.3, 1); f.sample(400, 33.3, 1); f.sample(120, 33.3, 1);
+    f.callback(9e5, false);   // a gap: not an interval
+    const none = new FieldPerf().summary({}) === null;
+    f.load = loadFacts([['a', 0, 5], ['b', 0.5, 1200.4]], 800.2, 1, [{ transferSize: 5000 }, { transferSize: 0 }, { transferSize: 0 }]);
+    const s = f.summary({ tier: 'medium' });
+    const l = s.load;
+    f.reset();
+    return ok(none && s.work === 3 && s.workP95 === 20 && s.raf === 17 && s.held === 0.505 && s.longest === 120 && s.gaps === 2
+      && l.steps.join() === '5,1200' && l.hiddenMs === 800 && l.first === 1 && l.net === 1 && l.cache === 2 && l.bytes === 5000
+      && f.works === 0 && f.calls === 0 && f.longest === 0 && f.gaps === 0, { s });
   },
 });
 story('engine/run-log', {
