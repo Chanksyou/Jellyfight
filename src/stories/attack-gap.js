@@ -3,6 +3,7 @@
 // bug on screen goes before one off it.
 import * as THREE from 'three';
 import { CONTENT } from '../content.js';
+import { seededRandom } from '../story-random.mjs';
 import { G, V, holdJelly, ok, setupFight, spawn, step, story, stub } from './kit.js';
 
 const calm = () => { const { run } = G(); stub(run, 'hurt', () => {}); stub(run, 'hit', () => {}); run.health = 1e6; };
@@ -10,6 +11,8 @@ const attacking = (e) => (e.state !== 'approach' && e.state !== 'rest') || e.aim
 // a ring of bugs round a still jelly, each within its attack range; every start, as [second, bug]
 function crowd(types, secs, r = 0.16, gap = null) {
   setupFight({ bubbles: false, lash: false }); holdJelly(); calm();
+  const { tpc } = G();
+  tpc.pitch = tpc.cfg.pitch; tpc.distance = tpc.cfg.distance;
   if (gap !== null) stub(CONTENT.waves, 'attackGap', gap);
   const P = G().player.position, bugs = types.map((t, i) => {
     const a = (i / types.length) * Math.PI * 2, fly = CONTENT.enemies[t]?.fly;
@@ -41,7 +44,9 @@ story('bugs/attack-as-often-as-before', {
   setup() {},
   play() {
     const types = ['roach', 'ants', 'mosquito', 'roach', 'lanternfly', 'ants', 'roach', 'mosquito', 'roach', 'ants', 'lanternfly', 'roach', 'mosquito', 'roach'];
-    const held = crowd(types, 40, 0.2).length, free = crowd(types, 40, 0.2, 0).length;
+    const pair = Math.floor(Math.random() * 0xffffffff);
+    const runWith = (gap) => { stub(Math, 'random', seededRandom(pair)); return crowd(types, 40, 0.2, gap).length; };
+    const held = runWith(null), free = runWith(0);
     return ok(free > 30 && Math.abs(held - free) <= free * 0.06, { held, free, change: +((held / free - 1) * 100).toFixed(1) + '%' });
   },
 });
