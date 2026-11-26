@@ -13,25 +13,31 @@ import { original } from './lite-materials.js';
 // clear. Five rays to the camera, not one, so a wall at the frame's edge counts too, and each
 // ray looks through a few layers (a shelf, then the cabinet behind it). A faded piece stays faded
 // for HOLD s after it's last in the way, so pieces don't flicker in and out as the rays sweep past
-// them. Small clutter (a mug, a teapot on a shelf, under SMALL m across) stays solid when a ray
-// only grazes it (a shelf of cups fading in and out, or of half-transparent cups drawn over each
-// other, looked broken, and a cup that vanishes is still there to bump into): only a cup the
-// jelly-to-camera ray itself hits, one that really hides the jelly, goes part way see-through.
+// them. Small items (no larger than twice the jelly's height, cfg.minFadeSize), thin flat items
+// lying on the floor (rugs, mats, pet pads/bowls), and open pieces tagged userData.staySolid (the
+// Baby play gym) stay solid: they never need to turn see-through to see the jelly.
 const SEE_THROUGH = 0.22;      // how solid a faded piece of furniture or wall looks
-const SMALL_SEE = 0.5;         // how solid a small prop looks when it's right in front of the jelly: never gone
 const HOLD = 0.4;
-const SMALL = 0.15;
+const MIN_FADE = 0.08925 * 2;  // fallback cutoff (2x jelly height at scale 1) if cfg.minFadeSize isn't set
+const FLAT_FLOOR = 0.05;       // m above y=0: thin items lying flat on the floor never hide the jelly
 const LAYERS = 5;              // how many things one ray may look through
 const UP = new THREE.Vector3(0, 1, 0);
 const NONE = [];
-const _sphere = new THREE.Sphere();
-// how big a piece is across, in the world (its geometry's bounding sphere, scaled)
-const sizeOf = (m) => {
+const _box = new THREE.Box3();
+const _size = new THREE.Vector3();
+const _scale = new THREE.Vector3();
+// True for pieces that never fade: staySolid pieces, thin flat items on the floor, or items <= minSize (2x the jelly).
+// Instanced meshes (e.g. sideboard flutes) inherit their parent's fade unless explicitly tagged staySolid.
+const staysSolid = (m, minSize) => {
+  if (m.userData.staySolid) return true;
+  if (m.isInstancedMesh) return false;
   const g = m.geometry;
-  if (!g) return Infinity;
-  if (!g.boundingSphere) g.computeBoundingSphere();
-  _sphere.copy(g.boundingSphere).applyMatrix4(m.matrixWorld);
-  return _sphere.radius * 2;
+  if (!g) return false;
+  if (!g.boundingBox) g.computeBoundingBox();
+  _box.copy(g.boundingBox).applyMatrix4(m.matrixWorld);
+  if (_box.min.y < FLAT_FLOOR && _box.max.y <= FLAT_FLOOR) return true;
+  g.boundingBox.getSize(_size).multiply(m.getWorldScale(_scale));
+  return Math.max(Math.abs(_size.x), Math.abs(_size.y), Math.abs(_size.z)) <= minSize;
 };
 
 // A see-through copy of a material. A faded piece is drawn over the room behind it, so every pixel
@@ -80,9 +86,8 @@ export class ThirdPersonCamera {
     this._up = new THREE.Vector3();
     this._ray = new THREE.Vector3();
     this._end = new THREE.Vector3();
-    this.over = new Set();     // what the rays found: over the jelly, or between it and the jelly
-    this.solid = new Set();    // ...of which these stay solid: small props only grazed by a ray, and their instanced parts
-    this.partly = new Set();   // ...and these small props fade part way: the jelly-to-camera ray hits them
+    this.over = new Set();     // what the rays found: over the jelly, or between it and the camera
+    this.solid = new Set();    // ...of which these stay solid: small (<= 2x jelly), flat on the floor, or tagged staySolid
     this._jelly = new THREE.Vector3();   // where the jelly is now (the focus follows a little behind it)
     this.keep = new Map();     // mesh -> how solid: kept faint whether in the way or not (a boss fight's seeThrough: the Clog's curtain and door)
     this._fades = new Map();   // mesh -> { mats: its own material(s), see: the fading copies, k: opacity }
@@ -132,15 +137,15 @@ export class ThirdPersonCamera {
   // What's right over the jelly, and what's between it and the camera: up to LAYERS things along
   // the ray from the jelly to the camera, along the ray straight up and along four more to the
   // camera's corners. The jelly-to-camera ray goes first and starts at the jelly itself (the focus
-  // lags it in a jump), so what it hits is a direct blocker whatever the other rays skip after
+  // lags it in a jump).
   findOver(camPos) {
-    this.over.clear(); this.solid.clear(); this.partly.clear();
+    this.over.clear(); this.solid.clear();
     if (this.cfg.seeThrough === false) return;
     const dir = this._dir.subVectors(camPos, this._jelly), far = dir.length();
     if (far < 1e-6) return;
     dir.multiplyScalar(1 / far);
     const r = this.cfg.clearRadius ?? 0.015;
-    this.look(this._jelly, dir, far + r, true);
+    this.look(this._jelly, dir, far + r);
     this.look(this.focus, UP, this.currentDistance);
     this._side.crossVectors(dir, UP);
     if (this._side.lengthSq() < 1e-6) this._side.set(1, 0, 0);
@@ -153,23 +158,21 @@ export class ThirdPersonCamera {
     }
   }
 
-  // `direct`: the jelly-to-camera ray, the only one that says a small prop really hides the jelly.
-  // (It goes first, so the other rays skip what it found: that's why it's told apart here.)
-  look(from, dir, far, direct = false) {
+  look(from, dir, far) {
+    const minFade = this.cfg.minFadeSize ?? MIN_FADE;
     for (let i = 0; i < LAYERS; i++) {
       const h = this.world.cast(from, dir, far, this.over);
       if (!h?.mesh) return;
-      const m = h.mesh, small = sizeOf(m) < SMALL;
+      const m = h.mesh, keepSolid = staysSolid(m, minFade);
       this.over.add(m);
-      if (small) (direct ? this.partly : this.solid).add(m);
-      if (m.userData.noCameraFade) continue;   // it never fades, so nor do its instanced parts (the arena's floor tiles and records, act4-arena.js)
+      if (keepSolid) this.solid.add(m);
+      if (m.userData.noCameraFade || keepSolid) continue;   // it never fades, so nor do its instanced parts (the arena's floor tiles and records, act4-arena.js)
       // and the instanced parts of the same piece (a sideboard's flutes): nothing collides with
       // instanced meshes, so no ray finds them. They fade like the piece they're part of
       const kin = m.parent && !m.parent.isScene ? m.parent.children : NONE;   // not the scene's: the bugs are instanced
       for (let k = 0; k < kin.length; k++) {
         if (!kin[k].isInstancedMesh || !kin[k].visible) continue;
         this.over.add(kin[k]);
-        if (small) (direct ? this.partly : this.solid).add(kin[k]);
       }
     }
   }
@@ -180,7 +183,7 @@ export class ThirdPersonCamera {
     for (const m of this.keep.keys()) this.startFade(m);
     for (const [m, f] of this._fades) {
       if ((this.over.has(m) && !this.solid.has(m)) || this.keep.has(m)) f.hold = HOLD; else f.hold -= dt;
-      const goal = f.hold > 0 ? this.keep.get(m) ?? f.low : 1;
+      const goal = f.hold > 0 ? this.keep.get(m) ?? SEE_THROUGH : 1;
       f.k += (goal - f.k) * (1 - Math.exp(-10 * dt));
       if (goal === 1 && f.k > 0.98) { this.unfade(m, f); continue; }
       for (const s of [].concat(f.see)) s.opacity = s.userData.solid * f.k;
@@ -188,9 +191,10 @@ export class ThirdPersonCamera {
   }
 
   startFade(m) {
-    if (m.userData.structural || (m.userData.noCameraFade && !this.keep.has(m)) || this._fades.has(m)) return;
+    const kept = this.keep.has(m);
+    if (m.userData.structural || (!kept && (m.userData.noCameraFade || staysSolid(m, this.cfg.minFadeSize ?? MIN_FADE))) || this._fades.has(m)) return;
     const mats = m.material, see = Array.isArray(mats) ? mats.map(faded) : faded(mats);
-    this._fades.set(m, { mats, see, k: 1, hold: 0, low: this.partly.has(m) ? SMALL_SEE : SEE_THROUGH });
+    this._fades.set(m, { mats, see, k: 1, hold: 0 });
     m.material = see;
     // High's N8AO draws every see-through thing again to keep its shading off them; a faded piece
     // is mostly the room behind it, so that room's shading may show through it, and it's drawn once
@@ -275,9 +279,9 @@ export class ThirdPersonCamera {
   // phone for a frame or more. `within`: only colliders inside this box (a newly loaded act's rooms);
   // `also`: pieces the fight keeps faint, including fixtures that normally never fade
   seeThroughWarmers(within = null, also = []) {
-    const found = new Map(), box = new THREE.Box3(), kept = new Set(also);
+    const found = new Map(), box = new THREE.Box3(), kept = new Set(also), minFade = this.cfg.minFadeSize ?? MIN_FADE;
     for (const m of [...this.world.colliders, ...also]) {
-      if (!m.isMesh || m.userData.structural || (m.userData.noCameraFade && !kept.has(m))) continue;
+      if (!m.isMesh || m.userData.structural || (!kept.has(m) && (m.userData.noCameraFade || staysSolid(m, minFade)))) continue;
       if (within && !within.intersectsBox(box.setFromObject(m))) continue;
       if (!found.has(m.material)) found.set(m.material, m);
       // and the instanced parts that fade along with it (look)

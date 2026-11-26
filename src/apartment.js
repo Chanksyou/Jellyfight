@@ -96,6 +96,9 @@ const OPAQUE_COUNTER = new Set([
   'Spice_carousel', 'Cutting_board', 'Glass_dish', 'Dish_cloth',
 ]);
 
+// Flat floor rugs/mats and the open Baby play gym never fade for the camera (unlike noCameraFade, the camera does not dolly round them).
+const STAY_SOLID = new Set(['Baby_play_gym', 'Kitchen_mat', 'Duck_rug', 'Bath_mat', 'Round_bath_rug']);
+
 export function floatPositions(geometry) {
   const pos = geometry.attributes.position;
   if (!pos || pos.array instanceof Float32Array) return;
@@ -116,6 +119,7 @@ function prepareMeshes(root, meta, renderer) {
   softenGlass(root, coarse);
   root.traverse((o) => {
     if (OPAQUE_COUNTER.has(o.name) || o.parent?.userData.noCameraFade) o.userData.noCameraFade = true;
+    if (STAY_SOLID.has(o.name) || o.parent?.userData.staySolid) o.userData.staySolid = true;
     if (!o.isMesh) return;
     // The soft-shadow cards under furniture (flat see-through pictures) are left out: the baked AO already darkens
     // the floor there, and they were the room's biggest see-through cost on a phone.
