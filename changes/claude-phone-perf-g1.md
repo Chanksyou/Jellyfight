@@ -1,1 +1,0 @@
-adds `--baked-shine-roughness` and a `?shine=all|none` bench link: on Medium and High a baked matte surface can skip the lamps' maths, which only add a faint sheen there. It ships set to 2, so nothing looks different until the value is picked from the screenshots.
