@@ -10,6 +10,7 @@ import { loadLayout, applyLayout, visibleBox } from '../layout.js';
 import { BAKED_LAYOUT } from '../layout-baked.js';
 import { juice } from '../juice.js';
 import { LOOK } from '../look.js';
+import { readExperiments } from '../experiments.js';
 import { BAKED_AO, fingerprint } from '../baked-ao.js';
 import { BAKED_LIGHT, bakeFingerprint, setBakedLight } from '../baked-light.js';
 import { MIST } from '../mist.js';
@@ -1764,5 +1765,34 @@ story('engine/old-code-reloads-into-the-new-version', {
       const once = !(await reloadIfStale(Promise.resolve('v2'), 'v1')) && reloads === 1;
       return ok(asksServer && same && unknown && stale && once, { server, running: window.JF_BUILD, asksServer, same, unknown, stale, once, reloads });
     } finally { was === null ? sessionStorage.removeItem(KEY) : sessionStorage.setItem(KEY, was); }
+  },
+});
+story('engine/baked-light-skips-the-lamps-on-matte-surfaces', {
+  readback: true,   // reads the picture back, so tests/run.mjs plays it before the stories that queue frames
+  about: 'On Medium, a baked surface rougher than --baked-shine-roughness skips the lamps\' maths (they only add shine there), so doubling every lamp\'s strength barely changes a room of matte surfaces; the same room made glossy changes with it. ?shine=all keeps every lamp, ?shine=none skips them all, and none of it builds a shader.',
+  setup() { fresh({ elites: false, lash: false, bubbles: false }); tp(2.6, 0.05, 2.6, 0.8); step(3); },
+  async play() {
+    const { gfx, APT } = G(), gl = APT.renderer.getContext(), was = gfx.choice, u = BAKED_AO.uniforms.bakedShine;
+    if (!BAKED_LIGHT.meta) return ok(false, { baked: false });
+    gfx.setQuality('medium'); await gfx.ready;
+    const mats = new Map();
+    APT.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (m?.isMeshStandardMaterial) mats.set(m, m.roughness); });
+    const rough = (r) => { for (const m of mats.keys()) m.roughness = r; };
+    const lamps = []; APT.scene.traverse((o) => { if (o.isPointLight && (o.userData.slot || o.userData.lamp)) lamps.push(o); });
+    const sum = () => { G().batcher.sync(); gfx.render(); const a = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, a); let s = 0; for (let i = 0; i < a.length; i += 4) s += a[i] + a[i + 1] + a[i + 2]; return s; };
+    const moves = () => { const one = sum(); for (const l of lamps) l.intensity *= 2; const two = sum(); for (const l of lamps) l.intensity /= 2; return Math.abs(two - one) / one; };   // share of the picture that changes
+    const mist = MIST.uniforms.mistK.value, at = u.value;
+    try {
+      MIST.uniforms.mistK.value = 0;
+      u.value = 0.5; sum();
+      const programs = APT.renderer.info.programs.length;
+      rough(0.95); const matte = moves();
+      rough(0.05); const glossy = moves();
+      u.value = 0; const none = moves();
+      u.value = 2; const all = moves();
+      const built = APT.renderer.info.programs.length - programs;
+      const words = readExperiments('?shine=all').shine === 'all' && readExperiments('?shine=none').shine === 'none' && readExperiments('?shine=x').shine === null && readExperiments('').shine === null;
+      return ok(glossy > 0.002 && matte < glossy * 0.4 && none < glossy * 0.4 && all > glossy * 0.5 && built === 0 && words && LOOK.num('baked-shine-roughness', -1) >= 0, { matte, glossy, none, all, built, words });
+    } finally { MIST.uniforms.mistK.value = mist; u.value = at; for (const [m, r] of mats) m.roughness = r; gfx.setQuality(was); await gfx.ready; }
   },
 });
