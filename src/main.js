@@ -1258,7 +1258,7 @@ function endContinue() {
 // Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 export const ready = warmUp().then(() => {
-  (window.requestIdleCallback || setTimeout)(() => loadN8AO(), 2000);   // a pick of High later then finds it here
+  if (window.requestIdleCallback) requestIdleCallback(() => loadN8AO(), { timeout: 4000 }); else setTimeout(loadN8AO, 2000);   // a pick of High later then finds it here
   field.loadMs = performance.now();   // since navigation start: how long until Play worked
   field.load = loadFacts(JF_LOAD.steps, JF_LOAD.hiddenMs, firstOfBuild(),
     performance.getEntriesByType('resource').filter((e) => e.name.startsWith(location.origin) && /\.(js|css|glb|json|kdl|mp3|png|jpg|webp|woff2)(\?|$)/.test(e.name)));
