@@ -223,7 +223,17 @@ export class Vacuum {
   }
 
   // Dendi's paw lands: now it dies (the death animation in tick() takes over)
-  die() { if (this.dying) { this.dying = false; this.dead = true; } }
+  die(impulseDir = null) {
+    if (!this.dying) return;
+    this.dying = false;
+    this.dead = true;
+    const dir = impulseDir ? impulseDir.clone().setY(0) : new THREE.Vector3(1, 0, 0);
+    this.deathDir = dir.lengthSq() > 1e-6 ? dir.normalize() : dir.set(1, 0, 0);
+    this.deathT = 0;
+    this.deathVel = 1.1;
+    this.deathPuffT = 0;
+    this.deathPopped = false;
+  }
 
   get angry() { return this.hp < this.maxHp * this.def.skills.enrage.at; }
   // how fast it does everything: twice as fast once it's enraged (not during the enrage itself)
@@ -252,7 +262,7 @@ export class Vacuum {
 
   // What it does to you goes out as events; the pull on the player comes back as `push`
   update(dt, player) {
-    const k = this.pace;
+    const k = this.dead ? 1 : this.pace;
     const out = this.tick(dt * k, player);
     out.hurt /= k;                     // damage over time stays per real second
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
@@ -269,12 +279,56 @@ export class Vacuum {
     const p = this.holder.position, P = player.position;
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
-      this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
       this.line.material.opacity = this.swirl.material.opacity = 0;
       this.line.visible = this.swirl.visible = false;
       this.lane.visible = this.sweep.visible = false;
       this.dome.visible = this.tethers.visible = false;
-      if (Math.random() < dt * 20) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(0.1)), 0x6a6d75, 0.04, 0.5);
+      this.deathT = (this.deathT || 0) + dt;
+      if (juice.calm) {
+        this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 2));
+        if (this.holder.scale.x < 0.01) this.holder.visible = false;
+        return out;
+      }
+      if (!this.deathDir) this.deathDir = new THREE.Vector3(1, 0, 0);
+      if (this.deathVel == null) this.deathVel = 1.1;
+      if (this.deathT < 0.10) {
+        this.body.scale.set(1.38, 0.42, 1.38);
+        if (this.ringMat) this.setLight(0xfff4b8, 5);
+      } else {
+        const u = Math.min(1, (this.deathT - 0.10) / 0.75);
+        const rec = Math.min(1, (this.deathT - 0.10) / 0.18);
+        this.body.scale.set(1.38 - 0.38 * rec, 0.42 + 0.58 * rec, 1.38 - 0.38 * rec);
+        if (this.ringMat) this.setLight(0xffb84a, Math.max(0, 3 * (1 - u)));
+        this.deathVel *= Math.exp(-dt * 3.5);
+        p.x += this.deathDir.x * this.deathVel * dt;
+        p.z += this.deathDir.z * this.deathVel * dt;
+        if (this.arena?.arenaMin && this.arena?.arenaMax) {
+          const a = this.arena;
+          p.x = THREE.MathUtils.clamp(p.x, a.arenaMin[0] + this.r, a.arenaMax[0] - this.r);
+          p.z = THREE.MathUtils.clamp(p.z, a.arenaMin[2] + this.r, a.arenaMax[2] - this.r);
+        }
+        this.heading += dt * 14;
+        this.body.rotation.y = this.heading;
+        this.body.rotation.z = Math.sin(this.deathT * 18) * 0.45 * (1 - u * 0.3) + 0.35 * Math.min(1, (this.deathT - 0.10) * 4);
+        this.body.rotation.x = Math.cos(this.deathT * 15) * 0.32 * (1 - u * 0.3);
+        this.deathPuffT = (this.deathPuffT || 0) - dt;
+        if (this.deathPuffT <= 0 && u < 0.95) {
+          this.deathPuffT = 0.12;
+          const a = this.deathT * 19;
+          _rel.set(p.x + Math.cos(a) * 0.08, p.y + 0.05, p.z + Math.sin(a) * 0.08);
+          this.fx.puff(_rel, 0x6a6d75, 0.04, 0.5);
+          this.fx.impact(_rel, 0xffd27a, 0.018, 6);
+        }
+        if (this.deathT > 0.55) {
+          const s = Math.max(0, 1 - (this.deathT - 0.55) / 0.30);
+          this.holder.scale.setScalar(s);
+          if (s === 0 && !this.deathPopped) {
+            this.deathPopped = true;
+            this.holder.visible = false;
+            this.fx.puff(_rel.set(p.x, p.y + 0.045, p.z), 0x8a8e96, 0.06, 0.45);
+          }
+        }
+      }
       return out;
     }
     // doomed: it stops where it was hit, waiting for the cat

@@ -24,6 +24,7 @@ import { updateForceFields } from './forcefield.js';
 import { addBathroomDetails } from './bathroom.js';
 import { dressSet, DRESSED } from './set-dressing.js';
 import { addDendi } from './cat.js';
+import { createBossBanner } from './boss-banner.js';
 import { Enemies, TYPES, FLASH } from './enemies.js';
 import { BugNav } from './bug-nav.js';
 import { juice } from './juice.js';
@@ -660,25 +661,41 @@ const blackout = document.createElement('div');
 blackout.className = 'boss-fade';
 blackout.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60;';
 document.body.appendChild(blackout);
+const bossBanner = createBossBanner();
 const sceneRay = new THREE.Raycaster();
 sceneRay.layers.enable(HIDDEN);   // the apartment's batched pieces (static-batch.js)
+const _impulseDir = new THREE.Vector3(), _pawPos = new THREE.Vector3();
+const smoothBoss = (x) => { const u = Math.max(0, Math.min(1, x)); return u * u * (3 - 2 * u); };
 function startBossScene(boss) {
   const short = juice.calm || fx.reducedMotion.matches, scale = short ? .35 : 1;
+  const bossName = run.stage?.boss?.name || boss.name || boss.arena?.name || 'Boss';
   bossScene = {
-    boss, t: 0, phase: 'out', smacked: false, short,
-    fade: LOOK.num('cat-scene-fade', .55) * scale,
+    boss, bossName, t: 0, phase: 'break', smacked: false, short,
+    victorySounded: false, hopT: 0, hopPulsed: false, walkedDur: 0,
+    breakHold: short ? 0.12 : LOOK.num('cat-scene-break-hold', 0.35),
+    fade: LOOK.num('cat-scene-fade', .55) * (short ? .35 : .72),
     walk: short ? 0 : LOOK.num('cat-scene-walk', 1.8),
     watch: LOOK.num('cat-scene-watch', .7) * scale,
     strike: short ? .25 : LOOK.num('cat-scene-strike', .5),
     aftermath: LOOK.num('cat-scene-aftermath', 1.8) * scale,
     playerAt: player.position.clone(), yaw: tpc.yaw, view: tpc.fight, hudHidden: hud.el.hidden,
+    baseDist: 0, baseTilt: 0, playerBaseY: player.position.y,
   };
   hud.el.hidden = true;
   run.bubbles.silenceAttacks();
   music?.duck(true);
+  sfx.bossBreak();
+  const bc = boss.center();
+  fx.impact(bc, '#ffe8a3', 0.12, short ? 4 : 16);
+  fx.ring(bc, '#ffe8a3', 0.35, 0.35);
+  bossBanner.showBreak(bossName, short);
+  bossBanner.setLetterbox(true, short);
 }
 function restoreBossView(S) {
+  bossBanner.clear();
+  dendi.setTarget(null);
   dendi.endScene();
+  music?.duck(false);
   player.position.copy(S.playerAt); player.mesh.position.copy(S.playerAt);
   tpc.yaw = S.yaw; tpc.fight = S.view; tpc.snapTo(player.position);
 }
@@ -686,7 +703,8 @@ function stepBossScene(dt) {
   const S = bossScene;
   if (run.boss !== S.boss || run.phase !== 'boss') {
     // A restart owns its new player/camera transform; never restore the old run over it.
-    blackout.style.opacity = '0'; dendi.endScene(); hud.el.hidden = state.mode === 'creator' || S.hudHidden; bossScene = null; return;
+    blackout.style.opacity = '0'; bossBanner.clear(); dendi.setTarget(null); dendi.endScene(); music?.duck(false);
+    hud.el.hidden = state.mode === 'creator' || S.hudHidden; bossScene = null; return;
   }
   input.consumeMouse();
   if (!overlay.hidden || run.paused || state.mode !== 'play') return;
@@ -694,85 +712,149 @@ function stepBossScene(dt) {
   S.t += dt;
   const B = S.boss;
   const next = phase => { S.phase = phase; S.t = 0; };
-  if (S.phase === 'out') blackout.style.opacity = String(Math.min(1, S.t / S.fade));
-  if (S.phase === 'out' && S.t >= S.fade) {
-    // behind the black: the cat beside the boss, on the side the jelly was on
-    const c = B.center(), hp = B.holder.position;
-    const dir = new THREE.Vector3(player.position.x - c.x, 0, player.position.z - c.z);
-    if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
-    const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), B.floor ?? hp.y, c.z + dir.z * (B.r + 0.16));
-    // A short surface-checked path fits the tub and bed too: no walking through walls or off edges.
-    const down = new THREE.Vector3(0,-1,0), ground = world.castAll(catPos.clone().add(new THREE.Vector3(0,.3,0)),down,.6);
-    if (ground && ground.normal?.y > .55) catPos.y = ground.point.y + .002;
-    const from = catPos.clone(), at = catPos.clone(), path = [catPos.clone()], hit = {normal:new THREE.Vector3(),point:new THREE.Vector3()};
-    if (!S.short) for (let distance = .025; distance <= LOOK.num('cat-scene-approach', .45); distance += .025) {
-      at.copy(catPos).addScaledVector(dir, distance);
-      const floor = world.castAll(at.clone().setY(from.y+.2), down, .4);
-      if (!floor || floor.normal?.y < .55 || Math.abs(floor.point.y-from.y) > .08) break;
-      at.y = floor.point.y + .002;
-      if (world.sweepSphere(from.clone().add(new THREE.Vector3(0,.15,0)), at.clone().sub(from), .1, hit)) break;
-      from.copy(at); path.unshift(at.clone());
-    }
-    S.catFrom = from; S.catTo = catPos; S.catPath = path;
-    dendi.placeForSmack(catPos, Math.atan2(c.x - catPos.x, c.z - catPos.z));
-    dendi.group.position.copy(from);
-    // the jelly in front of the pair and the camera behind it, side-on, so the cat and the boss stand left and
-    // right in the frame (the player's own camera angle left him off-screen or showed only his back). Of a few
-    // angles round the pair, the first whose jelly and camera are both inside the arena with nothing of the
-    // apartment between them (a camera outside the arena ends up in a wall)
-    const A = B.arena, mid = new THREE.Vector3((c.x + catPos.x) / 2, player.position.y, (c.z + catPos.z) / 2);
-    const far = LOOK.num('cat-scene-distance', 1.2);
-    const inside = (x, z, m = 0) => !A.arenaMin || (x > A.arenaMin[0] - m && x < A.arenaMax[0] + m && z > A.arenaMin[2] - m && z < A.arenaMax[2] + m);
-    const side = Math.atan2(dir.z, -dir.x);
-    let view = null;
-    // (lower first; a small arena like the bathtub only fits a camera looking down into it)
-    for (const tilt of [LOOK.num('cat-scene-tilt', 0.6), 1.0, 1.3]) for (const turn of view ? [] : [0, Math.PI, 0.5, -0.5, Math.PI + 0.5, Math.PI - 0.5, 1, -1]) {
-      const yaw = side + turn, sx = Math.sin(yaw), sz = Math.cos(yaw), back = Math.cos(tilt) * far;
-      const jx = mid.x + sx * 0.3, jz = mid.z + sz * 0.3;
-      if (!inside(jx, jz) || !inside(jx + sx * back, jz + sz * back, 0.1)) continue;
-      sceneRay.set(new THREE.Vector3(jx, mid.y + tpc.cfg.height, jz), new THREE.Vector3(sx * Math.cos(tilt), Math.sin(tilt), sz * Math.cos(tilt))); sceneRay.far = far;
-      if (sceneRay.intersectObject(APT.root, true).some((h) => h.object.visible && h.object.isMesh)) continue;
-      view = { yaw, tilt, x: jx, z: jz }; break;
-    }
-    view ||= { yaw: side, tilt: 1.3, x: mid.x + Math.sin(side) * 0.3, z: mid.z + Math.cos(side) * 0.3 };
-    player.position.set(view.x, player.position.y, view.z);
-    player.mesh.position.copy(player.position);   // (gameplay, which moves the model with it, waits during the scene)
-    tpc.yaw = view.yaw;
-    // pulled back to fit a 26 cm cat and the boss: a fight view (camera.js), handed back after
-    tpc.fight = { distance: far, pitch: view.tilt, ahead: 0 };
-    tpc.fightK = 1;
-    tpc.snapTo(player.position);
-    next('in');
-  } else if (S.phase === 'in') {
-    blackout.style.opacity = String(Math.max(0, 1-S.t/S.fade));
+  if (S.phase === 'break') {
+    if (S.t >= S.breakHold) next('out');
+  } else if (S.phase === 'out') {
+    blackout.style.opacity = String(Math.min(1, S.t / S.fade));
     if (S.t >= S.fade) {
-      if (S.walk && S.catPath.length > 1) { dendi.approach(S.catPath,S.walk); S.footstep = 0; next('walk'); }
-      else next('watch');
+      // behind the black: clear break callout (keep letterbox), place cat beside boss
+      bossBanner.clear();
+      bossBanner.setLetterbox(true, S.short);
+      const c = B.center(), hp = B.holder.position;
+      const dir = new THREE.Vector3(player.position.x - c.x, 0, player.position.z - c.z);
+      if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
+      const catPos = new THREE.Vector3(c.x + dir.x * (B.r + 0.16), B.floor ?? hp.y, c.z + dir.z * (B.r + 0.16));
+      // A short surface-checked path fits the tub and bed too: no walking through walls or off edges.
+      const down = new THREE.Vector3(0,-1,0), ground = world.castAll(catPos.clone().add(new THREE.Vector3(0,.3,0)),down,.6);
+      if (ground && ground.normal?.y > .55) catPos.y = ground.point.y + .002;
+      const from = catPos.clone(), at = catPos.clone(), path = [catPos.clone()], hit = {normal:new THREE.Vector3(),point:new THREE.Vector3()};
+      if (!S.short) for (let distance = .025; distance <= LOOK.num('cat-scene-approach', .45); distance += .025) {
+        at.copy(catPos).addScaledVector(dir, distance);
+        const floor = world.castAll(at.clone().setY(from.y+.2), down, .4);
+        if (!floor || floor.normal?.y < .55 || Math.abs(floor.point.y-from.y) > .08) break;
+        at.y = floor.point.y + .002;
+        if (world.sweepSphere(from.clone().add(new THREE.Vector3(0,.15,0)), at.clone().sub(from), .1, hit)) break;
+        from.copy(at); path.unshift(at.clone());
+      }
+      S.catFrom = from; S.catTo = catPos; S.catPath = path;
+      dendi.placeForSmack(catPos, Math.atan2(c.x - catPos.x, c.z - catPos.z));
+      dendi.group.position.copy(from);
+      dendi.setTarget(c);
+      // the jelly in front of the pair and the camera behind it, side-on, so the cat and the boss stand left and
+      // right in the frame (the player's own camera angle left him off-screen or showed only his back). Of a few
+      // angles round the pair, the first whose jelly and camera are both inside the arena with nothing of the
+      // apartment between them (a camera outside the arena ends up in a wall)
+      const A = B.arena, mid = new THREE.Vector3((c.x + catPos.x) / 2, player.position.y, (c.z + catPos.z) / 2);
+      const far = LOOK.num('cat-scene-distance', 1.2);
+      const inside = (x, z, m = 0) => !A.arenaMin || (x > A.arenaMin[0] - m && x < A.arenaMax[0] + m && z > A.arenaMin[2] - m && z < A.arenaMax[2] + m);
+      const side = Math.atan2(dir.z, -dir.x);
+      let view = null;
+      // (lower first; a small arena like the bathtub only fits a camera looking down into it)
+      for (const tilt of [LOOK.num('cat-scene-tilt', 0.6), 1.0, 1.3]) for (const turn of view ? [] : [0, Math.PI, 0.5, -0.5, Math.PI + 0.5, Math.PI - 0.5, 1, -1]) {
+        const yaw = side + turn, sx = Math.sin(yaw), sz = Math.cos(yaw), back = Math.cos(tilt) * far;
+        const jx = mid.x + sx * 0.3, jz = mid.z + sz * 0.3;
+        if (!inside(jx, jz) || !inside(jx + sx * back, jz + sz * back, 0.1)) continue;
+        sceneRay.set(new THREE.Vector3(jx, mid.y + tpc.cfg.height, jz), new THREE.Vector3(sx * Math.cos(tilt), Math.sin(tilt), sz * Math.cos(tilt))); sceneRay.far = far;
+        if (sceneRay.intersectObject(APT.root, true).some((h) => h.object.visible && h.object.isMesh)) continue;
+        view = { yaw, tilt, x: jx, z: jz }; break;
+      }
+      view ||= { yaw: side, tilt: 1.3, x: mid.x + Math.sin(side) * 0.3, z: mid.z + Math.cos(side) * 0.3 };
+      player.position.set(view.x, player.position.y, view.z);
+      player.mesh.position.copy(player.position);   // (gameplay, which moves the model with it, waits during the scene)
+      S.baseDist = far;
+      S.baseTilt = view.tilt;
+      S.playerBaseY = player.position.y;
+      tpc.yaw = view.yaw;
+      // pulled back to fit a 26 cm cat and the boss: a fight view (camera.js), handed back after
+      tpc.fight = { distance: far, pitch: view.tilt, ahead: 0 };
+      tpc.fightK = 1;
+      tpc.snapTo(player.position);
+      next('in');
+    }
+  } else if (S.phase === 'in') {
+    blackout.style.opacity = String(Math.max(0, 1 - S.t / S.fade));
+    if (S.t >= S.fade) {
+      if (S.walk && S.catPath.length > 1) { S.walkedDur = S.walk; dendi.approach(S.catPath, S.walk); S.footstep = 0; next('walk'); }
+      else { S.walkedDur = 0; next('watch'); }
     }
   } else if (S.phase === 'walk') {
     const step = Math.floor(S.t / .3125);
     if (step > S.footstep) { S.footstep = step; sfx.catStep(); }
+    if (!S.short && tpc.fight) {
+      const dolly = LOOK.num('cat-scene-dolly', 0.22);
+      const k = smoothBoss(S.t / Math.max(0.001, S.walkedDur + S.watch));
+      tpc.fight.distance = S.baseDist * (1 - dolly * k);
+      tpc.fight.pitch = S.baseTilt;
+    }
     if (S.t >= S.walk) next('watch');
-  } else if (S.phase === 'watch' && S.t >= S.watch) {
-    dendi.beginSmack(.25 / S.strike); sfx.catWind(); next('smack');
+  } else if (S.phase === 'watch') {
+    if (!S.short && tpc.fight) {
+      const dolly = LOOK.num('cat-scene-dolly', 0.22);
+      const k = smoothBoss((S.walkedDur + S.t) / Math.max(0.001, S.walkedDur + S.watch));
+      tpc.fight.distance = S.baseDist * (1 - dolly * k);
+      tpc.fight.pitch = S.baseTilt;
+    }
+    if (S.t >= S.watch) { dendi.beginSmack(.25 / S.strike); sfx.catWind(); next('smack'); }
   } else if (S.phase === 'smack') {
+    if (!S.short && tpc.fight) {
+      const dolly = LOOK.num('cat-scene-dolly', 0.22);
+      const heroTilt = LOOK.num('cat-scene-hero-tilt', -0.14);
+      const dolDist = S.baseDist * (1 - dolly);
+      const heroPitch = Math.max(0.18, S.baseTilt + heroTilt);
+      if (S.t < S.strike) {
+        const k = smoothBoss(S.t / Math.max(0.001, S.strike));
+        tpc.fight.distance = dolDist;
+        tpc.fight.pitch = S.baseTilt + (heroPitch - S.baseTilt) * k;
+      } else {
+        const post = S.t - S.strike;
+        if (post < 0.08) {
+          const p = smoothBoss(post / 0.08);
+          tpc.fight.distance = dolDist * (1 - 0.08 * p);
+          tpc.fight.pitch = heroPitch;
+        } else {
+          const p = smoothBoss((post - 0.08) / Math.max(0.001, S.aftermath - 0.08));
+          tpc.fight.distance = dolDist * (0.92 + 0.20 * p);
+          tpc.fight.pitch = heroPitch + (S.baseTilt - heroPitch) * p;
+        }
+      }
+    }
     if (!S.smacked && S.t >= S.strike) {
-      B.die(); S.smacked = true;
+      _impulseDir.copy(B.center()).sub(dendi.group.position).setY(0);
+      if (_impulseDir.lengthSq() < 1e-6) _impulseDir.set(1, 0, 0); else _impulseDir.normalize();
+      B.die(_impulseDir); S.smacked = true;
       if (!S.short) { juice.feel('boss-kill'); juice.slow(...LOOK.list('boss-kill-slow', [0.7, 0.25]).map(Number)); }
       sfx.catImpact();
-      const c = dendi.bones.legFR2.getWorldPosition(new THREE.Vector3()), color = LOOK.color('cat-scene-impact-color', '#fff0c9');
-      fx.impact(c,color,LOOK.num('cat-scene-impact-size',.045),S.short ? 3 : 12);
-      fx.burst(c,[color,LOOK.color('cat-scene-debris-color','#6a6057')],S.short ? 3 : 12,.005,.25,S.catTo.y);
+      const c = dendi.bones.legFR2.getWorldPosition(_pawPos);
+      const color = LOOK.color('cat-scene-impact-color', '#fff0c9');
+      const ringRadius = LOOK.num('cat-scene-ring-radius', 0.42);
+      const ringColor = LOOK.color('cat-scene-ring-color', '#ffe8a3');
+      const celebrateColors = LOOK.list('cat-scene-celebrate-colors', ['#ffe8a3', '#ffffff', '#7ef6ff']);
+      fx.impact(c, color, LOOK.num('cat-scene-impact-size', 0.11), S.short ? 4 : 22);
+      fx.ring(c, '#ffffff', ringRadius * 0.65, 0.32);
+      fx.ring(c, ringColor, ringRadius, 0.55);
+      fx.burst(c, celebrateColors, S.short ? 4 : 26, 0.007, 0.42, S.catTo.y);
+      bossBanner.showVictory(S.bossName, S.short);
     }
-    if (S.t >= S.strike + S.aftermath) next('exit');
+    if (!S.victorySounded && S.t >= S.strike + (S.short ? 0.10 : 0.32)) {
+      S.victorySounded = true;
+      sfx.bossVictory();
+    }
+    if (!S.short && S.t > S.strike + 0.25) {
+      if (!S.hopPulsed) { S.hopPulsed = true; player.avatar?.pulse?.(0.85); }
+      S.hopT += dt;
+      const hop = S.hopT < 0.35 ? Math.sin((S.hopT / 0.35) * Math.PI) * 0.07
+        : S.hopT < 0.65 ? Math.sin(((S.hopT - 0.35) / 0.30) * Math.PI) * 0.045 : 0;
+      player.mesh.position.y = S.playerBaseY + hop;
+    }
+    if (S.t >= S.strike + S.aftermath) { bossBanner.clear(); next('exit'); }
   } else if (S.phase === 'exit') {
-    blackout.style.opacity = String(Math.min(1,S.t/S.fade));
+    blackout.style.opacity = String(Math.min(1, S.t / S.fade));
     if (S.t >= S.fade) { restoreBossView(S); next('return'); }
   } else if (S.phase === 'return') {
-    blackout.style.opacity = String(Math.max(0,1-S.t/S.fade));
+    blackout.style.opacity = String(Math.max(0, 1 - S.t / S.fade));
     if (S.t >= S.fade) {
       hud.el.hidden = S.hudHidden; bossScene = null;
-      run.onBossDead({ impact: false });
+      run.onBossDead({ impact: false, announced: true });
     }
   }
   B.update(dt, player);              // attack-free waiting and the boss's death animation only

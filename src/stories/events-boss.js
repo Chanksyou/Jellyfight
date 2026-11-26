@@ -383,6 +383,93 @@ story('boss/finish-layered-sound', {
     return ok(run.bossWon && calls.catStep>0 && calls.catWind===1 && calls.catImpact===1,calls);
   },
 });
+story('boss/finish-signals-victory-before-fade', {
+  about: 'On 0 HP, sfx.bossBreak fires and the .boss-callout banner is visible before .boss-fade reaches opacity 1, so players immediately know they won.',
+  setup() { startVacuum('charge'); stub(juice, 'calm', false); },
+  play() {
+    const { run } = G();
+    let breakCalls = 0;
+    const realBreak = sfx.bossBreak;
+    stub(sfx, 'bossBreak', () => { breakCalls++; realBreak(); });
+    run.boss.damage(99999);
+    let seenBeforeFade = false, fadeAtBreak = 1, opacityAtBreak = 0, textAtBreak = '';
+    const fade = document.querySelector('.boss-fade');
+    const callout = document.querySelector('.boss-callout');
+    step(600, () => {
+      if (!seenBeforeFade && callout && !callout.hidden && callout.classList.contains('show')) {
+        const f = Number(fade?.style.opacity || 0);
+        const op = parseFloat(getComputedStyle(callout).opacity || '0');
+        const txt = callout.textContent.trim();
+        if (f < 1 && op > 0.5 && txt.length > 0) {
+          seenBeforeFade = true;
+          fadeAtBreak = f;
+          opacityAtBreak = op;
+          textAtBreak = txt;
+        }
+      }
+      return run.bossWon;
+    });
+    return ok(run.bossWon && breakCalls === 1 && seenBeforeFade, {
+      won: run.bossWon, breakCalls, seenBeforeFade, fadeAtBreak, opacityAtBreak: +opacityAtBreak.toFixed(2), textAtBreak,
+    });
+  },
+});
+story('boss/finish-bats-the-boss-and-celebrates', {
+  about: 'On paw contact, the Vacuum is batted sideways (> 0.08 m) from its doomed spot, sfx.bossVictory plays once, and the .boss-callout.victory banner shows in the aftermath and clears on return.',
+  setup() { startVacuum('charge'); stub(juice, 'calm', false); },
+  play() {
+    const { run } = G(), B = run.boss;
+    let victoryCalls = 0;
+    const realVictory = sfx.bossVictory;
+    stub(sfx, 'bossVictory', () => { victoryCalls++; realVictory(); });
+    B.damage(99999);
+    const doomedAt = B.holder.position.clone();
+    let maxDisp = 0, victoryBanner = false;
+    const callout = document.querySelector('.boss-callout');
+    const stage = document.querySelector('.boss-stage');
+    step(600, () => {
+      if (B.dead) {
+        const d = Math.hypot(B.holder.position.x - doomedAt.x, B.holder.position.z - doomedAt.z);
+        if (d > maxDisp) maxDisp = d;
+        if (callout && !callout.hidden && callout.classList.contains('show') && callout.classList.contains('victory') && callout.textContent.trim().length > 0) {
+          victoryBanner = true;
+        }
+      }
+      return run.bossWon;
+    });
+    const cleared = !!callout && callout.hidden && !callout.classList.contains('show') && !callout.classList.contains('victory') && !stage?.classList.contains('letterbox');
+    return ok(run.bossWon && maxDisp > 0.08 && victoryCalls === 1 && victoryBanner && cleared, {
+      won: run.bossWon, maxDisp: +maxDisp.toFixed(3), victoryCalls, victoryBanner, cleared,
+    });
+  },
+});
+story('boss/finish-blends-cat-poses-smoothly', {
+  about: 'On the first frame of walk -> curious and curious -> smack, Dendi\'s key bone quaternion step stays smoothly bounded (< 0.5 rad) with no single-frame snap.',
+  setup() { startVacuum('charge'); stub(juice, 'calm', false); },
+  play() {
+    const { run } = G(), d = G().dendi;
+    const keys = ['legFR0', 'chest', 'hips', 'spine', 'neck'];
+    let prevPose = d.state();
+    const prevQ = keys.map((k) => d.bones[k].quaternion.clone());
+    let walkToCurious = null, curiousToSmack = null;
+    run.boss.damage(99999);
+    step(600, () => {
+      const curPose = d.state();
+      const maxAngle = Math.max(...keys.map((k, i) => prevQ[i].angleTo(d.bones[k].quaternion)));
+      if (prevPose === 'walk' && curPose === 'curious' && walkToCurious === null) walkToCurious = maxAngle;
+      if (prevPose === 'curious' && curPose === 'smack' && curiousToSmack === null) curiousToSmack = maxAngle;
+      prevPose = curPose;
+      keys.forEach((k, i) => prevQ[i].copy(d.bones[k].quaternion));
+      return run.bossWon;
+    });
+    const smooth = walkToCurious !== null && curiousToSmack !== null && walkToCurious < 0.5 && curiousToSmack < 0.5;
+    return ok(run.bossWon && smooth, {
+      won: run.bossWon,
+      walkToCurious: walkToCurious != null ? +walkToCurious.toFixed(4) : null,
+      curiousToSmack: curiousToSmack != null ? +curiousToSmack.toFixed(4) : null,
+    });
+  },
+});
 story('boss/vacuum-charge-warning-is-a-lane', {
   about: "The charge's Warning is its floor strip with a lane volume over it as tall as the Vacuum (8 cm), filling together; both go when it rams.",
   setup() { startVacuum('charge'); },

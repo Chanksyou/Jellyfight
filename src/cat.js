@@ -1157,8 +1157,18 @@ export function paintMaterials() {
 
 // ------------------------------------------------------------ animation
 const BIND_HIPS = new THREE.Vector3(0, 0.232, -0.125);
+const _SIDES = ['L', 'R'];
+const _TAIL_KEYS = ['tail0', 'tail1', 'tail2', 'tail3', 'tail4', 'tail5'];
+const _headW = new THREE.Vector3();
+const _gazeLocal = new THREE.Vector3();
+const _EMPTY_OPTS = Object.freeze({});
 function resetPose(cat) {
-  for (const b of Object.values(cat.bones)) b.rotation.set(0, 0, 0);
+  const list = cat.mesh?.skeleton?.bones;
+  if (list) {
+    for (let i = 0; i < list.length; i++) list[i].rotation.set(0, 0, 0);
+  } else {
+    for (const k in cat.bones) cat.bones[k].rotation.set(0, 0, 0);
+  }
   cat.bones.hips.position.copy(BIND_HIPS);
 }
 const R = (b, x = 0, y = 0, z = 0) => { b.rotation.x += x; b.rotation.y += y; b.rotation.z += z; };
@@ -1167,7 +1177,7 @@ const wander = (t, a, b) => Math.sin(t * a) * 0.6 + Math.sin(t * b + 1.7) * 0.4;
 function tailWave(cat, t, amp = 0.06, freq = 1.6, lift = 0) {
   const B = cat.bones;
   for (let i = 0; i < 6; i++) {
-    R(B[`tail${i}`], lift * (i === 0 ? 1 : 0.35), 0, Math.sin(t * freq - i * 0.55) * amp * (0.4 + i * 0.16));
+    R(B[_TAIL_KEYS[i]], lift * (i === 0 ? 1 : 0.35), 0, Math.sin(t * freq - i * 0.55) * amp * (0.4 + i * 0.16));
   }
 }
 function tailHangCurl(cat, side = 0.3) {
@@ -1179,14 +1189,20 @@ function tailHangCurl(cat, side = 0.3) {
   R(B.tail4, -0.12, 0, -0.32 * side);
   R(B.tail5, -0.08, 0, -0.12 * side);
 }
+function setEyeLid(eye, scaleY, showIris) {
+  eye.scale.y = scaleY;
+  const ch = eye.children;
+  for (let i = 1; i < ch.length; i++) ch[i].visible = showIris;
+}
 function blinkAndPupils(cat, t, pupil = 0.38, lid = 1) {
   const cyc = t % 3.7;
   const b = cyc < 0.13 ? Math.sin((cyc / 0.13) * Math.PI) : 0;
-  for (const e of [cat.attachments.eyeL, cat.attachments.eyeR]) {
-    e.scale.y = lid * (1 - 0.92 * b);
-    for (let i = 1; i < e.children.length; i++) e.children[i].visible = lid > 0.1;
-  }
-  for (const p of [cat.attachments.pupilL, cat.attachments.pupilR]) p.scale.x = pupil;
+  const sy = lid * (1 - 0.92 * b);
+  const show = lid > 0.1;
+  setEyeLid(cat.attachments.eyeL, sy, show);
+  setEyeLid(cat.attachments.eyeR, sy, show);
+  cat.attachments.pupilL.scale.x = pupil;
+  cat.attachments.pupilR.scale.x = pupil;
 }
 function gaitLeg(cat, tag, ph, amp, liftAmp) {
   const B = cat.bones;
@@ -1194,9 +1210,29 @@ function gaitLeg(cat, tag, ph, amp, liftAmp) {
   R(B[`leg${tag}1`], liftAmp * Math.max(0, Math.sin(ph - 0.7)) + 0.08 * Math.sin(ph));
   R(B[`leg${tag}2`], -amp * 0.55 * Math.sin(ph) - liftAmp * 0.5 * Math.max(0, Math.sin(ph - 0.7)));
 }
+function applyProud(cat, t, k) {
+  const B = cat.bones;
+  const breathe = Math.sin(t * 1.9) * 0.012;
+  R(B.spine, breathe * 0.6 * k, 0, 0);
+  R(B.chest, (-0.08 + breathe * 0.4) * k, 0, 0);
+  R(B.neck, -0.16 * k, 0, 0);
+  R(B.head, -0.05 * k, 0, 0.10 * k);
+  // Happy high question-mark tail curl
+  const sway = Math.sin(t * 2.2) * 0.05 * k;
+  R(B.tail0, 0.42 * k, 0, sway * 0.4);
+  R(B.tail1, 0.24 * k, 0, sway * 0.6);
+  R(B.tail2, 0.10 * k, 0, sway * 0.8);
+  R(B.tail3, 0.14 * k, 0, sway);
+  R(B.tail4, 0.26 * k, 0, sway * 1.1);
+  R(B.tail5, 0.30 * k, 0, sway * 1.2);
+  // Subtle smug ear-flick
+  const ec = (t + 0.9) % 2.6;
+  const ef = ec < 0.18 ? Math.sin((ec / 0.18) * Math.PI) : 0;
+  R(B.earR, -0.22 * ef * k, 0, -0.14 * ef * k);
+}
 
-export const STATE_NAMES = ['idle', 'curious', 'walk', 'trot', 'sit', 'loaf', 'stretch', 'smack', 'sleep'];
-export function applyState(cat, state, t, opts = {}) {
+export const STATE_NAMES = ['idle', 'curious', 'walk', 'prowl', 'trot', 'sit', 'loaf', 'stretch', 'coil', 'smack', 'proud', 'sleep'];
+export function applyState(cat, state, t, opts = _EMPTY_OPTS) {
   const B = cat.bones;
   resetPose(cat);
   const breathe = Math.sin(t * 1.9) * 0.012;
@@ -1210,27 +1246,66 @@ export function applyState(cat, state, t, opts = {}) {
       blinkAndPupils(cat, t, 0.34);
       break;
     }
-    case 'curious': {
-      R(B.neck, -0.22, 0, 0); R(B.head, -0.18, 0, 0.12);
-      R(B.earL, -0.14, 0, 0.05); R(B.earR, -0.14, 0, -0.05);
-      R(B.chest, -0.04 + breathe, 0, 0);
-      tailWave(cat, t, 0.04, 1.8, -0.06);
-      blinkAndPupils(cat, t, 0.78);
+    case 'curious':
+    case 'coil': {
+      if (state === 'coil' || opts.stalk) {
+        // Coiled predatory anticipation: lowered chest/hips, wide pupils, forward-flat ears, haunch/tail-tip twitch
+        const twitch = Math.sin(t * 9.5) * 0.018 * (0.5 + 0.5 * Math.sin(t * 2.3));
+        B.hips.position.y -= 0.022;
+        B.hips.position.z -= 0.015;
+        R(B.hips, 0.08, 0, twitch);
+        R(B.spine, 0.06 + breathe, 0, -twitch * 0.6);
+        R(B.chest, 0.08 + breathe, 0, 0);
+        R(B.legFL0, -0.14, 0, 0.04); R(B.legFL1, 0.24, 0, 0); R(B.legFL2, -0.10, 0, 0);
+        R(B.legFR0, -0.14, 0, -0.04); R(B.legFR1, 0.24, 0, 0); R(B.legFR2, -0.10, 0, 0);
+        R(B.legHL0, -0.16, 0, 0.04); R(B.legHL1, 0.28, 0, 0); R(B.legHL2, -0.12, 0, 0);
+        R(B.legHR0, -0.16, 0, -0.04); R(B.legHR1, 0.28, 0, 0); R(B.legHR2, -0.12, 0, 0);
+        R(B.neck, -0.12, 0, 0); R(B.head, -0.10, 0, 0.04);
+        R(B.earL, 0.16, -0.10, 0.22); R(B.earR, 0.16, 0.10, -0.22);
+        tailWave(cat, t, 0.03, 2.2, -0.26);
+        const tipTwitch = Math.sin(t * 11.5) * 0.24 * (0.45 + 0.55 * Math.sin(t * 3.1));
+        R(B.tail4, 0.08, 0, tipTwitch);
+        R(B.tail5, 0.12, 0, tipTwitch * 1.4);
+        blinkAndPupils(cat, 0.5, 0.92, 1);
+      } else {
+        R(B.neck, -0.22, 0, 0); R(B.head, -0.18, 0, 0.12);
+        R(B.earL, -0.14, 0, 0.05); R(B.earR, -0.14, 0, -0.05);
+        R(B.chest, -0.04 + breathe, 0, 0);
+        tailWave(cat, t, 0.04, 1.8, -0.06);
+        blinkAndPupils(cat, t, 0.78);
+      }
       break;
     }
-    case 'walk': case 'trot': {
+    case 'walk':
+    case 'prowl':
+    case 'trot': {
       const trot = state === 'trot';
-      const f = trot ? 2.6 : 1.6, ph = t * Math.PI * 2 * f;
-      const amp = trot ? 0.46 : 0.34, lift = trot ? 0.6 : 0.46;
+      const prowl = state === 'prowl' || !!opts.prowl;
+      const spd = trot ? 1 : clamp(opts.speed ?? 1, 0, 1);
+      const f = trot ? 2.6 : prowl ? 1.35 : 1.6, ph = t * Math.PI * 2 * f;
+      const amp = (trot ? 0.46 : prowl ? 0.32 : 0.34) * spd;
+      const lift = (trot ? 0.60 : prowl ? 0.40 : 0.46) * spd;
       gaitLeg(cat, 'FL', ph, amp, lift); gaitLeg(cat, 'HR', ph, amp * 0.88, lift * 0.85);
       gaitLeg(cat, 'FR', ph + Math.PI, amp, lift); gaitLeg(cat, 'HL', ph + Math.PI, amp * 0.88, lift * 0.85);
-      B.hips.position.y += Math.sin(ph * 2) * (trot ? 0.007 : 0.004);
-      R(B.spine, Math.sin(ph * 2) * 0.02, 0, Math.sin(ph) * 0.018);
-      R(B.chest, -Math.sin(ph * 2) * 0.015, 0, -Math.sin(ph) * 0.014);
-      R(B.neck, -0.05 + Math.sin(ph * 2 + 0.6) * 0.02, 0, 0);
-      R(B.head, 0.04, 0, 0);
-      tailWave(cat, t, 0.05, f * 1.6, -0.10);
-      blinkAndPupils(cat, t, 0.42);
+      const crouch = trot ? 0 : prowl ? 0.022 : 0.014;
+      B.hips.position.y += Math.sin(ph * 2) * (trot ? 0.007 : 0.004 * spd) - crouch;
+      // Alternating hip/shoulder counter-roll
+      R(B.hips, 0, 0, Math.sin(ph) * (trot ? 0.022 : 0.032 * spd));
+      R(B.spine, Math.sin(ph * 2) * 0.02 * spd, 0, Math.sin(ph) * 0.020 * spd);
+      R(B.chest, -Math.sin(ph * 2) * 0.015 * spd, 0, -Math.sin(ph) * (trot ? 0.018 : 0.036 * spd));
+      R(B.neck, (trot ? -0.05 : prowl ? 0.14 : 0.10) + Math.sin(ph * 2 + 0.6) * 0.02 * spd, 0, 0);
+      R(B.head, trot ? 0.04 : -0.08, 0, 0);
+      if (!trot) {
+        if (prowl) { R(B.earL, -0.08, -0.06, 0.10); R(B.earR, -0.08, 0.06, -0.10); }
+        // Low stalking tail with eager S-flick at tip
+        tailWave(cat, t, 0.045, f * 1.5, -0.22);
+        const tipFlick = Math.sin(t * 5.2) * 0.16;
+        R(B.tail4, 0.12, 0, tipFlick);
+        R(B.tail5, 0.16, 0, -tipFlick * 1.35);
+      } else {
+        tailWave(cat, t, 0.05, f * 1.6, -0.10);
+      }
+      blinkAndPupils(cat, t, prowl ? 0.78 : opts.gaze ? 0.68 : 0.42);
       break;
     }
     case 'sit': {
@@ -1238,7 +1313,8 @@ export function applyState(cat, state, t, opts = {}) {
       R(B.hips, -0.38, 0, 0);
       R(B.spine, -0.16, 0, 0); R(B.chest, -0.12, 0, 0);
       R(B.neck, 0.36, 0, 0); R(B.head, 0.28 + breathe * 2, wander(t, 0.17, 0.31) * 0.07, 0.03);
-      for (const s of ['L', 'R']) {
+      for (let i = 0; i < 2; i++) {
+        const s = _SIDES[i];
         R(B[`legH${s}0`], -0.78, 0, s === 'L' ? 0.05 : -0.05);
         R(B[`legH${s}1`], 1.75, 0, 0);
         R(B[`legH${s}2`], -0.82, 0, 0);
@@ -1252,8 +1328,8 @@ export function applyState(cat, state, t, opts = {}) {
       B.hips.position.y -= 0.172;
       R(B.hips, 0.05, 0, 0); R(B.spine, 0.06 + breathe, 0, 0); R(B.chest, 0.04, 0, 0);
       R(B.neck, -0.02, 0, 0); R(B.head, 0.04, wander(t, 0.13, 0.27) * 0.06, 0);
-      for (const s of ['L', 'R']) {
-        const sg = s === 'L' ? 1 : -1;
+      for (let i = 0; i < 2; i++) {
+        const s = _SIDES[i], sg = s === 'L' ? 1 : -1;
         R(B[`legF${s}0`], -1.08, 0, -sg * 0.22); R(B[`legF${s}1`], 2.68, 0, 0); R(B[`legF${s}2`], -0.4, 0, 0);
         R(B[`legH${s}0`], -1.28, 0, sg * 0.08); R(B[`legH${s}1`], 2.35, 0, 0); R(B[`legH${s}2`], -0.9, 0, 0);
       }
@@ -1268,31 +1344,80 @@ export function applyState(cat, state, t, opts = {}) {
       B.hips.position.y -= 0.176 - deep * 0.0025;
       R(B.hips, 0.05, 0, 0); R(B.spine, 0.07 + deep * 0.03, 0.12, 0); R(B.chest, 0.05 - deep * 0.02, 0.16, 0);
       R(B.neck, 0.22, 0.26, 0.06); R(B.head, 0.18, 0.18, 0.22);
-      for (const s of ['L', 'R']) {
-        const sg = s === 'L' ? 1 : -1;
+      for (let i = 0; i < 2; i++) {
+        const s = _SIDES[i], sg = s === 'L' ? 1 : -1;
         R(B[`legF${s}0`], -1.12, 0, -sg * 0.24); R(B[`legF${s}1`], 2.72, 0, 0); R(B[`legF${s}2`], -0.4, 0, 0);
         R(B[`legH${s}0`], -1.30, 0, sg * 0.08); R(B[`legH${s}1`], 2.38, 0, 0); R(B[`legH${s}2`], -0.9, 0, 0);
       }
-      const pulse = (c, len) => (c < len ? Math.sin((c / len) * Math.PI) : 0);
-      R(B.earL, -0.40 * pulse(t % 9.3, 0.3), 0, 0.18 * pulse(t % 9.3, 0.3));
+      const cEar = t % 9.3, pEar = cEar < 0.3 ? Math.sin((cEar / 0.3) * Math.PI) : 0;
+      R(B.earL, -0.40 * pEar, 0, 0.18 * pEar);
       tailHangCurl(cat, 0.65);
-      const flick = pulse((t + 4.1) % 13.7, 0.7);
+      const cFlick = (t + 4.1) % 13.7, flick = cFlick < 0.7 ? Math.sin((cFlick / 0.7) * Math.PI) : 0;
       R(B.tail4, 0, 0, 0.5 * flick); R(B.tail5, 0, 0, 0.7 * flick);
       blinkAndPupils(cat, 0.5, 0.30, 0.07);
       break;
     }
     case 'smack': {
-      const up = sstep(t, 0, 0.16), down = sstep(t, 0.16, 0.27), back = sstep(t, 0.36, 0.85);
+      // 4-beat full-body paw strike (peak contact at normalized t = 0.25):
+      // Beat 1: Rear Up & Coil (0.00 -> 0.15)
+      // Beat 2: Apex Hang (0.15 -> 0.19)
+      // Beat 3: Explosive Diagonal Swipe (0.19 -> 0.27, contact at 0.25)
+      // Beat 4: Follow-Through & Proud Settle (0.34 -> 1.15)
+      const up = sstep(t, 0.00, 0.15);
+      const down = sstep(t, 0.19, 0.27);
+      const back = sstep(t, 0.34, 0.82);
+      const proud = sstep(t, 0.72, 1.15);
       const live = 1 - back;
-      R(B.legFR0, (-1.12 * up + 0.62 * down) * live, 0, -0.1 * live);
-      R(B.legFR1, (0.55 * up - 0.7 * down) * live, 0, 0);
-      R(B.legFR2, (-0.35 * up + 0.25 * down) * live, 0, 0);
-      R(B.legFL0, 0.08 * live, 0, 0);
-      R(B.chest, (0.04 * up + 0.09 * down) * live + breathe, 0, 0);
-      R(B.neck, -0.14 * live, 0, 0); R(B.head, -0.08 * live, 0, 0.05 * live);
-      R(B.earL, 0.3 * live, 0, 0.1); R(B.earR, 0.3 * live, 0, -0.1);
-      tailWave(cat, t, 0.13, 9, -0.25);
-      blinkAndPupils(cat, t, 0.88);
+      const hang = sstep(t, 0.14, 0.16) * (1 - sstep(t, 0.19, 0.21));
+
+      B.hips.position.y += (0.028 * up - 0.036 * down) * live;
+      B.hips.position.z += (-0.025 * up + 0.018 * down) * live;
+      R(B.hips, (-0.14 * up + 0.10 * down) * live, 0, 0);
+      R(B.spine, (-0.06 * up + 0.08 * down) * live, (-0.22 * up + 0.42 * down) * live, 0);
+      R(B.chest, (-0.24 * up + 0.34 * down) * live + breathe * live, (-0.28 * up + 0.52 * down) * live, 0);
+
+      // Right paw: drawn high & wide beside cheek -> whipped forward-down-across through boss center
+      R(B.legFR0, (-1.55 * up + 0.88 * down) * live, 0, (-0.32 * up + 0.58 * down) * live);
+      R(B.legFR1, (1.05 * up - 0.95 * down) * live, 0, 0);
+      R(B.legFR2, (-0.45 * up + 0.35 * down) * live, 0, 0);
+
+      // Braced left front leg + planted hind legs
+      R(B.legFL0, 0.28 * up * live, 0, 0.14 * up * live);
+      R(B.legFL1, -0.10 * up * live, 0, 0);
+      R(B.legHL0, 0.12 * up * live, 0, 0.04 * up * live);
+      R(B.legHR0, 0.12 * up * live, 0, -0.04 * up * live);
+
+      // Head tracks coiled -> drives down into the blow
+      R(B.neck, (-0.14 * up + 0.18 * down) * live, (0.14 * up - 0.18 * down) * live, 0);
+      R(B.head, (-0.08 * up + 0.14 * down) * live, (0.10 * up - 0.12 * down) * live, 0.06 * live);
+
+      // Ears pinned during strike
+      R(B.earL, 0.34 * live, 0, 0.16 * live);
+      R(B.earR, 0.34 * live, 0, -0.16 * live);
+
+      // Tail whip + apex trembling tension
+      if (live > 0.001) {
+        tailWave(cat, t, 0.13 * live, 9, -0.25 * live);
+        if (hang > 0.001) {
+          const tremble = Math.sin(t * 95) * 0.16 * hang;
+          R(B.tail4, 0, 0, tremble);
+          R(B.tail5, 0, 0, -tremble * 1.4);
+        }
+      }
+
+      // Beat 4: triumphant proud settle
+      if (proud > 0.001) applyProud(cat, t, proud);
+
+      const pupil = 0.88 + 0.08 * (up * (1 - down * 0.3) * live) - 0.48 * proud;
+      const smugBlink = proud > 0.3 ? Math.sin(sstep(t, 0.86, 1.12) * Math.PI) * 0.65 : 0;
+      blinkAndPupils(cat, 0.5, pupil, 1 - smugBlink);
+      break;
+    }
+    case 'proud': {
+      applyProud(cat, t, 1);
+      const cyc = (t + 0.4) % 2.8;
+      const slowBlink = cyc < 0.65 ? Math.sin((cyc / 0.65) * Math.PI) * 0.65 : 0;
+      blinkAndPupils(cat, 0.5, 0.38, 1 - slowBlink);
       break;
     }
     case 'stretch': {
@@ -1301,7 +1426,8 @@ export function applyState(cat, state, t, opts = {}) {
       B.hips.position.y -= 0.052 * k; B.hips.position.z -= 0.01 * k;
       R(B.hips, 0.30 * k, 0, 0); R(B.spine, 0.22 * k, 0, 0); R(B.chest, 0.16 * k, 0, 0);
       R(B.neck, -0.18 * k, 0, 0); R(B.head, -0.06 * k, 0, 0);
-      for (const s of ['L', 'R']) {
+      for (let i = 0; i < 2; i++) {
+        const s = _SIDES[i];
         R(B[`legF${s}0`], -0.95 * k, 0, 0); R(B[`legF${s}1`], -0.12 * k, 0, 0); R(B[`legF${s}2`], 0.35 * k, 0, 0);
         R(B[`legH${s}0`], 0.34 * k, 0, 0); R(B[`legH${s}1`], 0.18 * k, 0, 0); R(B[`legH${s}2`], -0.25 * k, 0, 0);
       }
@@ -1310,12 +1436,12 @@ export function applyState(cat, state, t, opts = {}) {
       break;
     }
   }
-  if (opts.gaze && (state === 'idle' || state === 'curious' || state === 'sit')) {
-    const headW = new THREE.Vector3();
-    B.head.getWorldPosition(headW);
-    const d = opts.gaze.clone().sub(headW);
-    const yaw = Math.max(-0.6, Math.min(0.6, Math.atan2(d.x, d.z)));
-    const pitch = Math.max(-0.45, Math.min(0.35, -Math.atan2(d.y, Math.hypot(d.x, d.z))));
+  if (opts.gaze && (state === 'idle' || state === 'curious' || state === 'coil' || state === 'sit' || state === 'walk' || state === 'prowl' || state === 'smack' || state === 'proud')) {
+    B.head.getWorldPosition(_headW);
+    _gazeLocal.copy(opts.gaze).sub(_headW);
+    const gazeW = state === 'smack' ? 0.55 : state === 'proud' ? 0.4 : 1;
+    const yaw = clamp(Math.atan2(_gazeLocal.x, _gazeLocal.z), -0.6, 0.6) * gazeW;
+    const pitch = clamp(-Math.atan2(_gazeLocal.y, Math.hypot(_gazeLocal.x, _gazeLocal.z)), -0.45, 0.35) * gazeW;
     R(B.neck, pitch * 0.4, yaw * 0.45, 0);
     R(B.head, pitch * 0.6, yaw * 0.55, 0);
   }
@@ -1340,39 +1466,105 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
   cat.mesh.onBeforeRender = () => { seen = frame; };
   if (asleep) applyState(cat, 'sleep', 0);
   let t = Math.random() * 10, step = 0, left = ROUTINE[0][1], state = asleep ? 'sleep' : ROUTINE[0][0], pose = state;
-  let sceneMode = null, sceneT = 0, smackRate = 1, walkTime = 0;
+  let sceneMode = null, sceneT = 0, smackRate = 1, walkTime = 0, walkSpeed = 0;
   let walkPath = [];
+
+  // Pre-allocated pose cross-fader & gaze scratch state (zero per-frame allocations)
+  const boneList = cat.mesh.skeleton.bones;
+  const prevQ = boneList.map(() => new THREE.Quaternion());
+  const currQ = boneList.map(() => new THREE.Quaternion());
+  const prevHips = new THREE.Vector3();
+  const currHips = new THREE.Vector3();
+  const targetPos = new THREE.Vector3();
+  const sceneOpts = { gaze: null, stalk: false, speed: 1 };
+  const routineOpts = { gaze: null };
+  let hasTarget = false, blendT = 1, blendLen = 0;
+
+  const snapshotPose = (dur) => {
+    for (let i = 0; i < boneList.length; i++) prevQ[i].copy(boneList[i].quaternion);
+    prevHips.copy(cat.bones.hips.position);
+    blendT = 0;
+    blendLen = dur;
+  };
+  const applyBlend = () => {
+    if (blendLen <= 0 || blendT >= blendLen) return;
+    const k = sstep(blendT / blendLen, 0, 1);
+    for (let i = 0; i < boneList.length; i++) {
+      const b = boneList[i];
+      currQ[i].copy(b.quaternion);
+      b.quaternion.copy(prevQ[i]).slerp(currQ[i], k);
+    }
+    currHips.copy(cat.bones.hips.position);
+    cat.bones.hips.position.copy(prevHips).lerp(currHips, k);
+    cat.group.updateMatrixWorld(true);
+  };
+
+  const setTarget = (worldVec3) => {
+    if (worldVec3) { targetPos.copy(worldVec3); hasTarget = true; }
+    else hasTarget = false;
+  };
   const placeForSmack = (pos, faceYaw) => {
     cat.group.visible = true;
     cat.group.position.copy(pos);
     cat.group.rotation.y = faceYaw;
-    sceneMode = 'await'; sceneT = 0;
+    sceneMode = 'await'; sceneT = 0; walkSpeed = 0;
+    blendLen = 0; blendT = 1;
+    pose = 'curious';
+    sceneOpts.gaze = null; sceneOpts.stalk = true; sceneOpts.speed = 1;
+    applyState(cat, 'curious', t, sceneOpts);
   };
   const approach = (path, duration) => {
-    walkPath = path; walkTime = duration;
-    cat.group.position.copy(path[0]); sceneMode = 'walk'; sceneT = 0;
+    walkPath = path; walkTime = duration; walkSpeed = 0;
+    if (path && path.length) cat.group.position.copy(path[0]);
+    sceneMode = 'walk'; sceneT = 0;
   };
-  const beginSmack = (rate = 1) => { if (sceneMode === 'await') { sceneMode = 'smack'; sceneT = 0; smackRate = rate; } };
+  const beginSmack = (rate = 1) => {
+    if (sceneMode === 'await' || sceneMode === 'walk') { sceneMode = 'smack'; sceneT = 0; smackRate = rate; }
+  };
   const home = { pos: at.clone(), yaw, hidden: !!opts.hidden };
   const endScene = () => {
     sceneMode = null;
+    hasTarget = false;
+    blendLen = 0; blendT = 1;
     cat.group.position.copy(home.pos);
     cat.group.rotation.y = home.yaw;
     cat.group.visible = !home.hidden;
     pose = state; wait = 0; held = false; seen = frame;
+    if (asleep) applyState(cat, 'sleep', calm() ? 0 : t);
   };
   const atHome = () => !sceneMode && cat.group.visible === !home.hidden && cat.group.position.distanceTo(home.pos) < 1e-6;
   const tick = (dt, jellyPos) => {
     if (sceneMode) {
-      sceneT += dt * (sceneMode === 'smack' ? smackRate : 1);
-      if (sceneMode === 'walk') {
-        const k = Math.min(1, sceneT / Math.max(.001, walkTime));
-        const f = k * (walkPath.length - 1), i = Math.min(walkPath.length - 2, Math.floor(f));
-        cat.group.position.lerpVectors(walkPath[i], walkPath[i + 1], f - i);
-        if (k === 1) { sceneMode = 'await'; sceneT = 0; }
+      if (dt > 0) {
+        sceneT += dt * (sceneMode === 'smack' ? smackRate : 1);
+        if (sceneMode === 'walk') {
+          const rawK = Math.min(1, sceneT / Math.max(0.001, walkTime));
+          if (walkPath.length > 1) {
+            const k = rawK * rawK * (3 - 2 * rawK);
+            const f = k * (walkPath.length - 1), i = Math.min(walkPath.length - 2, Math.floor(f));
+            cat.group.position.lerpVectors(walkPath[i], walkPath[i + 1], f - i);
+          }
+          walkSpeed = Math.min(1, 6 * rawK * (1 - rawK) * 1.15);
+          if (rawK >= 1) { sceneMode = 'await'; sceneT = 0; walkSpeed = 0; }
+        }
       }
-      pose = sceneMode === 'smack' ? 'smack' : sceneMode === 'walk' ? 'walk' : 'curious';
-      applyState(cat, pose, sceneMode === 'await' ? t + sceneT : sceneT);
+      const nextPose = sceneMode === 'smack' ? 'smack' : sceneMode === 'walk' ? 'walk' : 'curious';
+      if (nextPose !== pose) {
+        if (dt > 0) snapshotPose(nextPose === 'smack' ? 0.10 : 0.18);
+        pose = nextPose;
+      }
+      if (dt === 0) return pose;
+      if (blendLen > 0) blendT += dt;
+      if (hasTarget) {
+        cat.bones.head.getWorldPosition(_gazeH);
+        sceneOpts.gaze = _gazeD.copy(targetPos).sub(_gazeH).applyAxisAngle(UP, -cat.group.rotation.y).add(_gazeH);
+      } else {
+        sceneOpts.gaze = null;
+      }
+      sceneOpts.stalk = sceneMode === 'await';
+      sceneOpts.speed = sceneMode === 'walk' ? walkSpeed : 1;
+      applyState(cat, pose, sceneMode === 'await' ? t + sceneT : sceneT, sceneOpts);
+      applyBlend();
       return pose;
     }
     if (!cat.group.visible) return pose;
@@ -1396,14 +1588,21 @@ export function addDendi(scene, at, yaw = 0, opts = {}) {
       if (left <= 0) { step = (step + 1) % ROUTINE.length; left = ROUTINE[step][1]; }
       state = ROUTINE[step][0];
     }
-    let gaze = null;
+    if (state !== pose) {
+      if (dt > 0) snapshotPose(0.16);
+      pose = state;
+    }
+    if (dt === 0) return pose;
+    if (blendLen > 0) blendT += dt;
     if (jellyPos && near < 1.4 && state !== 'loaf' && state !== 'stretch') {
       cat.bones.head.getWorldPosition(_gazeH);
-      gaze = _gazeD.copy(jellyPos).sub(_gazeH).applyAxisAngle(UP, -cat.group.rotation.y).add(_gazeH);
+      routineOpts.gaze = _gazeD.copy(jellyPos).sub(_gazeH).applyAxisAngle(UP, -cat.group.rotation.y).add(_gazeH);
+    } else {
+      routineOpts.gaze = null;
     }
-    applyState(cat, state, t, gaze ? { gaze } : {});
-    pose = state;
+    applyState(cat, state, t, routineOpts);
+    applyBlend();
     return pose;
   };
-  return { ...cat, tick, state: () => pose, placeForSmack, approach, beginSmack, endScene, atHome, asleep, home };
+  return { ...cat, tick, state: () => pose, placeForSmack, approach, beginSmack, setTarget, endScene, atHome, asleep, home };
 }

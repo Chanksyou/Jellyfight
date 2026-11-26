@@ -1891,7 +1891,7 @@ export class Run {
     }
   }
 
-  onBossDead({ impact = true } = {}) {
+  onBossDead({ impact = true, announced = false } = {}) {
     if (!this.dev && !STAGES[this.stage.id]) forgetRun();
     this.bossDeadT = true;
     this.collectAll = true;           // the boss's XP and its summons' all come to you
@@ -1911,9 +1911,11 @@ export class Run {
     this.xpDrops.drop(c, 1, 30);
     this.feedTreasures(this.mods.bossLevels);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
-    this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
-    if (!still) juice.shake(LOOK.num('cleared-shake', 0.35));
-    sfx.stamp();
+    if (!announced) {
+      this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
+      if (!still) juice.shake(LOOK.num('cleared-shake', 0.35));
+      sfx.stamp();
+    }
     // the last act's boss: straight on to the ending (nothing after it to grow into); otherwise the metamorphosis
     this.later(() => (STAGES[this.stage.id] ? this.metamorph() : this.won()), 2200);
   }

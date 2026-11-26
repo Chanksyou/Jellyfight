@@ -164,7 +164,15 @@ export class Shark {
     this.fx.number(this.center().add(V(0,.08,0)),amount,color,18,feedback);
     if(!this.hp){this.dying=true;this.vanish();this.clearHazards();this.clearWarning();this.state='idle';this.phase='rest';}
   }
-  die(){if(this.dying){this.dead=true;this.dying=false;this.clearHazards();this.clearWarning();juice.feel('boss-kill');}}
+  die(impulseDir=null){
+    if(!this.dying)return;
+    this.dead=true;this.dying=false;this.clearHazards();this.clearWarning();
+    const dir=impulseDir?impulseDir.clone().setY(0):V(1,0,0);
+    this.deathDir=dir.lengthSq()>1e-6?dir.normalize():dir.set(1,0,0);
+    this.deathT=0;this.deathVel=.75;this.deathPuffT=0;this.deathRinged=false;
+    if(!juice.calm){this.squash=.85;this.squashV=0;}
+    juice.feel('boss-kill');
+  }
   warn(at,r,height=.12){
     this.clearWarning();
     const floor=new THREE.Mesh(this.circleGeo,this.fx.tele(this.color,'circle'));
@@ -417,9 +425,42 @@ export class Shark {
     if(G?.summoned&&!G.dead){G.update(dt,player);if(this.dead||this.dying)return{push:null};}
     const calm=juice.calm, h=Math.min(dt,.05);
     if(this.dead){
+      this.deathT=(this.deathT||0)+dt;
+      if(calm){
+        this.holder.scale.multiplyScalar(Math.max(0,1-dt*1.4));
+        this.holder.position.y-=dt*.025;
+        return{push:null};
+      }
+      if(!this.deathDir)this.deathDir=V(1,0,0);
+      if(this.deathVel==null)this.deathVel=.75;
+      if(!this.deathRinged){
+        this.deathRinged=true;
+        this.fx.ring(this._pos.set(this.position.x,this.floor+.01,this.position.z),this.color,this.r*2.2,.55);
+        this.waterSim?.splash(this.position.x,this.position.z,.28,1.2,1.0);
+      }
+      if(this.deathT<.12){
+        this.squash=.85;this.squashV=0;
+      }else{
+        const jK=LOOK.num('shark-motion-jiggle-k',130), jC=LOOK.num('shark-motion-jiggle-c',7.5);
+        this.squashV+=(-jK*this.squash-jC*this.squashV)*h;
+        this.squash=clamp(this.squash+this.squashV*h,-.65,.85);
+      }
+      if(this.deathT>=.08){
+        this.deathVel*=Math.exp(-dt*4.2);
+        this.position.x+=this.deathDir.x*this.deathVel*dt;
+        this.position.z+=this.deathDir.z*this.deathVel*dt;
+        if(this.arena?.arenaMin&&this.arena?.arenaMax)this.clampIn(this.position);
+        this.deathPuffT=(this.deathPuffT||0)-dt;
+        if(this.deathPuffT<=0&&this.deathVel>.08){
+          this.deathPuffT=.10;
+          this.fx.puff(this._pos.set(this.position.x,this.floor+.03,this.position.z),this.dust,.035,.45);
+        }
+      }
       this.model.rotation.z=mix(this.model.rotation.z,-1.55,1-Math.exp(-5*dt));
-      this.model.pose({gape:.35,tailSwing:Math.sin(this.t*7)*.25*Math.exp(-this.t*.2),left:.5,right:-.4,size:SIZE});
-      this.holder.position.y-=dt*.025;return{push:null};
+      this.model.pose({gape:.35,tailSwing:Math.sin(this.t*7)*.25*Math.exp(-this.deathT*.5),left:.5,right:-.4,squash:this.squash,size:SIZE});
+      if(this.deathT>.25)this.holder.position.y-=dt*.025;
+      if(this.deathT>.45)this.holder.scale.multiplyScalar(Math.max(0,1-dt*1.3));
+      return{push:null};
     }
     const arrival=this.def.skills.arrival;
     this.rise=clamp((this.arrivalT-arrival.barrier-arrival.flood)/arrival.breach,0,1);
