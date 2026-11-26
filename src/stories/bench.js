@@ -160,15 +160,15 @@ act2('bench/act-2-has-its-own-page', {
 });
 
 story('bench/headroom-ladder-stops-where-it-stops-holding', {
-  phone: true,
+  phone: true, readback: true,   // (two cheap steps, played first: drawing at a high ratio queues work a later pixel read would wait behind)
   about: 'After the switches the bench draws the busiest moment at ever higher cost (pixel ratio 1.5 to 3, then 2 to 4 more draws a frame) and reports each step\'s frame time; the ladder stops at the first step that does not hold the browser\'s callback rate and names the last one that did, and the pixel ratio comes back.',
   setup() {},
   async play() {
     const R = G().APT.renderer, was = R.getPixelRatio();
-    const res = await runBench({ settle: 0.05, secs: 0.25, only: ['quiet room'], switches: [], headroom: { settle: 0.05, secs: 0.3 } });
+    const res = await runBench({ settle: 0.05, secs: 0.25, only: ['quiet room'], switches: [], headroom: { settle: 0.05, secs: 0.2, steps: 2 } });
     const L = res.ladder;
     const shape = L && Array.isArray(L.steps) && L.steps.length >= 1 && L.steps.every((x) => x.length === 5 && x[1] > 0);
-    const stops = L && L.steps.every((x, i) => (i < L.steps.length - 1 ? x[4] === 1 : true)) && (L.steps.at(-1)[4] === 1 ? L.steps.length === 7 : L.holds === (L.steps.length > 1 ? L.steps.at(-2)[0] : null));
+    const stops = L && L.steps.every((x, i) => (i < L.steps.length - 1 ? x[4] === 1 : true)) && (L.steps.at(-1)[4] === 1 ? L.steps.length === 2 : L.holds === (L.steps.length > 1 ? L.steps.at(-2)[0] : null));
     const held = L && L.steps.filter((x) => x[4]).length;
     const el = showResults(res);
     offs.push(() => el.remove());

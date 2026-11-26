@@ -124,11 +124,11 @@ async function measure(name, setup, { settle, secs, timer, repeat = 1 }) {
 // slowest 5% stay within half as long again. The ladder stops at the first step that doesn't; `holds` is the last one that did.
 const LADDER = [['pixel ratio 1.5', { ratio: 1.5 }], ['pixel ratio 2', { ratio: 2 }], ['pixel ratio 2.5', { ratio: 2.5 }], ['pixel ratio 3', { ratio: 3 }],
   ['3 draws a frame', { ratio: 3, repeat: 2 }], ['4 draws a frame', { ratio: 3, repeat: 3 }], ['5 draws a frame', { ratio: 3, repeat: 4 }]];
-async function ladder(setup, interval, timer, top, status, { settle = STEP_SETTLE, secs = STEP_SECS } = {}) {
+async function ladder(setup, interval, timer, top, status, { settle = STEP_SETTLE, secs = STEP_SECS, steps: most = LADDER.length } = {}) {
   const steps = [];
   let holds = null;
   try {
-    for (const [name, { ratio: r, repeat = 1 }] of LADDER) {
+    for (const [name, { ratio: r, repeat = 1 }] of LADDER.slice(0, most)) {
       status(name);
       ratio(r);
       const m = await measure(name, setup, { settle, secs, timer, repeat });
@@ -142,7 +142,7 @@ async function ladder(setup, interval, timer, top, status, { settle = STEP_SETTL
 }
 
 // Run the bench in this page: every moment of its act, then the busiest once per switch. Options make
-// it short for stories (settle, secs, only: moment names, switches: switch names, headroom: the ladder's own settle and secs, or false to leave it out).
+// it short for stories (settle, secs, only: moment names, switches: switch names, headroom: the ladder's own settle, secs and most steps, or false to leave it out).
 export async function runBench({ settle = SETTLE, secs = SECS, only = null, switches = SWITCHES.map((s) => s.name), headroom = {}, status = () => {} } = {}) {
   const { GAME, APT, pacing } = G, R = APT.renderer, p = page();
   const realFrame = GAME.frame, was = R.getPixelRatio(), top = pacing.governor.max, keep = Object.getOwnPropertyDescriptor(G.run, 'keepProgress');
