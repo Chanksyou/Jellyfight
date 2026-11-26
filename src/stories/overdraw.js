@@ -25,8 +25,8 @@ function stack(page, name) {
 const CEILING = {   // [moment, see-through ceiling, all-pieces figure (printed only: it moves with the view and the faded furniture)]
   // (act 1's first two rose by about 0.05 for the soft shadows under each bug, systems.js: small round see-through discs)
   act1: [['bugs + Controller', 2.0, 7.9], ['bubble storm + Bubble Bath', 0.5, 3.6], ['Vacuum fight', 0.7, 4.1]],
-  // act 2 (phone performance round 2's bench page): see-through measured on this page + 10%; the Clog acid is what G2 trims
-  act2: [['quiet room', 0.8, 3.5], ['14 bugs', 0.96, 3.8], ['Soap angry', 1.45, 6.8], ['Clog fight', 1.25, 5.5], ['Clog acid', 1.9, 6.7]],
+  // act 2 (phone performance round 2's bench page): see-through measured on this page + 10%; the tub's non-slip mat is a cut-out now (G2), which took the Clog fight from 1.1 to 0.75 and its acid from 1.7 to 1.4
+  act2: [['quiet room', 0.8, 3.5], ['14 bugs', 0.96, 3.8], ['Soap angry', 1.45, 6.8], ['Clog fight', 0.83, 5.5], ['Clog acid', 1.53, 6.7]],
   night4: [['three bugs + 12 Firefly pools', 1.9, 3.7]],
   arena: [['Encore disco', 0.71, 5.2], ['Encore Pyro, six lanes', 2.41, 6.1]],
 };
