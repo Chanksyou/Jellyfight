@@ -10,7 +10,6 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import { N8AOPass } from 'n8ao';
 import { setBakedAOTier } from './baked-ao.js';
 import { ShimmerPass } from './heat-shimmer.js';
 
@@ -265,7 +264,20 @@ export class BloomOutputPass extends Pass {
   dispose() { this.material.dispose(); this.quad.dispose(); }
 }
 
+// N8AO (233 KB) is only drawn on High, or in a room with no baked shadows: Medium and Low never need it, so it loads
+// after the game is up (main.js calls this once Play works) or, where the first picture needs it, before it. A build
+// that wants it before it has arrived draws the plain scene and rebuilds when it lands (`ready`).
+let N8AOPass = null, n8aoLoading = null;
+export const loadN8AO = () => (n8aoLoading ||= import('n8ao').then((m) => { N8AOPass = m.N8AOPass; }));
+
 export class Graphics {
+  // does the first build need N8AO? (the same pick the constructor makes)
+  static wantsAO(defaultQuality, baked) {
+    let q = defaultQuality;
+    try { q = localStorage.getItem(STORE) || q; } catch {}
+    return q === 'high' || (q !== 'low' && !baked);
+  }
+
   // baked: the act has baked corner shadows (baked-ao.js), so Low and Medium don't need N8AO
   // heat: the vents' heat scene, only for the ?shimmer=1 experiment (heat-shimmer.js); null draws none
   constructor(renderer, scene, camera, defaultQuality = 'high', baked = false, heat = null) {
@@ -346,7 +358,9 @@ export class Graphics {
 
     // N8AO renders the scene itself (it replaces RenderPass) and keeps the depth buffer we reuse for DOF.
     let ao = null;
-    if (!this.off.has('ao') && (high || !this.baked)) {
+    const wantAO = !this.off.has('ao') && (high || !this.baked);
+    if (wantAO && !N8AOPass) this.ready = (this.ready || Promise.resolve()).then(loadN8AO).then(() => this.build());   // not here yet: the plain scene now, N8AO when it lands
+    if (wantAO && N8AOPass) {
       ao = new N8AOPass(this.scene, this.camera, size.x, size.y);
       Object.assign(ao.configuration, {
         gammaCorrection: false,   // the output pass does tone mapping + sRGB

@@ -21,6 +21,7 @@ import { TYPES } from '../enemies.js';
 import { TREASURES } from '../stats.js';
 import { bus, PLAYER } from '../events.js';
 import { FieldPerf, loadFacts } from '../field-perf.js';
+import { loadN8AO } from '../graphics.js';
 import { markMoved } from '../static-batch.js';
 import { G, V, evolve, fresh, near, ok, setupFight, spawn, startVacuum, step, story, phone, stub, tp } from './kit.js';
 
@@ -1023,10 +1024,11 @@ story('engine/low-draws-plain-materials', {
 story('engine/reversed-depth', {
   about: 'With EXT_clip_control the game draws with a reversed depth buffer: the camera keeps its 2 mm near plane without log depth, and depth of field reads depth the reversed way.',
   setup() { fresh({ elites: false }); },
-  play() {
+  async play() {
     const { APT, gfx } = G(), caps = APT.renderer.capabilities;
     const can = !!APT.renderer.getContext().getExtension('EXT_clip_control');
     const was = gfx.choice;
+    await loadN8AO();
     gfx.setQuality('high'); G().GAME.render();
     const mode = gfx.dof?.uniforms.depthMode.value;
     gfx.setQuality(was);
