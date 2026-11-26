@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v738 Music costs a phone far less to play. Hats, snares, claps and crashes now reuse a few long-lived noise lanes instead of building three new audio nodes for every hit. The same hits play with the same sound; an offline render of Medusa Bloom at full intensity takes 98 ms per second of music instead of 242, and Domestic Machinery 121 instead of 377.
+
 v737 makes N8AO (233 KB) load after the game is up on phones instead of before it (Medium and Low in a baked room never draw it; High and unbaked rooms still wait for it), and drops its early download hint.
 
 v736 draws act 2's tub mat as a cut-out instead of a see-through layer, so the Clog fight and its acid phase draw one layer fewer over the whole tub floor (nothing shows differently: the acid covers it, and the mat's stripes were 92 to 95% opaque).
