@@ -162,13 +162,13 @@ Act 4's daylight, a line that creeps across the living room from the window wall
 What opens on the media console when act 4's countdown runs out, in place of a boss arriving. Landing on it takes the run through to the Encore's concert arena.
 
 **Solo**:
-A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the gold DJ, or both in the duet) plays his attack under a spotlight while the lasers rest. He plays it on the floor, out of the booth.
+A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the gold DJ, or both in the duet) plays his attack under a spotlight while the lasers rest. He plays it on the floor, out of the booth, and takes half damage until he bows.
 
 **Bow**:
 What a DJ does when his Solo ends: 2 bars, or 4 if nothing hit the jelly during it. The Encore is Exposed while he bows. He bows on the floor, then goes home to the booth.
 
 **Exposed**:
-The Encore's state while a DJ bows, and in the song's breakdown: hits on it do 1.5x. The boss bar turns gold and says so.
+The Encore's state while a DJ bows, and in the song's breakdown: the boss bar turns gold and says so, and hits do regular damage again (ending the solo's half-damage reduction).
 
 **Easy mode**:
 A choice in Settings for a whole run: the jelly deals double damage and takes half, and earns half the Pearls. An Easy run's score is never posted.
