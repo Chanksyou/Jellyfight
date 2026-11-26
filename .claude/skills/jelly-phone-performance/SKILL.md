@@ -37,21 +37,31 @@ Use the smallest relevant evidence source already available:
 ## Measuring a phone's page without a phone
 
 - **The bench** (`src/bench.js`, moments in `src/bench-moments.js`): `index.html?bench` for act 1,
+  `?bench&act=2` (act 2 has its own page in `src/bench-moments.js`, the heaviest act on real phones at 60),
   `?bench&act=3`, `?bench&act=4`, and `?bench&act=4&scene=2` for the Encore arena. One tap on Start
   (a few minutes per act; the screen shows the time left). Each busiest moment gets a 2 s settle and 8 s of measured frames, then
-  again under each switch: bloom off, pixel ratio 1.0, lamps off, AO off, Low. The bench draws its own
+  again under each switch: bloom off, pixel ratio 1.0, lamps off, AO off, Low. Then the headroom ladder
+  runs on the busiest moment: pixel ratio 1.5, 2, 2.5 and 3, then 3 to 5 draws a frame, 3 s each (`LADDER`
+  in `src/bench.js`). A step holds when its median frame is within 1.2 times the browser's callback interval
+  and its slowest 5% within 1.5 times; the ladder stops at the first step that doesn't, and the results
+  card's Headroom line names the last one that held. The bench draws its own
   frames, so the pacer and governor don't see them. Results can be copied, or sent to `perf_reports`
   (no player id, one per address every 30 s). Story pages never send.
 - **Experiment switches** (`src/experiments.js`, read once at boot, never saved): `?lights=3|4|6`
   (lamp slots), `?rt=packed` (R11G11B10 buffers, `graphics.js`), `?msaa=0|2|4` (`main.js`),
-  `?lite=1` (Low's plain materials on any tier). They are load-time choices, so each needs its own
+  `?lite=1` (Low's plain materials on any tier), `?shine=all|none` (whether matte baked surfaces keep
+  the lamps' shine maths; unset, `--baked-shine-roughness` in `content/look.css` decides). They are load-time choices, so each needs its own
   link. The bench carries them across its act links and prints them in its results.
 - **The headless tool**: `node tools/perf-phone.mjs`. Useful flags: `--tiers=medium,low`,
   `--only=act1,act3,night4,arena`, `--profile` (top 30 functions and time by file),
   `--overdraw` (layers per pixel and the heaviest see-through stacks), `--json=out.json`,
   `--frames=N`, `--throttle=N` (CPU slowdown, 4 by default). A full run takes several minutes per page and tier.
 - **Real play**: each act summary carries `details.perf` and `details.settings` (`src/field-perf.js`).
-  Read them with the queries in `docs/agents/run-data.md`.
+  Read them with the queries in `docs/agents/run-data.md` (D1 `jelly-fight-scores`, table `run_summaries`,
+  `details.perf`). From the build that added them, `perf` also holds `work`, `workP95` (our script time),
+  `raf` (browser callback interval: 33 at a 60 pick means a throttled browser), `held`, `longest`, `gaps`
+  and `load` (step times, `hiddenMs`, `first`, network against cache). Phone bench reports (`perf_reports`) so far
+  show GPU time "not offered" on every phone.
 
 Everything the headless tool reports is headless Chromium with SwiftShader at 4x CPU slowdown.
 Draw calls, triangles, programs, lights and uploads are real counts. Times only rank costs. Never
@@ -60,6 +70,8 @@ offered on each run (`gpuTime` in its environment: "offered" or "not offered"); 
 
 Budgets and rules that the code now relies on:
 
+- `FramePacer` (`src/pacing.js`) keeps a `next` slot: a callback up to a fifth of a frame early counts, the slot then moves on by one frame (kept between 0.8 and 1 frame after now), and a slot more than a frame behind re-anchors, so a late callback never makes the next on-time one skip.
+- N8AO (`vendor/n8ao.module.js`) loads lazily (`loadN8AO` in `src/graphics.js`): Medium in a baked act never fetches it; High, or an act with no bake, draws the plain scene until it lands.
 - Draw calls: `night4/within-the-phone-budget-at-its-busiest` allows act 1's busiest moment plus 15
   (`ACT1_BUSIEST` in `src/stories/act4-perf.js`, a number measured once; re-measure it when act 1
   changes a lot).
