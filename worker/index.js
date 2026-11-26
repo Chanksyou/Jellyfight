@@ -425,6 +425,15 @@ const perf = (p) => !p || typeof p !== 'object' ? null : {
   ms: num(p.ms, 0, 128, 1), p95: num(p.p95, 0, 128, 1), slow: num(p.slow, 0, 1, 3), n: int(p.n, 0, 1e7), minRatio: num(p.minRatio, 0, 4, 3),
   tier: pick(p.tier, ['low', 'medium', 'high']), cap: int(p.cap, 0, 240), dpr: num(p.dpr, 0, 8, 2), w: int(p.w, 0, 10000), h: int(p.h, 0, 10000),
   loadMs: int(p.loadMs, 0, 600000), lost: int(p.lost, 0, 99),
+  ...omitNull({
+    work: num(p.work, 0, 64, 1), workP95: num(p.workP95, 0, 64, 1), raf: num(p.raf, 0, 64, 1), held: num(p.held, 0, 1, 3),
+    longest: p.longest == null ? null : int(p.longest, 0, 250), gaps: p.gaps == null ? null : int(p.gaps, 0, 1e6), load: loadFacts(p.load),
+  }),   // an older client sends none
+};
+// how a load went (src/field-perf.js loadFacts): the begin time of each step, time hidden, first of its build, files from the network and from cache
+const loadFacts = (l) => !l || typeof l !== 'object' ? null : {
+  steps: (Array.isArray(l.steps) ? l.steps : []).slice(0, 16).map((v) => int(v, 0, 600000)), hiddenMs: int(l.hiddenMs, 0, 600000),
+  first: l.first === 1 || l.first === 0 ? l.first : null, net: int(l.net, 0, 1e4), cache: int(l.cache, 0, 1e4), bytes: int(l.bytes, 0, 1e9),
 };
 const settings = (s) => !s || typeof s !== 'object' ? null : {
   graphics: pick(s.graphics, ['low', 'medium', 'high']), fps: pick(s.fps, [0, 30, 60]), text: pick(s.text, ['normal', 'large']),

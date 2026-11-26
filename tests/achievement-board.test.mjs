@@ -119,6 +119,12 @@ test('run details keep frame numbers and Settings picks as clamped numbers and f
   assert.equal(read().settings.graphics, null);
   assert.equal(read().settings.fps, null);
   clearRates();
+  const more = { ...perf, work: 3.26, workP95: 99, raf: 33.5, held: 0.5004, longest: 9999, gaps: 4, ua: 'discard',
+    load: { steps: [0, 300.4, 'x', 4e6], hiddenMs: 1200.2, first: 1, net: 50, cache: 120.6, bytes: 123456, url: 'discard' } };
+  await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-abcdefgh', act: 1, revision: 3, outcome: 'died', details: { perf: more } }] });
+  assert.deepEqual(read().perf, { ms: 16.7, p95: 128, slow: 0.049, n: 1200, minRatio: 1.125, tier: 'medium', cap: 30, dpr: 3, w: 844, h: 390, loadMs: 4201, lost: 1,
+    work: 3.3, workP95: 64, raf: 33.5, held: 0.5, longest: 250, gaps: 4, load: { steps: [0, 300, 0, 600000], hiddenMs: 1200, first: 1, net: 50, cache: 121, bytes: 123456 } });
+  clearRates();
   await request('/api/runs', { id: 'player-one', rows: [{ run: 'run-zzzzzzzz', act: 1, revision: 1, outcome: 'died', details: { elitesBeaten: 1 } }] });
   const older = JSON.parse(sqlite.prepare('SELECT details FROM run_summaries WHERE run_id = ?').get('run-zzzzzzzz').details);
   assert.equal('perf' in older || 'settings' in older, false);   // a client from before sends none
