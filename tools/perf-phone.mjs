@@ -10,7 +10,7 @@
 //
 //   node tools/perf-phone.mjs                       every act, Medium and Low
 //   node tools/perf-phone.mjs --tiers=medium        one tier
-//   node tools/perf-phone.mjs --only=night4,arena   some pages (act1, act3, night4, arena)
+//   node tools/perf-phone.mjs --only=night4,arena   some pages (act1, act2, act3, night4, arena)
 //   node tools/perf-phone.mjs --profile             also profile the CPU (top 30 functions, time by file)
 //   node tools/perf-phone.mjs --overdraw            instead of the timings: layers drawn per pixel (src/overdraw.js) at each moment and the heaviest stacks of see-through marks (STACKS)
 //   node tools/perf-phone.mjs --json=out.json       also write everything as JSON (counts, uploads, scene, profile)

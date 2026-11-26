@@ -1,0 +1,1 @@
+adds act 2 to the phone bench (`?bench&act=2`: quiet room, 14 bugs, Soap angry, the Clog and its acid), puts Tether Current, Bioluminescent Wake and Jelly Mould in the bench's treasure storm, and ends each bench with a headroom ladder (pixel ratio up to 3, then more draws a frame) that reports the last step the phone still holds.
