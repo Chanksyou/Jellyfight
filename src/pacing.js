@@ -16,14 +16,25 @@ export class FramePacer {
   constructor({ fps = 0, menuFps = 0 } = {}) {
     this.fps = fps;          // 0 = draw on every animation frame
     this.menuFps = menuFps;  // while a menu covers the game
-    this.last = -Infinity;
+    this.next = -Infinity;   // when the next frame is due
+    this.rate = 0;           // the rate `next` was set for
   }
-  // true when this animation frame should run the game. Up to a fifth of a frame early still
-  // counts, so a 60 Hz screen whose timestamps jitter doesn't skip frames at a 60 cap.
+  // true when this animation frame should run the game. Keeps a schedule rather than the last
+  // stamp: a callback stamped late (a busy main thread) doesn't push the next slot back, so when the
+  // browser itself calls back at the cap (Low Power Mode's 30 Hz) the next on-time callback still
+  // counts instead of being skipped for a ~60 ms frame. Up to a fifth of a frame early still counts,
+  // so a 60 Hz screen whose timestamps jitter doesn't skip frames at a 60 cap.
   due(now, menu = false) {
     const fps = menu && this.menuFps ? this.menuFps : this.fps;
-    if (fps && now - this.last < 800 / fps) return false;
-    this.last = now;
+    if (!fps) return true;
+    const T = 1000 / fps;
+    // a new rate (a menu opens or closes, the player's pick) counts from the last frame drawn
+    if (fps !== this.rate) { if (this.rate) this.next += T - 1000 / this.rate; this.rate = fps; }
+    if (now < this.next - 0.2 * T) return false;
+    // a gap (tab away, a hitch) re-anchors, never a burst of catch-up frames. Otherwise the slot
+    // moves on by T, kept within a fifth of a frame behind now + T and never ahead of it: a screen
+    // a hair off 60 Hz then drifts against the slots without ever gaining or losing a whole frame
+    this.next = now - this.next > T ? now + T : Math.min(Math.max(this.next + T, now + 0.8 * T), now + T);
     return true;
   }
 }
