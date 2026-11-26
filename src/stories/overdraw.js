@@ -25,6 +25,8 @@ function stack(page, name) {
 const CEILING = {   // [moment, see-through ceiling, all-pieces figure (printed only: it moves with the view and the faded furniture)]
   // (act 1's first two rose by about 0.05 for the soft shadows under each bug, systems.js: small round see-through discs)
   act1: [['bugs + Controller', 2.0, 7.9], ['bubble storm + Bubble Bath', 0.5, 3.6], ['Vacuum fight', 0.7, 4.1]],
+  // act 2 (phone performance round 2's bench page): see-through measured on this page + 10%; the Clog acid is what G2 trims
+  act2: [['quiet room', 0.8, 3.5], ['14 bugs', 0.96, 3.8], ['Soap angry', 1.45, 6.8], ['Clog fight', 1.25, 5.5], ['Clog acid', 1.9, 6.7]],
   night4: [['three bugs + 12 Firefly pools', 1.9, 3.7]],
   arena: [['Encore disco', 0.71, 5.2], ['Encore Pyro, six lanes', 2.41, 6.1]],
 };
@@ -38,6 +40,12 @@ story('engine/overdraw-stays-under-budget', {
   phone: true,
   setup() {},
   play: budget('act1'),
+});
+story('act2/overdraw-stays-under-budget', {
+  about: 'In act 2, a pixel is drawn over by no more layers than a ceiling in the quiet room, with 14 bugs, at Soap angry, in the Clog fight and in its acid phase (the heaviest on real phones).',
+  act: 2,
+  setup() {},
+  play: budget('act2'),
 });
 story('night4/overdraw-stays-under-budget', {
   about: 'In act 4\'s night, a pixel is drawn over by no more layers than a ceiling at the 12 Firefly pools.',

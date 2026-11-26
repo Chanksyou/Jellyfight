@@ -4,11 +4,12 @@
 import * as THREE from 'three';
 import { G, offs, ok, story } from './kit.js';
 import { runBench, showResults, sendable } from '../bench.js';
-import { MOMENTS } from '../bench-moments.js';
+import { MOMENTS, PAGES, pageFor } from '../bench-moments.js';
 import { EXPERIMENTS, readExperiments, experimentQuery } from '../experiments.js';
 import { LOOK } from '../look.js';
+import { act2 } from './kit.js';
 
-const SHORT = { settle: 0.05, secs: 0.25 };
+const SHORT = { settle: 0.05, secs: 0.25, headroom: false };
 
 story('bench/runs-to-its-results', {
   phone: true,
@@ -140,5 +141,37 @@ story('bench/msaa-smooths-edges-on-one-target', {
     gfx.baked = false; gfx.build(); gfx.render();   // a room without baked shadows: N8AO draws the scene into its own target
     const n8ao = !!gfx.ao && gfx.ao.beautyRenderTarget.samples === 4 && samples().every((s) => s === 0);
     return ok(plain && zero && one && steady && both && n8ao, { plain, zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
+  },
+});
+
+act2('bench/act-2-has-its-own-page', {
+  about: 'Act 2 has its own bench page (?bench&act=2): a quiet room, 14 bugs, Soap angry, the Clog and its acid, each measured in real frames; the bench link for act 2 is on the start card.',
+  setup() {},
+  async play() {
+    const res = await runBench({ ...SHORT, switches: [] });
+    const names = res.moments.map((m) => m.name);
+    const want = Object.keys(MOMENTS.act2);
+    const measured = res.moments.filter((m) => !m.skipped && !m.error && m.frames > 0 && m.draws > 0);
+    const page = pageFor(2) === 'act2' && pageFor(2, 2) === 'act2' && PAGES.act2.act.act === 2;
+    const acid = G().run.boss;
+    return ok(want.every((n, i) => names[i] === n) && measured.length === res.moments.length && page && res.env.act === 2,
+      { names, bad: res.moments.filter((m) => m.error || m.skipped).map((m) => [m.name, m.error]), acid: acid?.state });
+  },
+});
+
+story('bench/headroom-ladder-stops-where-it-stops-holding', {
+  phone: true,
+  about: 'After the switches the bench draws the busiest moment at ever higher cost (pixel ratio 1.5 to 3, then 2 to 4 more draws a frame) and reports each step\'s frame time; the ladder stops at the first step that does not hold the browser\'s callback rate and names the last one that did, and the pixel ratio comes back.',
+  setup() {},
+  async play() {
+    const R = G().APT.renderer, was = R.getPixelRatio();
+    const res = await runBench({ settle: 0.05, secs: 0.25, only: ['quiet room'], switches: [], headroom: { settle: 0.05, secs: 0.3 } });
+    const L = res.ladder;
+    const shape = L && Array.isArray(L.steps) && L.steps.length >= 1 && L.steps.every((x) => x.length === 5 && x[1] > 0);
+    const stops = L && L.steps.every((x, i) => (i < L.steps.length - 1 ? x[4] === 1 : true)) && (L.steps.at(-1)[4] === 1 ? L.steps.length === 7 : L.holds === (L.steps.length > 1 ? L.steps.at(-2)[0] : null));
+    const held = L && L.steps.filter((x) => x[4]).length;
+    const el = showResults(res);
+    offs.push(() => el.remove());
+    return ok(shape && stops && R.getPixelRatio() === was && /Headroom/.test(el.textContent) && !!L.holds === (held > 0), { L, ratio: R.getPixelRatio(), was });
   },
 });

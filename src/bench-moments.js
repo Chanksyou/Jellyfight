@@ -7,16 +7,18 @@
 // can't be hurt and bugs are held at 14 (act 3's most at once) with Health no attack gets through.
 
 // the runs tests/run.mjs carries into later acts
+const CARRY2 = { score: 5000, level: 6, xp: 0, purse: 4, stats: { health: 130 }, owned: [['goldRing', 1]], grown: 0, growCount: 0 };
 const CARRY3 = { score: 12000, level: 10, xp: 0, purse: 6, stats: { health: 160 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown'] };
 const CARRY4 = { score: 24000, level: 15, xp: 0, purse: 8, stats: { health: 200 }, owned: [['goldRing', 1], ['nailClipper', 1]], grown: 0, growCount: 0, evolved: ['manOWar', 'upsideDown', 'cinder'] };
 // which act and scene each page opens, with the run it carries in (stages.js goToAct)
 export const PAGES = {
   act1: {},
+  act2: { act: { act: 2, carry: CARRY2 } },
   act3: { act: { act: 3, carry: CARRY3 } },
   night4: { act: { act: 4, carry: CARRY4 } },
   arena: { act: { act: 4, scene: 2, carry: CARRY4 } },
 };
-export const pageFor = (act = 1, scene = 1) => (act === 3 ? 'act3' : act === 4 ? (scene === 2 ? 'arena' : 'night4') : 'act1');
+export const pageFor = (act = 1, scene = 1) => (act === 2 ? 'act2' : act === 3 ? 'act3' : act === 4 ? (scene === 2 ? 'arena' : 'night4') : 'act1');
 
 const immortal = ({ K, G }) => { K.stub(G.run, 'hurt', () => {}); G.run.health = 1e6; };
 function crowd({ K }, kinds) {
@@ -32,11 +34,11 @@ export const MOMENTS = {
       const e = c.G.run.elites.list.find((x) => x.kind === 'controller'); e.hp = e.maxHp * 0.5;
     },
     'Vacuum fight': (c) => { c.K.startVacuum('spin'); immortal(c); },
-    // the jelly holding the 13 Treasures the Treasure juice plan dressed up, in a 14-bug crowd, two Night-Lights plugged in
+    // the jelly holding the 13 Treasures the Treasure juice plan dressed up, and Tether Current, Bioluminescent Wake and Jelly Mould (one draw each, built at load), in a 14-bug crowd, two Night-Lights plugged in
     'treasure storm': (c) => {
       const { K, G } = c;
       K.fresh({ elites: false }); immortal(c);
-      K.give('glowStick', 'bloodyFangs', 'newtonsCradle', 'snooze', 'rubberDuck', 'cactus', 'guitarPick', 'fairyLights', 'magnifier', 'discoBall', 'bathSalt', 'nightLight', 'iceCube');
+      K.give('glowStick', 'bloodyFangs', 'newtonsCradle', 'snooze', 'rubberDuck', 'cactus', 'guitarPick', 'fairyLights', 'magnifier', 'discoBall', 'bathSalt', 'nightLight', 'iceCube', 'tetherCurrent', 'bioWake', 'jellyMould');
       crowd(c, ['roach', 'ants', 'mosquito', 'lanternfly']);
       const P = G.player.position;
       for (const dx of [-0.15, 0.15]) G.run.gadgets.plugIn(P.clone().setX(P.x + dx), G.run.mods.nightLight);
@@ -51,6 +53,19 @@ export const MOMENTS = {
       K.step(2);
       for (const e of spawned) G.enemies.kill(e);
       K.step(4);
+    },
+  },
+  // the heaviest act on real phones at the 60 pick (the governor lowered the resolution in 20 of 24 acts)
+  act2: {
+    'quiet room': (c) => { c.K.fresh({ elites: false }); immortal(c); },
+    '14 bugs': (c) => { c.K.fresh({ elites: false }); immortal(c); crowd(c, ['housefly', 'spider', 'millipede', 'ladybug']); },
+    'Soap angry': (c) => { c.K.startSoap(0, { angry: true }); immortal(c); },
+    'Clog fight': (c) => { c.K.clogFight(); immortal(c); },
+    // the first acid phase: the spout has poured and the tub's goo is up
+    'Clog acid': (c) => {
+      const B = c.K.clogFight(); immortal(c);
+      B.hp = B.maxHp * 0.74;
+      c.K.step(60 * 6, () => B.state === 'acid' && B.acidY > B.floor + 0.05);
     },
   },
   act3: {

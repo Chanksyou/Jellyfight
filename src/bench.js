@@ -1,13 +1,16 @@
 // The phone bench: index.html?bench, opened on a real phone, plays this act's busiest moments and shows
 // the device's own frame numbers, with no reading of screens. Acts 3 and 4 have their own links:
-// ?bench&act=3, ?bench&act=4, ?bench&act=4&scene=2 (the Encore's arena). Loaded only for that link.
+// ?bench&act=2, ?bench&act=3, ?bench&act=4, ?bench&act=4&scene=2 (the Encore's arena). Loaded only for that link.
 //
 // After one tap (a browser needs a gesture, and it lifts the iOS 30 fps limit on a frame), each moment
 // is set up the way tools/perf-phone.mjs sets it up (the shared table in src/bench-moments.js), settles
 // for 2 s and is measured for 8 s with the camera turning once round the jelly. The bench draws every
 // frame itself: the game's frame cap and the governor are left out (their state untouched), and the
 // pixel ratio is held at the top of its range. Then the busiest moment plays again once per switch:
-// bloom off, pixel ratio 1.0, lamps off, AO off, and Low. A bench is not a run: it's a dev run that
+// bloom off, pixel ratio 1.0, lamps off, AO off, and Low. Last, the headroom ladder: the busiest moment drawn at
+// ever higher cost (pixel ratio 1.5 up to 3, then the scene drawn 2 to 4 times a callback) until a step no
+// longer holds the browser's callback rate. A phone that holds 60 reports 16.7 ms for everything, so this is
+// the number that moves when a change saves chip time. A bench is not a run: it's a dev run that
 // never reaches the leaderboard or the run log, earns nothing and keeps nothing.
 import * as K from './stories/kit.js';
 import { MOMENTS, PAGES, busiest, pageFor } from './bench-moments.js';
@@ -15,7 +18,7 @@ import { experimentQuery, experimentWords } from './experiments.js';
 import { currentAct, currentScene, goToAct, nav } from './stages.js';
 
 const G = window;
-const SETTLE = 2, SECS = 8;
+const SETTLE = 2, SECS = 8, STEP_SETTLE = 1, STEP_SECS = 3;
 const median = (a, k = 0.5) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(k * s.length))].toFixed(2); };
 const share = (a, ms) => (a.length ? +(a.filter((x) => x > ms).length / a.length).toFixed(3) : null);
 const page = () => pageFor(currentAct(), currentScene());
@@ -78,7 +81,7 @@ async function environment(R, timer) {
 }
 
 // Play one moment for settle + secs seconds of real frames and report the measured part
-async function measure(name, setup, { settle, secs, timer }) {
+async function measure(name, setup, { settle, secs, timer, repeat = 1 }) {
   try { setup({ K, G, nav }); } catch (e) { return { name, error: String(e?.message || e) }; }
   G.run.devRun();
   const R = G.APT.renderer, f = [], stepMs = [], renderMs = [], calls = [], tris = [], gpu = [];
@@ -97,7 +100,7 @@ async function measure(name, setup, { settle, secs, timer }) {
       last = now;
       if (on) G.tpc.yaw = yaw0 + ((t - settle) / secs) * Math.PI * 2;   // the camera turns once round: the busiest view counts
       const a = performance.now(); G.GAME.step(dt);
-      const b = performance.now(); timer?.begin(); G.GAME.render(); timer?.end(on ? gpu : null);
+      const b = performance.now(); timer?.begin(); G.GAME.render(); for (let k = 1; k < repeat; k++) G.GAME.render(); timer?.end(on ? gpu : null);
       const c = performance.now();
       if (on) { stepMs.push(b - a); renderMs.push(c - b); calls.push(G.gfx.frameInfo.calls); tris.push(G.gfx.frameInfo.triangles); }
       timer?.poll();
@@ -116,16 +119,38 @@ async function measure(name, setup, { settle, secs, timer }) {
   };
 }
 
+// The headroom ladder. Each step is the busiest moment drawn at more cost than play ever asks, for STEP_SECS:
+// a step holds when the median frame keeps the browser's callback interval (20% over at most) and the
+// slowest 5% stay within half as long again. The ladder stops at the first step that doesn't; `holds` is the last one that did.
+const LADDER = [['pixel ratio 1.5', { ratio: 1.5 }], ['pixel ratio 2', { ratio: 2 }], ['pixel ratio 2.5', { ratio: 2.5 }], ['pixel ratio 3', { ratio: 3 }],
+  ['3 draws a frame', { ratio: 3, repeat: 2 }], ['4 draws a frame', { ratio: 3, repeat: 3 }], ['5 draws a frame', { ratio: 3, repeat: 4 }]];
+async function ladder(setup, interval, timer, top, status, { settle = STEP_SETTLE, secs = STEP_SECS } = {}) {
+  const steps = [];
+  let holds = null;
+  try {
+    for (const [name, { ratio: r, repeat = 1 }] of LADDER) {
+      status(name);
+      ratio(r);
+      const m = await measure(name, setup, { settle, secs, timer, repeat });
+      const held = !m.error && !m.interrupted && m.frames > 0 && m.ms <= interval * 1.2 && m.p95 <= interval * 1.5;
+      steps.push([name, m.ms, m.p95, m.renderMs, held ? 1 : 0]);
+      if (!held) break;
+      holds = name;
+    }
+  } finally { ratio(top); }
+  return { holds, interval, steps };
+}
+
 // Run the bench in this page: every moment of its act, then the busiest once per switch. Options make
-// it short for stories (settle, secs, only: moment names, switches: switch names).
-export async function runBench({ settle = SETTLE, secs = SECS, only = null, switches = SWITCHES.map((s) => s.name), status = () => {} } = {}) {
+// it short for stories (settle, secs, only: moment names, switches: switch names, headroom: the ladder's own settle and secs, or false to leave it out).
+export async function runBench({ settle = SETTLE, secs = SECS, only = null, switches = SWITCHES.map((s) => s.name), headroom = {}, status = () => {} } = {}) {
   const { GAME, APT, pacing } = G, R = APT.renderer, p = page();
   const realFrame = GAME.frame, was = R.getPixelRatio(), top = pacing.governor.max, keep = Object.getOwnPropertyDescriptor(G.run, 'keepProgress');
   GAME.frame = () => {};   // the bench draws every frame itself: no cap, no governor
   G.run.keepProgress = () => {};   // a moment's setup steps before devRun(): its carried run must never overwrite a kept one (stages.js keepAct)
   const timer = gpuTimer(R.getContext());
   const names = Object.keys(MOMENTS[p]).filter((n) => !only || only.includes(n)), sw = SWITCHES.filter((s) => switches.includes(s.name));
-  const total = names.length + sw.length, out = { env: null, moments: [] };
+  const total = names.length + sw.length + (headroom ? 1 : 0), out = { env: null, moments: [] };
   try {
     ratio(top);
     out.env = await environment(R, timer);
@@ -139,6 +164,10 @@ export async function runBench({ settle = SETTLE, secs = SECS, only = null, swit
         on = await s.apply(top);
         out.moments.push(on ? { ...(await measure(b, MOMENTS[p][b], { settle, secs, timer })), name: label } : { name: label, skipped: true });
       } finally { if (on) await s.undo(top); }
+    }
+    if (headroom) {
+      status(`${out.moments.length + 1} of ${total}: ${b}, headroom`);
+      out.ladder = await ladder(MOMENTS[p][b], out.env.raf?.ms || 16.7, timer, top, (n) => status(`${out.moments.length + 1} of ${total}: ${b}, headroom (${n})`), headroom);
     }
   } finally {
     K.restore();
@@ -170,7 +199,7 @@ function card(html) {
   return el;
 }
 const leave = () => { nav.reload = () => location.replace(location.pathname); goToAct(1); };   // back to act 1's menu, without ?bench
-const LINKS = [['Act 1', '', 'act1'], ['Act 3', '&act=3', 'act3'], ['Act 4', '&act=4', 'night4'], ['Encore', '&act=4&scene=2', 'arena']];
+const LINKS = [['Act 1', '', 'act1'], ['Act 2', '&act=2', 'act2'], ['Act 3', '&act=3', 'act3'], ['Act 4', '&act=4', 'night4'], ['Encore', '&act=4&scene=2', 'arena']];
 
 // a story page never sends (it has no Worker to answer, and no business filling the table)
 export const sendable = (search = location.search) => !['story', 'stories'].some((k) => new URLSearchParams(search).has(k));
@@ -185,6 +214,7 @@ export function showResults(res) {
     <div class="acts"><button class="ui-btn ui-btn--primary" data-bench="copy">Copy results</button>${sendable() ? '<button class="ui-btn" data-bench="send">Send to the developer</button>' : ''}<button class="ui-btn" data-bench="back">Back to the game</button></div></div>
     <p class="ui-text" data-bench="note">Copy the results and paste them in a message.</p>
     <p class="ui-label" style="text-transform:none">${e.build || ''} · act ${e.act || 1}${e.scene === 2 ? ' arena' : ''} · ${e.tier || ''} · ${e.screen || ''} at ${e.dpr || ''}x · browser frames ${e.raf ? `${e.raf.fps} a second` : '–'} · GPU time ${e.gpuTime || '–'} · lamp slots ${e.lights ?? '–'}${e.experiments ? ` · ${e.experiments}` : ''}</p>
+    ${res.ladder ? `<p class="ui-label" style="text-transform:none">Headroom: ${res.ladder.holds ? `holds the browser's ${c(res.ladder.interval)} ms up to ${res.ladder.holds}` : 'doesn\'t hold even the first step'} (${res.ladder.steps.map((x) => `${x[0]} ${c(x[1])} ms${x[4] ? '' : ' no'}`).join(', ')})</p>` : ''}
     <div class="wide"><table><thead><tr><th>Moment</th><th>Frame ms</th><th>p95</th><th>&gt;33 ms</th><th>&gt;50 ms</th><th>Step ms</th><th>Draw ms</th><th>GPU ms</th><th>Draws</th></tr></thead><tbody>${rows}</tbody></table></div>
 `);
   const json = JSON.stringify(res);
@@ -217,7 +247,7 @@ export function offer() {
   if (want.act !== currentAct() || (want.scene || 1) !== currentScene()) return goToAct(want.act, want.carry || null, null, want.scene || 1);
   G.run.devRun();
   G.run.keepProgress = () => {};   // this page's carried run (acts 3, 4) is the bench's, never one to keep; Back reloads
-  const p = page(), n = Object.keys(MOMENTS[p]).length + SWITCHES.length, mins = Math.ceil((n * (SETTLE + SECS) + 20) / 60);
+  const p = page(), n = Object.keys(MOMENTS[p]).length + SWITCHES.length, mins = Math.ceil((n * (SETTLE + SECS) + LADDER.length * (STEP_SETTLE + STEP_SECS) + 20) / 60);
   const el = card(`<div class="ui-header"><h2 class="ui-title">Phone bench</h2></div>
     <p class="ui-text">Plays ${n} moments of this act for about ${SETTLE + SECS} seconds each and shows how fast this device draws them. About ${mins} minutes.
     Keep the screen on and stay in the game. Nothing here counts as a run.</p>
