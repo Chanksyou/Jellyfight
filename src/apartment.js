@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { markMoved } from './static-batch.js';
+import { HIDDEN } from './batch.js';
 import { dressSurfaces } from './surfaces.js';
 
 // The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
@@ -118,7 +119,10 @@ function prepareMeshes(root, meta, renderer) {
     if (!o.isMesh) return;
     // The soft-shadow cards under furniture (flat see-through pictures) are left out: the baked AO already darkens
     // the floor there, and they were the room's biggest see-through cost on a phone.
-    if ([].concat(o.material).every((m) => m.isMeshBasicMaterial && m.transparent && m.map)) o.visible = false;
+    if ([].concat(o.material).every((m) => m.isMeshBasicMaterial && m.transparent && m.map)) {
+      o.layers.set(HIDDEN);   // on the layer no camera draws; still there for collision and the bug map, as before
+      if (o.userData.noCameraFade) o.visible = false;
+    }
     if (o.userData.noCameraFade) {
       const solid = (m) => {
         if (!m.transparent && !(m.transmission > 0)) return m;
