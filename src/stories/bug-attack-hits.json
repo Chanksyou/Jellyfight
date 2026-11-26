@@ -44,16 +44,16 @@
   "aim": null
  },
  "housefly": {
-  "frames": 36,
+  "frames": 39,
   "pos": [
    3254,
    52,
    2999
   ],
-  "yaw": -1557,
+  "yaw": -1556,
   "aim": [
    -74,
-   -10,
+   -11,
    1
   ]
  },
@@ -72,13 +72,13 @@
   ]
  },
  "millipede": {
-  "frames": 119,
+  "frames": 105,
   "pos": [
-   3013,
+   3012,
    0,
    2896
   ],
-  "yaw": 1065,
+  "yaw": 1067,
   "aim": null
  },
  "ladybug": {
