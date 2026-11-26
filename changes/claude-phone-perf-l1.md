@@ -1,1 +1,0 @@
-makes N8AO (233 KB) load after the game is up on phones instead of before it (Medium and Low in a baked room never draw it; High and unbaked rooms still wait for it), and drops its early download hint.

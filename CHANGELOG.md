@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v737 makes N8AO (233 KB) load after the game is up on phones instead of before it (Medium and Low in a baked room never draw it; High and unbaked rooms still wait for it), and drops its early download hint.
+
 v736 draws act 2's tub mat as a cut-out instead of a see-through layer, so the Clog fight and its acid phase draw one layer fewer over the whole tub floor (nothing shows differently: the acid covers it, and the mat's stripes were 92 to 95% opaque).
 
 v735 skips the lamps' maths on baked matte floors, walls and fabric on Medium and High (roughness over 0.5): a faint lamp sheen on those goes, glossy tile, glass and stone keep theirs, and the room draws cheaper on phones.
