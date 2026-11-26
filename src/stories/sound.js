@@ -441,3 +441,26 @@ story('sound/burrow-builds-and-bursts', {
     return ok(r.swellLate > r.swellEarly * 1.5 && r.swellAfter < 0.003 && r.burst > r.heave * 1.5 && r.shriek > 0.01 && r.lockAfter < 0.003 && r.hit > 0.05 && r.thrown > 0.01 && r.land > 0.05, r);
   },
 });
+
+story('sound/music-hits-reuse-their-noise-lanes', {
+  about: 'Each song schedules the same drum hits as before (counted over 20 s at full intensity), and its hats, claps and snares ride a few long-lived noise lanes instead of building new nodes for every hit, with the song still audible.',
+  setup() { setupFight(); },
+  async play() {
+    const { Music } = await import(`../music.js?copy=${++copies}`);
+    const want = { drift: 46, tide: 80, bloom: 227, sunrise: 256, machinery: 371 }, got = {}, lanes = {};
+    let loud = 0;
+    for (const name of Object.keys(want)) {
+      const ctx = new OfflineAudioContext(2, 48000 * 20, 48000), m = new Music(ctx, ctx.destination);
+      m.volume = 0.9; m.play(name, 1);
+      const real = m.noiseHit.bind(m); let n = 0;
+      m.noiseHit = (...a) => { n++; return real(...a); };
+      for (let t = 0; t < 20; t += 0.25) { m.I = 1; m.schedule(t + 0.25); }
+      got[name] = n;
+      lanes[name] = Math.max(0, ...[...(m.lanes?.values() || [])].map((l) => l.length));
+      const d = (await ctx.startRendering()).getChannelData(0);
+      let e = 0; for (let i = 0; i < d.length; i++) e += d[i] * d[i];
+      if (Math.sqrt(e / d.length) > 0.05) loud++;
+    }
+    return ok(Object.keys(want).every((k) => got[k] === want[k] && lanes[k] <= 4) && loud === 5, { got, lanes, loud });
+  },
+});

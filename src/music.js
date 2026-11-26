@@ -569,14 +569,27 @@ export class Music {
     L.g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
   }
 
+  // A hit of filtered noise. Each kind of hit keeps a few long-lived lanes (one looping noise source,
+  // its filter, its gain); a hit takes a lane that is free at `t` and shapes its gain, so a hat costs a
+  // few automation events instead of three new audio nodes. A lane still ringing is skipped, so hits
+  // that overlap (a clap's four, a crash's tail) each get their own.
   noiseHit(t, type, freq, q, dur, vol, rev = 0) {
-    const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noise;
-    f.type = type; f.frequency.value = freq; f.Q.value = q;
-    this.env(g, t, 0.002, vol, 0.002, t + dur);
-    s.connect(f).connect(g).connect(this.drumBus);
-    if (rev) { const r = c.createGain(); r.gain.value = rev; g.connect(r).connect(this.rev); }
-    s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+    const c = this.ctx, key = `${type}|${freq}|${q}|${rev}`, lanes = (this.lanes ||= new Map()).get(key) || [];
+    this.lanes.set(key, lanes);
+    let lane = lanes.find((l) => l.until <= t);
+    if (!lane) {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = this.noise; s.loop = true;
+      f.type = type; f.frequency.value = freq; f.Q.value = q;
+      g.gain.value = 0;
+      s.connect(f).connect(g).connect(this.drumBus);
+      if (rev) { const r = c.createGain(); r.gain.value = rev; g.connect(r).connect(this.rev); }
+      s.start(c.currentTime, Math.random() * 0.5);
+      lanes.push(lane = { g, until: 0 });
+    }
+    lane.until = t + dur + 0.02;
+    this.env(lane.g, t, 0.002, vol, 0.002, t + dur);
+    lane.g.gain.setValueAtTime(0, t + dur + 0.01);
   }
 
   kick(t, vol) {
