@@ -9,6 +9,7 @@
 // re-exporting the apartment means baking again; the story engine/baked-ao-is-current says so.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
+import { EXPERIMENTS } from './experiments.js';
 import { BAKED_LIGHT, LIGHT_FRAGMENT } from './baked-light.js';
 import { MIST, MIST_GLSL } from './mist.js';
 import { AMBIENT, AMBIENT_VERTEX } from './ambient.js';
@@ -19,6 +20,7 @@ const uniforms = {
   aoMin: { value: new THREE.Vector3() },
   aoSize: { value: new THREE.Vector3(1, 1, 1) },
   aoInvSize: { value: new THREE.Vector3(1, 1, 1) },
+  bakedShine: { value: 2 },   // lamp maths still runs on a baked surface rougher-than-this isn't: 2 = every surface (as shipped); 0 = none do (setBakedAOTier)
   aoStrength: { value: 0 },   // shadow = openness ^ this: 0 = off (High, or nothing baked), higher = darker
   aoOpen: { value: 0.5 },     // how open a plain floor or wall reads: that much counts as no shadow
   // a stage's sun (sunrise.js sets these): everything with world z below sunLine is sunlit; far off = none
@@ -62,6 +64,8 @@ export async function loadBakedAO(stageId) {
 // how strongly the baked shadows show for a graphics tier
 export function setBakedAOTier(quality) {
   uniforms.aoStrength.value = uniforms.aoVolume.value && quality !== 'high' ? LOOK.num('baked-ao', 1) : 0;
+  // ?shine=all keeps every lamp's shine on baked surfaces, ?shine=none keeps none (src/experiments.js); else --baked-shine-roughness
+  uniforms.bakedShine.value = EXPERIMENTS.shine === 'all' ? 2 : EXPERIMENTS.shine === 'none' ? 0 : LOOK.num('baked-shine-roughness', 2);
 }
 
 // Points a little off the surface (half a grid step along its normal) so a floor reads the air
@@ -69,7 +73,7 @@ export function setBakedAOTier(quality) {
 const AO_FRAGMENT = /* glsl */`
   uniform sampler3D aoVolume;
   uniform vec3 aoMin, aoInvSize;
-  uniform float aoStrength, aoOpen, liteEnv;
+  uniform float aoStrength, aoOpen, liteEnv, bakedShine;
   varying vec3 vAoPos, vAoNormal;
   uniform float sunLine, sunFill, sunSoft, sunWarm, sunRim, sunRimGlow, sunPulse;
   uniform vec3 sunColor, sunDir;
@@ -82,8 +86,9 @@ const AO_FRAGMENT = /* glsl */`
     return pow(ao, aoStrength);
   }`;
 
-// three.js's light loop, where Low's plain (Lambert) materials skip the lamps on a baked shell point: the
-// bake already holds their light, and they have no shine to draw (one texture read in place of the lamp maths)
+// three.js's light loop, where a baked shell point skips the lamps: the bake already holds their diffuse. Low's plain
+// (Lambert) materials have no shine to draw, so they skip them all; Standard ones (Medium, High) skip them where the
+// surface is rougher than `bakedShine` (--baked-shine-roughness), keeping the lamps' shine on glossy tile, glass and stone
 let loops = null;
 function lampLoops() {
   if (loops) return loops;
@@ -92,7 +97,7 @@ function lampLoops() {
     const at = loops.indexOf(`#if ( ${kind} > 0 )`), a = loops.indexOf('#pragma unroll_loop_start', at), b = loops.indexOf('#pragma unroll_loop_end', a);
     if (at < 0 || a < 0 || b < 0) continue;   // (another three.js: every lamp stays drawn, which still looks right)
     const end = b + '#pragma unroll_loop_end'.length;
-    loops = loops.slice(0, a) + '#ifdef LAMBERT\nif ( lb.w <= 0.0 ) {\n#else\n{\n#endif\n' + loops.slice(a, end) + '\n}\n' + loops.slice(end);
+    loops = loops.slice(0, a) + '#ifdef LAMBERT\nif ( lb.w <= 0.0 ) {\n#elif defined( STANDARD )\nif ( lb.w <= 0.0 || roughnessFactor < bakedShine ) {\n#else\n{\n#endif\n' + loops.slice(a, end) + '\n}\n' + loops.slice(end);
   }
   return loops;
 }

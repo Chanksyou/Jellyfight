@@ -52,13 +52,13 @@ export function addBathroomDetails(scene, stretch = 1) {
   add(new THREE.PlaneGeometry(1.56, 1.9), tile(1.56, 1.9), V(0.84, 0.55 + 0.95, 7.899), [0, Math.PI, 0]);             // back wall
   add(new THREE.PlaneGeometry(W, 1.9), tile(W, 1.9), V(0.059, 0.55 + 0.95, (front + 7.901) / 2), [0, Math.PI / 2, 0]);   // end wall
 
-  // --- the non-slip mat: pink and white stripes, with the drain cut-out circle near its end
+  // --- the non-slip mat: pink and white stripes, with the drain cut-out circle near its end (a cut-out, not see-through: its stripes are 92 to 95% opaque, and one blended layer over the whole tub floor cost a layer a pixel in every fight there)
   const mat = tex(512, 256, (c, w, h) => {
     c.clearRect(0, 0, w, h);
     for (let k = 0; k < 40; k++) { c.fillStyle = k % 2 ? 'rgba(255,255,255,.95)' : `rgba(${226 + Math.random() * 14},${180 + Math.random() * 20},${200 + Math.random() * 16},.92)`; c.fillRect(k * w / 40, 0, w / 40, h); }
     c.fillStyle = 'rgba(255,255,255,.95)'; for (const y of [0.33, 0.66]) c.fillRect(0, y * h, w, 3);
   });
-  add(new THREE.PlaneGeometry(0.8, 0.42 * (7.901 - front) / 0.756).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: mat, transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }), V(0.86, 0.1515, mid));
+  add(new THREE.PlaneGeometry(0.8, 0.42 * (7.901 - front) / 0.756).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: mat, alphaTest: 0.5, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }), V(0.86, 0.1515, mid));
   // the drain stopper: a domed brushed-steel cap
   add(new THREE.SphereGeometry(0.03, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.3, 1), steel, V(0.3, 0.1505, mid));
   add(new THREE.RingGeometry(0.03, 0.045, 32).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.4 }), V(0.3, 0.1508, mid));

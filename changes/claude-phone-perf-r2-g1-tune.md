@@ -1,0 +1,1 @@
+skips the lamps' maths on baked matte floors, walls and fabric on Medium and High (roughness over 0.5): a faint lamp sheen on those goes, glossy tile, glass and stone keep theirs, and the room draws cheaper on phones.

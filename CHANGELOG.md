@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v734 adds `--baked-shine-roughness` and a `?shine=all|none` bench link: on Medium and High a baked matte surface can skip the lamps' maths, which only add a faint sheen there. It ships set to 2, so nothing looks different until the value is picked from the screenshots.
+
+v733 adds act 2 to the phone bench (`?bench&act=2`: quiet room, 14 bugs, Soap angry, the Clog and its acid), puts Tether Current, Bioluminescent Wake and Jelly Mould in the bench's treasure storm, and ends each bench with a headroom ladder (pixel ratio up to 3, then more draws a frame) that reports the last step the phone still holds.
+
 v732 keeps the frame cap on a schedule, so a phone in Low Power Mode whose callbacks now and then come a few milliseconds late still draws 30 even frames a second instead of dropping one in ten.
 
 v731 adds frame script time, browser callback rate, longest hitch and load timings (step times, time hidden, network against cache) to each act's field numbers, so a slow frame can be told from the browser's pacing and a slow load from a hidden page.

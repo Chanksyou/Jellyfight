@@ -769,6 +769,7 @@
   --motes-size: 0.007;         /* each one's size (m) */
   --motes-from: 0.12;          /* the baked light (the grid's, from the beam's side) where a mote starts to show */
   --motes-full: 0.45;          /* and where it shows fully */
+  --baked-shine-roughness: 0.5; /* Medium and High: a baked surface rougher than this skips the lamps' maths (they only add shine there); 2 = none skip, as before; 0.5 = matte floors, walls and fabric skip, glossy tile, glass and stone keep their shine (baked-ao.js; ?shine=all|none overrides) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
   /* the fine grain multiplied into the rooms' colours up close (src/surfaces.js): how far each pattern
      swings a surface's colour either way (0 = none), and the metres one tile of it covers. Medium and High; Low has none */
