@@ -444,10 +444,11 @@ export class DebugSystem {
 export class RenderSystem {
   constructor({ gfx, statics }) { this.gfx = gfx; this.statics = statics; }
   update() {
-    const scene = batcher.scene;
-    if (!scene) { batcher.sync(); this.statics?.sync(); this.gfx.render(); return; }
+    const scene = batcher.scene, cam = this.gfx.camera;
+    if (!scene) { cam?.updateMatrixWorld(); batcher.sync(false, cam); this.statics?.sync(); this.gfx.render(); return; }
     updateShown(scene);                       // the frame's matrices, once: the batches read them and the renderer doesn't walk the scene again
+    cam?.updateMatrixWorld();                 // camera has no parent, so updateShown doesn't visit it; needed for matrixWorldInverse
     scene.matrixWorldAutoUpdate = false;
-    try { batcher.sync(true); this.statics?.sync(); this.gfx.render(); } finally { scene.matrixWorldAutoUpdate = true; }
+    try { batcher.sync(true, cam); this.statics?.sync(); this.gfx.render(); } finally { scene.matrixWorldAutoUpdate = true; }
   }
 }

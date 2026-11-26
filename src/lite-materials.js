@@ -56,11 +56,12 @@ export const followLite = (root) => { if (on) root.traverse(shine); };
 export function setLite(lite, { scene, shelf, apartment, batches = [] }) {
   on = lite;
   const known = (m) => (on ? COPY.get(m) || m : original(m));
+  const toPlain = (m) => (on && m.isMeshStandardMaterial ? plain(m) : known(m));
   const swap = (o, pick) => { if (o.material) o.material = Array.isArray(o.material) ? o.material.map(pick) : pick(o.material); };
-  apartment?.traverse((o) => { if (o.isMesh) swap(o, (m) => (on && m.isMeshStandardMaterial ? plain(m) : known(m))); });
+  apartment?.traverse((o) => { if (o.isMesh) swap(o, toPlain); });
   shelf.traverse((o) => swap(o, known));
   for (const b of batches) {
-    b.batch.material = known(b.batch.material);
+    b.batch.material = toPlain(b.batch.material);
     for (const p of b.pieces) p.material = known(p.material);
   }
   let spots = false;

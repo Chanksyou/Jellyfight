@@ -14,7 +14,7 @@ function stack(page, name) {
   K.step(30); GAME.render();
   const yaw0 = tpc.yaw, got = { avg: 0, all: 0, worst: 0 };
   for (let i = 0; i < 4; i++) {
-    tpc.yaw = yaw0 + (i * Math.PI) / 2; K.step(6); GAME.render();
+    tpc.yaw = (i * Math.PI) / 2; K.step(6); GAME.render();
     const t = measureOverdraw(APT.renderer, APT.scene, APT.camera, { seeThrough: true, room: APT.arena ? null : APT.root }), a = measureOverdraw(APT.renderer, APT.scene, APT.camera);
     got.avg = Math.max(got.avg, t.avg); got.worst = Math.max(got.worst, t.worst); got.all = Math.max(got.all, a.avg);
   }

@@ -94,7 +94,18 @@ const MASK = new THREE.ShaderMaterial({
   uniforms: { uNear: { value: 0 }, uFar: { value: 1 } },
   vertexShader: /* glsl */`
     varying vec3 vN; varying float vZ;
-    void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vZ = -mv.z; gl_Position = projectionMatrix * mv; }`,
+    void main() {
+      vec4 p = vec4(position, 1.0);
+      vec3 n = normal;
+      #ifdef USE_INSTANCING
+        p = instanceMatrix * p;
+        n = mat3(instanceMatrix) * n;
+      #endif
+      vec4 mv = modelViewMatrix * p;
+      vN = normalize(normalMatrix * n);
+      vZ = -mv.z;
+      gl_Position = projectionMatrix * mv;
+    }`,
   fragmentShader: /* glsl */`
     uniform float uNear, uFar; varying vec3 vN; varying float vZ;
     void main() { vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0); gl_FragColor = vec4(1.0, clamp((vZ - uNear) / (uFar - uNear), 0.0, 1.0), n.xy * 0.5 + 0.5); }`,

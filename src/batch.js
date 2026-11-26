@@ -12,6 +12,9 @@ import * as THREE from 'three';
 
 export const HIDDEN = 31;          // the layer tracked meshes move to; the camera never enables it
 const WHITE = new THREE.Color(1, 1, 1);
+const _frustum = new THREE.Frustum();
+const _projScreen = new THREE.Matrix4();
+const _sphere = new THREE.Sphere();
 
 // instanced copy of a per-instance material: multiplies the output alpha by an instance attribute
 // (a material with userData.soft also fades toward its silhouette: a soft puff, not a ball)
@@ -93,12 +96,41 @@ export class Batcher {
 
   // Gather this frame's instances. Call once per frame, right before rendering.
   // current: this.scene's matrices are already this frame's (updateShown just ran), so a root in it isn't walked again
-  sync(current = false) {
+  // camera: when provided, off-screen roots (explicit cullRadius or single meshes with a boundingSphere) are skipped
+  sync(current = false, camera = null) {
     for (let i = 0; i < this.all.length; i++) this.all[i].n = 0;
+    if (camera) {
+      _projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      _frustum.setFromProjectionMatrix(_projScreen, camera.coordinateSystem, camera.reversedDepth);
+    }
     for (const root of this.roots) {
       if (!root.parent) { this.roots.delete(root); continue; }
       if (!root.visible) continue;
       if (!current || top(root) !== this.scene) root.updateMatrixWorld();
+      if (camera) {
+        const cr = root.userData.cullRadius;
+        if (cr > 0) {
+          _sphere.center.setFromMatrixPosition(root.matrixWorld);
+          _sphere.radius = cr;
+          if (!_frustum.intersectsSphere(_sphere)) continue;
+        } else if (root.isMesh && !root.userData.noCull) {
+          const geo = root.geometry;
+          if (geo) {
+            if (!geo.boundingSphere && geo.attributes?.position) geo.computeBoundingSphere();
+            const bs = geo.boundingSphere;
+            if (bs) {
+              const e = root.matrixWorld.elements;
+              const s = Math.max(Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
+              _sphere.center.copy(bs.center).applyMatrix4(root.matrixWorld);
+              _sphere.radius = bs.radius * s * 1.25;
+              if (!_frustum.intersectsSphere(_sphere)) {
+                if (root.layers.mask !== 1 << HIDDEN) root.layers.set(HIDDEN);
+                continue;
+              }
+            }
+          }
+        }
+      }
       root.traverseVisible(this._visit);
     }
     let drawn = 0;
