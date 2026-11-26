@@ -1,13 +1,14 @@
 import { LOOK } from './look.js';
 
 const JELLY = LOOK.num('jelly-scale', 1);   // content/look.css
+const JELLY_H = 0.08925 * JELLY;            // collision height (8.9 cm at --jelly-scale 1)
 
 // All distances are in METERS. The apartment is built at real-world scale,
 // and the player is a ~9 cm tall critter living inside it.
 export const CONFIG = {
   player: {
     radius: 0.0306 * JELLY,   // collision radius (3.06 cm at --jelly-scale 1)
-    height: 0.08925 * JELLY,  // collision height (8.9 cm)
+    height: JELLY_H,          // collision height (8.9 cm)
     walkSpeed: 0.42,     // m/s at 100% Pulse
     // a landed hit shoves you away from what hit you: 0.08 m/s + 0.07 per point of damage, up to 0.6
     // (about 1 cm for a 1-damage bite, 3 cm for a 6-damage dive); movement damps it in a moment
@@ -38,6 +39,7 @@ export const CONFIG = {
     minPitch: 0.45,      // never lower than ~26 degrees, so the floor around you stays in view
     maxPitch: 1.3,       // never fully overhead (~75 degrees)
     seeThrough: true,    // what blocks the view (over the jelly, or between it and the camera) fades out
+    minFadeSize: JELLY_H * 2,   // only items larger than twice the jelly's height (~18 cm) fade out for the camera
     clearRadius: 0.015,  // what comes this close to the camera's line of sight fades too, so walls don't slice the frame edge
     sensitivity: 0.0025,
     fov: 60,

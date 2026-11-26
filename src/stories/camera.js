@@ -59,26 +59,26 @@ story('camera/see-through-is-cheap-to-draw', {
   },
 });
 story('camera/see-through-holds-and-clears-clutter', {
-  about: 'What the camera sees through stays faded for a moment after it\'s clear (no flicker as the rays sweep a shelf of cups). Furniture and walls fade to see-through; a small prop (under 15 cm across) the jelly-to-camera ray hits fades only part way (never gone), and one a ray only grazes stays solid, on its own material. Everything that faded comes back on its own materials.',
+  about: 'What the camera sees through stays faded for a moment after it\'s clear (no flicker as the rays sweep past). Furniture larger than twice the jelly fades to see-through; small props (at most twice the jelly\'s height) stay completely solid on their own materials. Everything that faded comes back on its own materials.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { tpc, APT } = G(), scene = APT.scene;
-    const make = (s) => { const m = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshStandardMaterial()); scene.add(m); m.updateMatrixWorld(true); return m; };
-    const cup = make(0.06), grazed = make(0.06), cabinet = make(0.6), mats = [cup.material, cabinet.material, grazed.material];
+    const make = (s, y = 0.3) => { const m = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshStandardMaterial()); m.position.y = y; scene.add(m); m.updateMatrixWorld(true); return m; };
+    const cup = make(0.06), small = make(0.16), cabinet = make(0.6), mats = [cup.material, small.material, cabinet.material];
     stub(tpc, 'findOver', () => {});                       // this story says what's in the way
     try {
-      tpc.over.clear(); tpc.solid.clear(); tpc.partly.clear();
-      tpc.over.add(cup); tpc.over.add(grazed); tpc.over.add(cabinet); tpc.partly.add(cup); tpc.solid.add(grazed);
+      tpc.over.clear(); tpc.solid.clear();
+      tpc.over.add(cup); tpc.over.add(small); tpc.over.add(cabinet);
       for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
-      const cupK = tpc._fades.get(cup).k, cabK = tpc._fades.get(cabinet).k;
-      const solid = !tpc._fades.has(grazed) && grazed.material === mats[2];
-      tpc.over.clear(); tpc.solid.clear(); tpc.partly.clear();
+      const cabK = tpc._fades.get(cabinet).k;
+      const smallSolid = !tpc._fades.has(cup) && cup.material === mats[0] && !tpc._fades.has(small) && small.material === mats[1];
+      tpc.over.clear(); tpc.solid.clear();
       for (let i = 0; i < 15; i++) tpc.fade(1 / 60);       // 0.25 s after it's clear: still faded
-      const held = Math.abs(tpc._fades.get(cup).k - 0.5) < 0.05 && tpc._fades.get(cabinet).k < 0.3;
+      const held = tpc._fades.get(cabinet).k < 0.3;
       for (let i = 0; i < 90; i++) tpc.fade(1 / 60);
-      const back = !tpc._fades.has(cup) && !tpc._fades.has(cabinet) && cup.material === mats[0] && cabinet.material === mats[1];
-      return ok(Math.abs(cupK - 0.5) < 0.02 && Math.abs(cabK - 0.22) < 0.02 && solid && held && back, { cupK: +cupK.toFixed(3), cabK: +cabK.toFixed(3), solid, held, back });
-    } finally { scene.remove(cup, grazed, cabinet); for (const m of [cup, grazed, cabinet]) m.geometry.dispose(); }
+      const back = !tpc._fades.has(cabinet) && cabinet.material === mats[2];
+      return ok(Math.abs(cabK - 0.22) < 0.02 && smallSolid && held && back, { cabK: +cabK.toFixed(3), smallSolid, held, back });
+    } finally { scene.remove(cup, small, cabinet); for (const m of [cup, small, cabinet]) m.geometry.dispose(); }
   },
 });
 
@@ -97,40 +97,41 @@ function propOnTheLine(at, side = 0, size = 0.06, up = 0) {
 const settle = () => { const s = G().run.stage.start; tp(s[0], 0.05, s[2], 0.6); step(30); };
 
 story('camera/grazed-small-prop-stays-solid', {
-  about: 'A cup the camera\'s edge rays only brush past stays solid, whole and on its own material; a cup squarely between the jelly and the camera goes part way see-through (never fully gone), and is solid again once it\'s clear.',
+  about: 'Items no larger than twice the jelly\'s height (~18 cm) stay completely solid on their own materials whether squarely between the jelly and the camera or grazed by an edge ray; a larger item (> 2x jelly) on the line fades out and comes back solid once clear.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { tpc } = G();
     settle();
-    const direct = propOnTheLine(0.3), grazed = propOnTheLine(0.6, 0.035), own = [direct.m.material, grazed.m.material];
+    const cup = propOnTheLine(0.25, 0, 0.06), grazed = propOnTheLine(0.55, 0.035, 0.16), big = propOnTheLine(0.4, 0, 0.22);
+    const own = [cup.m.material, grazed.m.material, big.m.material];
     try {
       let lowest = 1;
-      for (let i = 0; i < 90; i++) { step(1); const f = tpc._fades.get(direct.m); if (f) lowest = Math.min(lowest, f.k); }
-      const classed = tpc.partly.has(direct.m) && tpc.solid.has(grazed.m) && tpc.over.has(grazed.m);
-      const grazedSolid = !tpc._fades.has(grazed.m) && grazed.m.material === own[1];
-      direct.done(); grazed.done(); step(90);
-      return ok(classed && grazedSolid && lowest > 0.45 && lowest < 0.55 && direct.m.material === own[0] && !tpc._fades.size, { classed, grazedSolid, lowest: +lowest.toFixed(3), fades: tpc._fades.size });
-    } finally { direct.done(); grazed.done(); }
+      for (let i = 0; i < 90; i++) { step(1); const f = tpc._fades.get(big.m); if (f) lowest = Math.min(lowest, f.k); }
+      const classed = tpc.solid.has(cup.m) && tpc.solid.has(grazed.m) && tpc.over.has(big.m) && !tpc.solid.has(big.m);
+      const smallSolid = !tpc._fades.has(cup.m) && cup.m.material === own[0] && !tpc._fades.has(grazed.m) && grazed.m.material === own[1];
+      cup.done(); grazed.done(); big.done(); step(90);
+      return ok(classed && smallSolid && lowest > 0.2 && lowest < 0.26 && big.m.material === own[2] && !tpc._fades.size, { classed, smallSolid, lowest: +lowest.toFixed(3), fades: tpc._fades.size });
+    } finally { cup.done(); grazed.done(); big.done(); }
   },
 });
 
 story('camera/direct-blocker-found-before-the-up-ray-skips-it', {
-  about: 'A cup right over the jelly is found by both the ray straight up and the ray to the camera; the jelly-to-camera ray looks first, so the cup still counts as a direct blocker (part way see-through) rather than being skipped as already found.',
+  about: 'A blocker larger than twice the jelly right over its head is found and faded out cleanly.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { tpc } = G();
     settle();
-    const cup = propOnTheLine(0, 0, 0.08, 0.05);   // 8 cm wide, floating just over the jelly's head: both the up ray and the ray to the camera go through it
+    const box = propOnTheLine(0, 0, 0.22, 0.15);   // 22 cm wide, floating over the jelly's head
     try {
       step(60);
-      const f = tpc._fades.get(cup.m);
-      return ok(tpc.partly.has(cup.m) && f && Math.abs(f.k - 0.5) < 0.02, { direct: tpc.partly.has(cup.m), k: f && +f.k.toFixed(3) });
-    } finally { cup.done(); }
+      const f = tpc._fades.get(box.m);
+      return ok(tpc.over.has(box.m) && !tpc.solid.has(box.m) && f && Math.abs(f.k - 0.22) < 0.03, { over: tpc.over.has(box.m), k: f && +f.k.toFixed(3) });
+    } finally { box.done(); }
   },
 });
 
 story('camera/direct-ray-starts-at-the-jelly-not-the-focus', {
-  about: 'In a jump the camera\'s focus lags the jelly; the jelly-to-camera ray starts at the jelly itself, so a cup on the jelly\'s own line to the camera is a direct blocker even while the focus is off to one side.',
+  about: 'In a jump the camera\'s focus lags the jelly; the jelly-to-camera ray starts at the jelly itself, so a blocker on the jelly\'s own line to the camera is found even while the focus is off to one side.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
     const { tpc, player, world } = G();
@@ -138,37 +139,69 @@ story('camera/direct-ray-starts-at-the-jelly-not-the-focus', {
     const up = player.position.clone(); up.y += 0.25;        // the jelly leaps; the focus has only started to follow
     tpc.update(1 / 60, { x: 0, y: 0, wheel: 0 }, up);
     const lag = tpc.focus.distanceTo(tpc._jelly);
-    const cup = propOnTheLine(0.3);
+    const box = propOnTheLine(0.3, 0, 0.22);
+    box.m.scale.set(1, 0.25, 0.25); box.m.updateMatrixWorld(true);   // 22 cm wide (> 2x jelly) but 5.5x5.5 cm in cross-section, so the lagged focus ray passes under it
     try {
       world.focus(up, 1); tpc.findOver(tpc.camera.position);   // look again from this very pose
-      const fromFocus = tpc.world.cast(tpc.focus, V(0, 0, 0).subVectors(tpc.camera.position, tpc.focus).normalize(), 1, null)?.mesh === cup.m;
-      return ok(lag > 0.05 && tpc.partly.has(cup.m) && !fromFocus, { lag: +lag.toFixed(3), direct: tpc.partly.has(cup.m), fromFocus });
-    } finally { cup.done(); tpc.snapTo(player.position); }
+      const fromFocus = tpc.world.cast(tpc.focus, V(0, 0, 0).subVectors(tpc.camera.position, tpc.focus).normalize(), 1, null)?.mesh === box.m;
+      return ok(lag > 0.05 && tpc.over.has(box.m) && !tpc.solid.has(box.m) && !fromFocus, { lag: +lag.toFixed(3), over: tpc.over.has(box.m), fromFocus });
+    } finally { box.done(); tpc.snapTo(player.position); }
   },
 });
 
 story('camera/tea-shelf-sweep-stays-calm', {
-  about: 'Standing on the tea shelves in the act 1 kitchen and turning the camera all the way round in 4 s, the cups and teapots stay on screen (none fades below half), and they don\'t flicker in and out (v264\'s calm: at most 8 quick reversals among them), with only a few of them see-through at once.',
+  about: 'Standing on the tea shelves in the act 1 kitchen and turning the camera all the way round in 4 s, small cups and teapots (at most twice the jelly\'s height) stay completely solid and never flicker.',
   setup() { fresh({ elites: false, bubbles: false, lash: false }); },
   play() {
-    const { tpc } = G(), sph = new THREE.Sphere(), last = new Map();
+    const { tpc } = G(), box = new THREE.Box3(), sz = new THREE.Vector3(), minFade = tpc.cfg.minFadeSize;
     tp(4.7, 1.55, 1.8, 0); step(30);
-    let reversals = 0, lowest = 1, most = 0;
+    let smallFaded = 0;
     for (let i = 0; i < 240; i++) {
       tpc.yaw += (Math.PI * 2) / 240; step(1);
-      let now = 0;
-      for (const [m, f] of tpc._fades) {
-        if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
-        if (sph.copy(m.geometry.boundingSphere).applyMatrix4(m.matrixWorld).radius * 2 >= 0.15) continue;
-        now++; lowest = Math.min(lowest, f.k);
-        const L = last.get(m);
-        if (!L) { last.set(m, { k: f.k, dir: 0, at: i }); continue; }
-        const d = f.k - L.k;
-        if (Math.abs(d) > 1e-3) { const dir = Math.sign(d); if (L.dir && dir !== L.dir && i - L.at < 10) reversals++; L.dir = dir; L.at = i; L.k = f.k; }
+      for (const m of tpc._fades.keys()) {
+        if (m.isInstancedMesh || !m.geometry) continue;
+        if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+        box.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld).getSize(sz);
+        if (Math.max(sz.x, sz.y, sz.z) <= minFade) smallFaded++;
       }
-      most = Math.max(most, now);
     }
-    return ok(lowest > 0.45 && reversals <= 8 && most <= 8, { lowest: +lowest.toFixed(3), reversals, most });
+    return ok(smallFaded === 0, { smallFaded });
+  },
+});
+
+story('camera/flat-floor-and-play-gym-stay-solid', {
+  about: 'Flat items lying on the floor (Kitchen mat, pet floor mat, rugs) and the entire Baby play gym (mat, arches and hanging toys) never fade for the camera, without making the camera dolly round them; an elevated thin board like a tabletop still fades.',
+  setup() { fresh({ elites: false, bubbles: false, lash: false }); },
+  play() {
+    const { tpc, APT } = G(), scene = APT.scene;
+    const parts = [], missing = [];
+    for (const name of ['Baby_play_gym', 'Kitchen_mat']) {
+      const g = scene.getObjectByName(name);
+      if (!g) { missing.push(name); continue; }
+      g.traverse((o) => { if (o.isMesh) parts.push(o); });
+    }
+    const pet = scene.getObjectByName('Pet_corner');
+    const box = new THREE.Box3();
+    let petFlat = 0;
+    if (pet) pet.traverse((o) => { if (o.isMesh && box.setFromObject(o).max.y <= 0.05) { parts.push(o); petFlat++; } });
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(1, 0.02, 1), new THREE.MeshStandardMaterial());
+    rug.position.set(0, 0.01, 0); scene.add(rug); rug.updateMatrixWorld(true);
+    const tabletop = new THREE.Mesh(new THREE.BoxGeometry(1, 0.02, 1), new THREE.MeshStandardMaterial());
+    tabletop.position.set(0, 0.4, 0); scene.add(tabletop); tabletop.updateMatrixWorld(true);
+    const mats = [...parts, rug].map((m) => m.material);
+    stub(tpc, 'findOver', () => {});
+    try {
+      tpc.over.clear(); tpc.solid.clear();
+      for (const m of [...parts, rug, tabletop]) tpc.over.add(m);
+      for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
+      const stayedSolid = [...parts, rug].every((m, i) => !tpc._fades.has(m) && m.material === mats[i]);
+      const noDolly = parts.every((m) => !m.userData.noCameraFade);
+      const topFaded = tpc._fades.has(tabletop) && Math.abs(tpc._fades.get(tabletop).k - 0.22) < 0.02;
+      tpc.over.clear();
+      for (let i = 0; i < 90; i++) tpc.fade(1 / 60);
+      return ok(!missing.length && parts.length >= 7 && petFlat >= 1 && stayedSolid && noDolly && topFaded && !tpc._fades.size,
+        { missing, parts: parts.length, petFlat, stayedSolid, noDolly, topFaded });
+    } finally { scene.remove(rug, tabletop); rug.geometry.dispose(); tabletop.geometry.dispose(); }
   },
 });
 
@@ -244,12 +277,11 @@ story('camera/shell-never-fades', {
     for (const m of shell) m.userData.structural = false;
     const withoutTag = tpc.seeThroughWarmers().length;     // what the warm-up would build if they could fade
     for (const m of shell) m.userData.structural = true;
-    const piece = [];
-    G().APT.scene.getObjectByName('Media_console').traverse((o) => { if (o.isMesh) piece.push(o); });
+    const piece = G().APT.scene.getObjectByName('Media_console_6');
     tpc.over.clear();
-    for (const m of [...shell, piece[0]]) tpc.over.add(m);
+    for (const m of [...shell, piece]) tpc.over.add(m);
     for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
-    const faded = shell.filter((m) => tpc._fades.has(m)).length, furniture = tpc._fades.has(piece[0]);
+    const faded = shell.filter((m) => tpc._fades.has(m)).length, furniture = tpc._fades.has(piece);
     tpc.over.clear();
     for (let i = 0; i < 90; i++) tpc.fade(1 / 60);
     return ok(shell.length >= 60 && tall >= 10 && doors >= 5 && withoutTag - withTag >= 4 && faded === 0 && furniture && !tpc._fades.size,

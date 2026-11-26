@@ -112,6 +112,25 @@ act2('camera-sees-through-the-sideboard', {
   },
 });
 
+act2('rugs-and-mats-stay-solid', {
+  about: 'Bathroom floor rugs and mats (Duck rug, Round bath rug, Bath mat) stay solid and never fade for the camera.',
+  setup() { fresh({ elites: false }); },
+  play() {
+    const { tpc, APT } = G(), parts = [];
+    for (const name of ['Duck_rug', 'Round_bath_rug', 'Bath_mat']) {
+      const g = APT.scene.getObjectByName(name);
+      if (g) g.traverse((o) => { if (o.isMesh) parts.push(o); });
+    }
+    const mats = parts.map((m) => m.material);
+    tpc.over.clear(); tpc.solid.clear();
+    for (const m of parts) tpc.over.add(m);
+    for (let i = 0; i < 60; i++) tpc.fade(1 / 60);
+    const faded = parts.filter((m, i) => tpc._fades.has(m) || m.material !== mats[i]).length;
+    tpc.over.clear();
+    return ok(parts.length >= 3 && faded === 0, { parts: parts.length, faded });
+  },
+});
+
 act2('soap-dispenser-stands-in', {
   about: 'The soap dispenser by the tap comes alive as an elite (the real one hides while it fights), and the pink soap inside drains as it\'s hurt.',
   setup() { fresh(); besideSoap(); },
