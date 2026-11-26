@@ -1,1 +1,0 @@
-Tunes the Giant millipede's ball charge (a smaller lane, a longer rest, a tighter curl, a slower spin), the House fly's poke (longer reach and range, a longer poke), The Controller's arrows (a longer warning, a wider and bigger arrow, a shorter rest) and The Kettle's boil reach (a smaller steam cloud).

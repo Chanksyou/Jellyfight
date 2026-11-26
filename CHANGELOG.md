@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v730 Tunes the Giant millipede's ball charge (a smaller lane, a longer rest, a tighter curl, a slower spin), the House fly's poke (longer reach and range, a longer poke), The Controller's arrows (a longer warning, a wider and bigger arrow, a shorter rest) and The Kettle's boil reach (a smaller steam cloud).
+
 v729 climbing bugs come back down once you leave the furniture (they no longer wait at the edge of a table, holding up the next bugs), a crowd at one side no longer shoves a climber off it again and again, and a bug never appears shut in somewhere it can't walk out of.
 
 v728 makes the Encore's solos come sooner and hit harder: the first solo starts 4 bars after its force field drops and a new one every 12 bars, silver and gold both from set 1, so a fast kill still sees both. The silver DJ throws a record every 2 beats (six a solo, was three), the other DJ's wave comes every 8 beats during a solo (was 16), and the spotlight is brighter. Harder fight.
