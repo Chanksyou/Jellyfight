@@ -7,6 +7,7 @@ import { runBench, showResults, sendable } from '../bench.js';
 import { MOMENTS } from '../bench-moments.js';
 import { EXPERIMENTS, readExperiments, experimentQuery } from '../experiments.js';
 import { LOOK } from '../look.js';
+import { loadN8AO, Graphics } from '../graphics.js';
 
 const SHORT = { settle: 0.05, secs: 0.25 };
 
@@ -118,7 +119,8 @@ story('bench/msaa-smooths-edges-on-one-target', {
   phone: true,
   about: 'With ?msaa=4 the scene is drawn into one multisampled target (the other buffer stays plain), built without a new shader in play, and it still holds after many frames; without the option, or with msaa=0, no target has samples.',
   setup() {},
-  play() {
+  async play() {
+    await loadN8AO();
     const gfx = G().gfx, R = G().APT.renderer;
     const samples = () => [gfx.composer.renderTarget1.samples, gfx.composer.renderTarget2.samples];
     offs.push(() => { EXPERIMENTS.msaa = null; EXPERIMENTS.rt = null; gfx.build(); });
@@ -140,5 +142,20 @@ story('bench/msaa-smooths-edges-on-one-target', {
     gfx.baked = false; gfx.build(); gfx.render();   // a room without baked shadows: N8AO draws the scene into its own target
     const n8ao = !!gfx.ao && gfx.ao.beautyRenderTarget.samples === 4 && samples().every((s) => s === 0);
     return ok(plain && zero && one && steady && both && n8ao, { plain, zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
+  },
+});
+
+story('engine/n8ao-loads-only-when-wanted', {
+  phone: true,
+  about: 'N8AO is not in the page\'s first imports: a phone on Medium in a baked room builds without it (plain scene render) and High picks it up when it has loaded, rebuilding behind the menu; where the first picture needs it, it is loaded before the graphics are made.',
+  setup() {},
+  async play() {
+    const gfx = G().gfx, was = gfx.choice;
+    const medium = gfx.composer.passes[0].isRenderPass;
+    const wants = [Graphics.wantsAO('medium', true), Graphics.wantsAO('medium', false), Graphics.wantsAO('high', true)];
+    gfx.setQuality('high'); await gfx.ready;
+    const high = !gfx.composer.passes[0].isRenderPass;
+    gfx.setQuality(was); await gfx.ready;
+    return ok(medium && high && wants.join() === 'false,true,true' && !document.querySelector('link[href*="n8ao"]'), { medium, high, wants });
   },
 });

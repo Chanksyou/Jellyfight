@@ -5,7 +5,7 @@ import { World } from './collision.js';
 import { Player } from './player.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Input } from './input.js';
-import { Graphics, CHOICES, GRADE } from './graphics.js';
+import { Graphics, CHOICES, GRADE, loadN8AO } from './graphics.js';
 import { FramePacer, FrameGovernor } from './pacing.js';
 import { LightSlots } from './light-slots.js';
 import { EXPERIMENTS } from './experiments.js';
@@ -329,6 +329,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(world, CONFIG.player);
 scene.add(player.mesh);
 const tpc = new ThirdPersonCamera(camera, world, CONFIG.camera);
+if (Graphics.wantsAO(IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO)) await loadN8AO();   // (a phone on Medium in a baked room never does: it loads once Play works)
 const gfx = new Graphics(renderer, scene, camera, IS_TOUCH ? 'medium' : 'high', !!APT.bakedAO, EXPERIMENTS.shimmer ? traversal.air.heatScene : null);   // phones start on Medium so Low is a choice, not a default
 fx.low = () => gfx.quality === 'low';
 picker.painter = new AuraPainter(renderer, () => gfx.quality);   // the pick screen's side cards drawn in shaders
@@ -1257,6 +1258,7 @@ function endContinue() {
 // Stories (src/stories.js, areas in src/stories/): index.html?story=<name> opens one live; index.html?stories lists them
 const storyParams = new URLSearchParams(location.search);
 export const ready = warmUp().then(() => {
+  (window.requestIdleCallback || setTimeout)(() => loadN8AO(), 2000);   // a pick of High later then finds it here
   field.loadMs = performance.now();   // since navigation start: how long until Play worked
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
   const then = pendingAction();
