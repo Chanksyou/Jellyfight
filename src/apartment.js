@@ -116,9 +116,10 @@ function prepareMeshes(root, meta, renderer) {
   root.traverse((o) => {
     if (OPAQUE_COUNTER.has(o.name) || o.parent?.userData.noCameraFade) o.userData.noCameraFade = true;
     if (!o.isMesh) return;
+    // The soft-shadow cards under furniture (flat see-through pictures) are left out: the baked AO already darkens
+    // the floor there, and they were the room's biggest see-through cost on a phone.
+    if ([].concat(o.material).every((m) => m.isMeshBasicMaterial && m.transparent && m.map)) o.visible = false;
     if (o.userData.noCameraFade) {
-      // Baked soft-shadow cards use alpha textures; making them solid draws black rectangles.
-      if ([].concat(o.material).every((m) => m.isMeshBasicMaterial && m.transparent && m.map)) o.visible = false;
       const solid = (m) => {
         if (!m.transparent && !(m.transmission > 0)) return m;
         if (!opaque.has(m)) {
