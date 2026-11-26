@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v744 overhauls Dendi's boss-finish sequence with an immediate break callout and sound before fade, smooth pose cross-fading, a 4-beat paw strike with knockback and celebratory rings, camera dolly-in, and victory fanfare.
+
 v743 improves both visual quality and CPU/GPU performance across the rendering pipeline: Karis-weighted 13-tap bloom, packed R11G11B10 + 2x MSAA Medium default, half-res bokeh DOF fused into the output pass, geometric specular AA and micro-roughness, act-matched procedural room reflections and ?tone=agx switch, pre-baked surface grain and gated ImageBitmap loading, load-time shell lightUv projection with bounded lightmap mipmaps, a 128x128 2D GPU mist wake field, BatchedMesh per-instance color bucketing for flat-colored furniture, single-draw GPU-driven jelly tentacles, and frustum rejection in dynamic Batcher.sync().
 
 v742 gives the Encore 50% damage reduction during both DJ solos and the duet, and changes its bows and breakdown to take regular damage while still looking EXPOSED.

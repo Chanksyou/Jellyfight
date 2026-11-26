@@ -1,1 +1,0 @@
-overhauls Dendi's boss-finish sequence with an immediate break callout and sound before fade, smooth pose cross-fading, a 4-beat paw strike with knockback and celebratory rings, camera dolly-in, and victory fanfare.
