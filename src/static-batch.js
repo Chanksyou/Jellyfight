@@ -13,9 +13,18 @@
 // sorts them among themselves.
 import * as THREE from 'three';
 import { HIDDEN } from './batch.js';
+import { original } from './lite-materials.js';
 import { LOOK } from './look.js';
 
 const shape = (g) => Object.keys(g.attributes).sort().map((k) => { const a = g.attributes[k]; return `${k}${a.itemSize}${a.array.constructor.name}${a.normalized}`; }).join() + (g.index ? '|i' : '');
+const flatColorEligible = (m) => !!(
+  m.isMeshStandardMaterial
+  && !m.map && !m.emissiveMap && !m.normalMap && !m.bumpMap && !m.roughnessMap && !m.metalnessMap && !m.alphaMap
+  && !m.transparent && !(m.transmission > 0) && !(m.emissiveIntensity > 0)
+  && !m.vertexColors && !m.userData.animatedMaterial
+  && !(m.emissive && (m.emissive.r > 0 || m.emissive.g > 0 || m.emissive.b > 0))
+);
+const bucketKey = (m, g) => `flat|${Math.round(m.roughness * 10)}|${Math.round(m.metalness * 10)}|${m.side}|${m.flatShading}|${m.userData.detail || ''}|${m.envMapIntensity ?? 1}|${m.onBeforeCompile?.toString().length || 0}|${shape(g)}`;
 const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 const _v = new THREE.Vector3(), _sc = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Sphere(), _f = new THREE.Frustum();
 
@@ -54,18 +63,30 @@ export class StaticBatches {
       if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.isBatchedMesh || Array.isArray(o.material) || o.layers.mask !== 1) return;
       const m = o.material;
       if ((m.transparent && !m.isMeshBasicMaterial) || m.transmission > 0 || o.morphTargetInfluences || o.userData.noBatch) return;   // the see-through soft-shadow cards are fine: the batch sorts them
-      const key = m.uuid + '|' + shape(o.geometry);
+      const src = original(m);
+      const bucketed = flatColorEligible(src);
+      const key = bucketed ? bucketKey(src, o.geometry) : src.uuid + '|' + shape(o.geometry);
       if (this.join(o, key)) return;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(o);
+      if (!groups.has(key)) groups.set(key, { meshes: [], bucketed });
+      groups.get(key).meshes.push(o);
     });
-    for (const [key, meshes] of groups) {
+    for (const [key, { meshes, bucketed }] of groups) {
       if (meshes.length < 2) continue;
       let verts = 0, index = 0;
       for (const o of meshes) { verts += o.geometry.attributes.position.count; index += o.geometry.index?.count || 0; }
-      const batch = new THREE.BatchedMesh(meshes.length, verts, index, meshes[0].material);
-      batch.name = 'batch:' + meshes[0].material.name;
-      const b = { batch, pieces: [], ids: new Map(), key };   // ids: a geometry shared by several pieces goes in once
+      let mat = meshes[0].material;
+      if (bucketed) {
+        const src = original(mat);
+        const canon = src.clone();
+        canon.color.setHex(0xffffff);
+        canon.name = 'bucket:' + src.name;
+        canon.onBeforeCompile = src.onBeforeCompile;
+        canon.defaultAttributeValues = src.defaultAttributeValues;
+        mat = canon;
+      }
+      const batch = new THREE.BatchedMesh(meshes.length, verts, index, mat);
+      batch.name = (bucketed ? 'bucket:' : 'batch:') + meshes[0].material.name;
+      const b = { batch, pieces: [], ids: new Map(), key, bucketed };   // ids: a geometry shared by several pieces goes in once
       for (const o of meshes) {
         if (!b.ids.has(o.geometry)) b.ids.set(o.geometry, batch.addGeometry(o.geometry));
         this.place(b, o);
@@ -80,9 +101,10 @@ export class StaticBatches {
     }
   }
 
-  place({ batch, pieces, ids }, o) {
+  place({ batch, pieces, ids, bucketed }, o) {
     const id = batch.addInstance(ids.get(o.geometry));
     batch.setMatrixAt(id, o.matrixWorld);
+    if (bucketed) batch.setColorAt(id, o.material.color);
     const vis = shown(o);
     batch.setVisibleAt(id, vis);
     pieces.push({ mesh: o, id, material: o.material, matrix: o.matrixWorld.clone(), inBatch: vis, inView: true });

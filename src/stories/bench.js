@@ -70,14 +70,15 @@ story('bench/never-sends-from-a-story', {
 
 story('bench/experiment-switches-read-once', {
   phone: true,
-  about: 'The experiment links (?lights=3|4|6, ?rt=packed, ?msaa=0|2|4, ?lite=1, ?shimmer=1) are read once at boot: a good value is kept, a bad one is ignored, none given changes nothing, and the lamp slots on this phone are the --phone-lights number the page shipped with.',
+  about: 'The experiment links (?lights=3|4|6, ?rt=packed|half, ?msaa=0|2|4, ?lite=1, ?shimmer=1, ?tone=agx|aces) are read once at boot: a good value is kept, a bad one is ignored, none given changes nothing, and the lamp slots on this phone are the --phone-lights number the page shipped with.',
   setup() {},
   async play() {
     const none = readExperiments('');
-    const all = readExperiments('?lights=4&rt=packed&msaa=2&lite=1&shimmer=1');
-    const bad = readExperiments('?lights=5&rt=half&msaa=8&lite=2&shimmer=yes');
+    const all = readExperiments('?lights=4&rt=packed&msaa=2&lite=1&shimmer=1&tone=agx');
+    const half = readExperiments('?rt=half&msaa=0');
+    const bad = readExperiments('?lights=5&rt=float&msaa=8&lite=2&shimmer=yes&tone=linear');
     const absent = Object.values(none).every((v) => v === null) && experimentQuery(none) === '';
-    const kept = all.lights === 4 && all.rt === 'packed' && all.msaa === 2 && all.lite === 1 && all.shimmer === 1 && experimentQuery(all) === '&lights=4&rt=packed&msaa=2&lite=1&shimmer=1';
+    const kept = all.lights === 4 && all.rt === 'packed' && all.msaa === 2 && all.lite === 1 && all.shimmer === 1 && all.tone === 'agx' && half.rt === 'half' && half.msaa === 0 && experimentQuery(all) === '&lights=4&rt=packed&msaa=2&lite=1&shimmer=1&tone=agx';
     const ignored = Object.values(bad).every((v) => v === null);
     const slots = G().pacing.lightSlots?.count;
     const res = await runBench({ ...SHORT, only: ['quiet room'], switches: [] });
@@ -88,7 +89,7 @@ story('bench/experiment-switches-read-once', {
 
 story('bench/packed-buffers-fall-back', {
   phone: true,
-  about: 'With ?rt=packed the picture buffers and the bloom chain are R11G11B10 (32 bits a pixel instead of 64), built without a new shader in play; if the GPU can\'t draw to that format the half-float buffers stay; without the option nothing changes.',
+  about: 'Medium defaults to R11G11B10 (32 bits a pixel instead of 64) when the GPU can draw to it, built without a new shader in play; ?rt=half forces half floats, and if the GPU can\'t draw to R11G11B10 half floats stay.',
   setup() {},
   play() {
     const gfx = G().gfx, R = G().APT.renderer, canPack = gfx.canPack;
@@ -96,9 +97,10 @@ story('bench/packed-buffers-fall-back', {
     const all = (t) => types().every((x) => x === t);
     offs.push(() => { EXPERIMENTS.rt = null; gfx.canPack = canPack; gfx.build(); });
     const HALF = THREE.HalfFloatType, PACKED = THREE.UnsignedInt101111Type;
+    EXPERIMENTS.rt = 'half';
     gfx.build();
     const plain = all(HALF) && gfx.bufferType === HALF;
-    EXPERIMENTS.rt = 'packed';
+    EXPERIMENTS.rt = null;
     const target = R.getRenderTarget();
     const supported = canPack.call(gfx);
     const restored = R.getRenderTarget() === target;   // the probe leaves the renderer as it found it
@@ -118,17 +120,15 @@ story('bench/packed-buffers-fall-back', {
 
 story('bench/msaa-smooths-edges-on-one-target', {
   phone: true,
-  about: 'With ?msaa=4 the scene is drawn into one multisampled target (the other buffer stays plain), built without a new shader in play, and it still holds after many frames; without the option, or with msaa=0, no target has samples.',
+  about: 'With ?msaa=4 (or the Medium default) the scene is drawn into one multisampled target (the other buffer stays plain), built without a new shader in play, and it still holds after many frames; with ?msaa=0 no target has samples.',
   setup() {},
   async play() {
     await loadN8AO();
     const gfx = G().gfx, R = G().APT.renderer;
     const samples = () => [gfx.composer.renderTarget1.samples, gfx.composer.renderTarget2.samples];
     offs.push(() => { EXPERIMENTS.msaa = null; EXPERIMENTS.rt = null; gfx.build(); });
-    EXPERIMENTS.msaa = null; gfx.build();
-    const plain = samples().every((s) => s === 0) && gfx.msaa === 0;
     EXPERIMENTS.msaa = 0; gfx.build();
-    const zero = samples().every((s) => s === 0);
+    const zero = samples().every((s) => s === 0) && gfx.msaa === 0;
     EXPERIMENTS.msaa = 4; gfx.build();
     gfx.render();
     const programs = R.info.programs.length;
@@ -142,7 +142,7 @@ story('bench/msaa-smooths-edges-on-one-target', {
     const baked = gfx.baked; offs.push(() => { gfx.baked = baked; });
     gfx.baked = false; gfx.build(); gfx.render();   // a room without baked shadows: N8AO draws the scene into its own target
     const n8ao = !!gfx.ao && gfx.ao.beautyRenderTarget.samples === 4 && samples().every((s) => s === 0);
-    return ok(plain && zero && one && steady && both && n8ao, { plain, zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
+    return ok(zero && one && steady && both && n8ao, { zero, one, steady, both, n8ao, samples: samples(), type: gfx.bufferType });
   },
 });
 
