@@ -834,7 +834,7 @@ const GAME = {
     run.driedOut.update(dt);          // behind the death screen: the jelly dried out on the land
     lightSlots?.update(dt, player.position);
     ambient.update(dt, player.position, player.velocity.length());
-    updateMist(dt, juice.calm, traversal.vents, traversal.air);   // (after ambient.update: the mist follows its wake)
+    updateMist(dt, juice.calm, traversal.vents, traversal.air, renderer);   // (after ambient.update: the mist follows its wake)
     floorLight?.update();
     powered?.update(dt, { pixelRatio: renderer.getPixelRatio() });
     systems.shadow.update(dt);

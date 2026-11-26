@@ -1,16 +1,13 @@
 // Ground mist: a low, uneven fog that hugs the floor of every room, tinted by the baked light where it lies.
-// Pure shader maths, no draw, pass or program of its own: the room's one shader patch (baked-ao.js) and the
-// jelly's and bugs' tint (baked-light.js tintShader) call mistAt() after three.js's own fog, so the numbers
-// here are the whole cost (uniforms; the clock is the only one that changes). The height fog is the closed-form
-// integral of a density that falls off as exp(-height / --mist-height) along the eye ray (Inigo Quilez's formula),
-// so a table top or the sofa seat stands clear of it and the floor sits in it. Patches (a few sines on x,z, no
-// texture, blended, never clipped) swing the thickness at most between 1 - patch and 1 + patch times the mean, drifting with the clock.
-// The jelly parts it (F2): density falls round the jelly and along the trail it leaves (TRAIL remembered spots,
-// refilling over --mist-part-refill s), a counter-rotating vortex pair at each spot bends the patches' lookup into
-// curls (a Lamb-Oseen shaped spin that grows and fades with the spot's age), the patches slide round the jelly as
-// in potential flow past a circle, and vents and big hits (fx.impact's 'impact') thin it where they are. All a fixed
-// small loop over uniforms: no simulation, render target or draw. Low parts it without the curl maths; Reduce
-// effects keeps the parting and holds the curls still.
+// The room's one shader patch (baked-ao.js) and the jelly's and bugs' tint (baked-light.js tintShader) call
+// mistAt() after three.js's own fog. The height fog is the closed-form integral of a density that falls off
+// as exp(-height / --mist-height) along the eye ray (Inigo Quilez's formula), so a table top or the sofa seat
+// stands clear of it and the floor sits in it. Patches (a few sines on x,z, blended, never clipped) swing the
+// thickness at most between 1 - patch and 1 + patch times the mean, drifting with the clock.
+// The jelly's parting, trail, curls, vents and big hits (fx.impact's 'impact') are accumulated once per frame
+// into a 128x128 scrolling 2D ping-pong GPU wake buffer (3.2 m x 3.2 m centered on the jelly), so mistAt()
+// replaces the per-fragment multi-loop analytical wake with a single bilinear texture fetch. Low parts it
+// without the curl UV bend; Reduce effects keeps the parting and holds the patches and curls still.
 // Numbers: content/look.css (--mist*, each with an -act<n> mood; act 4's follow its dawn); ?mist=0 turns it off.
 import * as THREE from 'three';
 import { LOOK } from './look.js';
@@ -18,7 +15,32 @@ import { bus } from './events.js';
 import { AMBIENT } from './ambient.js';
 
 const TRAIL = 6;   // remembered spots behind the jelly (the 7th slot is the jelly now)
+const FIELD_RES = 128;
+const FIELD_SPAN = 3.2;
+const FIELD_INV_SPAN = 1 / FIELD_SPAN;
+const CURL_AMP = 0.36;
 const v4 = (n) => Array.from({ length: n }, () => new THREE.Vector4());
+
+// neutral wake texel: part=0, curl=(0,0) encoded at 128/255, wisp=0
+const blankField = new THREE.DataTexture(new Uint8Array([0, 128, 128, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+blankField.minFilter = THREE.LinearFilter;
+blankField.magFilter = THREE.LinearFilter;
+blankField.wrapS = THREE.ClampToEdgeWrapping;
+blankField.wrapT = THREE.ClampToEdgeWrapping;
+blankField.generateMipmaps = false;
+blankField.needsUpdate = true;
+
+const field = {
+  rts: null,
+  cur: 0,
+  tex: blankField,
+  needsClear: true,
+  prevOrigin: new THREE.Vector2(),
+  scene: null,
+  camera: null,
+  mat: null,
+  quad: null,
+};
 
 export const MIST = {
   uniforms: {
@@ -39,6 +61,18 @@ export const MIST = {
     mistBound: { value: 0 },                   // the jelly's trail and curls lie within this squared distance of it
     mistCurl: { value: 0 },                    // how far a vortex turns the patches at its core (rad); 0 in Reduce effects
     mistWisp: { value: 0 },                    // fine wisps on a parted edge (0 = a smooth edge)
+    mistOrigin: { value: new THREE.Vector2() }, // center of the 2D wake window (world x, z)
+    mistInvSpan: { value: FIELD_INV_SPAN },    // 1 / window span (m^-1)
+    mistCurlAmp: { value: CURL_AMP },          // world-space UV bend amplitude for stored curl
+    mistField: {
+      get value() {
+        const U = MIST.uniforms;
+        if (U.mistJk.value.x === 0 && U.mistTrail.value.every((t) => t.w === 0) && U.mistHoles.value.every((h) => h.w === 0)) {
+          return blankField;
+        }
+        return field.tex;
+      },
+    },
   },
   drift: 1,
   on: true,
@@ -46,6 +80,209 @@ export const MIST = {
 };
 
 const S = { at: null, x: 0, z: 0, hx: 1, hz: 0, since: 0, moved: 0, hits: [0, 0, 0], next: 0, flow: 0, vents: [null, null, null] };   // the trail's own clock and the last place it was seen
+
+const FIELD_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    vUv = position.xy * 0.5 + 0.5;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const FIELD_FRAG = /* glsl */`
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uPrev;
+  uniform vec2 uOrigin, uPrevOrigin;
+  uniform float uSpan, uInvSpan, uDt, uRefill, uCurl, uCalm, uTime;
+  uniform vec4 uJ, uJk, uPartP, uCurlP, uHoles[6];
+
+  const float ZERO = 128.0 / 255.0;
+
+  vec4 samplePrev(vec2 uv) {
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return vec4(0.0, ZERO, ZERO, 0.0);
+    return texture2D(uPrev, uv);
+  }
+
+  void main() {
+    vec2 worldPos = uOrigin + (vUv - 0.5) * uSpan;
+    vec2 prevUv = vUv + (uOrigin - uPrevOrigin) * uInvSpan;
+    vec4 prev0 = samplePrev(prevUv);
+    vec2 flow0 = (prev0.gb - ZERO) * 2.0;
+
+    vec4 prev = prev0;
+    if (uCalm < 0.5 && uCurl > 0.0) {
+      vec2 advUv = prevUv - flow0 * (0.22 * uDt * uInvSpan);
+      prev = samplePrev(advUv);
+    }
+
+    // exponential + linear floor decay so RGBA8 cleanly reaches exact neutral (0, 128/255, 128/255, 0)
+    float refill = max(uRefill, 0.1);
+    float partDecay = exp(-uDt / (refill * 0.45));
+    float part = max(0.0, prev.r * partDecay - uDt * (0.35 / refill));
+
+    vec2 curl = vec2(0.0);
+    if (uCalm < 0.5 && uCurl > 0.0) {
+      curl = (prev.gb - ZERO) * 2.0;
+      float cLen = length(curl);
+      if (cLen > 1e-4) {
+        float cDecay = exp(-uDt / (refill * 0.4));
+        curl *= max(0.0, cLen * cDecay - uDt * (0.35 / refill)) / cLen;
+      } else {
+        curl = vec2(0.0);
+      }
+    }
+
+    float wispDecay = exp(-uDt / (refill * 0.35));
+    float wisp = max(0.0, prev.a * wispDecay - uDt * (0.4 / refill));
+
+    // splat up to 6 holes (3 nearest vents + 3 recent big hits)
+    for (int i = 0; i < 6; i++) {
+      vec4 h = uHoles[i];
+      if (h.w <= 0.0 || h.z <= 0.0) continue;
+      vec2 dh = worldPos - h.xy;
+      float rr = h.z * h.z, d2 = dot(dh, dh);
+      if (d2 < rr * 6.0) {
+        part = max(part, h.w * exp(-d2 / rr));
+      }
+    }
+
+    // splat jelly body parting
+    vec2 dj = worldPos - uJ.xy;
+    float rj = dot(dj, dj);
+    float jr2 = max(uJk.z * uJk.z, 1e-4);
+    if (uJk.x > 0.0 && rj < jr2 * 8.0) {
+      part = max(part, uJk.x * exp(-rj / jr2));
+    }
+
+    // splat potential-flow dipole + counter-rotating vortex pair when moving and not calm
+    if (uCalm < 0.5 && uCurl > 0.0 && uJk.y > 0.001) {
+      float flowR2 = max(uCurlP.z, 1e-4);
+      if (rj < flowR2 * 9.0) {
+        vec2 z = vec2(dot(dj, uJ.zw), dot(dj, vec2(-uJ.w, uJ.z)));
+        vec2 bend = uJk.y * flowR2 / max(rj, flowR2) * vec2(z.x, -z.y);
+        vec2 dipole = vec2(bend.x * uJ.z - bend.y * uJ.w, bend.x * uJ.w + bend.y * uJ.z);
+        float wDip = exp(-rj / (flowR2 * 2.5));
+        curl = mix(curl, clamp(dipole * 2.0, -0.95, 0.95), min(1.0, wDip * uDt * 8.0));
+      }
+      vec2 back = uJ.xy - uJ.zw * (uJk.z * 1.1);
+      vec2 side = vec2(-uJ.w, uJ.z) * max(uPartP.x * 1.1, 0.05);
+      float coreR2 = max(uCurlP.x, 1e-4);
+      vec2 dL = worldPos - (back + side);
+      vec2 dR = worldPos - (back - side);
+      float wL = exp(-dot(dL, dL) / (coreR2 * 2.5));
+      float wR = exp(-dot(dR, dR) / (coreR2 * 2.5));
+      vec2 vort = (vec2(-dL.y, dL.x) * wL - vec2(-dR.y, dR.x) * wR) * (uCurl * uJk.y * 2.4 * uDt);
+      curl += vort;
+      float cl = length(curl);
+      if (cl > 0.95) curl *= 0.95 / cl;
+    }
+
+    // lightweight edge wisp energy computed once per 128x128 texel instead of per screen fragment
+    float edge = 4.0 * part * (1.0 - part);
+    if (edge > 0.02) {
+      float ph = uTime * 0.010471976;
+      float rip = 0.5 + 0.5 * sin(worldPos.x * 32.0 + 1.5 * sin(worldPos.y * 21.0 + ph * 17.0))
+        * sin(worldPos.y * 29.0 + 1.5 * sin(worldPos.x * 25.0 - ph * 19.0));
+      wisp = max(wisp, edge * rip);
+    }
+
+    gl_FragColor = vec4(clamp(part, 0.0, 1.0), clamp(ZERO + curl.x * 0.5, 0.0, 1.0), clamp(ZERO + curl.y * 0.5, 0.0, 1.0), clamp(wisp, 0.0, 1.0));
+  }
+`;
+
+function ensureField() {
+  if (field.rts) return;
+  const opts = {
+    format: THREE.RGBAFormat,
+    type: THREE.UnsignedByteType,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    wrapS: THREE.ClampToEdgeWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
+    depthBuffer: false,
+    stencilBuffer: false,
+    generateMipmaps: false,
+  };
+  field.rts = [new THREE.WebGLRenderTarget(FIELD_RES, FIELD_RES, opts), new THREE.WebGLRenderTarget(FIELD_RES, FIELD_RES, opts)];
+  field.cur = 0;
+  field.needsClear = true;
+  if (!field.scene) {
+    const U = MIST.uniforms;
+    field.mat = new THREE.ShaderMaterial({
+      vertexShader: FIELD_VERT,
+      fragmentShader: FIELD_FRAG,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.NoBlending,
+      uniforms: {
+        uPrev: { value: blankField },
+        uOrigin: { value: U.mistOrigin.value },
+        uPrevOrigin: { value: field.prevOrigin },
+        uSpan: { value: FIELD_SPAN },
+        uInvSpan: { value: FIELD_INV_SPAN },
+        uDt: { value: 0 },
+        uRefill: { value: 2.5 },
+        uCurl: { value: 0 },
+        uCalm: { value: 0 },
+        uTime: { value: 0 },
+        uJ: { value: U.mistJ.value },
+        uJk: { value: U.mistJk.value },
+        uPartP: { value: U.mistPartP.value },
+        uCurlP: { value: U.mistCurlP.value },
+        uHoles: { value: U.mistHoles.value },
+      },
+    });
+    field.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), field.mat);
+    field.quad.frustumCulled = false;
+    field.scene = new THREE.Scene();
+    field.scene.add(field.quad);
+    field.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  }
+}
+
+export function resetMistField() {
+  if (field.rts) {
+    field.rts[0].dispose();
+    field.rts[1].dispose();
+    field.rts = null;
+  }
+  field.cur = 0;
+  field.tex = blankField;
+  field.needsClear = true;
+}
+
+export function stepMistField(renderer, dt, calm) {
+  const U = MIST.uniforms;
+  if (!renderer || dt <= 0 || U.mistK.value <= 0) return;
+  ensureField();
+  const src = field.needsClear ? blankField : field.rts[field.cur].texture;
+  const dstIdx = 1 - field.cur;
+  const dst = field.rts[dstIdx];
+  const fu = field.mat.uniforms;
+  fu.uPrev.value = src;
+  fu.uDt.value = Math.min(dt, 0.25);
+  fu.uRefill.value = MIST.part.refill;
+  fu.uCurl.value = U.mistCurl.value;
+  fu.uCalm.value = calm ? 1 : 0;
+  fu.uTime.value = U.mistT.value;
+
+  const prevTarget = renderer.getRenderTarget();
+  const prevAutoClear = renderer.autoClear;
+  const prevXr = renderer.xr.enabled;
+  renderer.autoClear = false;
+  renderer.xr.enabled = false;
+  renderer.setRenderTarget(dst);
+  renderer.render(field.scene, field.camera);
+  renderer.setRenderTarget(prevTarget);
+  renderer.autoClear = prevAutoClear;
+  renderer.xr.enabled = prevXr;
+
+  field.cur = dstIdx;
+  field.tex = dst.texture;
+  field.needsClear = false;
+  field.prevOrigin.copy(U.mistOrigin.value);
+}
 
 // act: (name, fallback) readers with the act's own mood (main.js actNum / actColor)
 export function readMist(num, color, off) {
@@ -69,6 +306,8 @@ export function readMist(num, color, off) {
   U.mistWisp.value = num('mist-wisp', 0.8);
   for (const h of U.mistHoles.value) h.w = 0;
   S.at = null;
+  field.needsClear = true;
+  field.tex = blankField;
 }
 
 // a big hit punches a hole in it that refills (the oldest of three)
@@ -91,7 +330,7 @@ export function setMist(k, colour) {
 
 // once a frame, after ambient.update (the jelly is its wake, gust 0); Reduce effects holds the patches and curls still.
 // vents: the act's (traversal.js), air: their VentAir (how hard each blows now, and which was last ridden)
-export function updateMist(dt, calm, vents = [], air = null) {
+export function updateMist(dt, calm, vents = [], air = null, renderer = null) {
   const U = MIST.uniforms, P = MIST.part;
   if (!calm) U.mistT.value = (U.mistT.value + dt * MIST.drift) % 600;
   U.mistCurl.value = calm ? 0 : P.curl;
@@ -101,6 +340,8 @@ export function updateMist(dt, calm, vents = [], air = null) {
   if (!S.at || d > 1) {   // a first frame or a jump (a new act, a teleport): no trail across the room
     for (const t of trail) t.set(wake.x, wake.z, P.refill, 0);
     S.at = true; S.since = 0; S.moved = 0;
+    field.needsClear = true;
+    field.prevOrigin.set(wake.x, wake.z);
   } else if (d > 1e-4) { const a = 1 - Math.exp(-dt / P.ease); S.hx += (dx / d - S.hx) * a; S.hz += (dz / d - S.hz) * a; }
   S.flow += (wake.w - S.flow) * (1 - Math.exp(-dt / P.ease));   // starts and stops ease in and out over --mist-curl-ease s
   S.x = wake.x; S.z = wake.z; S.moved += d; S.since += dt;
@@ -114,6 +355,7 @@ export function updateMist(dt, calm, vents = [], air = null) {
   }
   const hl = Math.hypot(S.hx, S.hz) || 1;
   U.mistJ.value.set(wake.x, wake.z, S.hx / hl, S.hz / hl);
+  U.mistOrigin.value.set(wake.x, wake.z);
   U.mistJk.value.x = P.part * k;
   U.mistJk.value.y = P.flow * k * S.flow * Math.min(1, hl);   // (a quick turn back shrinks the heading first, so the flow fades through it instead of flipping)
   U.mistJk.value.w = 1 - Math.min(1, Math.max(S.since / P.every, S.moved / P.step));   // the oldest piece fades out before its slot is reused
@@ -140,81 +382,16 @@ export function updateMist(dt, calm, vents = [], air = null) {
     const h = holes[3 + j];
     if (h.w > 0) h.w = S.hits[j] >= P.refill ? 0 : h.w * Math.max(0, 1 - dt / Math.max(1e-3, P.refill - S.hits[j] + dt));
   }
+  if (renderer) stepMistField(renderer, dt, calm);
 }
 
 // mistAt(pos, liteLight): rgb = the mist's colour there, a = how much of a pixel at pos it hides, seen from the camera.
 // Needs GRID_GLSL (baked-light.js) before it. Low's plain (Lambert) materials reuse the room's already-sampled baked light instead of reading the light grid again.
 export const MIST_GLSL = /* glsl */`
-  uniform float mistK, mistH, mistLit, mistMax, mistPatch, mistT;
+  uniform float mistK, mistH, mistLit, mistMax, mistPatch, mistT, mistWisp, mistInvSpan, mistCurlAmp;
   uniform vec3 mistBase;
-  uniform vec4 mistJ, mistJk, mistPartP, mistCurlP, mistTrail[${TRAIL + 1}], mistHoles[6];
-  uniform float mistBound, mistCurl, mistWisp;
-  vec2 mistSpin(vec2 q, vec2 c, float a) { vec2 d = q - c; float s = sin(a), k = cos(a); return c + vec2(k * d.x - s * d.y, s * d.x + k * d.y); }
-  // how much of the mist is left at p (1 = all) after the vents, the big hits, the jelly and its trail;
-  // q comes back as where to read the patches there, bent by the trail's vortex pairs and the flow round the jelly
-  float mistWake(vec2 p, out vec2 q) {
-    q = p;
-    float keep = 1.0;
-    for (int i = 0; i < 6; i++) {
-      vec4 h = mistHoles[i];
-      if (h.w <= 0.0 || h.z <= 0.0) continue;
-      vec2 d = p - h.xy;
-      float rr = h.z * h.z, d2 = dot(d, d);
-      if (d2 < rr * 6.0) keep *= 1.0 - h.w * exp(-d2 / rr);
-    }
-    vec2 dj = p - mistJ.xy;
-    float rj = dot(dj, dj);
-    if (rj > mistBound) return keep;
-    keep *= 1.0 - mistJk.x * exp(-rj / (mistJk.z * mistJk.z));
-    float R = mistPartP.x, refill = mistPartP.y;
-    #ifndef LAMBERT
-      if (mistCurl > 0.0) {
-        for (int i = 0; i < ${TRAIL}; i++) {   // a counter-rotating pair at each spot, one each side of the path (Lamb-Oseen: the core widens with age)
-          vec4 a = mistTrail[i];
-          if (a.w <= 0.0 || a.z >= refill) continue;
-          vec2 ab = mistTrail[i + 1].xy - a.xy;
-          float L = length(ab);
-          if (L < 1e-3) continue;
-          vec2 n = vec2(-ab.y, ab.x) * (R / L);
-          float R2 = mistCurlP.x + mistCurlP.y * a.z;
-          float ang = mistCurl * a.w * smoothstep(0.0, 0.35, a.z) * (1.0 - smoothstep(0.3 * refill, refill, a.z)) * mistCurlP.x / R2;
-          if (abs(ang) < 1e-3) continue;
-          vec2 c = a.xy + n, d = q - c;
-          float d2 = dot(d, d);
-          if (d2 < R2 * 6.0) q = mistSpin(q, c, ang * exp(-d2 / R2));
-          c = a.xy - n; d = q - c;
-          d2 = dot(d, d);
-          if (d2 < R2 * 6.0) q = mistSpin(q, c, -ang * exp(-d2 / R2));
-        }
-      }
-    #endif
-    vec2 qv = q;
-    for (int i = 0; i < ${TRAIL}; i++) {   // the trail: a soft band along each piece, refilling (and widening a little) with age
-      vec4 a = mistTrail[i], b = mistTrail[i + 1];
-      if (a.w <= 0.0 && b.w <= 0.0) continue;
-      vec2 ab = b.xy - a.xy, e = qv - a.xy;
-      float t = clamp(dot(e, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
-      e -= ab * t;
-      float age = mix(a.z, b.z, t);
-      if (age >= refill) continue;
-      float s = mix(a.w, b.w, t) * (i == 0 ? mistJk.w : 1.0), rr = R * (1.0 + 0.6 * age / refill);
-      float e2 = dot(e, e), rr2 = rr * rr;
-      if (e2 < rr2 * 6.0) keep *= 1.0 - s * (1.0 - smoothstep(0.0, refill, age)) * exp(-e2 / rr2);
-    }
-    #ifndef LAMBERT
-      if (mistCurl > 0.0 && mistJk.y > 0.0) {   // potential flow past a circle round the jelly (z + a2/z, in its own frame): the patches slide round it
-        vec2 z = vec2(dot(dj, mistJ.zw), dot(dj, vec2(-mistJ.w, mistJ.z)));
-        vec2 bend = mistJk.y * mistCurlP.z / max(rj, mistCurlP.z) * vec2(z.x, -z.y);
-        q += vec2(bend.x * mistJ.z - bend.y * mistJ.w, bend.x * mistJ.w + bend.y * mistJ.z);
-      }
-    #endif
-    return keep;
-  }
-  // fine wisps along a parted edge
-  float mistFine(vec2 q) {
-    float ph = mistT * 0.010471976;
-    return sin(q.x * 38.0 + 2.0 * sin(q.y * 23.0 + ph * 17.0)) * sin(q.y * 34.0 + 2.0 * sin(q.x * 27.0 - ph * 19.0));
-  }
+  uniform vec2 mistOrigin;
+  uniform sampler2D mistField;
   float mistPatches(vec2 p) {
     float ph = mistT * 0.010471976;   // 2 pi / 600: every term below goes round a whole number of times in 600 s
     float a = sin(p.x * 5.0 + 1.3 * sin(p.y * 3.2 + ph * 5.0) + ph * 7.0);
@@ -230,10 +407,17 @@ export const MIST_GLSL = /* glsl */`
     float ray = abs(py - cameraPosition.y) < 0.01 ? exp(-b * py) * T   // (a level eye ray: the limit of the line below)
       : (exp(-b * cameraPosition.y) - exp(-b * py)) / (b * dy);
     if (mistK * (1.0 + mistPatch) * ray < 0.004) return vec4(0.0);   // (above the mist: a table top, a wall)
-    vec2 q;
-    float keep = mistWake(pos.xz, q);
+    vec2 wuv = (pos.xz - mistOrigin) * mistInvSpan + 0.5;
+    vec4 wake = (all(greaterThanEqual(wuv, vec2(0.0))) && all(lessThanEqual(wuv, vec2(1.0))))
+      ? texture2D(mistField, wuv) : vec4(0.0, 0.5019608, 0.5019608, 0.0);
+    float keep = 1.0 - wake.r;
+    #ifndef LAMBERT
+      vec2 q = pos.xz + (wake.gb - 0.5019608) * mistCurlAmp;
+    #else
+      vec2 q = pos.xz;
+    #endif
     float k = mistK * (1.0 + mistPatch * mistPatches(q)) * keep;
-    if (keep < 0.98) k *= 1.0 + mistWisp * 4.0 * keep * (1.0 - keep) * mistFine(q);
+    if (keep < 0.98) k *= 1.0 + mistWisp * (wake.a * 2.0 - 1.0) * 2.0 * keep * (1.0 - keep);
     float f = min(1.0 - exp(-max(k * ray, 0.0)), mistMax);
     vec3 col = mistBase;
     #ifndef LAMBERT

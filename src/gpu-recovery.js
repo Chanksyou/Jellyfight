@@ -5,6 +5,7 @@
 // again before play resumes, and only if the browser never gives it back (iOS sometimes doesn't)
 // offers a button to reload.
 import { LOOK } from './look.js';
+import { resetMistField } from './mist.js';
 
 export function recoverGpu({ renderer, scene, camera, gfx, pause, prepare = () => renderer.compileAsync(scene, camera), onRestored = () => {} }) {
   const canvas = renderer.domElement;
@@ -38,6 +39,7 @@ export function recoverGpu({ renderer, scene, camera, gfx, pause, prepare = () =
   });
   canvas.addEventListener('webglcontextrestored', async () => {
     clearTimeout(timer);
+    resetMistField();              // drop old mist wake render targets for the new context
     gfx.build();                   // new render targets and passes for the new context
     try { await prepare(); } catch {}
     state.lost = false;
