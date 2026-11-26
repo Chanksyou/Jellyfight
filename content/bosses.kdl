@@ -95,8 +95,8 @@ boss "encore" name="The Encore" icon="🎧" hp=18000 contact=0 {
     // a floor wave (a line, never a ring) every `wave` bars, and in a solo one every 2 x `wave` bars
     set first=4 solo=12 disco=12 last=10 wave=2
     // a solo: `bars` long, then that DJ bows for `bow` bars (`clean` if no hit reached the jelly during
-    // his solo), while hits on the Encore do `exposed` x (the song's breakdown bows both DJs, exposed too)
-    solo bars=4 bow=2 clean=4 exposed=1.5
+    // his solo); hits do `damage` x during a solo or duet, and `exposed` x while bowing or in the breakdown
+    solo bars=4 bow=2 clean=4 damage=0.5 exposed=1
     // the silver DJ's Record toss, one every `every` beats of his solo (two Warnings at once at 2): `dmg` Health, its lane `height` m tall (a jump
     // doesn't clear it), landing on the bar line `flight` beats after he lets go, `windup` beats wound
     // back first, aimed at the jelly until `lock` beats before he throws; it stands `stand` bars

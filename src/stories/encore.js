@@ -1099,7 +1099,7 @@ function soloFight(fps = 60, opts = {}) {
   return { B, song, go, slot };
 }
 fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
-  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ (crouched to vault out to the floor 2 beats before it) and six records thrown from the second bar, one every 2 beats, each flung a beat before it lands (his wind-up leading to it). Then he bows: the boss bar reads EXPOSED and hits do 1.5x, for 2 bars if a hit reached the jelly during his solo, 4 if none did; before and after, hits do 1x.',
+  about: 'A solo starts on its bar and lasts 4 bars, the spotlight on the soloing DJ (crouched to vault out to the floor 2 beats before it) and six records thrown from the second bar, one every 2 beats, each flung a beat before it lands (his wind-up leading to it); hits do 0.5x during the solo. Then he bows: the boss bar reads EXPOSED and hits do regular damage (1x), for 2 bars if a hit reached the jelly during his solo, 4 if none did; after, hits still do 1x.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { hud } = G();
@@ -1119,13 +1119,13 @@ fight('solo-and-its-bow-exposed-2-bars-after-a-hit-4-after-a-clean-solo', {
       return { lands, throwing, lit, inSolo, bowed, bar, bowing, late, after, barAfter, solo: B.solo, spot: B.spots.silver.visible };
     };
     const hurt = run1(40, true), clean = run1(80, false);
-    const good = (r, at) => r.lands === [4, 6, 8, 10, 12, 14].map((b) => at + b).join() && r.throwing && r.lit && r.inSolo === 100 && r.bowed === 150 && r.bar && r.bowing && r.late === 150 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
+    const good = (r, at) => r.lands === [4, 6, 8, 10, 12, 14].map((b) => at + b).join() && r.throwing && r.lit && r.inSolo === 50 && r.bowed === 100 && r.bar && r.bowing && r.late === 100 && r.after === 100 && r.barAfter && !r.solo && !r.spot;
     return ok(good(hurt, 40) && good(clean, 80), { hurt, clean });
   },
 });
 
 fight('the-breakdown-bows-both-djs-exposed', {
-  about: 'Through the song\'s breakdown both DJs bow and the Encore is exposed (hits do 1.5x); after it they stand back up and hits do 1x.',
+  about: 'Through the song\'s breakdown both DJs bow and the Encore looks exposed (hits do regular 1x damage); after it they stand back up and hits still do 1x.',
   setup() {},
   play() {
     const { B, song, go } = soloFight();
@@ -1134,7 +1134,7 @@ fight('the-breakdown-bows-both-djs-exposed', {
     const M = B.arenaView.boss, both = M.rigs.silver.move != null && M.rigs.gold.move != null, exposed = B.exposed;
     let was = B.hp; B.damage(100); const inRest = Math.round(was - B.hp);
     go(44); was = B.hp; B.damage(100); const after = Math.round(was - B.hp);
-    return ok(both && exposed && inRest === 150 && after === 100 && !B.exposed, { both, exposed, inRest, after });
+    return ok(both && exposed && inRest === 100 && after === 100 && !B.exposed, { both, exposed, inRest, after });
   },
 });
 
@@ -1147,7 +1147,7 @@ fight('the-short-out-or-defeat-mid-solo-clears-the-djs-acts', {
       const { B, go, slot } = soloFight();
       go(34); slot('silver', 40); go(45.2);                            // a record standing, the next one wound up
       const busy = B.records.casts.some((c) => c.state === 'stand') && B.records.casts.some((c) => c.warn) && B.spots.silver.visible;
-      if (how === 'short-out') B.damage(B.hp - B.maxHp * 0.45); else { B.broken = true; B.damage(B.hp + 1); }
+      if (how === 'short-out') B.damage((B.hp - B.maxHp * 0.45) * 2); else { B.broken = true; B.damage((B.hp + 1) * 2); }
       const M = B.arenaView.boss, W = B.records.warnings;
       out[how] = { busy, cleared: !B.records.casts.length && W.every((w) => !w.band.visible && !w.lane.visible) && !B.solo && !B.spots.silver.visible && !M.rigs.silver.move && !M.rigs.gold.move };
     }
@@ -1362,7 +1362,7 @@ fight('a-gold-solo-slams-then-burns-lane-sets-on-the-beat', {
     // a second solo, cut short by the short-out
     go(77); slot('gold', 80); go(86.2);
     const busy = P.warnings.some((w) => w.band.visible) && P.burnAt.some((t) => t !== null);
-    B.damage(B.hp - B.maxHp * 0.45);
+    B.damage((B.hp - B.maxHp * 0.45) * 2);
     const cleared = !P.casts.length && !P.warnings.some((w) => w.band.visible || w.lane.visible) && P.burnAt.every((t) => t === null) && !B.solo && !rigs.gold.move;
     return ok(plan && quiet && warn && burst && onBeat && bowing && done && busy && cleared, { sets, plan, quiet, warn, burst, beats, onBeat, bowing, done, busy, cleared });
   },
@@ -1467,7 +1467,7 @@ story('encore/the-duet-rests-the-floor-and-comes-only-below-half', {
 });
 
 fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
-  about: 'Below half Health a duet slot plays the Wall of sound on the floor: both DJs lit, both out on the floor for its first bar, then the silver DJ throws three records that land a bar apart on the bar lines of bars 2 to 4, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the 8-beat Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls on the bar line as the 5th bar ends (both DJs push it out on that beat, hits still 1x and the boss bar still DUET) and reaches a jelly out in the open; then both DJs bow and the Encore is EXPOSED from the bow to its end (hits do 1.5x), and everything is gone after.',
+  about: 'Below half Health a duet slot plays the Wall of sound on the floor: both DJs lit, both out on the floor for its first bar, then the silver DJ throws three records that land a bar apart on the bar lines of bars 2 to 4, at least 20 cm from each other even with the jelly standing still (and in a corner); all three stand as the 8-beat Warning starts, both DJs throw their hands up and the disco ball rests; the wall rolls on the bar line as the 5th bar ends (both DJs push it out on that beat, hits still 0.5x and the boss bar still DUET) and reaches a jelly out in the open; then both DJs bow and the Encore looks EXPOSED from the bow to its end (hits do regular 1x damage), and everything is gone after.',
   setup() {},
   play() {
     const out = {};
@@ -1490,11 +1490,11 @@ fight('the-duet-throws-three-records-rolls-the-wall-and-both-djs-bow', {
       go(59.8); const before = hit();
       go(60.2); const push = M.rigs.silver.at === 60 && M.rigs.gold.at === 60, rolling = hit(), pushTag = B.tag;   // (pushing the wall out is not a bow: EXPOSED from the bow)
       go(62.2);
-      const bowed = M.rigs.silver.at === 62 && M.rigs.gold.at === 62 && B.exposed && hit() === 150;
+      const bowed = M.rigs.silver.at === 62 && M.rigs.gold.at === 62 && B.exposed && hit() === 100;
       const wallHit = hurt.filter((h) => h.wall);
       go(67.8); const late = hit();
       go(68.3); const after = hit(), clear = !B.solo && !B.records.casts.length && !B.wall.w && !B.spots.silver.visible && !B.disco.quiet(68.3) && !M.out('silver') && !M.out('gold');
-      out[k] = { ok: before === 100 && rolling === 100 && pushTag === 'DUET' && lands === '44,48,52' && warn === 8 && bar && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && push && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 60 && wallHit[0].beat < 62 && bowed && late === 150 && after === 100 && clear,
+      out[k] = { ok: before === 50 && rolling === 50 && pushTag === 'DUET' && lands === '44,48,52' && warn === 8 && bar && lit && apart.filter((x) => x > 0.2 - 1e-6).length >= (spot ? 2 : 3) && standing && hands && disco && push && wallHit.length === 1 && wallHit[0].dmg === 6 && wallHit[0].beat > 60 && wallHit[0].beat < 62 && bowed && late === 100 && after === 100 && clear,
         before, rolling, pushTag, lands, warn, bar, lit, apart, standing, hands, disco, push, wallHit, bowed, late, after, clear };
     }
     return ok(Object.values(out).every((r) => r.ok), out);
@@ -1732,7 +1732,7 @@ fight('the-boss-bar-names-the-solo-the-duet-and-the-bow', {
 });
 
 fight('the-first-bow-and-the-first-standing-record-each-show-a-hint-once', {
-  about: 'The first time a DJ lands on the floor, a toast says he is the one to hit and the booth can\'t be hurt until he is back; the first time a DJ bows, a toast says the Encore is exposed and hits do 1.5x; the first time a duet record stands before its wall, one says to get behind it. Each shows once, never again in the fight or after it (it is remembered across runs).',
+  about: 'The first time a DJ lands on the floor, a toast says he is the one to hit and the booth can\'t be hurt until he is back; the first time a DJ bows, a toast says the Encore is exposed and hits do full damage again; the first time a duet record stands before its wall, one says to get behind it. Each shows once, never again in the fight or after it (it is remembered across runs).',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), { hud } = G(), toasts = [], had = localStorage.getItem(ENCORE_HINTS_KEY);
@@ -1810,7 +1810,7 @@ fight('no-dj-leaves-the-booth-while-its-force-field-is-up', {
 });
 
 fight('a-dj-on-the-floor-is-the-target-and-the-booth-cant-be-hit', {
-  about: 'From his take-off till he lands home, the Encore\'s one target is the silver DJ: it sits on his chest with his own radius, wherever he is (in the air too), so the jelly\'s attacks pick and hit him and the booth is out of reach. A hit does 1x in his solo (he flinches, the booth doesn\'t flash) and 1.5x in his bow; EXPOSED ends as he lands home, and the target is back in front of the booth.',
+  about: 'From his take-off till he lands home, the Encore\'s one target is the silver DJ: it sits on his chest with his own radius, wherever he is (in the air too), so the jelly\'s attacks pick and hit him and the booth is out of reach. A hit does 0.5x in his solo (he flinches, the booth doesn\'t flash) and regular 1x in his bow while still looking EXPOSED; EXPOSED ends as he lands home, and the target is back in front of the booth.',
   setup() {},
   play() {
     const { B, go, slot } = soloFight(), M = B.arenaView.boss, r = M.rigs.silver, F = FL(), booth = B.position.clone(), proxy = G().enemies.list.find((e) => e.proxy === B);
@@ -1828,7 +1828,7 @@ fight('a-dj-on-the-floor-is-the-target-and-the-booth-cant-be-hit', {
     go(200, () => { if (B.exposed) lastExposed = B.beat; if (!M.out('silver')) { home = B.beat; return true; } });
     go(home + 0.2); const after = hit(), back = B.position.distanceTo(booth) < 1e-6 && B.r === 0.14;
     const res = { inAir: +inAir.toFixed(5), on, boothAway, solo, flinch, bow, exposed, home, lastExposed, after, back };
-    return ok(inAir < 1e-6 && on && boothAway && solo === 100 && flinch && bow === 150 && exposed && lastExposed < home && home - lastExposed < 0.1 && after === 100 && back, res);
+    return ok(inAir < 1e-6 && on && boothAway && solo === 50 && flinch && bow === 100 && exposed && lastExposed < home && home - lastExposed < 0.1 && after === 100 && back, res);
   },
 });
 
@@ -1959,8 +1959,8 @@ fight('the-short-out-defeat-or-a-rewind-bring-a-dj-on-the-floor-home', {
       if (how === 'short-out calm') stub(fx, 'reducedMotion', { matches: true });
       go(33.9); slot('silver', 40); go(45);
       const wasOut = M.out('silver');
-      if (how.startsWith('short-out')) B.damage(B.hp - B.maxHp * 0.45);
-      else if (how === 'defeat') { B.broken = true; B.damage(B.hp + 1); }
+      if (how.startsWith('short-out')) B.damage((B.hp - B.maxHp * 0.45) * 2);
+      else if (how === 'defeat') { B.broken = true; B.damage((B.hp + 1) * 2); }
       else song.beat = 10;
       let t = 0, at = null, booth, spot, keep;
       for (let k = 0; k < 60 && at === null; k++) {
@@ -2269,12 +2269,35 @@ fight('the-gold-dj-goes-home-when-the-encore-shorts-out-mid-solo', {
       stub(B, 'hurtPlayer', () => {}); G().player.position.set(-0.6, 0, 0.5);
       go(33.9); slot('gold', 40); go(47.2);
       const was = M.out('gold') && B.pyro.burnAt.some((t) => t !== null);
-      B.damage(B.hp - B.maxHp * 0.45);
+      B.damage((B.hp - B.maxHp * 0.45) * 2);
       let t = 0; while (t < 0.5 && M.out('gold')) { G().GAME.step(1 / 60); t += 1 / 60; }
       out[calm ? 'calm' : 'normal'] = { was, at: +t.toFixed(3), cleared: !B.pyro.casts.length && B.pyro.burnAt.every((x) => x === null) && !B.pyro.warnings.some((w) => w.band.visible), booth: B.position.distanceTo(V(0, 0.13, -0.17)) < 1e-6, solo: !!B.solo };
     }
     const good = (o, most) => o.was && o.at <= most && o.cleared && o.booth && !o.solo;
     return ok(good(out.normal, 0.32) && good(out.calm, 0.02), out);
+  },
+});
+
+fight('solos-and-duet-halve-damage-and-bows-take-regular-damage', {
+  about: 'During all three floor acts (silver solo, gold solo, and the duet), the Encore takes 50% reduced damage; when they bow, the boss bar still looks EXPOSED while hits deal regular 1x damage, and hits between acts deal 1x.',
+  setup() {},
+  play() {
+    const out = {};
+    for (const kind of ['silver', 'gold', 'duet']) {
+      const { B, go, slot } = soloFight(), { hud } = G();
+      stub(B, 'hurtPlayer', () => {});
+      if (kind === 'duet') { B.hp = B.maxHp * 0.4; B.broken = true; }
+      const hit = () => { const was = B.hp; B.damage(100); return Math.round(was - B.hp); };
+      go(33.9); const before = hit();
+      slot(kind, 40);
+      go(44); const during = hit();
+      go(kind === 'duet' ? 62.5 : 57);
+      const bow = hit(), exposed = B.exposed && hud.$('.boss').classList.contains('exposed') && /EXPOSED/.test(hud.$('.boss .nm').textContent);
+      go(80, () => !B.solo);
+      const after = hit();
+      out[kind] = { before, during, bow, exposed, after, ok: before === 100 && during === 50 && bow === 100 && exposed && after === 100 };
+    }
+    return ok(Object.values(out).every((r) => r.ok), out);
   },
 });
 

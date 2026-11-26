@@ -14,8 +14,8 @@
 // mark on the floor (ENCORE.marks, src/stage4.js; floorStep and floorFollow below), a spotlight on him and his wing lit his
 // colour, the lasers rest and the other DJ, still in the booth, plays a wave every 8 beats (none in a duet), while he
 // plays his solo attack (the silver DJ's Record toss, encore-records.js; the gold DJ's Pyro, encore-pyro.js). Out there he
-// is the Encore's one target, and the booth can't be hit. Then he bows where he stands (bosses.kdl `solo`): for 2 bars,
-// or 4 if no hit reached the jelly during his solo, the Encore is EXPOSED and hits on it do 1.5x; then he vaults home to
+// is the Encore's one target, and the booth can't be hit; hits do 0.5x during his solo (and in the duet). Then he bows where he stands (bosses.kdl `solo`): for 2 bars,
+// or 4 if no hit reached the jelly during his solo, the Encore looks EXPOSED and hits on it do regular damage (1x); then he vaults home to
 // the booth. The song's breakdown bows both DJs, exposed too. In the duet (bosses.kdl `wall`) both DJs vault out
 // together and the one target is between them, the floor rests: the silver DJ throws three records, the whole floor fills as a
 // Warning but for a strip behind each, the wall rolls, and both bow, exposed. The speaker pulse that
@@ -223,7 +223,7 @@ export class Encore {
     }
     return _spot;
   }
-  // EXPOSED: bowing after a solo, or both DJs bowing in the song's breakdown: hits do bosses.kdl `solo exposed` x
+  // EXPOSED: bowing after a solo, or both DJs bowing in the song's breakdown: looks exposed, hits do bosses.kdl `solo exposed` x (regular damage)
   // (the duet on the floor bows at bowAt, after pushing the wall out: exposed from the bow, not the push)
   get exposed() {
     const b = this.beat, S = this.solo;
@@ -450,8 +450,10 @@ export class Encore {
       this.fx.number(this.center().setY(this.holder.position.y + 0.1), 'SHIELDED', blue, 12);
       return;
     }   // it bounces off the force field
-    const exposed = this.exposed;
-    if (exposed) { amount *= this.def.skills.solo?.exposed ?? 1.5; sfx.encoreExposedHit?.(); }   // bowing: wide open
+    const exposed = this.exposed, S = this.solo, b = this.beat;
+    const performing = !exposed && S && S.wall?.state !== 'off' && b !== null && b >= S.at && b < (S.bowAt ?? S.end);
+    if (exposed) { amount *= this.def.skills.solo?.exposed ?? 1; sfx.encoreExposedHit?.(); }   // bowing: looks exposed, regular damage
+    else if (performing) amount *= this.def.skills.solo?.damage ?? 0.5;                       // solo or duet: 50% damage reduction
     this.hp -= amount;
     this.fx.number(this.center().setY(this.holder.position.y + 0.1), amount, color, exposed ? 19 : 16, feedback);
     const outs = this.outDjs(), out = outs[0] ?? null, mult = exposed ? 1.55 : 1;
