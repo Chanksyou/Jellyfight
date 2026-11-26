@@ -417,6 +417,7 @@ story('elites/kettle-steam-ball-leads-a-moving-jelly', {
 // its reach round the Kettle except that circle
 function boilDry(where) {
   const e = theKettle(), player = holdJelly(), hits = kettleHits(), D = e.def.skills.boil;
+  if (where === 'stay') { player.position.x = e.base.x; player.position.z = e.base.z + D.reach * 0.5; }   // inside the steam's reach
   let safe = null, filling = false, p0 = null;
   step(400, () => {
     if (!safe && e.lidFly?.landed) {
@@ -553,7 +554,8 @@ story('elites/kettle-boil-dry-feel', {
   play() {
     const e = theKettle(), hits = kettleHits();
     const { feels, n } = feelVoices('kettlePop', 'kettleDrop', 'kettleGust');
-    holdJelly();
+    const player = holdJelly();
+    player.position.x = e.base.x; player.position.z = e.base.z + e.def.skills.boil.reach * 0.5;   // inside the steam's reach
     step(400, () => n.kettlePop.length);
     const released = e.kick > 0.5 && !!e.lidFly;
     step(400, () => e.state === 'idle');

@@ -61,7 +61,7 @@ enemy "housefly" name="House fly" hp=65 r=0.05 dmg=2 xp=4 model="housefly" {
     death-motion "eye-pop" weight="light"
     attack-motion "lunge" tier="light"
     hover 0.05 above=0.01 speed=0.42 circle=0.9
-    poke range=0.2 windup=0.5 reach=0.2 dmg=4 time=0.08 hold=0.15 rest=1 every=1.5
+    poke range=0.3 windup=0.5 reach=0.3 dmg=4 time=0.12 hold=0.15 rest=1 every=1.5
 }
 
 // Act 2. The giant millipede (from 1:00): it slithers after you like a snake, its legs rippling
@@ -72,7 +72,7 @@ enemy "millipede" name="Giant millipede" hp=75 r=0.035 dmg=2 xp=8 model="millipe
     death-motion "bead-scatter" weight="heavy"
     attack-motion "roll" tier="mid"
     chase 0.3 weave=1 rate=2 turn=3   // swings round in arcs, never pivots on the spot
-    ball-charge range=0.4 curl=0.45 spin=1.5 speed=2 time=0.8 dmg=5 uncurl=0.5 rest=1 every=2.5
+    ball-charge range=0.25 curl=0.75 spin=1 speed=2 time=0.8 dmg=5 uncurl=0.5 rest=3 every=2.5
 }
 
 // Act 2. The ladybug (from 1:30): it flies round you, then lands, lifts its red carapace and

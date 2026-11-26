@@ -1304,7 +1304,7 @@ export function buildMillipede() {
     const u = K && K.len > 0 ? Math.min(1, K.st / K.len) : 0;          // through this step of the attack
     if (ph === 'build' && K.key === 'spin') {
       const c = coil(u, K.style.hold, K.style.over) * K.vary, end = smooth(1 - (K.len - K.st) / 0.15);
-      lean = -0.21 * c * (1 - end) + 0.1 * end; squat = 0.06 * c;
+      lean = -0.25 * c * (1 - end) + 0.1 * end; squat = 0.06 * c;
       lean += (K.still ? 0 : 1) * quiver(u, K.t, e.phase, 18) * 0.08 * K.quiet;   // rocking harder as it revs
     } else if (ph === 'swing') {
       const s = snap(Math.min(1, K.pt / K.style.strike), K.tier.over);
