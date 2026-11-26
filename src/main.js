@@ -67,7 +67,7 @@ import { bagHtml } from './treasure-bag.js';
 import { summaryHtml } from './pause-summary.js';
 import { icon } from './icons.js';
 import { easyChosen, chooseEasy } from './easy.js';
-import { FieldPerf } from './field-perf.js';
+import { FieldPerf, loadFacts } from './field-perf.js';
 import { Ambient, AMBIENT } from './ambient.js';
 import { readMist, setMist, updateMist } from './mist.js';
 import { TouchControls, IS_TOUCH } from './touch.js';
@@ -1258,6 +1258,9 @@ function endContinue() {
 const storyParams = new URLSearchParams(location.search);
 export const ready = warmUp().then(() => {
   field.loadMs = performance.now();   // since navigation start: how long until Play worked
+  field.load = loadFacts(JF_LOAD.steps, JF_LOAD.hiddenMs, firstOfBuild(),
+    performance.getEntriesByType('resource').filter((e) => e.name.startsWith(location.origin) && /\.(js|css|glb|json|kdl|mp3|png|jpg|webp|woff2)(\?|$)/.test(e.name)));
+  JF_LOAD.settled = true;
   // the dev 1 on 1 picker reloaded into this act to fight an elite here: set that fight up
   const then = pendingAction();
   if (then?.continue && continuing) {
@@ -1333,6 +1336,15 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) void board.runLog?.flush();
 });
 
+// has this BUILD loaded in this browser before (field-perf.js `load.first`: 1 = no, 0 = yes, null = can't tell)
+function firstOfBuild() {
+  try {
+    const first = localStorage.getItem('jf-loaded-build') !== BUILD;
+    localStorage.setItem('jf-loaded-build', BUILD);
+    return first ? 1 : 0;
+  } catch { return null; }
+}
+
 const clock = new Clock();
 let lastFrame = 0;
 // One animation frame. The governor's pixel-ratio change goes in before the frame is drawn:
@@ -1340,14 +1352,19 @@ let lastFrame = 0;
 GAME.frame = (now) => {
   if (warming) return;
   const covered = !overlay.hidden || menus.open || kit.open;
-  if (!pacer.due(now, covered)) return;
+  const playing = !covered && state.mode === 'play' && !run.paused;
+  const due = pacer.due(now, covered);
+  if (playing) field.callback(now, !due);
+  if (!due) return;
+  const t0 = playing ? performance.now() : 0;
   const ms = now - lastFrame;
   lastFrame = now;
   const dt = clock.tick(now);
   try {
-    if (!covered && state.mode === 'play' && !run.paused) adapt(ms);
+    if (playing) adapt(ms);
     GAME.step(dt);
     if (!picker.isOpen) GAME.render();   // the pick screen covers the whole game: only its own pictures draw
+    if (playing) field.work(performance.now() - t0);
   } catch (e) {
     reportError(e, 'frame');
   }

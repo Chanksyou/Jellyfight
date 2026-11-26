@@ -64,16 +64,23 @@ function hideLoading() {
 const shown = () => new Promise((r) => { requestAnimationFrame(() => setTimeout(r)); setTimeout(r, 100); });   // (a hidden tab draws no frames)
 window.JF_LOAD = {
   steps: [],
+  hiddenMs: 0, settled: false,   // how long the page was hidden while loading (field-perf.js reports it); main.js sets `settled`
   // f: how far along the whole load is, 0 to 1
   at(f, text) {
     bar.style.transform = `scaleX(${f})`;
-    if (text && said.textContent !== text) { said.textContent = text; this.steps.push([text, f]); }
+    if (text && said.textContent !== text) { said.textContent = text; this.steps.push([text, f, performance.now()]); }
     else if (this.steps.length) this.steps.at(-1)[1] = f;
   },
   step(f, text) { this.at(f, text); return shown(); },
 };
 const loading = window.JF_LOAD;
-loading.steps.push([said.textContent, 0]);
+loading.steps.push([said.textContent, 0, performance.now()]);
+let hiddenAt = document.hidden ? performance.now() : 0;
+document.addEventListener('visibilitychange', () => {
+  if (loading.settled) return;
+  if (document.hidden) hiddenAt = performance.now();
+  else if (hiddenAt) { loading.hiddenMs += performance.now() - hiddenAt; hiddenAt = 0; }
+});
 // which version the server has now, asked while the rest loads (fresh.js)
 const asked = serverBuild();
 // main.js: the game, then its graphics prepared (warmUp); old code with new content reloads first
