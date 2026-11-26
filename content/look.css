@@ -771,6 +771,9 @@
   --motes-full: 0.45;          /* and where it shows fully */
   --baked-shine-roughness: 0.5; /* Medium and High: a baked surface rougher than this skips the lamps' maths (they only add shine there); 2 = none skip, as before; 0.5 = matte floors, walls and fabric skip, glossy tile, glass and stone keep their shine (baked-ao.js; ?shine=all|none overrides) */
   --baked-ao: 3.5;             /* how dark the baked corner shadows are on low/medium (0 = none; high draws its own N8AO) */
+  --ibl-baked-mask: 0.75;      /* how much baked-light darkness attenuates environment specular in dark corners (baked-ao.js; 0 = none) */
+  --specular-aa-scale: 0.15;   /* geometric specular AA normal-derivative variance scale (Tokuyoshi & Kaplanyan 2019, baked-ao.js) */
+  --specular-aa-max: 0.01;     /* maximum roughness² variance added by geometric specular AA (baked-ao.js) */
   /* the fine grain multiplied into the rooms' colours up close (src/surfaces.js): how far each pattern
      swings a surface's colour either way (0 = none), and the metres one tile of it covers. Medium and High; Low has none */
   --detail-wood: 0.12;
@@ -778,6 +781,7 @@
   --detail-paint: 0.06;
   --detail-stone: 0.10;
   --detail-size: 0.25;
+  --detail-roughness: 0.18;    /* micro-roughness swing driven by the fine surface grain on Standard materials (baked-ao.js) */
 
   /* --- the jelly ------------------------------------------------------------- */
   --phone-jelly-draw: 1.15;    /* a phone draws the jelly this much bigger (picture only: hit size, camera and effects stay) */
@@ -1571,6 +1575,7 @@
   --menu-fps: 20;              /* how often the game behind a menu redraws */
   --phone-pixel-ratio: 1.5;    /* the sharpest a phone draws (an iPhone's screen is 3) */
   --desktop-pixel-ratio: 2;
+  --medium-msaa: 2;            /* Medium graphics default MSAA sample count (smooth edges without High's full cost) */
   --msaa-pixel-ratio: 1.25;    /* the sharpest a phone draws with ?msaa=2|4 (smooth edges instead of more pixels) */
   --min-pixel-ratio: 1;        /* the governor never draws blurrier than this */
   --phone-lights: 6;           /* lamps lit at once on a phone: the ones nearest the jelly (0 = every lamp) */

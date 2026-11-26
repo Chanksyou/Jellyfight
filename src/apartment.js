@@ -6,6 +6,27 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { markMoved } from './static-batch.js';
 import { HIDDEN } from './batch.js';
 import { dressSurfaces } from './surfaces.js';
+import { LOOK } from './look.js';
+
+// Probe once whether fetch() on blob: URLs is allowed (strict CSP sandboxes like claude.ai
+// artifacts block it, whereas Cloudflare/Chrome/Safari allow it and benefit from off-thread
+// createImageBitmap texture decoding in GLTFLoader).
+let blobFetchOk = null;
+function canFetchBlob() {
+  if (blobFetchOk === null) {
+    blobFetchOk = (async () => {
+      const url = URL.createObjectURL(new Blob([new Uint8Array(1)]));
+      try {
+        return (await fetch(url)).ok;
+      } catch {
+        return false;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    })();
+  }
+  return blobFetchOk;
+}
 
 // The apartment comes in parts, one per act (tools/split.mjs): act1 is the living room plus
 // the shell of every room (walls, floors, doors), act2 the hallway, bathroom and closets, act3
@@ -21,7 +42,7 @@ export async function meshoptDecoder() {
   }
 }
 
-export async function loadApartment(scene, renderer, onProgress, parts = ['act1']) {
+export async function loadApartment(scene, renderer, onProgress, parts = ['act1'], actId) {
   // The small files need a WebAssembly decoder; if WebAssembly is blocked, load the plain ones
   const [decoder, meta] = await Promise.all([
     meshoptDecoder(),
@@ -31,7 +52,8 @@ export async function loadApartment(scene, renderer, onProgress, parts = ['act1'
   apt.load = (more, progress) => loadParts(apt, scene, renderer, decoder, more, progress);
   await apt.load(parts, onProgress);
   scene.background = new THREE.Color().fromArray(meta.background);
-  scene.environment = roomEnvironment(renderer);
+  const act = actId ?? (Number((parts[0] || '').replace(/^act/, '')) || 1);
+  scene.environment = roomEnvironment(renderer, act);
   return apt;
 }
 
@@ -54,15 +76,16 @@ async function loadParts(apt, scene, renderer, decoder, parts, onProgress) {
     if (decoder) loader.setMeshoptDecoder(decoder);
     // Textures inside the model are unpacked from blob: URLs. On Chrome, three.js fetch()es those,
     // and pages with a strict security policy (claude.ai artifacts) refuse that, so every texture
-    // silently went missing. Hiding createImageBitmap for the parse makes it use <img> instead,
-    // which those pages allow.
+    // silently went missing. Only hide createImageBitmap when blob: fetch is blocked, so normal
+    // hosts keep off-thread createImageBitmap decoding.
+    const hideBitmap = !(await canFetchBlob());
     const bitmap = window.createImageBitmap;
     let gltf;
     try {
-      window.createImageBitmap = undefined;
+      if (hideBitmap) window.createImageBitmap = undefined;
       gltf = await loader.parseAsync(buffer, '');
     } finally {
-      window.createImageBitmap = bitmap;
+      if (hideBitmap) window.createImageBitmap = bitmap;
     }
     prepareMeshes(gltf.scene, meta, renderer);
     await dressSurfaces(gltf.scene);   // photo textures in place of drawn ones, and each material's fine grain (surfaces.js)
@@ -253,8 +276,20 @@ async function readAll(res, onProgress) {
   return out;
 }
 
-// The soft reflections the apartment used: a warm room gradient, two bright windows and two lamps
-function roomEnvironment(renderer) {
+// Act-matched reflection palettes (Acts 1–4); --env-<part>-act<n> in look.css overrides if loaded.
+const ENV_PALETTES = {
+  1: { ceiling: '#5c524a', mid: '#3a3430', floor: '#26201a', 'win-top': '#2a3d56', 'win-bot': '#182230', lamp: '#ffd296' },
+  2: { ceiling: '#c8d6dc', mid: '#7a8c96', floor: '#424c52', 'win-top': '#8fb4cc', 'win-bot': '#5a7080', lamp: '#fff0d8' },
+  3: { ceiling: '#2b3550', mid: '#1c243b', floor: '#121726', 'win-top': '#6e96c8', 'win-bot': '#25344f', lamp: '#ffcca0' },
+  4: { ceiling: '#6e6058', mid: '#4a4042', floor: '#2d2522', 'win-top': '#a890a8', 'win-bot': '#e0b490', lamp: '#ffd7a8' },
+};
+
+// The soft reflections the apartment uses: an act-matched room gradient, two windows and two lamps
+export function roomEnvironment(renderer, actId = 1) {
+  const base = ENV_PALETTES[actId] || ENV_PALETTES[1];
+  const pick = (k) => LOOK.color(`env-${k}-act${actId}`, base[k]);
+  const ceiling = pick('ceiling'), mid = pick('mid'), floor = pick('floor');
+  const winTop = pick('win-top'), winBot = pick('win-bot'), lamp = pick('lamp');
   const pm = new THREE.PMREMGenerator(renderer);
   const es = new THREE.Scene();
   const tex = (draw, w = 64, h = 256) => {
@@ -267,13 +302,13 @@ function roomEnvironment(renderer) {
   };
   const room = tex((q, w, h) => {
     const g = q.createLinearGradient(0, 0, 0, h);
-    [[0, '#f2eee6'], [0.45, '#b9b2a8'], [0.6, '#8a7e70'], [1, '#5a4c3e']].forEach(([s, c]) => g.addColorStop(s, c));
+    [[0, ceiling], [0.5, mid], [1, floor]].forEach(([s, c]) => g.addColorStop(s, c));
     q.fillStyle = g; q.fillRect(0, 0, w, h);
   });
   es.add(new THREE.Mesh(new THREE.SphereGeometry(6, 24, 16), new THREE.MeshBasicMaterial({ map: room, side: THREE.BackSide })));
   const win = tex((q, w, h) => {
     const g = q.createLinearGradient(0, 0, 0, h);
-    [[0, '#bcd8f2'], [0.55, '#f4f8fb'], [0.62, '#9aa6ae'], [1, '#6e7a70']].forEach(([s, c]) => g.addColorStop(s, c));
+    [[0, winTop], [1, winBot]].forEach(([s, c]) => g.addColorStop(s, c));
     q.fillStyle = g; q.fillRect(0, 0, w, h);
     q.fillStyle = 'rgba(20,22,26,.85)';
     [0, 0.33, 0.66].forEach((x) => q.fillRect(x * w, 0, 2, h));
@@ -281,9 +316,9 @@ function roomEnvironment(renderer) {
   const wl = new THREE.MeshBasicMaterial({ map: win });
   const w1 = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), wl); w1.position.set(0, 0.4, -4.8); es.add(w1);
   const w2 = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.6), wl); w2.position.set(-4.8, 0.4, 0); w2.rotation.y = Math.PI / 2; es.add(w2);
-  const warm = new THREE.MeshBasicMaterial({ color: 0xffd7a8 });
+  const warm = new THREE.MeshBasicMaterial({ color: lamp });
   for (const [x, y, z] of [[3, 1.2, 2], [1.5, 1.6, -3]]) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 8), warm); b.position.set(x, y, z); es.add(b); }
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshBasicMaterial({ color: 0x9a8c7c }));
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshBasicMaterial({ color: floor }));
   fl.rotation.x = -Math.PI / 2; fl.position.y = -1.95; es.add(fl);
   const env = pm.fromScene(es, 0.04).texture;
   es.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });

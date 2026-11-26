@@ -58,14 +58,45 @@ function isWood(m) { return isTexture(m, 256) && (/bump:/.test(m.name) || m.map.
 
 const KINDS = ['wood', 'cloth', 'paint', 'stone'];
 const uniforms = { detailTile: { value: null }, detailSize: { value: 0.25 } };
+let detailTileFallback = false;
 
-// The grain's uniforms for a material's shader (baked-ao.js's patch): the shared tile, drawn the first
-// time, and this material's pattern at its strength
+function configureDetailTile(t) {
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 4;
+  t.colorSpace = THREE.NoColorSpace;
+  t.flipY = false;
+  if (t.image && !('data' in t.image)) {
+    let cached = null;
+    Object.defineProperty(t.image, 'data', {
+      configurable: true,
+      get() {
+        if (!cached) {
+          const c = document.createElement('canvas');
+          c.width = this.naturalWidth || this.width;
+          c.height = this.naturalHeight || this.height;
+          const q = c.getContext('2d');
+          q.drawImage(this, 0, 0);
+          cached = q.getImageData(0, 0, c.width, c.height).data;
+        }
+        return cached;
+      },
+    });
+  }
+  t.needsUpdate = true;
+  return t;
+}
+
+// The grain's uniforms for a material's shader (baked-ao.js's patch): the shared tile (preloaded from
+// detail-grain.png, with grainTile() as a synchronous fallback), and this material's pattern at its strength
 export function detailUniforms(kind) {
   if (!uniforms.detailTile.value) {
     uniforms.detailTile.value = grainTile();
-    uniforms.detailSize.value = LOOK.num('detail-size', 0.25);
+    detailTileFallback = true;
   }
+  uniforms.detailSize.value = LOOK.num('detail-size', 0.25);
   return { ...uniforms, detailMix: { value: new THREE.Vector4().fromArray(KINDS.map((k) => (k === kind ? LOOK.num(`detail-${k}`, 0) : 0))) } };
 }
 
@@ -104,7 +135,19 @@ export async function dressSurfaces(root) {
       if (surface) found.push([surface, m]);
     }
   });
-  await Promise.all([...new Set(found.map(([s]) => s.file))].map(picture));
+  const detailPromise = !uniforms.detailTile.value || detailTileFallback ? picture('detail-grain.png') : null;
+  await Promise.all([
+    ...[...new Set(found.map(([s]) => s.file))].map(picture),
+    ...(detailPromise ? [detailPromise] : []),
+  ]);
+  if (detailPromise) {
+    const prebaked = await detailPromise;
+    if (prebaked) {
+      if (detailTileFallback && uniforms.detailTile.value) uniforms.detailTile.value.dispose();
+      uniforms.detailTile.value = configureDetailTile(prebaked);
+      detailTileFallback = false;
+    }
+  }
   const copies = new Map();
   for (const [surface, m] of found) {
     const image = await picture(surface.file);
@@ -126,8 +169,8 @@ export async function dressSurfaces(root) {
   return found.length;
 }
 
-// The grain tile: 256 px, every pattern tiling, each channel's average 0.5 (no change) and the same
-// spread, so --detail-* alone sets how strong each is.
+// Synchronous fallback for the grain tile if detail-grain.png has not loaded yet: 256 px, every
+// pattern tiling, each channel's average 0.5 (no change) and the same spread.
 function grainTile(S = 256) {
   let seed = 7;
   const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);

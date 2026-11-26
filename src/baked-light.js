@@ -26,13 +26,11 @@ blank3.needsUpdate = true;
 const glowColor = new THREE.Color();
 let glow = null;
 const uniforms = {
-  lbAtlas: { value: blank }, lbDay: { value: blank }, lbIndex: { value: blank },
+  lbAtlas: { value: blank }, lbDay: { value: blank },
   lbGrid: { value: blank3 }, lbGridDay: { value: blank3 },   // the furniture's light grid (and act 4's daylight one)
   lbGridMin: { value: new THREE.Vector3() }, lbGridDims: { value: new THREE.Vector3(1, 1, 1) }, lbGridStep: { value: 0.1 },
   lbGridGain: { value: 0 },
   lbTint: { value: 0 },        // how much of the grid's light the jelly and the bugs take (tintShader, --baked-tint)
-  lbKmin: { value: new THREE.Vector3() },
-  lbAtlasSize: { value: new THREE.Vector2(1, 1) },
   lbGain: { value: 0 },        // 0 = no bake here (live lamps), else the picture's top value times --baked-light
   lbDayK: { value: 0 },        // act 4: how much of the daylight picture is added (main.js, the dawn clock)
   // the jelly's glow, drawn live on top of the bake (follow() hands it over)
@@ -54,8 +52,9 @@ async function picture(url) {
   const tex = new THREE.Texture(bmp);
   tex.colorSpace = THREE.SRGBColorSpace;   // stored sRGB-encoded: the GPU turns it back into linear light
   tex.flipY = false;
-  tex.generateMipmaps = false;
-  tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
   return tex;
 }
@@ -80,29 +79,6 @@ async function gridTexture(url, [W, H, D]) {
   return tex;
 }
 
-// The planes' index: a row per face direction (axis * 2, +1 when it looks down the axis), two texels per
-// centimetre slot along that axis: (u0 - lo.u / res, v0 - lo.v / res, 1 / res, 1) then the plane's
-// rectangle (u0, v0, u1, v1), in texels. A plane also takes the slots beside its own, so a point a hair off
-// its centimetre still finds it.
-export function planeIndex(planes) {
-  const kmin = [Infinity, Infinity, Infinity], kmax = [-Infinity, -Infinity, -Infinity];
-  for (const p of planes) { const a = p.o >> 1; kmin[a] = Math.min(kmin[a], p.k - 1); kmax[a] = Math.max(kmax[a], p.k + 1); }
-  for (let a = 0; a < 3; a++) if (!Number.isFinite(kmin[a])) kmin[a] = kmax[a] = 0;
-  const W = 2 * Math.max(...kmax.map((m, a) => m - kmin[a] + 1)), data = new Float32Array(W * 6 * 4);
-  const put = (p, k, own) => {
-    const a = p.o >> 1, i = ((p.o * W) + 2 * (k - kmin[a])) * 4;
-    if (!own && data[i + 3]) return;
-    const inv = 1 / p.res;
-    data.set([p.u0 - p.lo[0] * inv, p.v0 - p.lo[1] * inv, inv, 1, p.u0, p.v0, p.u0 + p.w, p.v0 + p.h], i);
-  };
-  for (const p of planes) { put(p, p.k - 1, false); put(p, p.k + 1, false); }
-  for (const p of planes) put(p, p.k, true);
-  const tex = new THREE.DataTexture(data, W, 6, THREE.RGBAFormat, THREE.FloatType);
-  tex.minFilter = tex.magFilter = THREE.NearestFilter;
-  tex.needsUpdate = true;
-  return { tex, kmin };
-}
-
 // assets/light-<stage>.json and its pictures; false when this act has none
 export async function loadBakedLight(stageId) {
   try {
@@ -114,10 +90,8 @@ export async function loadBakedLight(stageId) {
       g ? gridTexture(`assets/light-${stageId}-grid.webp`, g.dims) : null, g && day4 ? gridTexture(`assets/light-${stageId}-day-grid.webp`, g.dims) : null,
     ]);
     if (!atlas) return false;
-    const { tex, kmin } = planeIndex(meta.planes);
     uniforms.lbAtlas.value = atlas;
     if (day) uniforms.lbDay.value = day;
-    uniforms.lbIndex.value = tex;
     if (grid) {
       uniforms.lbGrid.value = grid;
       if (gridDay) uniforms.lbGridDay.value = gridDay;
@@ -125,8 +99,6 @@ export async function loadBakedLight(stageId) {
       uniforms.lbGridDims.value.fromArray(g.dims);
       uniforms.lbGridStep.value = g.step;
     }
-    uniforms.lbKmin.value.fromArray(kmin);
-    uniforms.lbAtlasSize.value.fromArray(meta.atlas);
     BAKED_LIGHT.meta = meta;
     setBakedLight(true);
     return true;
@@ -186,38 +158,19 @@ export const GRID_GLSL = /* glsl */`
 `;
 
 export const LIGHT_FRAGMENT = GRID_GLSL + /* glsl */`
-  uniform sampler2D lbAtlas, lbDay, lbIndex;
-  uniform vec3 lbKmin, lbGlowPos, lbGlowColor;
-  uniform vec2 lbAtlasSize;
+  uniform sampler2D lbAtlas, lbDay;
+  uniform vec3 lbGlowPos, lbGlowColor;
   uniform float lbGain, lbGlowDist, lbGlowDecay;
-  vec4 bakedLight(vec3 pos, vec3 nrm) {
-    vec3 g = cross(dFdx(pos), dFdy(pos));
-    if (lbGain <= 0.0) return vec4(0.0);
-    g = normalize(g);
-    if (dot(g, nrm) < 0.0) g = -g;
-    vec3 ag = abs(g);
-    int a = ag.x > 0.999 ? 0 : ag.y > 0.999 ? 1 : ag.z > 0.999 ? 2 : -1;
-    if (a < 0) return vec4(0.0);
-    float c = a == 0 ? pos.x : a == 1 ? pos.y : pos.z;
-    int k = int(floor(c * 100.0 + 0.5)) - int(lbKmin[a]);
-    if (k < 0 || 2 * k + 1 >= textureSize(lbIndex, 0).x) return vec4(0.0);
-    int row = a * 2 + (g[a] > 0.0 ? 0 : 1);
-    vec4 e = texelFetch(lbIndex, ivec2(2 * k, row), 0);
-    if (e.w <= 0.0) return vec4(0.0);
-    vec4 r = texelFetch(lbIndex, ivec2(2 * k + 1, row), 0);
-    vec2 t = (a == 0 ? pos.zy : a == 1 ? pos.xz : pos.xy) * e.z + e.xy;
-    if (any(lessThan(t, r.xy - 0.5)) || any(greaterThan(t, r.zw + 0.5))) return vec4(0.0);
-    vec2 uv = t / lbAtlasSize;
-    vec3 L = textureLod(lbAtlas, uv, 0.0).rgb;
-    if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
-    return vec4(L * lbGain, 1.0);
-  }
-  // a big piece's own light map (piece-light.js): its texel in the same picture, read from its lightUv
+  // shell planes and big furniture pieces' light maps (piece-light.js): texel in the atlas from lightUv,
+  // with hardware mip filtering bounded to mip 2 so 3-texel chart padding never bleeds across charts
   varying vec2 vLightUv;
   vec4 pieceLight(vec2 uv) {
     if (lbGain <= 0.0) return vec4(0.0);
-    vec3 L = textureLod(lbAtlas, uv, 0.0).rgb;
-    if (lbDayK > 0.0) L += textureLod(lbDay, uv, 0.0).rgb * lbDayK;
+    vec2 sz = vec2(textureSize(lbAtlas, 0));
+    vec2 dx = dFdx(uv) * sz, dy = dFdy(uv) * sz;
+    float lod = min(0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1.0)), 2.0);
+    vec3 L = textureLod(lbAtlas, uv, lod).rgb;
+    if (lbDayK > 0.0) L += textureLod(lbDay, uv, lod).rgb * lbDayK;
     return vec4(L * lbGain, 1.0);
   }
   // the jelly's glow as three.js draws a point light, legacy falloff (legacy-lighting.js)

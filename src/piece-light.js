@@ -156,12 +156,98 @@ export function mapPiece(mesh, entry, atlas, res = PIECE.res) {
   out.setIndex(new THREE.BufferAttribute(index, 1));
   for (const gr of g.groups) out.addGroup(gr.start, gr.count, gr.materialIndex);
   out.name = g.name;
+  out.computeBoundingBox();
+  out.computeBoundingSphere();
   mesh.geometry = out;
   return true;
 }
 
-// Give the act's big pieces their light maps (meta.pieces, from the bake), and every other mesh under root a zero
-// lightUv (the shader reads zero as "no map": the grid lights it). Returns how many pieces were mapped.
+function isShell(o) {
+  if (o.userData.structural && !o.name.startsWith('door-') && !/door/i.test(o.parent?.name || '')) return true;
+  for (let p = o; p; p = p.parent) if (p.name === 'Shell') return true;
+  return false;
+}
+
+// Fast lookup of meta.planes indexed by o (0..5) and k (cm), matching planeIndex() precedence: own k beats k ± 1
+function planeLookup(planes) {
+  const byO = Array.from({ length: 6 }, () => new Map());
+  const tagged = planes.map((p, i) => ({ ...p, _id: i + 1, _inv: 1 / p.res, _du: p.u0 - p.lo[0] / p.res, _dv: p.v0 - p.lo[1] / p.res }));
+  for (const p of tagged) {
+    const m = byO[p.o];
+    if (!m.has(p.k - 1)) m.set(p.k - 1, p);
+    if (!m.has(p.k + 1)) m.set(p.k + 1, p);
+  }
+  for (const p of tagged) byO[p.o].set(p.k, p);
+  return byO;
+}
+
+// Project a Shell mesh's axis-aligned triangles onto meta.planes at load, splitting vertices shared across planes.
+// Unmatched triangles get lightUv = (-1, -1) so the shader jumps straight to gridLight().
+function mapShell(mesh, byO, atlas) {
+  const { P, V, n } = corners(mesh);
+  if (!n) return false;
+  const triPlane = new Array(n).fill(null);
+  let hits = 0;
+  for (let t = 0; t < n; t++) {
+    const i = t * 9, c = cross(P, i);
+    if (c.len <= 1e-10) continue;
+    const ax = Math.abs(c.x) / c.len, ay = Math.abs(c.y) / c.len, az = Math.abs(c.z) / c.len;
+    const a = ax > 0.999 ? 0 : ay > 0.999 ? 1 : az > 0.999 ? 2 : -1;
+    if (a < 0) continue;
+    const o = a * 2 + ((a === 0 ? c.x : a === 1 ? c.y : c.z) < 0 ? 1 : 0);
+    const mx = (P[i] + P[i + 3] + P[i + 6]) / 3;
+    const my = (P[i + 1] + P[i + 4] + P[i + 7]) / 3;
+    const mz = (P[i + 2] + P[i + 5] + P[i + 8]) / 3;
+    const k = Math.round((a === 0 ? mx : a === 1 ? my : mz) * 100);
+    const p = byO[o].get(k);
+    if (!p) continue;
+    const ua = AXES[a][0], va = AXES[a][1];
+    const mu = ua === 0 ? mx : ua === 1 ? my : mz;
+    const mv = va === 0 ? mx : va === 1 ? my : mz;
+    const tu = mu * p._inv + p._du, tv = mv * p._inv + p._dv;
+    if (tu >= p.u0 - 0.5 && tu <= p.u0 + p.w + 0.5 && tv >= p.v0 - 0.5 && tv <= p.v0 + p.h + 0.5) {
+      triPlane[t] = p;
+      hits++;
+    }
+  }
+  if (!hits) return false;
+  const g = mesh.geometry, made = new Map(), index = new Uint32Array(n * 3), from = [], uv = [];
+  for (let c = 0; c < n * 3; c++) {
+    const t = (c / 3) | 0, p = triPlane[t], pid = p ? p._id : 0;
+    const key = V[c] * 65536 + pid;
+    let k = made.get(key);
+    if (k === undefined) {
+      made.set(key, (k = from.length));
+      from.push(V[c]);
+      if (p) {
+        const a = p.o >> 1;
+        uv.push((P[c * 3 + AXES[a][0]] * p._inv + p._du) / atlas[0], (P[c * 3 + AXES[a][1]] * p._inv + p._dv) / atlas[1]);
+      } else {
+        uv.push(-1, -1);
+      }
+    }
+    index[c] = k;
+  }
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(g.attributes)) {
+    const size = attr.itemSize, il = attr.isInterleavedBufferAttribute, src = il ? attr.data.array : attr.array;
+    const stride = il ? attr.data.stride : size, off = il ? attr.offset : 0, arr = new src.constructor(from.length * size);
+    for (let i = 0; i < from.length; i++) for (let j = 0; j < size; j++) arr[i * size + j] = src[from[i] * stride + off + j];
+    out.setAttribute(name, new THREE.BufferAttribute(arr, size, attr.normalized));
+  }
+  out.setAttribute('lightUv', new THREE.Float32BufferAttribute(uv, 2));
+  out.setIndex(new THREE.BufferAttribute(index, 1));
+  for (const gr of g.groups) out.addGroup(gr.start, gr.count, gr.materialIndex);
+  out.name = g.name;
+  out.computeBoundingBox();
+  out.computeBoundingSphere();
+  mesh.geometry = out;
+  return true;
+}
+
+// Give the act's big pieces their light maps (meta.pieces, from the bake), project the shell's walls,
+// floors and ceilings onto meta.planes into lightUv, and give every other mesh under root (-1, -1)
+// so the shader jumps straight to gridLight(). Returns how many meta.pieces were mapped.
 export function mapPieces(root, meta) {
   const byId = new Map((meta?.pieces || []).map((p) => [p.id, p]));
   let mapped = 0;
@@ -169,12 +255,18 @@ export function mapPieces(root, meta) {
     const e = byId.get(id);
     if (e && !mesh.geometry.attributes.lightUv && mapPiece(mesh, e, meta.atlas)) mapped++;
   }
-  const furniture = new Set(lightPieces(root).map((p) => p.mesh));
+  if (meta?.planes?.length) {
+    const byO = planeLookup(meta.planes);
+    root.traverse((o) => {
+      if (!plain(o) || !o.geometry?.attributes?.position || o.geometry.attributes.lightUv) return;
+      if (!isShell(o) || ![].concat(o.material).some(solid)) return;
+      mapShell(o, byO, meta.atlas);
+    });
+  }
   root.traverse((o) => {
     const g = o.isMesh && o.geometry;
     if (!g || g.attributes.lightUv || !g.attributes.position) return;
-    const arr = new Float32Array(g.attributes.position.count * 2);
-    if (furniture.has(o)) arr.fill(-1);   // -1 tells baked-ao.js to jump straight to gridLight() instead of testing shell planes
+    const arr = new Float32Array(g.attributes.position.count * 2).fill(-1);   // -1 tells baked-ao.js to jump straight to gridLight()
     g.setAttribute('lightUv', new THREE.BufferAttribute(arr, 2));
   });
   return mapped;

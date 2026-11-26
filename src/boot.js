@@ -12,6 +12,7 @@ import { loadLook } from './look.js';
 import { loadContent } from './content.js';
 import { currentStage } from './stages.js';
 import { serverBuild, reloadIfStale } from './fresh.js';
+import { EXPERIMENTS } from './experiments.js';
 
 // The apartment's colors and lights were authored for three.js r128 conventions
 THREE.ColorManagement.enabled = false;
@@ -36,7 +37,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = EXPERIMENTS.tone === 'agx' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
 renderer.localClippingEnabled = true; // the shark crosses the quilt through its own floor plane
 watchCanvas(canvas);
 
@@ -110,7 +111,7 @@ try {
   const skylineAtlas = loadSkylineAtlas();
   const lookReady = loadLook();                     // content/look.css: colours and render numbers
   const contentReady = loadContent();               // content/*.kdl: the bugs and the waves
-  const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts);
+  const apt = await loadApartment(scene, renderer, (f) => loading.at(0.45 * f, f >= 1 ? 'Unpacking the apartment…' : undefined), currentStage().parts, currentStage().id);
   apt.bakedAO = await bakedAO;
   apt.bakedLight = await bakedLight;
   apt.skylineAtlas = await skylineAtlas;

@@ -27,6 +27,9 @@ const uniforms = {
   sunLine: { value: -1e4 }, sunColor: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) },
   sunFill: { value: 0 }, sunSoft: { value: 0.03 }, sunWarm: { value: 0 }, sunRim: { value: 0.035 }, sunRimGlow: { value: 0 }, sunPulse: { value: 0 },
   liteEnv: { value: 0 },      // Low graphics: replaces scene.environment IBL on plain Lambert materials (main.js sets from scene.environmentIntensity * --lite-env)
+  specAA: { value: new THREE.Vector2(0.15, 0.01) },   // geometric specular AA (Tokuyoshi & Kaplanyan 2019): (scale, max variance)
+  detailRough: { value: 0.18 },                       // micro-roughness swing driven by fine surface grain
+  iblBaked: { value: 0.75 },                          // how much baked-light darkness attenuates environment specular in dark corners
 };
 export const BAKED_AO = { uniforms, meta: null };
 
@@ -66,6 +69,9 @@ export function setBakedAOTier(quality) {
   uniforms.aoStrength.value = uniforms.aoVolume.value && quality !== 'high' ? LOOK.num('baked-ao', 1) : 0;
   // ?shine=all keeps every lamp's shine on baked surfaces, ?shine=none keeps none (src/experiments.js); else --baked-shine-roughness
   uniforms.bakedShine.value = EXPERIMENTS.shine === 'all' ? 2 : EXPERIMENTS.shine === 'none' ? 0 : LOOK.num('baked-shine-roughness', 2);
+  uniforms.specAA.value.set(LOOK.num('specular-aa-scale', 0.15), LOOK.num('specular-aa-max', 0.01));
+  uniforms.detailRough.value = LOOK.num('detail-roughness', 0.18);
+  uniforms.iblBaked.value = LOOK.num('ibl-baked-mask', 0.75);
 }
 
 // Points a little off the surface (half a grid step along its normal) so a floor reads the air
@@ -73,7 +79,8 @@ export function setBakedAOTier(quality) {
 const AO_FRAGMENT = /* glsl */`
   uniform sampler3D aoVolume;
   uniform vec3 aoMin, aoInvSize;
-  uniform float aoStrength, aoOpen, liteEnv, bakedShine;
+  uniform float aoStrength, aoOpen, liteEnv, bakedShine, detailRough, iblBaked;
+  uniform vec2 specAA;
   varying vec3 vAoPos, vAoNormal;
   uniform float sunLine, sunFill, sunSoft, sunWarm, sunRim, sunRimGlow, sunPulse;
   uniform vec3 sunColor, sunDir;
@@ -126,12 +133,21 @@ function patch(shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\n' + AO_FRAGMENT + LIGHT_FRAGMENT + MIST_GLSL + DETAIL_FRAGMENT)
     .replace('#include <color_fragment>', `#include <color_fragment>
+      float sDet = 1.0;
       #ifndef LAMBERT
-        if (detailMix != vec4(0.0)) diffuseColor.rgb *= surfaceDetail();   // the fine grain (surfaces.js); Low's plain materials leave it out
+        if (detailMix != vec4(0.0)) { sDet = surfaceDetail(); diffuseColor.rgb *= sDet; }   // the fine grain (surfaces.js); Low's plain materials leave it out
+      #endif`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      #ifdef STANDARD
+        roughnessFactor = clamp(roughnessFactor - (sDet - 1.0) * detailRough, 0.04, 1.0);
+        {
+          vec3 dndu = dFdx(vAoNormal), dndv = dFdy(vAoNormal);
+          float specVar = specAA.x * (dot(dndu, dndu) + dot(dndv, dndv));
+          roughnessFactor = sqrt(clamp(roughnessFactor * roughnessFactor + min(2.0 * specVar, specAA.y), 0.0016, 1.0));
+        }
       #endif`)
     .replace('#include <lights_fragment_begin>', `vec3 lbN = normalize(vAoNormal);
-      vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : (vLightUv.x < 0.0 ? gridLight(vAoPos, lbN) : bakedLight(vAoPos, lbN));
-      if (lb.w <= 0.0 && vLightUv.x >= 0.0) lb = gridLight(vAoPos, lbN);
+      vec4 lb = vLightUv.x > 0.0 ? pieceLight(vLightUv) : gridLight(vAoPos, lbN);
       ${lampLoops()}`)
     .replace('#include <aomap_fragment>', `{
         // the shell's baked light (baked-light.js) in place of its lamps' diffuse; the jelly's glow stays live on top
@@ -160,6 +176,10 @@ function patch(shader) {
         reflectedLight.directDiffuse *= baked;
         reflectedLight.indirectDiffuse *= baked;
         reflectedLight.indirectSpecular *= baked;
+        if (lb.w > 0.0) {
+          float lbLum = dot(lb.rgb, vec3(0.2126, 0.7152, 0.0722));
+          reflectedLight.indirectSpecular *= mix(1.0, smoothstep(0.0, 0.35, lbLum), iblBaked);
+        }
         if (lb.w < 1.5) reflectedLight.directDiffuse += lbKeep;   // (the shell's bake has its own shadows)
       }
       #include <aomap_fragment>`)
