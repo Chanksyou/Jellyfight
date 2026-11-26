@@ -648,21 +648,55 @@ export const sfx = {
     noise(1500*j, 1.2, 0.065, 0.06, 'bandpass', 0.008);
     for (let i = 0; i < 2; i++) tone('sine', (1100+i*320)*j, (1700+i*350)*j, 0.025, 0.025, 0.035+i*0.018);
   },
+  // boss-finish sequence: immediate 0-HP break, Dendi's approach/windup/slap, and celebratory payoff
+  bossBreak() {
+    if (!ready()) return;
+    const j = jitter(0.03);
+    noise(5200 * j, 1.2, 0.14, 0.11, 'highpass');                       // crisp glassy shatter
+    tone('triangle', 2600 * j, 1500 * j, 0.08, 0.045);                  // crystalline crack
+    patter(4, 0.02, 0.16, 0.03);                                        // bright glass shards
+    [[523.25, 0.02, 0.34], [783.99, 0.11, 0.45]].forEach(([f, delay, dur]) => {
+      tone('triangle', f * j, f * j, dur, 0.08, delay);                 // C5 -> G5 major-fifth shimmer
+      tone('sine', f * j, f * 1.005 * j, dur * 1.05, 0.055, delay);
+      tone('sine', f * 2 * j, f * 2 * j, dur * 0.85, 0.028, delay + 0.01);
+    });
+  },
   catStep() {
     if (!ready()) return;
     const j = jitter(.12); noise(260*j, 1, .07, .035, 'lowpass'); tone('sine',100*j,65*j,.07,.025);
   },
   catWind() {
     if (!ready()) return;
-    noise(1200*jitter(.1),1,.3,.055,'bandpass',0,4200);
+    const j = jitter(0.08);
+    noise(600 * j, 1.1, 0.38, 0.08, 'bandpass', 0, 3800 * j);           // rising airy paw whoosh
+    tone('sine', 90 * j, 175 * j, 0.35, 0.04);                          // subtle rising sub-tension swell
   },
   catImpact() {
     if (!ready()) return;
-    const j = jitter(.1);
-    noise(2600*j,1,.035,.22,'highpass');
-    tone('sine',140*j,38*j,.3,.24);
-    noise(450*j,1,.28,.13,'lowpass');
-    for (let i=0;i<4;i++) noise((1700+i*500)*j,2,.07,.035,'bandpass',.08+i*.055);
+    const j = jitter(0.08);
+    tone('sine', 155 * j, 32 * j, 0.38, 0.28);                          // heavy sub-bass thump
+    noise(2800 * j, 1, 0.035, 0.24, 'highpass');                        // crisp paw slap transient
+    noise(520 * j, 1.2, 0.24, 0.16, 'bandpass', 0, 220 * j);            // mid crunch
+    patter(6, 0.07, 0.28, 0.045);                                       // bouncing debris clatter
+    for (let i = 0; i < 3; i++) tone('triangle', (950 + i * 320) * j, (620 + i * 200) * j, 0.05, 0.025, 0.08 + i * 0.065);
+  },
+  bossVictory() {
+    if (!ready()) return;
+    const j = jitter(0.025);
+    const notes = [
+      [523.25, 0, 0.34, 0.09],                                          // C5
+      [659.25, 0.08, 0.34, 0.095],                                      // E5
+      [783.99, 0.16, 0.38, 0.1],                                        // G5
+      [1046.5, 0.26, 0.62, 0.115],                                      // C6
+    ];
+    for (const [f, delay, dur, vol] of notes) {
+      tone('triangle', f * j, f * j, dur, vol, delay);                  // warm major arpeggio
+      tone('sine', f * 2 * j, f * 2 * j, dur * 0.72, vol * 0.35, delay + 0.008); // bell overtone
+    }
+    tone('sine', 261.63 * j, 261.63 * j, 0.55, 0.045, 0.24);            // warm C4 resolution pad
+    for (let i = 0; i < 3; i++) {                                       // playful feline purr/chirp trill
+      tone('sine', (310 + i * 50) * j, (440 + i * 70) * j, 0.065, 0.024, 0.04 + i * 0.06);
+    }
   },
   // the Encore's Wall of sound rolling out (act 4): a soft sub whomp with an airy rush
   encoreWall() { if (!ready() || !gap('encoreWall', 120)) return; const j = jitter(0.08); tone('sine', 120 * j, 45 * j, 0.22, 0.09); noise(900 * j, 0.7, 0.2, 0.04, 'lowpass', 0, 300); },
