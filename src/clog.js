@@ -592,7 +592,17 @@ export class Clog {
   }
 
   // Dendi's paw lands: now it dies (the death animation in tick() takes over)
-  die() { if (this.dying) { this.dying = false; this.dead = true; } }
+  die(impulseDir = null) {
+    if (!this.dying) return;
+    this.dying = false;
+    this.dead = true;
+    const dir = impulseDir ? impulseDir.clone().setY(0) : new THREE.Vector3(1, 0, 0);
+    this.deathDir = dir.lengthSq() > 1e-6 ? dir.normalize() : dir.set(1, 0, 0);
+    this.deathT = 0;
+    this.deathVel = 0.65;
+    this.deathPuffT = 0;
+    this.deathSplatted = false;
+  }
 
   update(dt, player) {
     const out = this.tick(dt, player);
@@ -631,13 +641,57 @@ export class Clog {
     const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh]) { m.visible = false; } this.wave = this.pin = this.comb = this.hop = null; this.lift = 0; this.struck = this.sprung = false; this.rearing = 0; };
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.clogDeath(); hide(); this.endAcid(); }
-      this.sink = Math.min(1, this.sink + dt * 0.6);
-      this.heading += dt * (4 + this.sink * 18);   // corkscrew whirlpool spin down the drain
-      M.root.rotation.y = this.heading;
-      this.place(dt);
-      this.animate(dt, 1, this._toP.set(0, 0, 1));
-      this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 0.8));
-      if (Math.random() < dt * 25) this.fx.puff(this.center().add(new THREE.Vector3().randomDirection().multiplyScalar(this.r)), 0x3b2618, 0.03, 0.5);
+      this.deathT = (this.deathT || 0) + dt;
+      if (juice.calm) {
+        this.sink = Math.min(1, this.sink + dt * 0.6);
+        this.place(dt);
+        this.animate(dt, 1, this._toP.set(0, 0, 1));
+        this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 0.8));
+        return out;
+      }
+      if (!this.deathDir) this.deathDir = new THREE.Vector3(1, 0, 0);
+      if (this.deathVel == null) this.deathVel = 0.65;
+      if (!this.deathSplatted) {
+        this.deathSplatted = true;
+        this.squash = 0.95;
+        this.squashV = 0;
+        this.tiltZV += (this.deathDir.x >= 0 ? -1 : 1) * 5;
+        this.tiltXV += (this.deathDir.z >= 0 ? 1 : -1) * 5;
+        for (let k = 0; k < 4; k++) {
+          const a = k * (Math.PI / 2) + 0.4;
+          this._puff.set(p.x + Math.cos(a) * this.r * 0.9, p.y + this.r * 0.5, p.z + Math.sin(a) * this.r * 0.9);
+          this.fx.puff(this._puff, k % 2 ? 0x3b2618 : 0x8a9a5a, 0.036, 0.48);
+        }
+      }
+      if (this.deathT < 0.10) {
+        this.squash = 0.95;
+        this.squashV = 0;
+        this.place(dt);
+        this.animate(dt, 1, this._toP.set(0, 0, 1));
+        M.root.scale.set(1.32, 0.48, 1.32);
+      } else {
+        this.deathVel *= Math.exp(-dt * 5.5);
+        p.x += this.deathDir.x * this.deathVel * dt;
+        p.z += this.deathDir.z * this.deathVel * dt;
+        if (this.arena?.arenaMin && this.arena?.arenaMax) {
+          const a = this.arena;
+          p.x = THREE.MathUtils.clamp(p.x, a.arenaMin[0] + this.r, a.arenaMax[0] - this.r);
+          p.z = THREE.MathUtils.clamp(p.z, a.arenaMin[2] + this.r, a.arenaMax[2] - this.r);
+        }
+        if (this.deathT >= 0.18) this.sink = Math.min(1, this.sink + dt * 0.6);
+        this.heading += dt * (4 + this.sink * 18);   // corkscrew whirlpool spin down the drain
+        M.root.rotation.y = this.heading;
+        this.place(dt);
+        this.animate(dt, 1, this._toP.set(0, 0, 1));
+        this.holder.scale.multiplyScalar(Math.max(0, 1 - dt * 0.8));
+        this.deathPuffT = (this.deathPuffT || 0) - dt;
+        if (this.deathPuffT <= 0 && this.holder.scale.x > 0.05) {
+          this.deathPuffT = 0.08;
+          const a = this.deathT * 23;
+          this._puff.set(p.x + Math.cos(a) * this.r * 0.85, p.y + this.r * (0.7 - this.sink * 0.5), p.z + Math.sin(a) * this.r * 0.85);
+          this.fx.puff(this._puff, (Math.floor(this.deathT * 12) % 2) ? 0x3b2618 : 0x8a9a5a, 0.032, 0.5);
+        }
+      }
       return out;
     }
     // doomed: it stops where it was hit, waiting for the cat, trembling with panicked eyes
