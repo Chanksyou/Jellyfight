@@ -266,21 +266,25 @@ function buildSculptedHead(bones) {
     }
 
     // 3. SHORT, soft domestic cat muzzle (NOT a long fox/mouse snout!)
-    const snout = gauss(ax, ny + 0.22, nz - 0.90, 0.38, 0.28, 0.36);
-    z += snout * 0.013;
-    y -= snout * 0.002;
+    const snout = gauss(ax, ny + 0.20, nz - 0.90, 0.34, 0.24, 0.34);
+    z += snout * 0.012;
+    y -= snout * 0.0015;
 
     // 4. Gentle nasal bridge slope between the eyes
-    const bridge = gauss(ax, ny + 0.04, nz - 0.86, 0.18, 0.26, 0.32);
+    const bridge = gauss(ax, ny + 0.02, nz - 0.86, 0.17, 0.26, 0.32);
     z += bridge * 0.0055;
 
-    // 5. Plush, rounded left & right whisker pads + subtle central philtrum cleft
-    const pad = gauss(ax - 0.25, ny + 0.32, nz - 0.88, 0.24, 0.18, 0.30);
-    z += pad * 0.011;
-    x += Math.sign(nx) * pad * 0.0055;
-    y -= pad * 0.002;
-    const philtrum = gauss(ax, ny + 0.34, nz - 0.94, 0.08, 0.12, 0.22);
-    z -= philtrum * 0.0028;
+    // 5. Neat, compact feline whisker pads + crisp central philtrum cleft
+    const pad = gauss(ax - 0.23, ny + 0.29, nz - 0.90, 0.20, 0.14, 0.28);
+    z += pad * 0.0085;
+    x += Math.sign(nx) * pad * 0.0038;
+    y -= pad * 0.0015;
+    const philtrum = gauss(ax, ny + 0.31, nz - 0.95, 0.07, 0.11, 0.22);
+    z -= philtrum * 0.0032;
+
+    // Subtle mouth crease separating upper whisker pads from the neat lower chin
+    const mouthLine = gauss(ax - 0.14, ny + 0.43, nz - 0.88, 0.26, 0.065, 0.26);
+    z -= mouthLine * 0.0032;
 
     // 6. Subtle recessed eye sockets + soft brow arches
     const eyeSocket = gauss(ax - 0.43, ny - 0.08, nz - 0.80, 0.22, 0.20, 0.28);
@@ -289,10 +293,14 @@ function buildSculptedHead(bones) {
     z += brow * 0.0038;
     y += brow * 0.0020;
 
-    // 7. Neat rounded lower jaw & chin tucked under whisker pads
-    const chin = gauss(ax, ny + 0.58, nz - 0.72, 0.26, 0.20, 0.34);
-    z += chin * 0.008;
-    y -= chin * 0.003;
+    // 7. Compact, neat feline chin tucked cleanly under the mouth crease
+    const chin = gauss(ax, ny + 0.52, nz - 0.78, 0.18, 0.12, 0.28);
+    z += chin * 0.0042;
+    if (ny < -0.42) {
+      const k = clamp((-ny - 0.42) / 0.58, 0, 1);
+      y += k * 0.0065;
+      x *= (1 - 0.14 * k);
+    }
 
     const wx = headW.x + x;
     const wy = headW.y + y + 0.003;
@@ -616,7 +624,7 @@ function buildAttachments(bones, mats) {
 
   // ---- Nose: proudly seated on the tip of the short feline muzzle
   const nose = new THREE.Mesh(buildCatNoseGeo(), mats.nose);
-  nose.position.set(0, -0.0055, 0.0705);
+  nose.position.set(0, -0.0050, 0.0688);
   head.add(nose);
 
   // ---- Whiskers: 6 curving fine whiskers per side + 2 brow vibrissae per side
@@ -968,16 +976,35 @@ export function paintMaterials() {
         [U(0.5 + s * 0.212), V(0.420)],
       ], 4.2, '#281e15', 0.52);
 
-      // Subtle whisker-follicle dots on whisker pads
-      ctx.fillStyle = 'rgba(42,30,20,0.48)';
+      // Subtle whisker-follicle dots on whisker pads (delicate, not dirty)
+      ctx.fillStyle = 'rgba(58,42,28,0.34)';
       for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 4; col++) {
           ctx.beginPath();
-          ctx.arc(U(0.5 + s * (0.025 + col * 0.013)), V(0.412 - row * 0.018), 1.15, 0, Math.PI * 2);
+          ctx.arc(U(0.5 + s * (0.024 + col * 0.012)), V(0.422 - row * 0.013), 0.95, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+
+      // Natural feline :3 mouth line curving gently under each whisker pad
+      softStroke(ctx, [
+        [U(0.5), V(0.398)],
+        [U(0.5 + s * 0.018), V(0.376)],
+        [U(0.5 + s * 0.042), V(0.374)],
+        [U(0.5 + s * 0.062), V(0.386)],
+      ], 2.8, '#261b14', 0.82);
     }
+
+    // Crisp vertical philtrum cleft from nose bottom to mouth center + subtle lower lip shadow
+    softStroke(ctx, [
+      [U(0.5), V(0.436)],
+      [U(0.5), V(0.396)],
+    ], 2.4, '#2b1e16', 0.85);
+    const lip = ctx.createRadialGradient(U(0.5), V(0.384), 1, U(0.5), V(0.384), 10);
+    lip.addColorStop(0, 'rgba(52,36,28,0.52)');
+    lip.addColorStop(1, 'rgba(52,36,28,0)');
+    ctx.fillStyle = lip;
+    ctx.fillRect(U(0.46), V(0.41), U(0.08), V(0.35) - V(0.41));
 
     // Ear UV patch (u=0.08..0.32, v=0.76..1.0)
     const eg = ctx.createLinearGradient(0, V(0.76), 0, V(1.0));
