@@ -1599,8 +1599,14 @@
   --cat-scene-watch: 0.7;
   --cat-scene-strike: 0.5;    /* contact after the paw starts rising */
   --cat-scene-aftermath: 1.8;
+  --cat-scene-break-hold: 0.35;
+  --cat-scene-dolly: 0.22;
+  --cat-scene-hero-tilt: -0.14;
   --cat-scene-impact-color: #fff0c9;
-  --cat-scene-impact-size: 0.045;
+  --cat-scene-impact-size: 0.11;
+  --cat-scene-ring-radius: 0.42;
+  --cat-scene-ring-color: #ffe8a3;
+  --cat-scene-celebrate-colors: #ffe8a3, #ffffff, #7ef6ff;
   --cat-scene-debris-color: #6a6057;
 }
 
@@ -1710,3 +1716,135 @@ body.evolution-presenting #hud, body.evolution-presenting #touch { visibility: h
 
 /* Large, cached jelly portraits on the achievement leaderboard. */
 .jf-achievement-board { --board-jelly-size: 144px; --board-jelly-size-phone: 112px; }
+
+/* Boss finish cinema overlay (src/boss-banner.js): letterbox framing and celebratory callouts.
+   Animates only transform and opacity; Reduce effects (body.calm, .boss-stage.calm, OS reduced motion)
+   falls back to pure opacity fades with zero scale/rotate/translate. */
+.boss-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  pointer-events: none;
+  overflow: hidden;
+}
+.boss-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8vh;
+  background: var(--ui-deep);
+  opacity: 0;
+  transform: scaleY(0);
+  transition: transform var(--ui-slow) var(--ui-ease-settle), opacity var(--ui-mid) var(--ui-ease-settle);
+  will-change: transform, opacity;
+}
+.boss-bar.top { top: 0; transform-origin: top center; }
+.boss-bar.bottom { bottom: 0; transform-origin: bottom center; }
+.boss-stage.letterbox .boss-bar { opacity: 1; transform: scaleY(1); }
+
+.boss-callout {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: min(92vw, 680px);
+  padding: 12px 20px;
+  box-sizing: border-box;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.boss-callout[hidden] { display: none; }
+.boss-callout.show { opacity: 1; }
+.boss-callout.show.break { animation: boss-break-in var(--ui-mid) var(--ui-ease-arrive) both; }
+.boss-callout.victory { top: 76%; }
+.boss-callout.show.victory { animation: boss-victory-in var(--ui-slow) var(--ui-ease-arrive) both; }
+
+.boss-callout.victory::before {
+  content: "";
+  position: absolute;
+  inset: -24px -16px;
+  z-index: -1;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at center, #ffe8a355 0%, #ffd46c22 45%, transparent 72%);
+  opacity: 0.7;
+  animation: boss-shimmer calc(var(--ui-slow) * 3) var(--ui-ease-float) infinite alternate;
+  will-change: transform, opacity;
+}
+
+.boss-callout-title {
+  margin: 0;
+  font-family: var(--ui-font-display);
+  font-weight: 600;
+  font-size: clamp(32px, 8vw, 64px);
+  line-height: 1.06;
+  letter-spacing: 0.02em;
+  color: var(--ui-gold);
+  text-shadow: 0 3px 0 var(--ui-gold-deep), 0 8px 24px var(--ui-shade);
+  text-wrap: balance;
+}
+.boss-callout.break .boss-callout-title { text-transform: uppercase; letter-spacing: 0.04em; }
+
+.boss-callout-sub {
+  margin: 8px 0 0;
+  font-family: var(--ui-font-display);
+  font-weight: 500;
+  font-size: clamp(18px, 3.8vw, 28px);
+  line-height: 1.2;
+  color: var(--ui-ink);
+  text-shadow: 0 2px 10px var(--ui-deep), 0 1px 3px var(--ui-deep);
+}
+.boss-callout-sub:empty { display: none; }
+.boss-callout.show.break .boss-callout-sub { animation: boss-sub-in var(--ui-mid) var(--ui-ease-arrive) both; }
+
+@keyframes boss-break-in {
+  0% { opacity: 1; transform: scale(1.22); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes boss-victory-in {
+  0% { opacity: 1; transform: scale(0.84) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes boss-sub-in {
+  0% { opacity: 0.85; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes boss-shimmer {
+  0% { opacity: 0.5; transform: scale(0.96); }
+  100% { opacity: 0.95; transform: scale(1.05); }
+}
+@keyframes boss-calm-fade {
+  0% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+
+/* Reduce effects (body.calm, .boss-stage.calm, OS reduced motion): pure opacity fades only */
+body.calm .boss-stage .boss-bar,
+.boss-stage.calm .boss-bar {
+  transform: none;
+  transition: opacity var(--ui-mid) ease;
+}
+body.calm .boss-stage .boss-callout.show,
+.boss-stage.calm .boss-callout.show {
+  transform: none;
+  animation: boss-calm-fade var(--ui-fast) ease both;
+}
+body.calm .boss-stage .boss-callout-sub,
+.boss-stage.calm .boss-callout-sub {
+  transform: none;
+  animation: none;
+}
+body.calm .boss-stage .boss-callout.victory::before,
+.boss-stage.calm .boss-callout.victory::before {
+  transform: none;
+  animation: none;
+  opacity: 0.65;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boss-stage .boss-bar { transform: none; transition: opacity var(--ui-mid) ease; }
+  .boss-stage .boss-callout.show { transform: none; animation: boss-calm-fade var(--ui-fast) ease both; }
+  .boss-stage .boss-callout-sub { transform: none; animation: none; }
+  .boss-stage .boss-callout.victory::before { transform: none; animation: none; opacity: 0.65; }
+}
+
