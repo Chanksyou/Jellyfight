@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v732 keeps the frame cap on a schedule, so a phone in Low Power Mode whose callbacks now and then come a few milliseconds late still draws 30 even frames a second instead of dropping one in ten.
+
 v731 adds frame script time, browser callback rate, longest hitch and load timings (step times, time hidden, network against cache) to each act's field numbers, so a slow frame can be told from the browser's pacing and a slow load from a hidden page.
 
 v730 Tunes the Giant millipede's ball charge (a smaller lane, a longer rest, a tighter curl, a slower spin), the House fly's poke (longer reach and range, a longer poke), The Controller's arrows (a longer warning, a wider and bigger arrow, a shorter rest) and The Kettle's boil reach (a smaller steam cloud).
