@@ -1,1 +1,0 @@
-draws act 2's tub mat as a cut-out instead of a see-through layer, so the Clog fight and its acid phase draw one layer fewer over the whole tub floor (nothing shows differently: the acid covers it, and the mat's stripes were 92 to 95% opaque).
