@@ -65,7 +65,7 @@ const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
 const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
-const _fd = new THREE.Vector3(), _zAxis = new THREE.Vector3(0, 0, 1);   // scratch: the flight direction, the mesh's front
+const _fd = new THREE.Vector3(), _ru = new THREE.Vector3(), _rw = new THREE.Vector3(), _rp = new THREE.Vector3(), _zAxis = new THREE.Vector3(0, 0, 1);   // scratch: flight direction, droplet ring axes and spots
 const SCORCH = LOOK.color('lightning-scorch', '#2a2620');   // the mark lightning leaves on the floor
 const STRIKE = LOOK.color('lightning-strike', '#fff27a');   // the ring where a charged strike lands
 // share of power each element deals (see the top of the file)
@@ -120,6 +120,8 @@ export class Bubbles {
     // how it leaves the bell, rings in flight and tears open when it pops (looks only: b.r and the hit never move)
     this.launch = { time: LOOK.num('bubble-launch-time', 0.12), over: LOOK.num('bubble-launch-overshoot', 1.15), settle: LOOK.num('bubble-launch-settle', 0.12) };
     this.spring = { stretch: LOOK.num('bubble-spring-stretch', 0.12), w: LOOK.num('bubble-spring-rate', 25), zeta: LOOK.num('bubble-spring-damp', 0.35), turn: LOOK.num('bubble-spring-turn', 0.5), turnMin: LOOK.num('bubble-spring-turn-min', 0.04) };
+    this.shellLook = { time: LOOK.num('bubble-pop-time', 0.08), grow: LOOK.num('bubble-pop-grow', 0.2), miss: LOOK.num('bubble-pop-miss', 0.6), gap: LOOK.num('bubble-chain-gap', 0.04), wobble: LOOK.num('bubble-trap-wobble', 0.06) };
+    this.shells = []; this.shellPool = [];   // popped bubbles' films, tearing open for a moment before they go back to the pool
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
@@ -149,6 +151,8 @@ export class Bubbles {
     this.next = null;
     for (const T of this.traps) this.freeTrap(T);
     this.traps = [];
+    for (const S of this.shells) { S.m.visible = false; this.pool.push(S.m); this.shellPool.push(S); }
+    this.shells.length = 0;
     this.focusOn = null;
     this.looks.clearBolts();
     this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
@@ -175,6 +179,7 @@ export class Bubbles {
   release(b, immediate = false) {
     b.stopFireAudio?.(immediate); b.stopFireAudio = null;
     if (b.m.userData.look) this.looks.release(b.m);
+    else if (b.shell && !immediate) this.startShell(b.m, b.delay, b.quiet, b.r);
     else { b.m.visible = false; this.pool.push(b.m); }
     b.target = null; b.hit.clear(); b.elems.clear();
     if (this.statePool.length < 256) this.statePool.push(b);
@@ -447,6 +452,7 @@ export class Bubbles {
     b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
     b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
     b.split = false; b.small = false; b.turret = false;
+    b.shell = false; b.quiet = false; b.delay = 0;       // its film tears open after it pops (startShell)
     b.sq = this.spring.stretch; b.sv = 0; b.pdOk = false; b.pd ||= new THREE.Vector3();   // its flight stretch and spring, and the way it last flew
     b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
@@ -471,6 +477,7 @@ export class Bubbles {
     this.clock += dt;
     if (!juice.calm) this.mat.uniforms.uTime.value += dt;   // the film's bands drift (held still in Reduce effects)
     this.looks.frame();
+    if (this.shells.length) this.tickShells(dt);
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
     for (const b of this.list) {
@@ -578,6 +585,34 @@ export class Bubbles {
     b.sq = Math.max(-0.25, Math.min(0.35, b.sq + b.sv * h));
     const along = 1 + b.sq, across = 1 / Math.sqrt(along);
     b.m.scale.set(R * s * across, R * s * across, R * s * along);
+  }
+
+  // a popped bubble's shell stays a moment: its film tears open from the front (userData.extra 0..1, bubble-film.js) and it swells a little.
+  // `delay`: Pop Chain's ripple, the seconds its picture waits (its puff and pop sound too); `quiet`: a miss, a thinner shell
+  startShell(m, delay = 0, quiet = false, r = 0) {
+    const S = this.shellPool.pop() || {};
+    S.m = m; S.t = -delay; S.late = delay > 0; S.r = r; S.x = m.scale.x; S.y = m.scale.y; S.z = m.scale.z;
+    S.op = quiet ? this.shellLook.miss : 1;
+    m.userData.opacity = S.op; m.userData.extra = 0;
+    this.shells.push(S);
+  }
+
+  tickShells(dt) {
+    const L = this.shellLook;
+    for (let i = this.shells.length - 1; i >= 0; i--) {
+      const S = this.shells[i], m = S.m, was = S.t;
+      S.t += dt;
+      if (S.late && was < 0 && S.t >= 0) { this.fx.puff(m.position, m.userData.color === this.tint.gold ? 0xffe8a0 : 0xdff4ff, S.r * 2.2, 0.25, LOOK.num('bubble-pop-puff', 0.2)); sfx.pop(false); }   // the ripple's turn: the same mostly clear puff as a hit's
+      if (S.t < 0) continue;
+      const u = Math.min(1, S.t / L.time);
+      if (juice.calm) m.userData.opacity = S.op * (1 - u);   // Reduce effects: a quick fade, no tearing motion
+      else { const g = 1 + L.grow * u; m.userData.extra = u; m.scale.set(S.x * g, S.y * g, S.z * g); }
+      if (u >= 1) {
+        m.visible = false; m.userData.extra = 0;
+        this.pool.push(m); this.shellPool.push(S);
+        this.shells[i] = this.shells[this.shells.length - 1]; this.shells.pop();
+      }
+    }
   }
 
   turn(b) {
@@ -760,7 +795,11 @@ export class Bubbles {
     sfx.pop(true);
   }
 
-  freeTrap(T) { T.m.visible = false; this.pool.push(T.m); T.m = null; }
+  freeTrap(T, burst = false) {   // a burst trap's shell tears open like a popped bubble
+    if (burst) this.startShell(T.m);
+    else { T.m.visible = false; this.pool.push(T.m); }
+    T.m = null;
+  }
 
   // each trap bubble rides its bug, bobbing; it bursts when the time is up or the bug dies
   tickTraps(dt) {
@@ -771,14 +810,14 @@ export class Bubbles {
       E.center(e, c);
       if (e.dead || T.t <= 0) {
         this.fx.burst(c, ['#dff4ff', '#9fd8ff', '#ffffff'], 8, e.r * 0.4, 0.3, c.y - e.r);
-        this.fx.puff(c, 0xdff4ff, e.r * 2.2, 0.25);
+        this.fx.puff(c, 0xdff4ff, e.r * 2.2, 0.25, LOOK.num('bubble-pop-puff', 0.2) * 1.5);
         sfx.pop(false);
-        this.freeTrap(T);
+        this.freeTrap(T, true);
         continue;
       }
-      const grow = Math.min(1, T.age * 8) * e.r * 1.4;
+      const grow = (juice.calm ? 1 : this.swell(T.age)) * e.r * 1.4, W = juice.calm ? 0 : this.shellLook.wobble, a = T.age * 7;
       T.m.position.copy(c).y += e.r * 0.15 + Math.sin(T.age * 4) * e.r * 0.08;
-      T.m.scale.set(grow * (1 + Math.sin(T.age * 12) * 0.04), grow * (1 - Math.sin(T.age * 12) * 0.04), grow);
+      T.m.scale.set(grow * (1 + Math.sin(a) * W), grow * (1 + Math.sin(a + 2.1) * W), grow * (1 + Math.sin(a + 4.2) * W));   // the shell wobbles round the bug
     }
     this.traps = this.traps.filter((T) => T.m);
   }
@@ -1104,21 +1143,33 @@ export class Bubbles {
 
   // pop-chain: the bubbles within `range` of a popping one pop with it, each a splash that hurts for
   // `dmg` times its damage, and set off the ones next to them in turn (each is spent first, so it ends)
-  chain(b, C) {
+  chain(b, C, depth = 1) {
     const p = b.m.position;
     for (const o of this.list) {
       if (o.done || o.tint || o === b || o.m.position.distanceTo(p) > C.range + o.r) continue;
-      o.done = true;
+      o.done = true; o.shell = true; o.delay = depth * this.shellLook.gap;   // the damage lands now; its picture (puff, pop, tearing film) ripples out after the pop that set it off
       this.splash(o, 1, C.dmg);
-      this.fx.puff(o.m.position, o.golden ? 0xffe8a0 : 0xdff4ff, o.r * 2.2, 0.25);
-      sfx.pop(false);
-      this.chain(o, C);
+      this.chain(o, C, depth + 1);
+    }
+  }
+
+  // six droplets thrown from a ring round the pop, across the way it flew (twice that on the pick screen's stage)
+  dropletRing(b, p) {
+    const n = this.fx.showcase ? 12 : 6, R = b.r * this.draw * 0.8;
+    if (b.vel.lengthSq() > 1e-10) _fd.copy(b.vel).normalize(); else _fd.set(0, 0, 1);
+    _ru.crossVectors(_fd, _yAxis); if (_ru.lengthSq() < 1e-4) _ru.set(1, 0, 0);
+    _ru.normalize(); _rw.crossVectors(_fd, _ru);
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2;
+      _rp.copy(p).addScaledVector(_ru, Math.cos(a) * R).addScaledVector(_rw, Math.sin(a) * R);
+      this.fx.burst(_rp, ['#dff4ff', '#9fd8ff', '#ffffff'], 1, b.r * 0.35, 0.25, p.y - 0.03);
     }
   }
 
   pop(b, hitEnemy, stats, mods, keep = false) {
     if (b.done) return;
     b.done = !keep;
+    if (!keep && !b.tint) { b.shell = true; b.quiet = !hitEnemy; }   // a plain bubble's film tears open (startShell); a miss is quieter
     const p = b.m.position;
     const fire = b.tint === 'fire';
     if (!fire) this.fx.puff(p, b.golden ? 0xffe8a0 : 0xdff4ff, b.r * 2.2, 0.25, b.tint ? 0.55 : LOOK.num('bubble-pop-puff', 0.2));   // a plain pop is mostly clear water, not a grey ball
@@ -1126,7 +1177,8 @@ export class Bubbles {
     if (!fire) {
       this.fx.impact(p, b.golden ? GOLD : b.tint ? EL[b.tint].glow : this.friendly, b.r * (b.big ? 2.6 : 1.8), b.big ? 12 : 6);   // a cool flash and sparks
       // pop: a splash of droplets, a plip, a tiny kick
-      this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], (b.big ? 10 : 4) * (!b.tint && this.fx.showcase ? 2 : 1), b.r * 0.35, 0.25, p.y - 0.03);
+      if (b.tint || b.big) this.fx.burst(p, b.tint ? ['#ffffff', '#' + EL[b.tint].color.toString(16).padStart(6, '0')] : ['#dff4ff', '#9fd8ff', '#ffffff'], (b.big ? 10 : 4) * (!b.tint && this.fx.showcase ? 2 : 1), b.r * 0.35, 0.25, p.y - 0.03);
+      else this.dropletRing(b, p);
       if (!b.tint && this.fx.showcase) this.fx.ring(p, b.golden ? GOLD : 0xdff4ff, b.r * (b.big ? 4 : 3), 0.3);   // the film bursting outward (the pick screen's stage only)
       if (b.tint && b.tint !== 'wind') {   // each element lands its own way (ice: its shards skip off the floor under it)
         const floor = b.tint === 'ice' || b.tint === 'acid' || b.tint === 'poison' ? this.world.castAll(p.clone(), _down, 0.5)?.point.y ?? p.y - 0.05 : undefined;

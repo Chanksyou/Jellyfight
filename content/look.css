@@ -1414,6 +1414,11 @@
   --bubble-spring-damp: 0.35;    /* how fast it dies away (0 rings on, 1 no overshoot); about 0.4 s at 0.35 */
   --bubble-spring-turn: 0.06;    /* the stretch a sharp turn (ricochet, rebound; less for homing and orbit) kicks it with, more or less as it turns */
   --bubble-spring-turn-min: 0.04; /* turns smaller than this (radians a frame) give no kick, so steady steering stays smooth */
+  --bubble-pop-time: 0.08;       /* seconds a popped bubble's film takes to tear open and go */
+  --bubble-pop-grow: 0.2;        /* how much bigger the shell swells while it tears (0.2 = 20%) */
+  --bubble-pop-miss: 0.6;        /* a bubble popping on a wall or at the end of its Range: how solid its shell is (quieter than a hit's) */
+  --bubble-chain-gap: 0.04;      /* Pop Chain: seconds between one pop's picture and the next (the damage lands at once) */
+  --bubble-trap-wobble: 0.06;    /* how much a Bubble Trap's shell wobbles round its bug */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
