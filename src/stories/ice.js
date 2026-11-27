@@ -262,15 +262,15 @@ story('treasures/ice-deep-freeze', {
 // ------------------------------------------------------------------ the pool, as content
 // each upgrade compiled alone: the combined effects it must set (its behaviour is its words' stories)
 const SAYS = {
-  permafrost: (m) => m.chillFreeze?.hits === 3 && m.chillFreeze.time === 1.5,
+  permafrost: (m) => m.chillFreeze?.hits === 2 && m.chillFreeze.time === 2,
   brittle: (m) => m.statusDamage.some((d) => d.status === 'chilled' && d.more === 0.4),
   shatterShards: (m) => m.killsOf.some((K) => K.status === 'chilled' && K.effects[0].kind === 'shards' && K.effects[0].count === 4),
-  coldSnap: (m) => m.timed.some((T) => T.every === 6 && T.effects[0].kind === 'ring' && T.effects[0].chill === 2 && T.effects[0].radius === 0.15),
+  coldSnap: (m) => m.timed.some((T) => T.every === 4 && T.effects[0].kind === 'ring' && T.effects[0].chill === 2 && T.effects[0].radius === 0.15),
   glacierShell: (m) => m.shield.near.some((N) => N.faster === 1 && N.radius === 0.15),
-  icicleLance: (m) => m.element.ice.chillPierce === 1,
-  frostbite: (m) => m.element.ice.frostbite === 0.2,
+  icicleLance: (m) => m.element.ice.chillPierce === 4,
+  frostbite: (m) => m.element.ice.frostbite === 0.3,
   hoarfrost: (m) => m.groundLock.includes('chilled'),
-  snowball: (m) => m.element.ice.pierce === 2 && Math.abs(m.element.ice.grow - 0.1) < 1e-9,
+  snowball: (m) => m.element.ice.pierce === 3 && Math.abs(m.element.ice.grow - 0.3) < 1e-9,
   deepFreeze: (m) => m.statusDamage.some((d) => d.status === 'frozen' && d.by === 'all' && d.more === 2 && d.thaw),
   cryoSleep: (m) => m.shield.invuln === 1,
   avalanche: (m) => m.slideOnHit.some((S) => S.status === 'frozen' && S.distance === 0.12),

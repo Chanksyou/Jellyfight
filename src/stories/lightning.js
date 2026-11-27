@@ -147,7 +147,7 @@ story('treasures/charged-shot', {
     step(60 * 2.5);
     const notYet = !G().run.bubbles.charge;
     step(60 * 0.7);
-    const R = G().run, B2 = R.bubbles, moved = !!B2.charge && B2.charge.chain === 3 && B2.charge.strike === 0;
+    const R = G().run, B2 = R.bubbles, moved = !!B2.charge && B2.charge.chain === 6 && B2.charge.strike === 0;
     jelly.fullSpeed = false; step(2);
     const broken = !B2.charge;
     // the 3 extra arcs: a line of bugs 10 cm apart, a charged shot jumps 6 times, an ordinary one 3
@@ -209,7 +209,7 @@ story('treasures/zap-toughest', {
 });
 
 story('treasures/lightning-arcs', {
-  about: 'element-up "lightning" revisit=1 chain=3 (Conductor): arcs jump back to bugs already hit, 6 jumps in all; stunFirst=1 (Lightning Rod): the arc goes to a Stunned bug before a nearer one; eliteBolt=2 (Grounded): an Elite or the boss takes arcs twice as hard.',
+  about: 'element-up "lightning" revisit=1 chain=3 (Conductor): arcs jump back to bugs already hit, 6 jumps in all; stunFirst=1 (Lightning Rod): the arc goes to a Stunned bug before a nearer one; eliteBolt=3 (Grounded): an Elite or the boss takes arcs three times as hard.',
   setup() { setupFight({ types: 'lightning', bubbles: false, lash: false }); },
   play() {
     const { run, enemies } = G(), B = run.bubbles;
@@ -221,7 +221,7 @@ story('treasures/lightning-arcs', {
     take('conductor'); const back = arcsOn();
     const backArcs = [lightning(back).filter((d) => d.targetId === a.id).length, lightning(back).filter((d) => d.targetId === b.id).length];
     const revisit = baseArcs.join() === '0,1' && backArcs.join() === '3,3';
-    // a nearer bug and a farther Stunned one: the Rod's arc takes the Stunned one first, and hits it 30% harder
+    // a nearer bug and a farther Stunned one: the Rod's arc takes the Stunned one first, and hits it 60% harder
     enemies.clear(); take();
     const t = roachAt(0, -0.15), near = roachAt(0.06, -0.15), stunned = roachAt(0.12, -0.15); stunned.stunT = 9;
     const order = (log) => lightning(log).map((d) => d.targetId);
@@ -232,7 +232,7 @@ story('treasures/lightning-arcs', {
     const hp0 = [stunned.hp, near.hp];
     const rod = arcsOn(), rodFirst = order(rod)[0] === stunned.id;
     enemies.mods = run.mods;   // (the hits are weighed where they land: this is the Health each lost)
-    const harder = Math.abs((hp0[0] - stunned.hp) / (hp0[1] - near.hp) - 1.3) < 1e-9;
+    const harder = Math.abs((hp0[0] - stunned.hp) / (hp0[1] - near.hp) - 1.6) < 1e-9;
     // an Elite (or the boss) among them: Grounded doubles the arcs on it
     const eliteArc = (ids) => {
       enemies.clear(); take(...ids);
@@ -242,14 +242,14 @@ story('treasures/lightning-arcs', {
       return got[0];
     };
     const plainElite = eliteArc([]), grounded = eliteArc(['grounded']);
-    const double = plainElite > 0 && Math.abs(grounded / plainElite - 2) < 1e-9;
+    const double = plainElite > 0 && Math.abs(grounded / plainElite - 3) < 1e-9;
     return ok(revisit && plainFirst && rodFirst && harder && double, { baseArcs, backArcs, plainFirst, rodFirst, harder, plainElite, grounded });
   },
 });
 
 // ------------------------------------------------------------------ the pool
 story('upgrades/lightning-pool', {
-  about: 'Each of Lightning\'s 12 Attack upgrades, taken in a Lightning run, sets what its text says (Overcharge\'s big bolt every 5th, Conductor\'s 6 jumps, Ball Lightning every 6 s, …), and nothing before it is taken; Thunderclap and Lightning Rod make Stunned bugs take 50% and 30% more, a Stunned bug dying sends bolts to 2 more (Chain Reaction), and each arc gives +2% Fire rate (Surge).',
+  about: 'Each of Lightning\'s 12 Attack upgrades, taken in a Lightning run, sets what its text says (Overcharge\'s big bolt every 5th, Conductor\'s 6 jumps, Ball Lightning every 6 s, …), and nothing before it is taken; Thunderclap and Lightning Rod make Stunned bugs take 150% and 60% more, a Stunned bug dying sends bolts to 2 more (Chain Reaction), and each arc gives +2% Fire rate (Surge).',
   setup() { setupFight({ types: 'lightning', bubbles: false, lash: false }); },
   play() {
     const { run, enemies } = G();
@@ -258,14 +258,14 @@ story('upgrades/lightning-pool', {
       conductor: (m) => m.element.lightning?.revisit === 1 && m.element.lightning.chain === 6,
       staticSkin: (m) => m.touchZap?.stun === 1 && m.touchZap.each === 2,
       stormCell: (m) => m.charged.some((C) => C.when === 'rooted' && C.time === 2 && C.strike === 0.2),
-      thunderclap: (m) => m.statusDamage.some((D) => D.status === 'stunned' && D.more === 0.5 && D.by === 'all'),
+      thunderclap: (m) => m.statusDamage.some((D) => D.status === 'stunned' && D.more === 1.5 && D.by === 'all'),
       ballLightning: (m) => m.timed.some((T) => T.every === 6 && T.effects[0].kind === 'orb'),
       chainReaction: (m) => m.killsOf.some((K) => K.status === 'stunned' && K.effects[0].kind === 'zap' && K.effects[0].count === 2),
-      lightningRod: (m) => m.element.lightning?.stunFirst === 1 && m.statusDamage.some((D) => D.status === 'stunned' && D.more === 0.3 && D.by === 'lightning'),
-      overload: (m) => m.timed.some((T) => T.every === 10 && T.effects[0].kind === 'zap' && T.effects[0].target === 'toughest' && T.effects[0].dmg === 5),
-      staticCharge: (m) => m.charged.some((C) => C.when === 'moving' && C.time === 3 && C.chain === 3),
-      surge: (m) => m.buffs.some((b) => b.event === 'arc' && b.stat === 'fireRate' && b.amount === 2 && b.stacks === 10),
-      grounded: (m) => m.element.lightning?.eliteBolt === 2,
+      lightningRod: (m) => m.element.lightning?.stunFirst === 1 && m.statusDamage.some((D) => D.status === 'stunned' && D.more === 0.6 && D.by === 'lightning'),
+      overload: (m) => m.timed.some((T) => T.every === 6 && T.effects[0].kind === 'zap' && T.effects[0].target === 'toughest' && T.effects[0].dmg === 5),
+      staticCharge: (m) => m.charged.some((C) => C.when === 'moving' && C.time === 3 && C.chain === 6),
+      surge: (m) => m.buffs.some((b) => b.event === 'arc' && b.stat === 'fireRate' && b.amount === 4 && b.stacks === 20),
+      grounded: (m) => m.element.lightning?.eliteBolt === 3,
     };
     const mine = CONTENT.upgrades.filter((u) => u.jelly === 'lightning').map((u) => u.id), wrong = [];
     for (const id of POOL) {
@@ -280,7 +280,7 @@ story('upgrades/lightning-pool', {
     const clap = [calm, more('lightning'), more('bubble')];
     take('thunderclap', 'lightningRod');
     const both = more('lightning'), other = more('bubble');
-    const stack = clap[0] === 1 && clap[1] === 1.5 && clap[2] === 1.5 && Math.abs(both - 1.8) < 1e-9 && Math.abs(other - 1.5) < 1e-9;
+    const stack = clap[0] === 1 && clap[1] === 2.5 && clap[2] === 2.5 && Math.abs(both - 3.1) < 1e-9 && Math.abs(other - 2.5) < 1e-9;
     // Chain Reaction: a Stunned bug that dies sends bolts to the 2 nearest; one that wasn't Stunned sends none
     enemies.clear(); take('chainReaction'); enemies.mods = run.mods;
     const dead = roachAt(0, -0.15), n1 = roachAt(0.07, -0.15), n2 = roachAt(-0.07, -0.15), n3 = roachAt(0.3, -0.3), log = record('damage_taken');
@@ -294,7 +294,7 @@ story('upgrades/lightning-pool', {
     take('surge'); run.buffs = {};
     const base = run.S.fireRate;
     for (let i = 0; i < 3; i++) run.buff('arc');
-    const surged = Math.abs(run.S.fireRate - base - 3 * 0.02 * run.baseStats.fireRate) < 1e-9;
+    const surged = Math.abs(run.S.fireRate - base - 3 * 0.04 * run.baseStats.fireRate) < 1e-9;
     return ok(!wrong.length && sameList && stack && reaction && silent && surged, { sameList, stack, reaction, wrong, mine: mine.length, clap, both, other, bolted: bolted.length, silent, base, surged: run.S.fireRate });
   },
 });

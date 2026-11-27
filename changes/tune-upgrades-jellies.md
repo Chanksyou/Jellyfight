@@ -1,0 +1,1 @@
+retunes 41 Attack upgrades and four jelly types (Fire, Wind, Glitter, Tentacle) from Chan's number list: Fire hits harder and has less Health, Wind's gust hits softer, Glitter's bombs grow and hit harder, Tentacle reaches further.
