@@ -7,7 +7,9 @@
 //
 // Per-instance color and opacity: a material marked `material.userData.perInstance = true`
 // takes each mesh's `userData.color` (a THREE.Color) and `userData.opacity` (0..1), so pooled
-// effects can share one material while every puff has its own tint and fade.
+// effects can share one material while every puff has its own tint and fade. A ShaderMaterial does its
+// own instancing (it reads instanceColor and instanceOpacity itself, bubble-film.js) and keeps its uniforms;
+// one that also sets `userData.extra` gets an `instanceExtra` float from each mesh's `userData.extra` (0 if unset).
 import * as THREE from 'three';
 
 export const HIDDEN = 31;          // the layer tracked meshes move to; the camera never enables it
@@ -20,6 +22,7 @@ const _sphere = new THREE.Sphere();
 // (a material with userData.soft also fades toward its silhouette: a soft puff, not a ball)
 function withInstanceOpacity(src) {
   const m = src.clone(), soft = src.userData.soft;
+  if (src.isShaderMaterial) { m.uniforms = src.uniforms; return m; }   // shared: its clock and knobs move once for every copy
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;')
@@ -78,6 +81,7 @@ export class Batcher {
       m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
       m.geometry = g.geo.clone();      // the opacity attribute lives on this group's own copy
       m.geometry.setAttribute('instanceOpacity', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage));
+      if (g.src.userData.extra) m.geometry.setAttribute('instanceExtra', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage));
       g.geo2?.dispose();
       g.geo2 = m.geometry;
     }
@@ -143,13 +147,14 @@ export class Batcher {
       m.count = g.n;
       m.visible = g.n > 0;
       if (!g.n) continue;
-      const op = g.per ? m.geometry.attributes.instanceOpacity : null;
+      const op = g.per ? m.geometry.attributes.instanceOpacity : null, ex = g.per ? m.geometry.attributes.instanceExtra : null;
       for (let i = 0; i < g.n; i++) {
         const o = g.list[i];
         m.setMatrixAt(i, o.matrixWorld);
         if (g.per) {
           m.setColorAt(i, o.userData.color || WHITE);
           op.array[i] = o.userData.opacity ?? 1;
+          if (ex) ex.array[i] = o.userData.extra || 0;
         }
       }
       m.instanceMatrix.clearUpdateRanges();
@@ -162,6 +167,7 @@ export class Batcher {
         op.clearUpdateRanges();
         op.addUpdateRange(0, g.n);
         op.needsUpdate = true;
+        if (ex) { ex.clearUpdateRanges(); ex.addUpdateRange(0, g.n); ex.needsUpdate = true; }
       }
       drawn += g.n;
     }

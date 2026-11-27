@@ -1390,10 +1390,21 @@
   --dress-door-beat: 0.35;
   --dress-door-beats: 8;         /* beats between time-up and the door opening (about 3.75 s at 128 BPM) */
   --dress-door-beats-calm: 2;    /* the same under Reduce effects, which also keeps the glow steady */
-  --bubble-opacity: 0.28;        /* how solid your plain bubble is (the rest is the water seen through it) */
-  --bubble-glow: 0.15;           /* its inner glow */
-  --bubble-sheen: #e8f8ff;       /* the light on its rim */
-  --bubble-sheen-roughness: 0.35; /* lower is a thinner, brighter rim */
+  /* your plain bubble's soap film (src/bubble-film.js): clear middle, rainbow rim, two window highlights */
+  --bubble-draw: 2;              /* how big it is drawn, times its hit size (looks only: hits, splash and the row gap don't change) */
+  --bubble-draw-big: 1.4;        /* the same for a giant bubble (Reed Stick, every nth Attack), already 2.5x: keeps it smaller than the jelly */
+  --bubble-tint: #dff6ff;        /* the film's base colour (cool white-cyan: friendly) */
+  --bubble-gold: #ffd86a;        /* a golden bubble's film */
+  --bubble-trap-opacity: 0.75;   /* a Bubble Trap's film, times the plain one (thinner: the bug shows through) */
+  --bubble-film-core: 0.05;      /* how solid the middle is (you see through it) */
+  --bubble-film-rim: 0.85;       /* how solid the very edge is */
+  --bubble-film-rim-power: 2.6;  /* higher keeps the clear middle wider and the rim thinner */
+  --bubble-film-bands: 1.6;      /* how many rainbow bands cross the film */
+  --bubble-film-color: 0.85;     /* 0 a white film .. 1 the full (pastel) rainbow */
+  --bubble-film-drift: 1;        /* how fast the bands drift */
+  --bubble-rim: 0.55;            /* the darker line just inside the rim: raise it if bubbles wash out on a bright floor */
+  --bubble-highlight: 1.1;       /* the two window highlights */
+  --bubble-halo: 1.6;            /* the soft glow round it, in drawn radii */
   --bubble-pop-puff: 0.2;        /* how solid the soft puff at a plain bubble's pop is (the droplets and ring carry it) */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */

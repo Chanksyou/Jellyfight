@@ -1119,7 +1119,7 @@ async function warmUp() {
   run.evolutionReveal.warm(true);
   run.elites.warm(true, P.clone().setY(P.y + 0.03));
   run.roomTreasures[0].show(P.clone(), 22);                // a treasure's chest and its timer ring
-  const warmBubbles = [run.bubbles.mesh(run.bubbles.mat), run.bubbles.mesh(run.bubbles.goldMat)];
+  const warmBubbles = [run.bubbles.mesh(), run.bubbles.mesh(run.bubbles.tint.gold)];   // the soap film (one program, one batch)
   warmBubbles.forEach((m) => { m.position.copy(P).setY(P.y + 0.03); m.scale.setScalar(0.01); });
   const warmLooks = run.bubbles.looks.warm(P.clone().setY(P.y + 0.03));   // every element projectile
   const warmFx = [new THREE.Mesh(run.bubbles.puddleGeo, run.bubbles.acidMat)];

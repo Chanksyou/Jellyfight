@@ -113,6 +113,7 @@ import './stories/upgrades.js';
 import './stories/poison.js';
 import './stories/glitter.js';
 import './stories/normal.js';
+import './stories/bubble-look.js';
 import './stories/wind-type.js';
 import './stories/unlocks.js';
 import './stories/ui.js';

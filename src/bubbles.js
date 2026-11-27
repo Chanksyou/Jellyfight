@@ -41,6 +41,7 @@ import { bubbleShare, BASE_STATS, knockFor } from './stats.js';
 import { elementParams, newMods } from './words.js';
 import { rollChance } from './chance.js';
 import { BubbleLooks, WIND_ARC, AcidMaterial } from './bubble-looks.js';
+import { bubbleFilm } from './bubble-film.js';
 
 const SPEED = 0.57;          // m/s: faster than you swim (0.42), slow enough to see them in the air
 const RADIUS = 0.0065;       // m, at attack size 1
@@ -107,14 +108,14 @@ export class Bubbles {
     this.hit = 1;                      // a jelly type's hit= (update): its attack's damage share
     this.main = null;                  // the Element a jelly type's main attack fires (update), else null
     this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
-    this.geo = new THREE.SphereGeometry(1, 12, 8);
-    const film = (tint, glow, opacity = 0.6, boost = 0.6) => new THREE.MeshPhysicalMaterial({
-      color: tint, transparent: true, opacity, roughness: 0.02, metalness: 0, clearcoat: 1,
-      iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [150, 600],
-      sheen: 1, sheenRoughness: LOOK.num('bubble-sheen-roughness', 0.35), sheenColor: new THREE.Color(LOOK.color('bubble-sheen', '#e8f8ff')),   // the bright rim of a glassy bubble
-      emissive: glow, emissiveIntensity: boost, depthWrite: false,
-    });
-    this.mat = film(0xcfeeff, 0x4aa8ff, LOOK.num('bubble-opacity', 0.28), LOOK.num('bubble-glow', 0.15));   // (gold and trap bubbles keep their old film, with the new rim)
+    this.geo = new THREE.SphereGeometry(1, 16, 11);   // round at its drawn size
+    this.mat = bubbleFilm();           // plain, golden and trap bubbles: one soap film, one draw (bubble-film.js)
+    this.tint = { plain: new THREE.Color(LOOK.color('bubble-tint', '#dff6ff')), gold: new THREE.Color(LOOK.color('bubble-gold', '#ffd86a')) };
+    this.trapOpacity = LOOK.num('bubble-trap-opacity', 0.75);   // a bubble round a bug: thinner, so the bug shows through
+    // drawn size only: b.r stays the hit size, splash and row gap (a bigger hit would be a balance change)
+    this.draw = LOOK.num('bubble-draw', 2);
+    this.drawBig = LOOK.num('bubble-draw-big', 1.4);   // a giant bubble (Reed Stick, nth-attack) is already 2.5x: this keeps it smaller than the jelly
+    this.halo = LOOK.num('bubble-halo', 1.6);          // the soft glow round it, in drawn radii
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
@@ -128,10 +129,6 @@ export class Bubbles {
     this.mods = null;                  // the mods update last ran with (splash reads them)
     this.acidMat = new AcidMaterial();   // each puddle a copy (its own uniforms, the same program: no shader to build in a fight)
     this.puddleGeo = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
-    this.shine = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false });
-    this.goldMat = film(0xffe8a0, 0xffb020);
-    this.trapMat = film(0xcfeeff, 0x4aa8ff);   // a bubble round a bug: thin, so the bug shows through
-    this.trapMat.opacity = 0.3;
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
     this.windCharge = null;
     this.friendly = FRIENDLY();
@@ -179,18 +176,12 @@ export class Bubbles {
     if (this.statePool.length < 256) this.statePool.push(b);
   }
 
-  mesh(mat) {
+  // a plain bubble's mesh: `tint` its film's colour, `opacity` its fade (drawn instanced, batch.js perInstance)
+  mesh(tint = this.tint.plain, opacity = 1) {
     let m = this.pool.pop();
-    if (!m) {
-      m = new THREE.Mesh(this.geo, mat);
-      const glint = new THREE.Mesh(this.geo, this.shine);     // the white highlight that says "bubble"
-      glint.scale.setScalar(0.22);
-      glint.position.set(-0.4, 0.45, 0.4);
-      m.add(glint);
-      batcher.track(m);                // drawn instanced, glint and all (batch.js)
-    }
+    if (!m) { m = new THREE.Mesh(this.geo, this.mat); batcher.track(m); }
     if (!m.parent) this.scene.add(m);
-    m.material = mat;
+    m.userData.color = tint; m.userData.opacity = opacity; m.userData.extra = 0;
     m.visible = true;
     return m;
   }
@@ -436,7 +427,7 @@ export class Bubbles {
   }
 
   blow(origin, target, o) {
-    const m = o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.goldMat : this.mat);   // a golden Element shot keeps its look, with a gold glow
+    const m = o.tint ? this.looks.get(o.tint) : this.mesh(o.golden ? this.tint.gold : this.tint.plain);   // a golden Element shot keeps its look, with a gold glow
     m.position.copy(origin);
     const dir = o.dir ? o.dir.clone().normalize() : this.enemies.center(target).add(o.off || _zero).sub(origin).normalize();
     if (o.spread) dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), o.spread);
@@ -472,6 +463,7 @@ export class Bubbles {
 
   fly(dt, stats, mods) {
     this.clock += dt;
+    if (!juice.calm) this.mat.uniforms.uTime.value += dt;   // the film's bands drift (held still in Reduce effects)
     this.looks.frame();
     const E = this.enemies, c = this._c;
     const maxTravel = stats.range * 1.4;
@@ -521,9 +513,10 @@ export class Bubbles {
       if (b.m.userData.look) { this.looks.update(b, dt, this.clock); if (b.golden) this.fx.glow.hold(b.m.position, GOLD, b.r * 5, 0.55); }   // an element projectile: its own look and particles
       else {
         // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
-        this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.buffTint || this.friendly, b.r * (b.big ? 6 : 5) * (this.buffTint ? 1.25 : 1), b.golden ? 0.55 : 0.4);   // buffTint: a live buff's colour (buff-looks.js)
+        const R = b.r * (b.big ? this.drawBig : this.draw);   // its drawn radius
+        this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.buffTint || this.friendly, R * this.halo * (this.buffTint ? 1.25 : 1), b.golden ? 0.45 : 0.25);   // buffTint: a live buff's colour (buff-looks.js)
         const grow = Math.min(1, b.t * 8);
-        b.m.scale.set(b.r * grow * (1 + Math.sin(b.t * 14) * 0.06), b.r * grow * (1 - Math.sin(b.t * 14) * 0.06), b.r * grow);
+        b.m.scale.set(R * grow * (1 + Math.sin(b.t * 14) * 0.06), R * grow * (1 - Math.sin(b.t * 14) * 0.06), R * grow);
       }
       // touching an enemy?
       for (const e of E.list) {
@@ -728,7 +721,7 @@ export class Bubbles {
     bus.emit('status_applied', { targetId: e.id, status: 'trap', duration: time });
     const had = this.traps.find((T) => T.e === e);
     if (had) { had.t = time; return; }
-    this.traps.push({ e, m: this.mesh(this.trapMat), t: time, age: 0 });
+    this.traps.push({ e, m: this.mesh(this.tint.plain, this.trapOpacity), t: time, age: 0 });
     sfx.pop(true);
   }
 
