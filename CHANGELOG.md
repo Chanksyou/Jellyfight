@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v754 fills out the desktop pick screen with a larger centered Spotlight, 2-column stat bars, bigger roster cards, and live element aura animations on all visible cards.
+
 v753 makes golden bubbles clearly gold again under the new soap film.
 
 v752 The bubble now wobbles as it leaves the bell and tears open from where it touches when it pops.
