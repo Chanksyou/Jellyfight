@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v755 adds 13 new Treasures across Common, Rare, Epic and Legendary rarities (Damp Sponge, Pop Rocks, Letter Opener, Toy Rocket, Reading Glasses, Juice Box, Espresso Cup, Store Coupon, Gold Medal, Pocket Watch, Lucky Seven, Laser Pointer and Humidifier).
+
 v754 fills out the desktop pick screen with a larger centered Spotlight, 2-column stat bars, bigger roster cards, and live element aura animations on all visible cards.
 
 v753 makes golden bubbles clearly gold again under the new soap film.
