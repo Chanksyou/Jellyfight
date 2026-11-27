@@ -539,8 +539,8 @@ export class TypePicker {
     const rolling = this.stepRoll(dt);
     this.drawAuras(dt);
     if (!rolling && this.queue.length) this.draw();
-    // Spotlight live 3D attack preview (runs once settled, unlocked, and not in Reduce effects)
-    if (!rolling && this.animated && !typeLock(this.centre) && this.liveFor !== this.centre) {
+    // Spotlight live 3D attack preview (runs once settled and not in Reduce effects; locked jellies preview desaturated under the lock banner)
+    if (!rolling && this.animated && this.liveFor !== this.centre) {
       this.liveFor = this.centre;
       this.live.show(this.centre, this.look(), this.spotArt);
     }
