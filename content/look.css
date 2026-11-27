@@ -1394,7 +1394,7 @@
   --bubble-draw: 2;              /* how big it is drawn, times its hit size (looks only: hits, splash and the row gap don't change) */
   --bubble-draw-big: 1.4;        /* the same for a giant bubble (Reed Stick, every nth Attack), already 2.5x: keeps it smaller than the jelly */
   --bubble-tint: #dff6ff;        /* the film's base colour (cool white-cyan: friendly) */
-  --bubble-gold: #ffd86a;        /* a golden bubble's film */
+  --bubble-gold: #ffb020;        /* a golden bubble's film */
   --bubble-trap-opacity: 0.75;   /* a Bubble Trap's film, times the plain one (thinner: the bug shows through) */
   --bubble-film-core: 0.05;      /* how solid the middle is (you see through it) */
   --bubble-film-rim: 0.85;       /* how solid the very edge is */

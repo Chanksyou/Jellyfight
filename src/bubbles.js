@@ -111,7 +111,7 @@ export class Bubbles {
     this.pushMul = 1;                  // run.js: glide makes the gusts blown while you drift push this much further
     this.geo = new THREE.SphereGeometry(1, 16, 11);   // round at its drawn size
     this.mat = bubbleFilm();           // plain, golden and trap bubbles: one soap film, one draw (bubble-film.js)
-    this.tint = { plain: new THREE.Color(LOOK.color('bubble-tint', '#dff6ff')), gold: new THREE.Color(LOOK.color('bubble-gold', '#ffd86a')) };
+    this.tint = { plain: new THREE.Color(LOOK.color('bubble-tint', '#dff6ff')), gold: new THREE.Color(LOOK.color('bubble-gold', '#ffb020')) };
     this.trapOpacity = LOOK.num('bubble-trap-opacity', 0.75);   // a bubble round a bug: thinner, so the bug shows through
     // drawn size only: b.r stays the hit size, splash and row gap (a bigger hit would be a balance change)
     this.draw = LOOK.num('bubble-draw', 2);

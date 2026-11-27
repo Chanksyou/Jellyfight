@@ -68,6 +68,9 @@ export function bubbleFilm() {
         float line = smoothstep(0.8, 0.9, f) * (1.0 - smoothstep(0.93, 0.99, f)) * uLine;
         float a = mix(uCore, uRim, fres) + back;
         vec3 col = vTint * film * (0.35 + 0.9 * fres + back);
+        // a strongly coloured tint (a golden bubble) fills the film with its colour, so it reads at a glance
+        float sat = smoothstep(0.4, 0.8, max(vTint.r, max(vTint.g, vTint.b)) - min(vTint.r, min(vTint.g, vTint.b)));
+        col = mix(col, vTint * (0.8 + 0.8 * fres), sat * 0.7); a += sat * (0.12 + 0.2 * fres);
         // two windows: a soft bright patch up and to the left, a smaller one low on the right
         float h1 = smoothstep(0.9, 0.97, dot(n, normalize(vec3(-0.45, 0.55, 0.7))));
         float h2 = smoothstep(0.95, 0.99, dot(n, normalize(vec3(0.5, -0.45, 0.74)))) * 0.55;
