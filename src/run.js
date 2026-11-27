@@ -223,6 +223,10 @@ export class Run {
     bus.on('damage_taken', (d) => {
       if (d.targetId !== PLAYER && d.amount > 0 && d.source) this.dealt[d.source] = (this.dealt[d.source] || 0) + d.amount;
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
+      if (d.targetId !== PLAYER && d.feedback?.crit) {
+        this.buff('crit');
+        if (this.mods.healOnCrit > 0) this.heal(this.mods.healOnCrit);
+      }
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
     });
@@ -260,9 +264,9 @@ export class Run {
       const W = M.landHeal;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
       if (W && drop > 0.04 && this.t - this.spoutAt >= W.every) {
         const P = this.player.position;
-        this.spoutAt = this.t; this.heal(W.health);
+        this.spoutAt = this.t; const healed = this.heal(W.health);
         this.gadgets.looks.spout(P.clone(), this.cfg.radius); sfx.whaleSpout(); this.player.avatar?.pulse(0.5);
-        this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${W.health} Health`, '#c6ffb0', 14);
+        this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14);
       }
     };
     this.player.onFall = (from, to) => this.stomp(from, to);   // stomp (Pogo Stick): a fall onto a bug bounces instead of landing
@@ -561,6 +565,7 @@ export class Run {
     for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / cap);
     S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
+    if (this.mods.regenMult !== 1) S.regen *= this.mods.regenMult;
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
@@ -763,7 +768,7 @@ export class Run {
     for (const b of this.bursts.splice(0)) this.burst(b);
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
-    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
+    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true, false);   // health regen (cards, treasures; S.regen already scaled by regenMult)
     if (this.phase === 'explore' || this.phase === 'boss') { this.drain(dt); this.pedometer(); }
     this.sunrise.update(dt);   // a stage's sun: drying the jelly while it stands in it
 
@@ -784,12 +789,12 @@ export class Run {
       this.xpChainT = LOOK.num('xp-chain-window', 0.65);
     }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
-    if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
+    if (crumbs) { const healed = this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14); }
     for (const L of this.mods.leaves) {   // leave-on-kill: only swimming onto one picks it up (well inside XP's reach, never Fridge Magnet's)
       const pool = this.left[L.look]; pool.life = L.last;
       const n = pool.update(dt, origin, 0.6);
       if (!n) continue;
-      if (L.health) { this.heal(n * L.health); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${n * L.health} Health`, '#c6ffb0', 14); }
+      if (L.health) { const healed = this.heal(n * L.health); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14); }
       for (let i = 0; i < n; i++) this.buff(L.event);
       this.fx.puff(origin, pool.mat.color.getHex(), 0.014, 0.3);
       if (L.look === 'meatball') sfx.snackChomp(); else sfx.dustSweep();
@@ -1227,10 +1232,12 @@ export class Run {
     this.hud.toast('You bloom again, whole.', 2000);
   }
 
-  heal(amount, quiet = false) {
+  heal(amount, quiet = false, scale = true) {
+    if (scale && amount > 0) amount *= this.mods.regenMult || 1;
     const before = this.health;
     this.health = Math.min(this.S.health, this.health + amount);
     if (!quiet && this.health > before) this.healthPulse = true;
+    return amount;
   }
 
   // an enemy_killed event: { pos, r, xp, elite }
@@ -1346,7 +1353,7 @@ export class Run {
       this.growTotal[g.key] = (this.growTotal[g.key] || 0) + step;
       const amount = g.percent ? BASE_STATS[g.stat] * step / 100 : step;
       this.grown[g.stat] = (this.grown[g.stat] || 0) + amount;
-      if (g.stat === 'health') this.heal(amount);
+      if (g.stat === 'health') this.heal(amount, false, false);
       if (g.percent) continue;             // a percent grows in small steps: no number for each one
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
@@ -1490,7 +1497,7 @@ export class Run {
       if (this.cardLog.length < 48) this.cardLog.push([Math.round(this.t * 10) / 10, this.cardsOnOffer.map(tag), tag(card)]);
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
-      if (this.stats.health > before) this.heal(this.stats.health - before);
+      if (this.stats.health > before) this.heal(this.stats.health - before, false, false);
       this.resume();
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect(),
     // the reward spin (spin-screen.js): not for cards a reload owes; its filler is real rolls on its own dice
@@ -1567,7 +1574,7 @@ export class Run {
   spinHint() { return this.ui.spinOn && !document.body.classList.contains('calm') ? this.firstRun.spinHint() : null; }
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
-  hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy); }   // needs-chance: some effect of yours rolls a chance
+  hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy) && (!t.needsCrit || !!(this.mods.hits.bubbles.crit || this.mods.hits.tentacles.crit || this.mods.hits.splash.crit)); }   // needs-chance: some effect of yours rolls a chance; needs-crit: some attack of yours can Crit
   // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
   // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
   forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }
@@ -1587,7 +1594,7 @@ export class Run {
       this.pickedOffer(u.id);
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
-      if (this.S.health > before) this.heal(this.S.health - before);
+      if (this.S.health > before) this.heal(this.S.health - before, false, false);
       this.health = Math.min(this.health, this.S.health);
       this.ui.treasure(u);
       then();
@@ -1623,7 +1630,7 @@ export class Run {
       if (this.challenges.seen.includes(t.id)) this.challenges.duplicate = true;
       else this.challenges.seen.push(t.id);
       this.found('treasures', t.id, `${t.icon} ${t.name}`);
-      if (this.S.health > before) this.heal(this.S.health - before);
+      if (this.S.health > before) this.heal(this.S.health - before, false, false);
       this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();

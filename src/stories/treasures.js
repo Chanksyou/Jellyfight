@@ -1222,3 +1222,88 @@ story('treasures/on-attack', {
     return ok(counts.normal.attacks >= 2 && counts.fire.attacks >= 2 && T.attacks >= 2 && T.stings >= T.attacks * 2, counts);
   },
 });
+story('treasures/heal-on-crit', {
+  about: 'heal-on-crit (Juice Box): each Crit gives back +1 Health with 1 copy and +2 Health with 2 copies.',
+  setup() { setupFight({ lash: false }); give('juiceBox'); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), log = record('damage_taken'), real = Math.random;
+    e.hp = e.maxHp = 1000;
+    let h1, h2;
+    try {
+      Math.random = () => 0.01;
+      run.health = 10;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      h1 = run.health;
+      give('juiceBox');
+      run.health = 10;
+      const n1 = dmgBy(log, 'bubble').length;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > n1; });
+      h2 = run.health;
+    } finally { Math.random = real; }
+    return ok(Math.abs(h1 - 11) < 1e-6 && Math.abs(h2 - 12) < 1e-6, { h1, h2 });
+  },
+});
+story('treasures/crit-damage', {
+  about: 'crit-damage and needs-crit (Laser Pointer): not offered before owning a Crit source; once owned with Nail Clipper, Crits deal 4x damage instead of 3x.',
+  setup() { setupFight({ lash: false }); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), LP = CONTENT.treasures.find((t) => t.id === 'laserPointer');
+    const before = run.takeable(LP);
+    give('nailClipper');
+    const afterCrit = run.takeable(LP);
+    give('laserPointer');
+    const pop = run.S.bubbleDamage, log = record('damage_taken'), real = Math.random;
+    let hit;
+    try {
+      Math.random = () => 0.01;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      hit = dmgBy(log, 'bubble')[0];
+    } finally { Math.random = real; }
+    return ok(!before && afterCrit && !!hit?.feedback?.crit && Math.abs(hit.amount - pop * 4) < 1e-6, { before, afterCrit, crit: hit?.feedback?.crit, amount: hit?.amount, want: pop * 4 });
+  },
+});
+story('treasures/regen-mult', {
+  about: 'regen-mult (Humidifier): doubles S.regen, doubles active healing (run.heal(2) -> +4), passive regen over 1 s heals 2 (not 4), and halves Shield refill time.',
+  setup() { setupFight({ lash: false, bubbles: false }); },
+  play() {
+    const { run } = G();
+    run.stats.regen = 1; run.stats.shield = 10; step(1);
+    const regenBefore = run.S.regen, fillBefore = run.shield.fill;
+    give('humidifier'); step(1);
+    const regenAfter = run.S.regen, fillAfter = run.shield.fill;
+    run.health = 10; run.heal(2); const afterHeal = run.health;
+    run.health = 10; step(60); const passive = +(run.health - 10).toFixed(3);
+    return ok(
+      Math.abs(regenAfter - regenBefore * 2) < 1e-6
+      && Math.abs(fillAfter - fillBefore / 2) < 1e-6
+      && Math.abs(afterHeal - 14) < 1e-6
+      && Math.abs(passive - 2) < 0.05,
+      { regenBefore, regenAfter, fillBefore, fillAfter, afterHeal, passive },
+    );
+  },
+});
+story('treasures/espresso-cup-and-lucky-seven', {
+  about: 'Espresso Cup (stack-buff "crit" with extra-stacks) caps at +45% Fire rate (3 stacks) at 1 copy and +75% (5 stacks) at 2 copies; Lucky Seven raises all 6 stats.',
+  setup() { setupFight({ lash: false, bubbles: false }); },
+  play() {
+    const { run } = G(), base = run.stats.fireRate, rate = () => run.S.fireRate / base;
+    give('espressoCup');
+    for (let i = 0; i < 5; i++) run.buff('crit');
+    const oneCopy = rate();
+    give('espressoCup');
+    for (let i = 0; i < 6; i++) run.buff('crit');
+    const twoCopies = rate();
+    setupFight({ lash: false, bubbles: false });
+    const r2 = G().run;
+    const before = { health: r2.S.health, fireRate: r2.S.fireRate, moveSpeed: r2.S.moveSpeed, dodge: r2.S.dodge, range: r2.S.range, crit: r2.mods.hits.bubbles.crit?.chance || 0 };
+    give('luckySeven');
+    const after = { health: r2.S.health, fireRate: r2.S.fireRate, moveSpeed: r2.S.moveSpeed, dodge: r2.S.dodge, range: r2.S.range, crit: r2.mods.hits.bubbles.crit?.chance || 0 };
+    const sevenOk = Math.abs(after.health - (before.health + 7)) < 1e-6
+      && Math.abs(after.fireRate - before.fireRate * 1.07) < 1e-6
+      && Math.abs(after.moveSpeed - before.moveSpeed * 1.07) < 1e-6
+      && Math.abs(after.dodge - 7) < 1e-6
+      && Math.abs(after.range - before.range * 1.07) < 1e-6
+      && Math.abs(after.crit - 0.07) < 1e-6;
+    return ok(Math.abs(oneCopy - 1.45) < 1e-6 && Math.abs(twoCopies - 1.75) < 1e-6 && sevenOk, { oneCopy, twoCopies, before, after });
+  },
+});

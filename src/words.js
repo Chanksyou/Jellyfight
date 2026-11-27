@@ -988,6 +988,9 @@ export function newMods() {
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
     streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
     chillFreeze: null,               // chill-to-freeze: { hits, time } (bubbles.js strike)
+    healOnCrit: 0,                   // heal-on-crit: Health gained on each Crit (run.js)
+    critBonus: 0,                    // crit-damage: added to Crit multiplier (bubbles.js, combat.js)
+    regenMult: 1,                    // regen-mult: multiplies Health healing, Health regen and Shield refill (run.js, shield.js)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1295,7 +1298,7 @@ export const ATTACK_WORDS = {
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
-export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up'];
+export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up', 'crit'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
@@ -1591,15 +1594,24 @@ export const TREASURE_WORDS = {
     },
   },
   'stack-buff': {
-    doc: 'On each `event` (kill, hit, arc or big-splash), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. Stat names as in `stat`.',
+    doc: 'On each `event` (kill, hit, arc, big-splash, level-up or crit), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. With `extra-stacks`, copies share one buff and raise its stack cap by `extra-stacks` each. Stat names as in `stat`.',
     args: ['event', 'name', 'amount'],
-    props: { time: 3, stacks: 5, percent: false },
+    props: { time: 3, stacks: 5, percent: false, 'extra-stacks': 0 },
     make: ([event, name, amount], p, where) => {
       if (!BUFF_EVENTS.includes(event)) throw new Error(`stack-buff: event must be one of ${BUFF_EVENTS.join(', ')}, not "${event}"`);
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`stack-buff: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
-      if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('stack-buff: time must be above 0 and stacks a whole number, 1 or more');
-      return (m, copy = 0) => { m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` }); };
+      const extra = p['extra-stacks'];
+      if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1 && Number.isInteger(extra) && extra >= 0)) throw new Error('stack-buff: time must be above 0, stacks a whole number 1 or more, and extra-stacks 0 or more');
+      return (m, copy = 0) => {
+        if (extra > 0) {
+          const existing = m.buffs.find((b) => b.key === where);
+          if (existing) { existing.stacks += extra; return; }
+          m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: where });
+          return;
+        }
+        m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` });
+      };
     },
   },
   'burn-ramp': {
@@ -1864,6 +1876,30 @@ export const TREASURE_WORDS = {
     make: ([n]) => {
       if (!(Number.isInteger(n) && n >= 2)) throw new Error('lucky-rolls: rolls must be a whole number, 2 or more');
       return (m) => { m.luckyRolls = Math.max(m.luckyRolls, n); };
+    },
+  },
+  'heal-on-crit': {
+    doc: 'Each Crit gives back `health` Health. Copies add.',
+    args: ['health'],
+    make: ([n]) => {
+      if (!(n > 0)) throw new Error('heal-on-crit: health must be above 0');
+      return (m) => { m.healOnCrit += n; };
+    },
+  },
+  'crit-damage': {
+    doc: 'Adds `extra` (1 = +100%) to your Crit damage multiplier. Copies add.',
+    args: ['extra'],
+    make: ([n]) => {
+      if (!(n > 0)) throw new Error('crit-damage: extra must be above 0');
+      return (m) => { m.critBonus += n; };
+    },
+  },
+  'regen-mult': {
+    doc: 'Multiplies all Health healing, Health regen and Shield refill speed by `times`. Copies multiply.',
+    args: ['times'],
+    make: ([k]) => {
+      if (!(k > 0)) throw new Error('regen-mult: times must be above 0');
+      return (m) => { m.regenMult *= k; };
     },
   },
 };

@@ -553,3 +553,25 @@ treasure "racket" name="Badminton Racket" icon="🏸" rarity="legendary" attack=
 treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 4x Attack damage and spring back up. Each stomp in a row adds 1x, up to 8x." {
     stomp dmg=4 step=1 most=8 stun=1 safe=0.3 reach=0.02 drop=0.03
 }
+treasure "juiceBox" name="Juice Box" icon="🧃" rarity="rare" attack=#true text="+5% Crit chance. On a Crit: +1 Health." stack=5 {
+    crit chance=0.05 mult=3
+    heal-on-crit 1
+}
+treasure "espressoCup" name="Espresso Cup" icon="☕" rarity="epic" attack=#true text="+5% Crit chance. On a Crit: +15% Fire rate for 4 s, up to +45%." stack=5 {
+    crit chance=0.05 mult=3
+    stack-buff "crit" "fire-rate" 15 percent=#true time=4 stacks=3 extra-stacks=2
+}
+treasure "luckySeven" name="Lucky Seven" icon="🎰" rarity="legendary" text="+7 max Health, +7% Fire rate, Move speed, Dodge, Range and Crit chance." {
+    stat fire-rate 7 percent=#true
+    stat health 7
+    stat move-speed 7 percent=#true
+    stat dodge 7
+    stat range 7 percent=#true
+    crit chance=0.07 mult=3
+}
+treasure "laserPointer" name="Laser Pointer" icon="🔴" rarity="legendary" attack=#true needs-crit=#true text="Crits deal +100% extra damage." {
+    crit-damage 1
+}
+treasure "humidifier" name="Humidifier" icon="♨️" rarity="legendary" text="2x all Health healing, Health regen and Shield refill speed." {
+    regen-mult 2
+}

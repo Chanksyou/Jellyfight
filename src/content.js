@@ -158,6 +158,7 @@ export function compileTreasures(nodes, file = 'content/treasures.kdl') {
       needs: n.props.needs ?? null,   // offered only once you own this treasure (an element's upgrades: its base)
       needsStat: needsStat(n.props['needs-stat'], where, id),   // offered only once that stat is above 0 (shield treasures: you have a Shield bar)
       needsChance: !!n.props['needs-chance'],   // offered only once you own an effect that rolls a chance (Lucky Cat)
+      needsCrit: !!n.props['needs-crit'],       // offered only once you own a Crit source (Laser Pointer)
       heals: !!n.props.heals,         // heals=#true: only gives back Health, so not offered once health-to-shield (Pot Lid) is owned
       retired: !!n.props.retired,     // retired=#true: never offered with jelly types on (a tentacle Treasure that becomes a Tentacle Attack upgrade)
       notFor: notFor(n.props['not-for'], where, id),            // never offered to a run with one of these attacks

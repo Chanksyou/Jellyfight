@@ -659,7 +659,7 @@ export class Bubbles {
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
     if (b.ep?.falloff > 0 && b.hit.size > 1) dmg *= (1 - Math.min(0.9, b.ep.falloff)) ** (b.hit.size - 1);   // Gale: each bug a gust goes through takes less
     if (H.crit && rollChance(H.crit.chance, mods)) {
-      dmg *= H.crit.mult; color = '#e6fbff';
+      dmg *= H.crit.mult + (mods.critBonus || 0); color = '#e6fbff';
       crit = true;
       this.fx.crit(this.enemies.center(e), e.r); sfx.crit();
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
@@ -966,7 +966,7 @@ export class Bubbles {
     E.swatShots(p, r);   // Badminton Racket
     if (crit) { this.fx.crit(p, Math.min(0.02, r * 0.3)); sfx.crit(); }
     else juice.feel('hit-big');
-    const amount = b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) * (crit ? C.mult : 1);
+    const amount = b.pw * ELEMENT.glitter * (b.ep?.splash ?? 1) * (crit ? C.mult + (M.critBonus || 0) : 1);
     const inside = [];
     let kills = 0;
     for (const e of E.list) {

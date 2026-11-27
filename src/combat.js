@@ -311,7 +311,7 @@ export class Lash {
     if (edge) { dmg *= H.edge.mult; color = '#ffe9a8'; }
     if (s.golden) { dmg *= H.golden.mult; color = '#ffd23a'; }
     if (H.crit && rollChance(H.crit.chance, this.mods)) {
-      dmg *= H.crit.mult; color = '#e6fbff'; this.fx.crit(b, s.target.r); sfx.crit();
+      dmg *= H.crit.mult + (this.mods?.critBonus || 0); color = '#e6fbff'; this.fx.crit(b, s.target.r); sfx.crit();
       crit = true;
       if (H.pin) bus.emit('status_applied', { targetId: id, status: 'pin', duration: H.pin });   // pin-on-crit
     }
