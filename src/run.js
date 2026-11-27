@@ -220,6 +220,7 @@ export class Run {
     bus.on('enemy_spawned', ({ targetId }) => { if (this.phase === 'explore') { this.bugsOut++; this.outIds.add(targetId); } });
     bus.on('enemy_killed', (k) => { if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
+    this._procOrigin = new THREE.Vector3();
     bus.on('damage_taken', (d) => {
       if (d.targetId !== PLAYER && d.amount > 0 && d.source) this.dealt[d.source] = (this.dealt[d.source] || 0) + d.amount;
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
@@ -229,10 +230,22 @@ export class Run {
       }
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
+      const hit = d.targetId !== PLAYER && !d.feedback?.tick && !d.feedback?.pass && (d.source === 'bubble' || d.source === 'tentacle' || d.source === 'splash');
       const Bl = this.mods.bleedOnHit;
-      if (Bl && d.targetId !== PLAYER && !d.feedback?.tick && !d.feedback?.pass && (d.source === 'bubble' || d.source === 'tentacle' || d.source === 'splash') && rollChance(Bl.chance, this.mods)) {
+      if (Bl && hit && rollChance(Bl.chance, this.mods)) {
         const target = this.enemies.byId.get(d.targetId);
         if (target && !target.dead) this.lash.bleed(target, 1, { dps: Bl.dmg / Bl.time, time: Bl.time, stacks: Bl.stacks }, this.S.bubbleDamage);
+      }
+      const Bo = this.mods.bombOnHit;
+      if (Bo && hit && rollChance(Bo.chance, this.mods)) {
+        const target = this.enemies.byId.get(d.targetId);
+        if (target && !target.dead) this.gadgets.attachBomb(target, this.S.bubbleDamage * Bo.dmg, Bo.fuse, Bo.radius);
+      }
+      const Mi = this.mods.missileOnHit;
+      if (Mi && hit && rollChance(Mi.chance, this.mods)) {
+        const P = this.player.position;
+        this._procOrigin.set(P.x, P.y + this.cfg.height * 0.45, P.z);
+        this.gadgets.launchRocket(this._procOrigin, this.player.facing, this.S.bubbleDamage * Mi.dmg, Mi.speed, Mi.turn, Mi.life);
       }
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));

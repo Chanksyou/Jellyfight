@@ -994,6 +994,8 @@ export function newMods() {
     firstTreasureBonus: 0,           // first-treasure-bonus: extra Treasure picks on the first Treasure opened each act (run.js)
     eliteJump: null,                 // elite-jump: { jumps, time } extra mid-air jumps after killing an Elite (run.js)
     stillHeal: null,                 // still-heal: { share, perStack, wait, radius } (gadgets.js, run.js)
+    bombOnHit: null,                 // bomb-on-hit: { chance, dmg, fuse, radius } (run.js -> gadgets)
+    missileOnHit: null,              // missile-on-hit: { chance, dmg, speed, turn, life } (run.js -> gadgets)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1959,10 +1961,32 @@ export const TREASURE_WORDS = {
       };
     },
   },
+  'bomb-on-hit': {
+    doc: '`chance` that a hit attaches a bomb to the bug; after `fuse` s (or when it dies) it blasts bugs within `radius` m for `dmg` times your Attack damage. Copies add their chances.',
+    props: { chance: 0.05, dmg: 1.8, fuse: 1.5, radius: 0.09 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.fuse > 0 && p.radius > 0)) throw new Error('bomb-on-hit: chance must be in (0, 1], and dmg, fuse and radius above 0');
+      return (m) => {
+        const b = m.bombOnHit;
+        m.bombOnHit = b ? { ...b, chance: Math.min(1, b.chance + p.chance), dmg: Math.max(b.dmg, p.dmg), radius: Math.max(b.radius, p.radius) } : { ...p };
+      };
+    },
+  },
+  'missile-on-hit': {
+    doc: '`chance` that a hit fires a homing rocket at `speed` m/s (turning up to `turn` rad/s for `life` s) for `dmg` times your Attack damage. Copies add their damage.',
+    props: { chance: 0.1, dmg: 2.5, speed: 0.65, turn: 8, life: 2.5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.speed > 0 && p.turn > 0 && p.life > 0)) throw new Error('missile-on-hit: chance must be in (0, 1], and dmg, speed, turn and life above 0');
+      return (m) => {
+        const r = m.missileOnHit;
+        m.missileOnHit = r ? { ...r, chance: Math.max(r.chance, p.chance), dmg: r.dmg + p.dmg } : { ...p };
+      };
+    },
+  },
 };
 
 // the words whose chance rolls through chance.js: owning one lets a needs-chance treasure be offered
-for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit', 'bleed-on-hit']) {
+for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit', 'bleed-on-hit', 'bomb-on-hit', 'missile-on-hit']) {
   const w = TREASURE_WORDS[k], make = w.make;
   w.make = (...a) => { const apply = make(...a); return (m, copy) => { apply(m, copy); m.chancy = true; }; };
 }

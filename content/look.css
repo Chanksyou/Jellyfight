@@ -277,6 +277,8 @@
   --treasure-bathSalt: #d3eaff;
   --treasure-dampSponge: #6effc8;    /* Damp Sponge: soft mint-aqua healing pool under the jelly */
   --treasure-sponge-glow: 0.65;      /* Damp Sponge: pool opacity when active */
+  --treasure-popRocks: #ff9be2;      /* Pop Rocks: fizzing pink-violet sticky bomb */
+  --treasure-toyRocket: #7ce8ff;     /* Toy Rocket: bright cyan homing rocket */
   --buff-air: #dff6ff;               /* Dry Sock (any while airborne): the wisps and wind off the bell */
   --buff-fireRate: #ffe2a8;          /* Coffee Bean, Dustpan: the wisps, the shots' glow, a bonus hit's flash */
   --buff-moveSpeed: #b9ffd6;         /* Meatball: the same, for a Move speed buff */

@@ -592,3 +592,9 @@ treasure "goldMedal" name="Gold Medal" icon="🏅" rarity="epic" text="On an Eli
 treasure "dampSponge" heals=#true name="Damp Sponge" icon="🧽" rarity="common" text="Stand still for 1 s: a damp zone heals 5% max Health a second." stack=5 {
     still-heal 0.05 per-stack=0.025 wait=1 radius=0.12
 }
+treasure "popRocks" name="Pop Rocks" icon="🧨" rarity="common" attack=#true text="1 in 20 hits: stick a bomb to the bug that blasts for 1.8x Attack damage." stack=5 {
+    bomb-on-hit chance=0.05 dmg=1.8 fuse=1.5 radius=0.09
+}
+treasure "toyRocket" name="Toy Rocket" icon="🚀" rarity="rare" attack=#true text="1 in 10 hits: fire a homing rocket for 2.5x Attack damage." stack=5 {
+    missile-on-hit chance=0.1 dmg=2.5 speed=0.65 turn=8 life=2.5
+}

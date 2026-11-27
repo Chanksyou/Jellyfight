@@ -1460,6 +1460,79 @@ story('treasures/still-heal', {
     );
   },
 });
+story('treasures/bomb-on-hit', {
+  about: 'bomb-on-hit (Pop Rocks): bubble hit sticks a bomb to the bug that detonates after 1.5 s for 1.8x Attack damage to target and nearby bugs; 2 copies raise chance from 0.05 to 0.10.',
+  setup() { setupFight({ lash: false }); give('popRocks'); G().run.stats.bubbles = 1; roachAt(0, -0.12); roachAt(0.05, -0.12); },
+  play() {
+    const { run, enemies } = G(), [e0, e1] = enemies.list, pop = run.S.bubbleDamage;
+    const h0 = e0.pos.clone(), h1 = e1.pos.clone();
+    const p0 = near(0, -1.2), p1 = near(0.05, -1.2);
+    e0.hp = e0.maxHp = 1000; e1.hp = e1.maxHp = 1000;
+    const chance1 = run.mods.bombOnHit?.chance, chancy = run.mods.chancy;
+    const log = record('damage_taken'), real = Math.random;
+    let attached = 0, afterCount = -1;
+    try {
+      Math.random = () => 0;
+      step(120, () => { e0.pos.copy(h0); e1.pos.copy(h1); return dmgBy(log, 'bubble').length > 0; });
+      attached = run.gadgets.stickyBombs.length;
+      // Move both bugs out of bubble range together so only the attached bomb detonates
+      step(105, () => { e0.pos.copy(p0); e1.pos.copy(p1); return false; });
+      afterCount = run.gadgets.stickyBombs.length;
+    } finally { Math.random = real; }
+    const bombHits = dmgBy(log, 'bomb-treasure');
+    const hitIds = new Set(bombHits.map((d) => d.targetId));
+    const expected = 1.8 * pop;
+    const dmgOk = bombHits.length >= 2 && bombHits.every((d) => Math.abs(d.amount - expected) < 1e-6);
+    give('popRocks');
+    const chance2 = run.mods.bombOnHit?.chance;
+    return ok(
+      chancy === true
+      && Math.abs(chance1 - 0.05) < 1e-6
+      && Math.abs(chance2 - 0.1) < 1e-6
+      && attached >= 1
+      && afterCount === 0
+      && hitIds.has(e0.id) && hitIds.has(e1.id)
+      && dmgOk,
+      { chancy, chance1, chance2, attached, afterCount, bombHits: bombHits.length, expected: +expected.toFixed(4) },
+    );
+  },
+});
+story('treasures/missile-on-hit', {
+  about: 'missile-on-hit (Toy Rocket): bubble hit launches a homing rocket that steers to the bug and deals 2.5x Attack damage; 2 copies keep chance 0.1 and raise damage to 5.0x.',
+  setup() { setupFight({ lash: false }); give('toyRocket'); G().run.stats.bubbles = 1; roachAt(0, -0.14); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], pop = run.S.bubbleDamage;
+    const home = e.pos.clone(), park = near(0.16, -0.38);
+    e.hp = e.maxHp = 1000;
+    const chance1 = run.mods.missileOnHit?.chance, dmg1 = run.mods.missileOnHit?.dmg, chancy = run.mods.chancy;
+    const log = record('damage_taken'), real = Math.random;
+    let spawned = 0, afterCount = -1;
+    try {
+      Math.random = () => 0;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      spawned = run.gadgets.rockets.length;
+      // Park bug off-axis out of bubble range so the rocket must home to hit it
+      step(150, () => { e.pos.copy(park); return dmgBy(log, 'missile-treasure').length > 0; });
+      afterCount = run.gadgets.rockets.length;
+    } finally { Math.random = real; }
+    const hits = dmgBy(log, 'missile-treasure');
+    const expected = 2.5 * pop;
+    give('toyRocket');
+    const chance2 = run.mods.missileOnHit?.chance, dmg2 = run.mods.missileOnHit?.dmg;
+    return ok(
+      chancy === true
+      && Math.abs(chance1 - 0.1) < 1e-6 && Math.abs(dmg1 - 2.5) < 1e-6
+      && Math.abs(chance2 - 0.1) < 1e-6 && Math.abs(dmg2 - 5.0) < 1e-6
+      && spawned >= 1
+      && afterCount === 0
+      && hits.length >= 1
+      && hits[0].targetId === e.id
+      && Math.abs(hits[0].amount - expected) < 1e-6,
+      { chancy, chance1, dmg1, chance2, dmg2, spawned, afterCount, hits: hits.length, amount: hits[0]?.amount, expected: +expected.toFixed(4) },
+    );
+  },
+});
+
 
 
 
