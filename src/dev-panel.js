@@ -5,7 +5,7 @@ const GROUPS = [
   ['play', 'Play', [['boss', '👹 Fight boss'], ['duel', '🐞 1 on 1'], ['roam', '🚶 Free roam'], ['arena4', 'Act 4 preview']]],
   ['tune', 'Tune', [['kit', '🧪 Test kit'], ['tuner', '⚖️ Tuner']]],
   ['build', 'Build', [['layout', '🛠 Layout']]],
-  ['check', 'Check', [['diag', '🩺 Diagnostics']]],
+  ['check', 'Check', [['diag', '🩺 Diagnostics'], ['bench', '📈 Phone bench']]],
 ];
 const PASSES = [['ao', 'AO'], ['bloom', 'Bloom'], ['lamps', 'Lamps'], ['bake', 'Baked light'], ['overdraw', 'Overdraw'], ['nav', 'Bug map']];   // costly parts of drawing, switched off to feel what they cost on a phone; Overdraw On shows how many layers each pixel gets (overdraw.js); Bug map On shows the bugs' floor map and walking distances (bug-nav.js)
 
@@ -49,6 +49,12 @@ export function initDevPanel(sheet, h) {
     else if (b.dataset.act === 'duel') picker('🐞 1 on 1 (dev)', 'Pick an enemy to face alone: a fresh run with nothing else in it. It comes back after you beat it.', run.duelChoices(), (p) => run.startDuel(p));
     else if (b.dataset.act === 'roam') picker('🚶 Free roam (dev)', 'Pick an act: walk its room with no bugs, no damage and the clock stopped. Another act reloads the game into it first.', run.roamChoices(), (p) => run.startRoam(p));
     else if (b.dataset.act === 'boss') picker('👹 Fight boss (dev)', 'Pick a boss: a fresh run straight to its intro. A boss from another act reloads the game into that act first.', run.bossChoices(), (p) => run.startBossFight(p));
+    else if (b.dataset.act === 'bench') {   // the phone bench (bench.js): a page per act, then Copy or Send results
+      overlay.hidden = true;
+      const go = (q) => () => { location.href = location.pathname + '?bench' + q; };
+      run.ui.message('📈 Phone bench (dev)', 'Pick an act to measure on this device: it plays that act\'s busiest moments, then offers Copy and Send. Another act reloads the game into it.', [],
+        [...[['Act 1', ''], ['Act 2', '&act=2'], ['Act 3', '&act=3'], ['Act 4', '&act=4'], ['The Encore', '&act=4&scene=2']].map(([label, q]) => ({ label, onClick: go(q) })), { label: 'Back', go: true, onClick: back }]);
+    }
     else if (b.dataset.act === 'kit') toTool((r, o) => h.kit.show(r, o));    // try any treasure or evolution on this run (test-kit.js)
     else if (b.dataset.act === 'tuner') toTool((r, o) => h.tuner.show(r, o));  // edit bug and treasure numbers, live (balance-editor.js)
     else if (b.dataset.act === 'diag') { h.enableDebug(); b.disabled = true; b.textContent = '🩺 Diagnostics on'; }

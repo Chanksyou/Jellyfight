@@ -868,6 +868,23 @@ story('modes/dev-fight-boss-picker', {
   },
 });
 
+story('dev/phone-bench-is-in-the-dev-tools', {
+  about: 'The dev tools\' Check group has a Phone bench button: it lists each act and the Encore, each leading to that act\'s ?bench page, and Back returns to the dev tools.',
+  setup() { fresh(); },
+  play() {
+    const over = document.getElementById('g-over');
+    over.hidden = false;
+    const btn = document.querySelector('#g-over [data-act="bench"]');
+    btn?.click();
+    const labels = [...document.querySelectorAll('.btns button')].map((b) => b.textContent);
+    const listed = ['Act 1', 'Act 2', 'Act 3', 'Act 4', 'The Encore', 'Back'].every((l) => labels.includes(l));
+    [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'Back')?.click();
+    const back = !over.hidden;
+    over.hidden = true;
+    return ok(!!btn && listed && back, { btn: !!btn, labels, back });
+  },
+});
+
 story('treasures/spots-not-on-vent-landings', {
   about: 'No treasure spot sits on a vent\'s landing point: any that would are moved over, onto the same surface (the new living room layout has none that would).',
   setup() { fresh(); },
