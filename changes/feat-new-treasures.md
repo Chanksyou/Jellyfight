@@ -1,0 +1,1 @@
+adds 13 new Treasures across Common, Rare, Epic and Legendary rarities (Damp Sponge, Pop Rocks, Letter Opener, Toy Rocket, Reading Glasses, Juice Box, Espresso Cup, Store Coupon, Gold Medal, Pocket Watch, Lucky Seven, Laser Pointer and Humidifier).
