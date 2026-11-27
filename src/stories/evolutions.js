@@ -256,7 +256,7 @@ story('dev/balance-editor-groups', {
     resetBalance(G().run);
     return ok(!chips.includes('Evolutions') && chips.includes('Jelly types') && perType.length === 8 && perType.every((n) => n === 12)
       && fireRows.length === 13 && fireRows[0] === 'fire' && fireRows.includes('slowBurn') && legendary.includes('cinder') && !!burn && !!hit && !!hp && live
-      && CONTENT.jellies.fire.hit === 0.6 && before.id === 'slowBurn',
+      && CONTENT.jellies.fire.hit === 0.75 && before.id === 'slowBurn',
       { chips, perType, fireRows, legendary: legendary.length, burn: !!burn, live, hit: CONTENT.jellies.fire.hit });
   },
 });
