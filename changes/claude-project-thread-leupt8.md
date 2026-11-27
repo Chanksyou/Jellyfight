@@ -1,1 +1,1 @@
-Pogo Stick now stomps for 1x, up to 4x in a row, and Jelly Mould's turrets get 25/45/65 Health with 40/60/80% damage, while Rolling Pin adds 50% to fresh bugs.
+Pogo Stick now stomps for 1x, up to 4x in a row; Jelly Mould's turrets get 25/45/65 Health with 40/60/80% damage; Rolling Pin adds 50% to fresh bugs; Move speed cards are a little less likely to come up; Mosquitoes zip shorter and slower, and bite with a longer windup, shorter reach and less range.
