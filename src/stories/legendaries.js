@@ -271,7 +271,7 @@ function nextStomp(log, n = 150) {
 }
 
 story('treasures/stomp', {
-  about: 'stomp (Pogo Stick): falling onto a bug stomps it for 4x Attack damage: it is Stunned and squashed flat, and the jelly bounces back up at jump speed with a moment it can\'t be hurt. Without the Pogo Stick the jelly just falls past it.',
+  about: 'stomp (Pogo Stick): falling onto a bug stomps it for 1x Attack damage: it is Stunned and squashed flat, and the jelly bounces back up at jump speed with a moment it can\'t be hurt. Without the Pogo Stick the jelly just falls past it.',
   setup() { setupFight({ bubbles: false, lash: false }); },
   play() {
     const { run, player } = G(), log = record('damage_taken');
@@ -282,12 +282,12 @@ story('treasures/stomp', {
     const k = nextStomp(log), rising = player.velocity.y, safe = run.iFrames, squashed = bug.squashT > 0, stunned = bug.stunT > 0.9;
     step(10);
     const up = !player.grounded && player.position.y > bug.pos.y + bug.r * 2;
-    return ok(without === 0 && k === 4 && rising > 0.6 && up && squashed && stunned && safe > 0.25 && safe <= 0.3, { without, k, rising, up, squashed, stunned, safe });
+    return ok(without === 0 && k === 1 && rising > 0.6 && up && squashed && stunned && safe > 0.25 && safe <= 0.3, { without, k, rising, up, squashed, stunned, safe });
   },
 });
 
 story('treasures/stomp-chain', {
-  about: 'stomp: each stomp in a row before the jelly touches the ground hits 1x harder, 4x, 5x, 6x, 7x then 8x and no more; landing on the floor starts the count again at 4x. A mid-air jump spent before a stomp comes back with the bounce.',
+  about: 'stomp: each stomp in a row before the jelly touches the ground hits harder, 1x, 2x, 3x, then 4x and no more; landing on the floor starts the count again at 1x. A mid-air jump spent before a stomp comes back with the bounce.',
   setup() { setupFight({ bubbles: false, lash: false }); give('pogoStick', 'penSpring'); },
   play() {
     const { player } = G(), log = record('damage_taken'), bug = roachAt(0, 0);
@@ -300,7 +300,7 @@ story('treasures/stomp-chain', {
     const landed = player.grounded;
     bug.pos.x -= 0.5; hang(0.15);
     const again = nextStomp(log);
-    return ok(ks.join() === '4,5,6,7,8,8' && jumpsBack && landed && again === 4, { ks, jumpsBack, landed, again });
+    return ok(ks.join() === '1,2,3,4,4,4' && jumpsBack && landed && again === 1, { ks, jumpsBack, landed, again });
   },
 });
 
@@ -328,12 +328,12 @@ story('treasures/stomp-flyer', {
     const fly = spawn('mosquito', near(0, 0, 0.12), { still: true, hp: 9999 });
     hang(0.3);
     const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === fly.id;
-    return ok(k === 4 && hit && player.velocity.y > 0.6, { k, hit, vy: player.velocity.y });
+    return ok(k === 1 && hit && player.velocity.y > 0.6, { k, hit, vy: player.velocity.y });
   },
 });
 
 story('treasures/stomp-elite', {
-  about: 'stomp: an Elite can be stomped (4x Attack damage, and the jelly bounces), but it is not Stunned and gives no moment of safety.',
+  about: 'stomp: an Elite can be stomped (1x Attack damage, and the jelly bounces), but it is not Stunned and gives no moment of safety.',
   setup() { fresh({ bubbles: false, lash: false }); give('pogoStick'); },
   play() {
     const { run, player, enemies } = G(), log = record('damage_taken');
@@ -341,12 +341,12 @@ story('treasures/stomp-elite', {
     const E = run.elites.list.find((x) => x.kind === 'controller'), e = E.entry, c = enemies.center(e);
     player.position.set(c.x, c.y + e.r + 0.1, c.z); player.peakY = player.position.y; player.grounded = false; player.velocity.set(0, 0, 0);
     const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === e.id;
-    return ok(k === 4 && hit && run.iFrames === 0 && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, safe: run.iFrames, vy: player.velocity.y });
+    return ok(k === 1 && hit && run.iFrames === 0 && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, safe: run.iFrames, vy: player.velocity.y });
   },
 });
 
 story('treasures/stomp-boss', {
-  about: 'stomp: the boss can be stomped from a plain jump (4x Attack damage, and the jelly bounces), but it is never Stunned.',
+  about: 'stomp: the boss can be stomped from a plain jump (1x Attack damage, and the jelly bounces), but it is never Stunned.',
   setup() { fresh({ bubbles: false, lash: false }); give('pogoStick'); G().run.startBossIntro(); },
   play() {
     const { run, player, enemies } = G(), log = record('damage_taken');
@@ -356,7 +356,7 @@ story('treasures/stomp-boss', {
     const c = enemies.center(e);
     player.position.set(c.x, B.holder.position.y + run.cfg.jumpHeight, c.z);   // the peak of a plain jump from the floor player.peakY = player.position.y; player.grounded = false; player.velocity.set(0, 0, 0);
     const k = nextStomp(log), hit = dmgBy(log, 'stomp')[0]?.targetId === e.id;
-    return ok(k === 4 && hit && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, stun: e.stunT, vy: player.velocity.y, phase: run.phase });
+    return ok(k === 1 && hit && !(e.stunT > 0) && player.velocity.y > 0.6, { k, hit, stun: e.stunT, vy: player.velocity.y, phase: run.phase });
   },
 });
 
@@ -386,7 +386,7 @@ phone('stomp-with-touch', {
     const k = nextStomp(log), vy = player.velocity.y;
     btn.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true }));
     btn.setPointerCapture = capture;
-    return ok(k === 4 && vy > 0.6, { k, vy });
+    return ok(k === 1 && vy > 0.6, { k, vy });
   },
 });
 

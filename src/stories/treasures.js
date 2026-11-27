@@ -1077,7 +1077,7 @@ story('treasures/execute-elites', {
   },
 });
 story('treasures/fresh-damage', {
-  about: 'fresh-damage (Rolling Pin): a hit on a bug above 90% Health does 40% more; once it is lower, hits do the usual.',
+  about: 'fresh-damage (Rolling Pin): a hit on a bug above 90% Health does 50% more; once it is lower, hits do the usual.',
   setup() { setupFight({ lash: false, bubbles: false }); give('rollingPin'); spawn('mantis', near(0.2, 0), { still: true }); },
   play() {
     step(1);
@@ -1086,7 +1086,7 @@ story('treasures/fresh-damage', {
     const first = hp0 - e.hp, hp1 = e.hp;
     bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' });   // now under 90%
     const second = hp1 - e.hp;
-    return ok(Math.abs(first - 35) < 1e-9 && Math.abs(second - 10) < 1e-9, { first, second });
+    return ok(Math.abs(first - 37.5) < 1e-9 && Math.abs(second - 10) < 1e-9, { first, second });
   },
 });
 story('treasures/hit-less', {

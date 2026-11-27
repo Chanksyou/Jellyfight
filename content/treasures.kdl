@@ -461,8 +461,8 @@ treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="+15% dama
 treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits finish off bugs under 15% Health (Elites under 8%, never the Boss)." stack=1 {
     execute under=0.15 elites=0.08
 }
-treasure "rollingPin" name="Rolling Pin" icon="🥖" rarity="rare" text="+40% damage to anything above 90% Health." stack=3 {
-    fresh-damage 40 above=0.9
+treasure "rollingPin" name="Rolling Pin" icon="🥖" rarity="rare" text="+50% damage to anything above 90% Health." stack=3 {
+    fresh-damage 50 above=0.9
 }
 treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Hits take 1 less Health, never under 0.5." stack=2 {
     hit-less 1 least=0.5
@@ -478,18 +478,18 @@ treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 2
 }
 // Megabonk-inspired (Chan, Nov 14): XP for distance, a fast glass cannon that bleeds, a tornado on attack
 // Jelly Mould (Chan, Nov 25): a little jelly that sets on the floor and shoots with you (src/turrets.js)
-treasure "jellyMould" name="Jelly Mould" icon="🍮" rarity="rare" attack=#true not-for="tentacle" text="Every 10 s: a little jelly with 8 Health fires your attack for 40% damage. Lasts 8 s." {
+treasure "jellyMould" name="Jelly Mould" icon="🍮" rarity="rare" attack=#true not-for="tentacle" text="Every 10 s: a little jelly with 25 Health fires your attack for 40% damage. Lasts 8 s." {
     every 10 {
-        turret time=8 health=8 dmg=0.4
+        turret time=8 health=25 dmg=0.4
     }
-    level 2 text="Every 10 s: a little jelly with 8 Health fires your attack for 40% damage. Lasts 16 s." {
+    level 2 text="Every 10 s: a little jelly with 45 Health fires your attack for 60% damage. Lasts 16 s." {
         every 10 {
-            turret time=16 health=8 dmg=0.4
+            turret time=16 health=45 dmg=0.6
         }
     }
-    level 3 text="Every 10 s: a little jelly with 8 Health fires your attack for 40% damage. Lasts 24 s." {
+    level 3 text="Every 10 s: a little jelly with 65 Health fires your attack for 80% damage. Lasts 24 s." {
         every 10 {
-            turret time=24 health=8 dmg=0.4
+            turret time=24 health=65 dmg=0.8
         }
     }
 }
@@ -550,6 +550,6 @@ treasure "goodieBag" name="Goodie Bag" icon="🛍️" rarity="legendary" text="E
 treasure "racket" name="Badminton Racket" icon="🏸" rarity="legendary" attack=#true text="Attacks swat Shots back at their shooter for 3x Attack damage." {
     swat back=3 reach=0.02
 }
-treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 4x Attack damage and spring back up. Each stomp in a row adds 1x, up to 8x." {
-    stomp dmg=4 step=1 most=8 stun=1 safe=0.3 reach=0.02 drop=0.03
+treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 1x Attack damage and spring back up. Each stomp in a row adds 1x, up to 4x." {
+    stomp dmg=1 step=1 most=4 stun=1 safe=0.3 reach=0.02 drop=0.03
 }
