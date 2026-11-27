@@ -1,1 +1,0 @@
-replaces the jelly pick screen's carousel with a two-column Spotlight and 2D Roster Grid featuring one-shot aura-lit tiles, Favorites pinning, a Random roulette tile, and remembered last-picked jelly across sessions.
