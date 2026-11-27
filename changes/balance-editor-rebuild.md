@@ -1,0 +1,1 @@
+re-does the balance editor: Evolutions are Legendary Treasures under Treasures (with a rarity row), and a new Jelly types group holds each type's starting stats and its 12 Attack upgrades, so the elemental upgrades can be tuned too.
