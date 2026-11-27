@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v746 re-does the balance editor: Evolutions are Legendary Treasures under Treasures (with a rarity row), and a new Jelly types group holds each type's starting stats and its 12 Attack upgrades, so the elemental upgrades can be tuned too.
+
 v745 - Icons that showed as blank boxes on Windows 10 now draw: 22 icons (11 Treasures, the Normal and Tentacle jellies, Rebound, The Clog and 6 Attack upgrades) use older emoji, and a guard story keeps new ones to Emoji 12. - The Health bar no longer starts a run undrawn on some Windows PCs: the menu now hides the HUD with opacity instead of visibility.
 
 v744 overhauls Dendi's boss-finish sequence with an immediate break callout and sound before fade, smooth pose cross-fading, a 4-beat paw strike with knockback and celebratory rings, camera dolly-in, and victory fanfare.
