@@ -268,7 +268,7 @@ story('spin/cards-follow-the-spin', {
       if (kind === 'levelup') openLevelUp(); else run.pickTreasure('A treasure!', 'Choose a treasure.', 'room');
       const offer = kind === 'levelup' ? run.cardsOnOffer : spinning().o.offer, sp = spinning();
       const first = !!machine() && !shownCards().length && !!sp;
-      const T = sp.times, want = T.lever + Math.max(...T.stops) + T.hold;
+      const T = sp.times, want = T.lever + Math.max(...T.stops) + T.hold + (sp.up >= 0 ? LOOK.num('spin-upgrade', 600) : 0);
       const landedAt = step(400, () => sp.reels.every((r) => r.landed)) + 1, lines = paylines();
       const frames = landedAt + untilCards();
       const names = shownCards().map((b) => b.querySelector('.ui-card-name').textContent);

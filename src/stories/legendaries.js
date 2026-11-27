@@ -9,7 +9,7 @@ import { rollChance } from '../chance.js';
 import { CONTROLLER_AT, G, dmgBy, fresh, give, near, ok, phone, record, roachAt, setupFight, spawn, spy, step, story, stub, tp, V } from './kit.js';
 
 const OLD_LEGENDARIES = ['dice', 'notebook', 'handMirror', 'snooze', 'discoBall', 'bubbleBath', 'hotWaterBottle', 'toyMouse', 'potLid', 'bloodyFangs',
-  'goodieBag', 'newtonsCradle', 'pogoStick', 'racket'];   // (the new Legendaries join here)
+  'goodieBag', 'newtonsCradle', 'pogoStick', 'racket', 'pocketWatch', 'luckySeven', 'humidifier'];   // (the new Legendaries join here)
 const EVOLUTION_IDS = () => CONTENT.evolutions.filter((e) => !e.retired).map((e) => e.id);
 
 // every id the Boss reward's Legendary pick offers this run, over many rolls

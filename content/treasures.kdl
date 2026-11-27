@@ -557,7 +557,7 @@ treasure "juiceBox" name="Juice Box" icon="🧃" rarity="rare" attack=#true text
     crit chance=0.05 mult=3
     heal-on-crit 1
 }
-treasure "espressoCup" name="Espresso Cup" icon="☕" rarity="epic" attack=#true text="+5% Crit chance. On a Crit: +15% Fire rate for 4 s, up to +45%." stack=5 {
+treasure "espressoCup" name="Espresso Cup" icon="🧉" rarity="epic" attack=#true text="+5% Crit chance. On a Crit: +15% Fire rate for 4 s, up to +45%." stack=5 {
     crit chance=0.05 mult=3
     stack-buff "crit" "fire-rate" 15 percent=#true time=4 stacks=3 extra-stacks=2
 }
@@ -572,7 +572,7 @@ treasure "luckySeven" name="Lucky Seven" icon="🎰" rarity="legendary" text="+7
 treasure "laserPointer" name="Laser Pointer" icon="🔴" rarity="legendary" attack=#true needs-crit=#true text="Crits deal +100% extra damage." {
     crit-damage 1
 }
-treasure "humidifier" name="Humidifier" icon="♨️" rarity="legendary" text="2x all Health healing, Health regen and Shield refill speed." {
+treasure "humidifier" name="Humidifier" icon="🚿" rarity="legendary" text="2x all Health healing, Health regen and Shield refill speed." {
     regen-mult 2
 }
 treasure "readingGlasses" name="Reading Glasses" icon="👓" rarity="common" attack=#true text="+30% damage to bugs within 14 cm." stack=5 {
