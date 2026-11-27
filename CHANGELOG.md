@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v749 retunes 41 Attack upgrades and four jelly types (Fire, Wind, Glitter, Tentacle) from Chan's number list: Fire hits harder and has less Health, Wind's gust hits softer, Glitter's bombs grow and hit harder, Tentacle reaches further.
+
 v748 replaces the jelly pick screen's carousel with a two-column Spotlight and 2D Roster Grid featuring one-shot aura-lit tiles, Favorites pinning, a Random roulette tile, and remembered last-picked jelly across sessions.
 
 v747 Pogo Stick now stomps for 1x, up to 4x in a row; Jelly Mould's turrets get 25/45/65 Health with 40/60/80% damage; Rolling Pin adds 50% to fresh bugs; Move speed cards are a little less likely to come up.
