@@ -494,6 +494,6 @@ story('treasures/plain-pop-looks', {
       return { rings: rings.length, drops: bursts[0]?.[2], puff: puffs[0]?.[4] };
     };
     const play = pop(false), stage = pop(true);
-    return ok(stage.rings === play.rings + 1 && stage.drops === play.drops * 2 && play.puff === LOOK.num('bubble-pop-puff', 0.2) && B.mat.sheen === 1 && B.mat.opacity === LOOK.num('bubble-opacity', 0.28) && B.goldMat.opacity === 0.6, { play, stage });
+    return ok(stage.rings === play.rings + 1 && stage.drops === play.drops * 2 && play.puff === LOOK.num('bubble-pop-puff', 0.2) && B.mat.uniforms.uCore.value === LOOK.num('bubble-film-core', 0.05), { play, stage });
   },
 });
