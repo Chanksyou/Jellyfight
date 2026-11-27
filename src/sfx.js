@@ -617,7 +617,7 @@ export const sfx = {
   // fall in pitch, so this one never blends in), then a carbonated fizz of tiny crackles
   pop(big = false, hostile = false) {   // hostile: a bug's own pop (the Bull's little bulls), which keeps its synthesized sound
     if (!ready() || !gap('pop', 25)) return;
-    const R = { ...EVERYDAY, rate: 0.92 + rng() * 0.16 };
+    const R = { ...EVERYDAY, rate: (0.92 + rng() * 0.16) * (big && !hostile ? 0.85 : 1) };   // a giant bubble pops lower
     if (big && !hostile) { if (sample('bubble-pop-big', R)) return; } else if (!hostile) { if (sample('bubble-pop', R)) return; }
     const j = jitter(0.12);
     tone('sine', (big ? 380 : 900) * j, (big ? 1300 : 2600) * j, big ? 0.07 : 0.035, big ? 0.2 : 0.13);

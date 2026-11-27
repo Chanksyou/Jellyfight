@@ -4,6 +4,8 @@
 // split-on-hit, which Split Blob brought (src/stories/poison.js).
 import { bus } from '../events.js';
 import { LOOK } from '../look.js';
+import { sfx } from '../sfx.js';
+import { juice } from '../juice.js';
 import { CONTENT, compileMods, compileTreasures } from '../content.js';
 import { parse } from '../kdl.js';
 import { G, V, offs, ok, record, roachAt, setupFight, spy, step, story, stub, tp } from './kit.js';
@@ -178,6 +180,23 @@ story('treasures/pop-chain', {
     withWords('pop-chain 0.6');
     const on = chain();
     return ok(!off.nb.length && !off.nc.length && off.done === '1000' && three(on) && on.own.length === 1 && !!mistake('pop-chain 0'), { off, on });
+  },
+});
+
+story('treasures/pop-chain-damage-lands-at-once', {
+  about: 'pop-chain: the damage of every chained pop lands in the same frame as the first, but each one\'s picture (its puff, pop sound and tearing film) starts 0.04 s after the one that set it off: 0, 0.04 and 0.08 s down a row of three.',
+  setup() { calm(); },
+  play() {
+    withWords('pop-chain 0.6');
+    juice.calm = false;
+    const B = G().run.bubbles, pops = spy(sfx, 'pop');
+    const on = chain();
+    const hurt = three(on);
+    step(1);
+    const delays = B.shells.map((S) => +(-S.t).toFixed(2)).sort((a, b) => a - b);
+    const quietNow = pops.length;
+    step(12);
+    return ok(hurt && delays.join() === '0,0.04,0.08' && pops.length > quietNow && !B.shells.length, { on, delays, quietNow, later: pops.length });
   },
 });
 
@@ -481,7 +500,7 @@ story('treasures/flight-combos', {
 });
 
 story('treasures/plain-pop-looks', {
-  about: 'A plain bubble popping on a bug shows a ring and twice the droplets only on the pick screen\'s stage (fx.showcase), and in play adds nothing: the same droplets, no extra ring; its soft puff is mostly clear (--bubble-pop-puff).',
+  about: 'A plain bubble popping on a bug shows a ring and twice the droplets (12, not 6) only on the pick screen\'s stage (fx.showcase), and in play adds nothing: the same droplets, no extra ring; its soft puff is mostly clear (--bubble-pop-puff).',
   setup() { calm(); },
   play() {
     const { run, fx } = G(), B = run.bubbles, at = bell().add(V(0, 0, -0.15));
@@ -491,7 +510,7 @@ story('treasures/plain-pop-looks', {
       try {
       B.pop(hang(at), bugAt(at.clone().add(V(-0.05, 0, 0))), run.S, run.mods);
       } finally { fx.showcase = false; }
-      return { rings: rings.length, drops: bursts[0]?.[2], puff: puffs[0]?.[4] };
+      return { rings: rings.length, drops: bursts.reduce((n, c) => n + c[2], 0), puff: puffs[0]?.[4] };
     };
     const play = pop(false), stage = pop(true);
     return ok(stage.rings === play.rings + 1 && stage.drops === play.drops * 2 && play.puff === LOOK.num('bubble-pop-puff', 0.2) && B.mat.uniforms.uCore.value === LOOK.num('bubble-film-core', 0.05), { play, stage });

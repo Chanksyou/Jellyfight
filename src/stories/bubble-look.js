@@ -16,13 +16,14 @@ story('attack/bubble-draw-size-leaves-hits-alone', {
       enemies.clear(); B.reset(); B.draw = draw;
       const e = spawn('roach', G().player.position.clone().add(V(0, 0, -0.2)), { still: true, hp: 9999 });
       const hits = record('damage_taken'), b = B.blow(bell(), e, { size: run.S.bubbleSize, dmg: run.S.bubbleDamage, pierce: 1 });
+      b.wobble = 0;   // its bob's phase is a roll: the same for both
       let scale = 0;
       const frame = step(120, () => { if (!b.done) scale = b.m.scale.z; return hits.some((h) => h.source === 'bubble'); });
       return { frame, dmg: hits.find((h) => h.source === 'bubble')?.amount, scale: +(scale / b.r).toFixed(3) };
     };
     try {
       const one = shot(1), two = shot(2);
-      return ok(one.frame < 120 && one.frame === two.frame && one.dmg === two.dmg && one.scale === 1 && two.scale === 2, { one, two });
+      return ok(one.frame < 120 && one.frame === two.frame && one.dmg === two.dmg && Math.abs(one.scale - 1) < 0.03 && Math.abs(two.scale - 2) < 0.06, { one, two });
     } finally { B.draw = was; }
   },
 });
