@@ -747,6 +747,7 @@ export class Run {
       if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount, mods: this.mods });
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius, moving: P.fullSpeed,
+        stillT: this.stillT, maxHealth: s.health, heal: (n) => this.heal(n, true),
         pulse: (k) => P.avatar?.pulse(k),
         grab: (ef) => this.lash.grab(origin, this.tentacleStats, this.mods.hits.tentacles, ef),
         flare: (mult) => { this.lash.flare = Math.max(this.lash.flare, mult); return this.tentacleStats.reach * mult; },

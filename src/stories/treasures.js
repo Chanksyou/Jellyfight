@@ -1432,5 +1432,34 @@ story('treasures/elite-jump', {
     );
   },
 });
+story('treasures/still-heal', {
+  about: 'still-heal (Damp Sponge): standing still for 1 s opens a floor zone healing 5% max Health/s (+2.5% per extra copy), and Pot Lid skips offering it.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('dampSponge'); },
+  play() {
+    const { run } = G(), maxHp = run.S.health, half = maxHp * 0.5;
+    run.health = half;
+    step(30);   // 0.5 s standing still: below wait=1 s
+    const earlyVisible = run.gadgets.healZone.visible, earlyHp = run.health;
+    step(90);   // 1.5 s more (total 2.0 s -> 1.0 s active healing)
+    const activeVisible = run.gadgets.healZone.visible, healed1 = run.health - half;
+    give('dampSponge');
+    run.health = half;
+    step(60);   // 1.0 s more at 2 copies (7.5% max Health/s)
+    const healed2 = run.health - half;
+    give('potLid');
+    const sponge = CONTENT.treasures.find((t) => t.id === 'dampSponge');
+    const skippedByPotLid = !run.takeable(sponge);
+    const want1 = maxHp * 0.05, want2 = maxHp * 0.075;
+    return ok(
+      !earlyVisible && Math.abs(earlyHp - half) < 1e-6
+      && activeVisible
+      && Math.abs(healed1 - want1) < want1 * 0.12
+      && Math.abs(healed2 - want2) < want2 * 0.12
+      && skippedByPotLid,
+      { earlyVisible, earlyHp, activeVisible, healed1: +healed1.toFixed(4), want1: +want1.toFixed(4), healed2: +healed2.toFixed(4), want2: +want2.toFixed(4), skippedByPotLid },
+    );
+  },
+});
+
 
 

@@ -126,6 +126,10 @@ export class Gadgets {
       g.visible = false; this.group.add(g);
       return g;
     });
+    // Damp Sponge: a soft mint-aqua healing pool on the floor under you while standing still
+    this.healZone = glowPool('lamp', LOOK.color('treasure-dampSponge', '#6effc8'));
+    this.group.add(this.healZone);
+    this.healZoneAlpha = 0;
     // Chore List: a gold target over the marked bug
     const gold = LOOK.color('bounty', '#ffd23a');
     this.bountyMark = new THREE.Group();
@@ -158,6 +162,8 @@ export class Gadgets {
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
     this.auraCharge = 0; this.auraPulse = 1;
+    this.healZone.visible = false;
+    this.healZoneAlpha = 0;
     this.props.reset(); this.bursts.reset();
     this.companions.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
@@ -518,6 +524,21 @@ export class Gadgets {
       s.userData.color.copy(this.stickColor).lerp(_white, 0.1 + 0.25 * k + (this.auraPulse < 0.15 ? 0.2 : 0));
       s.userData.opacity = 0.55 + 0.45 * k;
     } else this.stick.visible = false;
+
+    // still-heal (Damp Sponge): standing still on the ground opens a healing floor zone under you
+    const H = M.stillHeal;
+    const healActive = !!(H && (ctx.stillT || 0) >= H.wait);
+    if (healActive) {
+      this.healZone.position.set(feet.x, feet.y + 0.004, feet.z);
+      this.healZone.scale.set(H.radius, 1, H.radius);
+      this.healZoneAlpha = Math.min(1, this.healZoneAlpha + dt * 5);
+      ctx.heal?.(ctx.maxHealth * H.share * dt);
+      if (!this.looks.quiet) this.healZone.material.uniforms.uTime.value += dt * 0.4;
+    } else {
+      this.healZoneAlpha = Math.max(0, this.healZoneAlpha - dt * 6);
+    }
+    this.healZone.visible = this.healZoneAlpha > 0.01;
+    this.healZone.material.uniforms.uOpacity.value = this.healZoneAlpha * LOOK.num('treasure-sponge-glow', 0.65);
 
     // touch-sting (Lion's Mane): whatever touches you gets stung
     const Tc = M.touch;

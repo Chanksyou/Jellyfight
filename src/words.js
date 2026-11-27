@@ -993,6 +993,7 @@ export function newMods() {
     regenMult: 1,                    // regen-mult: multiplies Health healing, Health regen and Shield refill (run.js, shield.js)
     firstTreasureBonus: 0,           // first-treasure-bonus: extra Treasure picks on the first Treasure opened each act (run.js)
     eliteJump: null,                 // elite-jump: { jumps, time } extra mid-air jumps after killing an Elite (run.js)
+    stillHeal: null,                 // still-heal: { share, perStack, wait, radius } (gadgets.js, run.js)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1943,6 +1944,18 @@ export const TREASURE_WORDS = {
       return (m) => {
         const e = m.eliteJump;
         m.eliteJump = e ? { jumps: Math.max(e.jumps, n), time: Math.max(e.time, p.time) } : { jumps: n, time: p.time };
+      };
+    },
+  },
+  'still-heal': {
+    doc: 'After standing still on the ground for `wait` s, a floor zone of `radius` m opens under you and heals `share` (0.05 = 5%) of your max Health a second while you stay in it. Extra copies add `per-stack`.',
+    args: ['share'],
+    props: { 'per-stack': 0.025, wait: 1, radius: 0.12 },
+    make: ([share], p) => {
+      if (!(share > 0 && p['per-stack'] >= 0 && p.wait > 0 && p.radius > 0)) throw new Error('still-heal: share, wait and radius must be above 0, and per-stack 0 or more');
+      return (m) => {
+        const s = m.stillHeal;
+        m.stillHeal = s ? { ...s, share: s.share + p['per-stack'], radius: Math.max(s.radius, p.radius) } : { share, perStack: p['per-stack'], wait: p.wait, radius: p.radius };
       };
     },
   },

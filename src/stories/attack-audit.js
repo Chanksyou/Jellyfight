@@ -100,6 +100,7 @@ export const AUDIT = {
     'heal-on-crit', 'crit-damage', 'regen-mult',   // crit healing, crit multiplier bonus, and healing/regen/Shield refill multiplier (not attacks of their own)
     'close-damage', 'bleed-on-hit',   // close-range damage multiplier and Bleed status on hit (not attacks of their own)
     'first-treasure-bonus', 'elite-jump',   // extra Treasure pick per act and temporary mid-air jump on Elite kill (not attacks of their own)
+    'still-heal',   // Damp Sponge: standing-still healing floor zone (not an attack)
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {
