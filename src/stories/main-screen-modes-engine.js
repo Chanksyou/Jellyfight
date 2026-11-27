@@ -412,7 +412,7 @@ story('dev/panel-has-every-tool', {
     const opened = !sheet.hidden;
     const groups = {};
     for (const id of ['play', 'tune', 'build', 'check']) { tab(id).click(); groups[id] = [...pane(id).querySelectorAll('[data-act]')].map((b) => b.dataset.act).join() + (visible(id) ? '' : '!hidden'); }
-    const grouped = JSON.stringify(groups) === JSON.stringify({ play: 'boss,duel,roam,arena4', tune: 'kit,tuner', build: 'layout', check: 'diag' });
+    const grouped = JSON.stringify(groups) === JSON.stringify({ play: 'boss,duel,roam,arena4', tune: 'kit,tuner', build: 'layout', check: 'diag,bench' });
     const remembered = localStorage.getItem('jellyrun.dev-group') === 'check';
     // the boss and 1 on 1 pickers open and offer their fights
     const pick = (act) => { over.hidden = false; $(`[data-act="${act}"]`).click(); const names = [...document.querySelectorAll('.btns button')].map((b) => b.textContent); const hid = over.hidden; [...document.querySelectorAll('.btns button')].find((b) => b.textContent === 'Back')?.click(); return { names: names.length, hid, back: !over.hidden }; };
@@ -460,7 +460,7 @@ story('menu/dev-tools-locked', {
     try { sessionStorage.removeItem('jellyrun.dev'); } catch {}
     G().run.start();
     const afterLock = G().run.dev;
-    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && sheetOpened && tools.join() === 'boss,duel,roam,arena4,kit,tuner,layout,diag'
+    return ok(!restart && graphics.join() === 'low,medium,high' && hiddenAtFirst && asks && oldPassFails && sheetOpened && tools.join() === 'boss,duel,roam,arena4,kit,tuner,layout,diag,bench'
       && asked.every((u) => u.endsWith('api/dev')) && !devBefore && devRun && nextRunDev && !afterLock && notInPage,
       { restart, graphics, hiddenAtFirst, asks, oldPassFails, tools, sheetOpened, asked, devBefore, devRun, nextRunDev, afterLock });
   },
