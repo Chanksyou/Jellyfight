@@ -65,6 +65,7 @@ const _zero = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 0.1, 0);      // Poison Rain: blobs start this far above their bug
 const _yAxis = new THREE.Vector3(0, 1, 0), _upDir = _yAxis;
 const V3 = new THREE.Vector3();   // scratch: where a pop's splat lands
+const _fd = new THREE.Vector3(), _zAxis = new THREE.Vector3(0, 0, 1);   // scratch: the flight direction, the mesh's front
 const SCORCH = LOOK.color('lightning-scorch', '#2a2620');   // the mark lightning leaves on the floor
 const STRIKE = LOOK.color('lightning-strike', '#fff27a');   // the ring where a charged strike lands
 // share of power each element deals (see the top of the file)
@@ -116,6 +117,9 @@ export class Bubbles {
     this.draw = LOOK.num('bubble-draw', 2);
     this.drawBig = LOOK.num('bubble-draw-big', 1.4);   // a giant bubble (Reed Stick, nth-attack) is already 2.5x: this keeps it smaller than the jelly
     this.halo = LOOK.num('bubble-halo', 1.6);          // the soft glow round it, in drawn radii
+    // how it leaves the bell, rings in flight and tears open when it pops (looks only: b.r and the hit never move)
+    this.launch = { time: LOOK.num('bubble-launch-time', 0.12), over: LOOK.num('bubble-launch-overshoot', 1.15), settle: LOOK.num('bubble-launch-settle', 0.12) };
+    this.spring = { stretch: LOOK.num('bubble-spring-stretch', 0.12), w: LOOK.num('bubble-spring-rate', 25), zeta: LOOK.num('bubble-spring-damp', 0.35), turn: LOOK.num('bubble-spring-turn', 0.5), turnMin: LOOK.num('bubble-spring-turn-min', 0.04) };
     this.looks = new BubbleLooks(scene, fx);   // the element projectiles
     this.clock = 0;
     this.burning = new Map();          // enemy -> seconds of fire left
@@ -182,6 +186,7 @@ export class Bubbles {
     if (!m) { m = new THREE.Mesh(this.geo, this.mat); batcher.track(m); }
     if (!m.parent) this.scene.add(m);
     m.userData.color = tint; m.userData.opacity = opacity; m.userData.extra = 0;
+    m.quaternion.identity();
     m.visible = true;
     return m;
   }
@@ -442,6 +447,7 @@ export class Bubbles {
     b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
     b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
     b.split = false; b.small = false; b.turret = false;
+    b.sq = this.spring.stretch; b.sv = 0; b.pdOk = false; b.pd ||= new THREE.Vector3();   // its flight stretch and spring, and the way it last flew
     b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
     // a wind blade (bubble-looks.js) hits across its whole arc: this far to each side of its middle
     b.side = o.tint === 'wind' ? b.r * 1.3 * WIND_ARC : 0;
@@ -515,8 +521,8 @@ export class Bubbles {
         // friendly fire glows cool (vfx.js): a soft halo in the bubble's colour, never an enemy's
         const R = b.r * (b.big ? this.drawBig : this.draw);   // its drawn radius
         this.fx.glow.hold(b.m.position, b.golden ? GOLD : this.buffTint || this.friendly, R * this.halo * (this.buffTint ? 1.25 : 1), b.golden ? 0.45 : 0.25);   // buffTint: a live buff's colour (buff-looks.js)
-        const grow = Math.min(1, b.t * 8);
-        b.m.scale.set(R * grow * (1 + Math.sin(b.t * 14) * 0.06), R * grow * (1 - Math.sin(b.t * 14) * 0.06), R * grow);
+        if (juice.calm) b.m.scale.setScalar(R);   // Reduce effects: it just appears at its size
+        else this.shape(b, R, dt);
       }
       // touching an enemy?
       for (const e of E.list) {
@@ -543,6 +549,35 @@ export class Bubbles {
     const done = this.list.filter((b) => b.done);
     done.forEach((b) => this.release(b));
     if (done.length) this.list = this.list.filter((b) => !b.done);
+  }
+
+  // how big a bubble is `t` seconds after it left the bell: swells out, overshoots, settles (1 once done)
+  swell(t) {
+    const L = this.launch;
+    if (t < L.time) return L.over * Math.sin(t / L.time * Math.PI / 2);
+    if (t >= L.time + L.settle) return 1;
+    const u = (t - L.time) / L.settle;
+    return 1 + (L.over - 1) * (1 - u * u * (3 - 2 * u));
+  }
+
+  // its drawn shape in flight: it faces the way it flies, stretched along that by a damped spring (squashed across, same
+  // volume) that starts stretched at the bell and gets a kick from a turn; the real position and hit size never change
+  shape(b, R, dt) {
+    const S = this.spring, len = b.vel.length(), s = this.swell(b.t);
+    if (len > 1e-6) {
+      _fd.copy(b.vel).divideScalar(len);
+      if (b.pdOk) {   // a turn since last frame (homing, ricochet, rebound, orbit) rings the spring; steady steering is under turnMin
+        const turned = Math.acos(Math.max(-1, Math.min(1, _fd.dot(b.pd))));
+        if (turned > S.turnMin) b.sv += S.turn * S.w * Math.min(turned, 1.5) / 1.5;
+      }
+      b.pd.copy(_fd); b.pdOk = true;
+      b.m.quaternion.setFromUnitVectors(_zAxis, _fd);
+    }
+    const h = Math.min(dt, 1 / 30);
+    b.sv += (-S.w * S.w * b.sq - 2 * S.zeta * S.w * b.sv) * h;
+    b.sq = Math.max(-0.25, Math.min(0.35, b.sq + b.sv * h));
+    const along = 1 + b.sq, across = 1 / Math.sqrt(along);
+    b.m.scale.set(R * s * across, R * s * across, R * s * along);
   }
 
   turn(b) {

@@ -1406,6 +1406,14 @@
   --bubble-highlight: 1.1;       /* the two window highlights */
   --bubble-halo: 1.6;            /* the soft glow round it, in drawn radii */
   --bubble-pop-puff: 0.2;        /* how solid the soft puff at a plain bubble's pop is (the droplets and ring carry it) */
+  --bubble-launch-time: 0.12;    /* seconds a bubble swells out of the bell */
+  --bubble-launch-overshoot: 1.15; /* how big it swells past its size before settling (1.15 = 115%) */
+  --bubble-launch-settle: 0.12;  /* seconds from that overshoot back to its size */
+  --bubble-spring-stretch: 0.12; /* how far a new bubble is stretched along its flight (0.12 = 12%, squashed across to keep its volume) */
+  --bubble-spring-rate: 25;      /* how fast that stretch rings (radians a second; higher is a tighter wobble) */
+  --bubble-spring-damp: 0.35;    /* how fast it dies away (0 rings on, 1 no overshoot); about 0.4 s at 0.35 */
+  --bubble-spring-turn: 0.06;    /* the stretch a sharp turn (ricochet, rebound; less for homing and orbit) kicks it with, more or less as it turns */
+  --bubble-spring-turn-min: 0.04; /* turns smaller than this (radians a frame) give no kick, so steady steering stays smooth */
   --friendly: #5ff0ff;           /* your bubbles' glow and pops */
   --crit: #e6fbff;               /* a critical hit's star-flash and its number: white with a cool edge */
   --marble: #6affd2;             /* the Marble treasure: bright mint, glowing, easy to spot rolling */
