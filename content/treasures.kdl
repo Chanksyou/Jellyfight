@@ -575,3 +575,9 @@ treasure "laserPointer" name="Laser Pointer" icon="🔴" rarity="legendary" atta
 treasure "humidifier" name="Humidifier" icon="♨️" rarity="legendary" text="2x all Health healing, Health regen and Shield refill speed." {
     regen-mult 2
 }
+treasure "readingGlasses" name="Reading Glasses" icon="👓" rarity="common" attack=#true text="+30% damage to bugs within 14 cm." stack=5 {
+    close-damage 30 range=0.14
+}
+treasure "letterOpener" name="Letter Opener" icon="🗡️" rarity="rare" attack=#true text="1 in 10 hits: Bleed for 2.4x Attack damage over 5 s, up to 5 stacks." stack=5 {
+    bleed-on-hit chance=0.1 dmg=2.4 time=5 stacks=5
+}

@@ -98,6 +98,7 @@ export const AUDIT = {
     'lucky-rolls',   // Lucky Cat: a second try at your chances (chance.js), no attack of its own
     'on-attack', 'distance-xp', 'health-drain',   // a chance per attack to do a block of timed effects (audited where they're used: Pocket Vacuum's whirl), XP for distance swum, Health seeping away
     'heal-on-crit', 'crit-damage', 'regen-mult',   // crit healing, crit multiplier bonus, and healing/regen/Shield refill multiplier (not attacks of their own)
+    'close-damage', 'bleed-on-hit',   // close-range damage multiplier and Bleed status on hit (not attacks of their own)
   ],
   // bug behaviour words (ENEMY_WORDS) that attack the jelly, plus a bug simply touching it
   bugs: {

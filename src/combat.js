@@ -182,8 +182,8 @@ export class Lash {
   // Bleed (the venom word's): n more stacks on e, each bleeding V.dps of the sting's damage a second
   bleed(e, n, V, dmg) {
     const B = this.venom.get(e) || { stacks: 0, tick: 0.25 };
-    B.stacks = Math.min(V.stacks, B.stacks + n);
-    B.perStack = V.dps * dmg;
+    B.stacks = Math.min(Math.max(B.stacks, V.stacks), B.stacks + n);
+    B.perStack = Math.max(B.perStack || 0, V.dps * dmg);
     B.t = V.time;
     this.venom.set(e, B);
   }
@@ -194,7 +194,7 @@ export class Lash {
       if ((V.tick -= dt) > 0) continue;
       V.tick += 0.25;
       const c = this.enemies.center(e, this._b);
-      bus.emit('damage_taken', { targetId: e.id, amount: V.stacks * V.perStack * 0.25, color: '#b8ff8a', source: 'venom' });
+      bus.emit('damage_taken', { targetId: e.id, amount: V.stacks * V.perStack * 0.25, color: '#b8ff8a', source: 'venom', feedback: { tick: true, soft: true } });
       this.fx.puff(c, this.venomColor.getHex(), 0.004 + V.stacks * 0.0012, 0.3);
     }
   }

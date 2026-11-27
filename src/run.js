@@ -229,6 +229,11 @@ export class Run {
       }
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
+      const Bl = this.mods.bleedOnHit;
+      if (Bl && d.targetId !== PLAYER && !d.feedback?.tick && !d.feedback?.pass && (d.source === 'bubble' || d.source === 'tentacle' || d.source === 'splash') && rollChance(Bl.chance, this.mods)) {
+        const target = this.enemies.byId.get(d.targetId);
+        if (target && !target.dead) this.lash.bleed(target, 1, { dps: Bl.dmg / Bl.time, time: Bl.time, stacks: Bl.stacks }, this.S.bubbleDamage);
+      }
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });

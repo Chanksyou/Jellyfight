@@ -1015,6 +1015,8 @@ export function newMods() {
     orbitMisses: false,              // orbit-misses (bubbles.js fly)
     execute: null,                   // execute: { under, elites } (enemies.js applyDamage)
     freshMore: 0, freshAbove: 0.9,   // fresh-damage: hits on a bug above freshAbove of its Health do this much more (enemies.js)
+    closeMore: 0, closeRange: 0,     // close-damage: hits within closeRange m do this much more (enemies.js)
+    bleedOnHit: null,                // bleed-on-hit: { chance, dmg, time, stacks } (run.js -> combat.bleed)
     hitLess: 0, hitLeast: 0.5,       // hit-less: each hit on you takes this much less, never below hitLeast (run.js hit)
     bossLevels: 0,                   // boss-levels: Treasures that level up when an act's boss falls (run.js onBossDead)
     nightLight: null,                // night-light: { radius, most } (gadgets.js; while "lit")
@@ -1902,10 +1904,30 @@ export const TREASURE_WORDS = {
       return (m) => { m.regenMult *= k; };
     },
   },
+  'close-damage': {
+    doc: 'Hits (not damage over time) on anything within `range` m of you do `percent`% more damage. Copies add.',
+    args: ['percent'],
+    props: { range: 0.14 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.range > 0)) throw new Error('close-damage: percent and range must be above 0');
+      return (m) => { m.closeMore += n / 100; m.closeRange = Math.max(m.closeRange, p.range); };
+    },
+  },
+  'bleed-on-hit': {
+    doc: '`chance` that a hit adds a Bleed stack (at most `stacks`): each stack deals `dmg` times your Attack damage over `time` s, and a new stack refreshes the time. Copies add their chances.',
+    props: { chance: 0.1, dmg: 2.4, time: 5, stacks: 5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('bleed-on-hit: chance must be in (0, 1], dmg and time above 0, and stacks a whole number of 1 or more');
+      return (m) => {
+        const b = m.bleedOnHit;
+        m.bleedOnHit = b ? { ...b, chance: Math.min(1, b.chance + p.chance), dmg: Math.max(b.dmg, p.dmg), time: Math.max(b.time, p.time), stacks: Math.max(b.stacks, p.stacks) } : { ...p };
+      };
+    },
+  },
 };
 
 // the words whose chance rolls through chance.js: owning one lets a needs-chance treasure be offered
-for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit']) {
+for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit', 'bleed-on-hit']) {
   const w = TREASURE_WORDS[k], make = w.make;
   w.make = (...a) => { const apply = make(...a); return (m, copy) => { apply(m, copy); m.chancy = true; }; };
 }

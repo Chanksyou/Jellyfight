@@ -1307,3 +1307,60 @@ story('treasures/espresso-cup-and-lucky-seven', {
     return ok(Math.abs(oneCopy - 1.45) < 1e-6 && Math.abs(twoCopies - 1.75) < 1e-6 && sevenOk, { oneCopy, twoCopies, before, after });
   },
 });
+story('treasures/close-damage', {
+  about: 'close-damage (Reading Glasses): hits on bugs within 14 cm deal +30% damage per copy; bugs farther away take normal damage.',
+  setup() {
+    setupFight({ lash: false, bubbles: false });
+    give('readingGlasses');
+    spawn('mantis', near(0.10, 0), { still: true });
+    spawn('mantis', near(0.22, 0), { still: true });
+  },
+  play() {
+    step(1);
+    const [closeBug, farBug] = G().enemies.list;
+    closeBug.hp = closeBug.maxHp = farBug.hp = farBug.maxHp = 1000;
+    const hit = (e) => { const hp0 = e.hp; bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' }); return +(hp0 - e.hp).toFixed(6); };
+    const close1 = hit(closeBug), far1 = hit(farBug);
+    give('readingGlasses');
+    step(1);
+    const close2 = hit(closeBug), far2 = hit(farBug);
+    return ok(close1 === 13 && far1 === 10 && close2 === 16 && far2 === 10, { close1, far1, close2, far2 });
+  },
+});
+story('treasures/bleed-on-hit', {
+  about: 'bleed-on-hit (Letter Opener): bubble hits on Normal jelly apply Bleed stacks capped at 5 (never 6), dealing ~2.4x Attack damage per stack over 5 s.',
+  setup() { setupFight({ lash: false }); give('letterOpener'); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), pop = run.S.bubbleDamage;
+    e.hp = e.maxHp = 1000;
+    const log = record('damage_taken'), real = Math.random;
+    let firstStacks = 0, stackHistory = [], capped = 0, bleedTotal = 0, afterExpire = -1;
+    try {
+      Math.random = () => 0.01;
+      // 1) Real bubble hit on Normal jelly applies 1 Bleed stack, then let it tick out over 5 s
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      firstStacks = enemies.statuses.bleeding(e);
+      // Move bug out of bubble range so only the 1 Bleed stack ticks for 5 s
+      e.pos.copy(near(0, -1.5));
+      step(310, () => { e.pos.copy(near(0, -1.5)); return false; });
+      bleedTotal = dmgBy(log, 'venom').reduce((s, d) => s + d.amount, 0);
+      afterExpire = enemies.statuses.bleeding(e);
+      // 2) Verify stacking increments up to 5 and caps at 5 (never 6)
+      for (let i = 0; i < 6; i++) {
+        bus.emit('damage_taken', { targetId: e.id, amount: 1, source: 'bubble' });
+        stackHistory.push(enemies.statuses.bleeding(e));
+      }
+      capped = enemies.statuses.bleeding(e);
+    } finally { Math.random = real; }
+    const expected = 2.4 * pop;
+    return ok(
+      firstStacks === 1
+      && afterExpire === 0
+      && bleedTotal >= expected * 0.9 && bleedTotal <= expected * 1.05
+      && stackHistory.join(',') === '1,2,3,4,5,5'
+      && capped === 5,
+      { firstStacks, bleedTotal: +bleedTotal.toFixed(4), expected: +expected.toFixed(4), afterExpire, stackHistory, capped },
+    );
+  },
+});
+
