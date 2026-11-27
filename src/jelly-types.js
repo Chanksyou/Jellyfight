@@ -7,6 +7,34 @@ import { lifetime } from './cosmetics.js';
 import { STAGES } from './stages.js';
 
 export const TYPE_PICK = { start: 'normal' };
+export const LAST_JELLY_KEY = 'jellyrun.jelly';
+export const FAV_JELLIES_KEY = 'jellyrun.favJellies';
+
+// Last jelly picked across sessions (falls back to Normal if missing or locked)
+export function savedJelly() {
+  try {
+    const id = localStorage.getItem(LAST_JELLY_KEY);
+    return id && CONTENT.jellies[id] && !typeLock(id) ? id : 'normal';
+  } catch { return 'normal'; }
+}
+export function saveJelly(id) {
+  try { if (CONTENT.jellies[id]) localStorage.setItem(LAST_JELLY_KEY, id); } catch {}
+}
+
+// Starred favorite jellies (pinned to the front of the pick screen's roster grid)
+export function favJellies() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAV_JELLIES_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter((id) => CONTENT.jellies[id]) : []);
+  } catch { return new Set(); }
+}
+export function toggleFavJelly(id) {
+  const favs = favJellies();
+  const on = !favs.has(id);
+  if (on) favs.add(id); else favs.delete(id);
+  try { localStorage.setItem(FAV_JELLIES_KEY, JSON.stringify([...favs])); } catch {}
+  return on;
+}
 
 // The jelly a new run starts as
 export const startingJelly = () => (CONTENT.jellies[TYPE_PICK.start] ? TYPE_PICK.start : 'normal');

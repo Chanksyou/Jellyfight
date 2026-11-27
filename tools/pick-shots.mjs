@@ -53,23 +53,21 @@ try {
     for (const id of ids) {
       if (only && !only.includes(id)) continue;
       for (const as of sideOnly ? ['side'] : ['side', 'centre']) {
-        // a side card's picture: the card brought to the centre (where it shows whole) with the live
-        // picture off, so it shows what it shows at the side
-        const at = await page.evaluate(({ id, as }) => {
-          const P = window.picker, i = P.ids.indexOf(id), c = i;
+        // the element aura view: Spotlight with live preview off; centre view: Spotlight with live attack
+        await page.evaluate(({ id, as }) => {
+          const P = window.picker, i = P.ids.indexOf(id);
           if (P.live) { P.stopLive(); P.liveSaved = P.live; }
           P.live = as === 'side' ? null : P.liveSaved;
-          P.go(c); P.pos = P.target; P.vel = 0; P.place(); P.auraAt = -1;
-          return i;
+          P.go(i); P.auraAt = -1;
         }, { id, as });
-        await page.waitForFunction(({ at, as }) => {
-          const P = window.picker, card = P.cards[at], aura = P.auras[at];
+        await page.waitForFunction(({ as }) => {
+          const P = window.picker, aura = P.spotAura;
           if (as === 'side') return !P.painter?.has(aura.dataset.aura) || aura.classList.contains('lit');
-          const live = P.live; return live && live.built.get(P.centre) && !live.canvas.hidden && card.querySelector('.tp-live');
-        }, { at, as }, { timeout: 600000, polling: 500 });
+          const live = P.live; return live && live.built.get(P.centre) && !live.canvas.hidden && P.spotArt.querySelector('.tp-live');
+        }, { as }, { timeout: 600000, polling: 500 });
         await page.waitForTimeout(as === 'centre' ? 2500 : 900);   // a moment of the attack or the element
         const file = path.join(out, `${device.name}-${id}-${as}.png`);
-        await page.locator('#type-pick .tp-art').nth(at).screenshot({ path: file, timeout: 120000 });
+        await page.locator('#type-pick .tp-spot .tp-art').screenshot({ path: file, timeout: 120000 });
         shots.push({ id, as, file });
         console.log('✓ ' + path.relative(process.cwd(), file));
       }

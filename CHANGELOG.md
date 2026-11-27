@@ -2,6 +2,10 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v748 replaces the jelly pick screen's carousel with a two-column Spotlight and 2D Roster Grid featuring one-shot aura-lit tiles, Favorites pinning, a Random roulette tile, and remembered last-picked jelly across sessions.
+
+v747 Pogo Stick now stomps for 1x, up to 4x in a row; Jelly Mould's turrets get 25/45/65 Health with 40/60/80% damage; Rolling Pin adds 50% to fresh bugs; Move speed cards are a little less likely to come up.
+
 v746 re-does the balance editor: Evolutions are Legendary Treasures under Treasures (with a rarity row), and a new Jelly types group holds each type's starting stats and its 12 Attack upgrades, so the elemental upgrades can be tuned too.
 
 v745 - Icons that showed as blank boxes on Windows 10 now draw: 22 icons (11 Treasures, the Normal and Tentacle jellies, Rebound, The Clog and 6 Attack upgrades) use older emoji, and a guard story keeps new ones to Emoji 12. - The Health bar no longer starts a run undrawn on some Windows PCs: the menu now hides the HUD with opacity instead of visibility.

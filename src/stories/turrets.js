@@ -63,7 +63,7 @@ story('treasures/turret-fires-the-type-attack', {
 });
 
 story('treasures/turret-levels', {
-  about: 'Jelly Mould: every 10 s a little jelly with 8 Health; it lasts 8 s, then 16 s at level 2 and 24 s at level 3. In play its timer sets one down on the floor under the jelly.',
+  about: 'Jelly Mould: every 10 s a little jelly with 25 Health (45 at level 2, 65 at level 3) and 40% of Attack damage (60% and 80%); it lasts 8 s, then 16 s at level 2 and 24 s at level 3. In play its timer sets one down on the floor under the jelly.',
   setup: () => setup(),
   play() {
     const { run } = G(), times = [];
@@ -75,6 +75,6 @@ story('treasures/turret-levels', {
     }
     step(60 * 11);
     const T = run.turrets.list[0], floor = T && Math.abs(T.position.y - run.player.position.y) < 0.02;
-    return ok(times.join() === '10/8/8/0.4,10/16/8/0.4,10/24/8/0.4' && floor, { times, placed: run.turrets.list.length, floor, at: T?.position.toArray() });
+    return ok(times.join() === '10/8/25/0.4,10/16/45/0.6,10/24/65/0.8' && floor, { times, placed: run.turrets.list.length, floor, at: T?.position.toArray() });
   },
 });
