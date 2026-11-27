@@ -996,6 +996,7 @@ export function newMods() {
     stillHeal: null,                 // still-heal: { share, perStack, wait, radius } (gadgets.js, run.js)
     bombOnHit: null,                 // bomb-on-hit: { chance, dmg, fuse, radius } (run.js -> gadgets)
     missileOnHit: null,              // missile-on-hit: { chance, dmg, speed, turn, life } (run.js -> gadgets)
+    cooldownScale: 1,                // cooldown-scale: multiplies Treasure cooldowns and timer periods (0.75 = 25% shorter)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1981,6 +1982,14 @@ export const TREASURE_WORDS = {
         const r = m.missileOnHit;
         m.missileOnHit = r ? { ...r, chance: Math.max(r.chance, p.chance), dmg: r.dmg + p.dmg } : { ...p };
       };
+    },
+  },
+  'cooldown-scale': {
+    doc: 'Multiplies every Treasure cooldown and timer period by `scale` (0.75 = 25% shorter). Copies multiply.',
+    args: ['scale'],
+    make: ([s]) => {
+      if (!(s > 0 && s <= 1)) throw new Error('cooldown-scale: scale must be in (0, 1]');
+      return (m) => { m.cooldownScale *= s; };
     },
   },
 };

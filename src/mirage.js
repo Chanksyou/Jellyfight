@@ -60,7 +60,8 @@ export class Mirage {
       this.group.visible = this.left > 0;
     }
     if (moving) this.wait += dt;
-    if (this.wait < Q.every) return;
+    const cd = R.mods.cooldownScale ?? 1;
+    if (this.wait < Q.every * cd) return;
     this.wait = 0; this.left = Q.time; this.range = Q.range;
     this.position.copy(P); this.center.copy(P).y += R.cfg.height * 0.5;
     this.group.rotation.y = R.player.facing;

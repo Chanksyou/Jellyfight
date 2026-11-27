@@ -1532,7 +1532,55 @@ story('treasures/missile-on-hit', {
     );
   },
 });
-
-
-
-
+story('treasures/cooldown-scale', {
+  about: 'cooldown-scale (Pocket Watch): scales timed Treasure periods and reactive cooldowns by 0.75x (Guitar Pick fires every 3.75 s instead of 5 s, Rubber Duck resets in 3.0 s instead of 4.0 s) and keeps HUD cooldowns() normalized in [0, 1].',
+  setup() {
+    setupFight({ hurt: true, lash: false, bubbles: false });
+    give('guitarPick');
+    give('rubberDuck');
+    give('pocketWatch');
+    roachAt(0, -0.10);
+  },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone();
+    e.hp = e.maxHp = 1000;
+    const scale = run.mods.cooldownScale;
+    const cdInit = run.cooldowns();
+    const initNorm = Object.values(cdInit).every((c) => c.left >= 0 && c.left <= 1);
+    const log = record('damage_taken');
+    // Wait for Guitar Pick's first chord (~5 * 0.6 * 0.75 = 2.25 s)
+    let t1 = -1, t2 = -1;
+    step(200, () => {
+      e.pos.copy(home);
+      if (dmgBy(log, 'ring').length >= 1) { t1 = run.t; return true; }
+      return false;
+    });
+    // Wait for Guitar Pick's second chord (~3.75 s later, well before 5.0 s)
+    step(260, () => {
+      e.pos.copy(home);
+      if (dmgBy(log, 'ring').length >= 2) { t2 = run.t; return true; }
+      return false;
+    });
+    const period = +(t2 - t1).toFixed(3);
+    // Trigger Rubber Duck (4 s base -> 3.0 s scaled cooldown)
+    run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
+    const duckCdAt = run.squeakCd[0], duckWait = +(duckCdAt - run.t).toFixed(3);
+    const cdMid = run.cooldowns();
+    const midNorm = Object.values(cdMid).every((c) => c.left >= 0 && c.left <= 1) && cdMid.rubberDuck?.left > 0.9;
+    // Step 3.05 s (183 frames): Rubber Duck cooldown should now be expired (< 4.0 s)
+    step(183, () => { e.pos.copy(home); return false; });
+    const duckReadyAt3s = run.t >= duckCdAt;
+    const cdAfter = run.cooldowns();
+    const afterNorm = Object.values(cdAfter).every((c) => c.left >= 0 && c.left <= 1) && cdAfter.rubberDuck?.left === 0;
+    return ok(
+      Math.abs(scale - 0.75) < 1e-6
+      && initNorm && midNorm && afterNorm
+      && t1 > 0 && t2 > t1
+      && Math.abs(period - 3.75) < 0.1
+      && Math.abs(duckWait - 3.0) < 0.05
+      && duckReadyAt3s,
+      { scale, initNorm, midNorm, afterNorm, t1: +t1.toFixed(3), t2: +t2.toFixed(3), period, duckWait, duckReadyAt3s },
+    );
+  },
+});

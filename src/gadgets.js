@@ -229,9 +229,9 @@ export class Gadgets {
 
   // bounty: now and then an ordinary bug far from you gets a gold target (run.js onKill pays it out)
   tickBounty(dt, M, feet) {
-    const B = M.bounty, e = this.bountyBug;
+    const B = M.bounty, e = this.bountyBug, cd = M.cooldownScale ?? 1;
     if (e && (e.dead || !B)) { this.bountyBug = null; this.bountyId = null; }
-    if (B && !this.bountyBug && this.every('bounty', dt, B.every, B.every * 0.5)) {
+    if (B && !this.bountyBug && this.every('bounty', dt, B.every * cd, B.every * cd * 0.5)) {
       const bugs = this.enemies.list.filter((x) => !x.dead && !x.proxy).map((x) => [Math.hypot(x.pos.x - feet.x, x.pos.z - feet.z), x]);
       const far = bugs.filter(([d]) => d >= B.far);
       const pick = far.length ? far[(Math.random() * far.length) | 0][1] : bugs.sort((a, b) => b[0] - a[0])[0]?.[1];
@@ -447,8 +447,9 @@ export class Gadgets {
     if(this.steamOn&&(this.steamT=(this.steamT??0)-dt)<=0){this.steamT=LOOK.num('gadget-steam-gap',.12);this.looks.steam(center);}
 
     // timed effects: every N s, do what's in the block
+    const cd = M.cooldownScale ?? 1;
     for (const T of M.timed) {
-      if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
+      if (this.every(T.key, dt, T.every * cd, T.first * cd)) for (const ef of T.effects) this.fire(ef, ctx);
       else for(const ef of T.effects) {
         if(ef.kind==='bubble-ring'&&this.t[T.key]<LOOK.num('gadget-bath-prepare',.3)){
           this.bathReady.visible=true;this.bathReady.position.copy(center);
@@ -602,14 +603,14 @@ export class Gadgets {
     // toy-mouse: now and then it scurries to the nearest enemy and slams into it
     const Mo = M.mouse;
     this.mouseReady.visible=false;
-    if(Mo&&!this.mouseRun&&(this.t.mouse??Mo.every*.6)>0&&(this.t.mouse??Mo.every*.6)<LOOK.num('gadget-mouse-prepare',.25)){
+    if(Mo&&!this.mouseRun&&(this.t.mouse??Mo.every*cd*.6)>0&&(this.t.mouse??Mo.every*cd*.6)<LOOK.num('gadget-mouse-prepare',.25)){
       this.mouseReady.visible=true;this.mouseReady.position.copy(center).y+=.035;
       if(!this.looks.quiet)this.mouseReady.rotation.z+=dt*18;
       ctx.pulse?.(.08);
     }
     if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
     else {
-      if (!this.mouseRun && this.every('mouse', dt, Mo.every)) {
+      if (!this.mouseRun && this.every('mouse', dt, Mo.every * cd)) {
         const prey = this.near(center, 1.2, { proxies: false })[0];
         if (prey) {
           this.mouseRun = { prey, t: 0 };

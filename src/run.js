@@ -279,8 +279,8 @@ export class Run {
       const M = this.mods;
       const L = M.landingShockwave;
       if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff, L.push);
-      const W = M.landHeal;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
-      if (W && drop > 0.04 && this.t - this.spoutAt >= W.every) {
+      const W = M.landHeal, cd = M.cooldownScale ?? 1;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
+      if (W && drop > 0.04 && this.t - this.spoutAt >= W.every * cd) {
         const P = this.player.position;
         this.spoutAt = this.t; const healed = this.heal(W.health);
         this.gadgets.looks.spout(P.clone(), this.cfg.radius); sfx.whaleSpout(); this.player.avatar?.pulse(0.5);
@@ -1065,8 +1065,9 @@ export class Run {
       return;
     }
     // reflect: the first hit every so often goes back where it came from, and you take none of it
+    const cd = M.cooldownScale ?? 1;
     if (M.reflect && this.t >= this.reflectAt) {
-      this.reflectAt = this.t + M.reflect.every;
+      this.reflectAt = this.t + M.reflect.every * cd;
       this.iFrames = M.reflect.invuln;
       this.mirrorUntil=this.t+M.reflect.invuln;
       const P = this.player.position, at = P.clone().setY(P.y + this.cfg.height * 0.5);
@@ -1090,7 +1091,7 @@ export class Run {
     // squeak-when-hit effects (they stack), each on its own cooldown
     M.squeaks.forEach((Q, i) => {
       if ((this.squeakCd[i] || 0) > this.t) return;
-      this.squeakCd[i] = this.t + Q.cooldown;
+      this.squeakCd[i] = this.t + Q.cooldown * cd;
       const P = this.player.position;
       this.gadgets.bursts.squeak(P,Q.radius);sfx.gadgetSqueak();
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
@@ -1110,7 +1111,7 @@ export class Run {
       if ((this.hurtCd[H.key] || 0) > this.t) continue;
       if (H.lowHealth != null && this.health > this.S.health * H.lowHealth) continue;   // low-health: only when you are down
       if (H.oncePerAct) { if (this.onceUsed.has(H.key)) continue; this.onceUsed.add(H.key); }   // once-per-act
-      this.hurtCd[H.key] = this.t + H.cooldown;
+      this.hurtCd[H.key] = this.t + H.cooldown * cd;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
       const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
       const lashAll = (k) => this.lash.sweepNow(center, this.tentacleStats, this.mods.hits.tentacles, k);   // the lash word with all=#true
@@ -2446,25 +2447,25 @@ export class Run {
   // share of its wait still to go (0 = ready or going off now, 1 = just went off) and spent is a
   // once-a-run (or once-an-act) effect already used. The HUD draws them as clock faces.
   cooldowns() {
-    const M = this.mods, G = this.gadgets, out = (this._cd ||= {});
+    const M = this.mods, G = this.gadgets, cd = M.cooldownScale ?? 1, out = (this._cd ||= {});
     for (const k in out) delete out[k];
     const put = (id, left, spent = false) => {
       if (!id) return;
       left = Math.max(0, Math.min(1, left));
       if (!out[id] || left < out[id].left) out[id] = { left, spent };   // several copies: the soonest
     };
-    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first) / T.every);
+    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first * cd) / (T.every * cd));
     for (const H of M.onHurt) {
       const used = H.oncePerAct && this.onceUsed.has(H.key);   // once-per-act: spent until the next act
-      put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / H.cooldown, used);
+      put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / (H.cooldown * cd), used);
     }
-    M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / Q.cooldown));
+    M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / (Q.cooldown * cd)));
     const O = M.owners;
-    if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * 0.6) / M.mouse.every);
-    if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
+    if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * cd * 0.6) / (M.mouse.every * cd));
+    if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / (M.reflect.every * cd));
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
-    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
+    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / (M.decoy.every * cd));
     if (M.firstTreasureBonus) put(O.firstTreasureBonus, this.actTreasuresOpened >= 1 ? 1 : 0, this.actTreasuresOpened >= 1);
     return out;
   }

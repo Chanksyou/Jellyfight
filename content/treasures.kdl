@@ -598,3 +598,6 @@ treasure "popRocks" name="Pop Rocks" icon="🧨" rarity="common" attack=#true te
 treasure "toyRocket" name="Toy Rocket" icon="🚀" rarity="rare" attack=#true text="1 in 10 hits: fire a homing rocket for 2.5x Attack damage." stack=5 {
     missile-on-hit chance=0.1 dmg=2.5 speed=0.65 turn=8 life=2.5
 }
+treasure "pocketWatch" name="Pocket Watch" icon="⏱️" rarity="legendary" text="Treasure cooldowns are 25% shorter." {
+    cooldown-scale 0.75
+}
