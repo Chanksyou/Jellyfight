@@ -991,6 +991,8 @@ export function newMods() {
     healOnCrit: 0,                   // heal-on-crit: Health gained on each Crit (run.js)
     critBonus: 0,                    // crit-damage: added to Crit multiplier (bubbles.js, combat.js)
     regenMult: 1,                    // regen-mult: multiplies Health healing, Health regen and Shield refill (run.js, shield.js)
+    firstTreasureBonus: 0,           // first-treasure-bonus: extra Treasure picks on the first Treasure opened each act (run.js)
+    eliteJump: null,                 // elite-jump: { jumps, time } extra mid-air jumps after killing an Elite (run.js)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1300,7 +1302,7 @@ export const ATTACK_WORDS = {
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
-export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up', 'crit'];
+export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up', 'crit', 'elite-kill'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
@@ -1596,7 +1598,7 @@ export const TREASURE_WORDS = {
     },
   },
   'stack-buff': {
-    doc: 'On each `event` (kill, hit, arc, big-splash, level-up or crit), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. With `extra-stacks`, copies share one buff and raise its stack cap by `extra-stacks` each. Stat names as in `stat`.',
+    doc: 'On each `event` (kill, hit, arc, big-splash, level-up, crit or elite-kill), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. With `extra-stacks`, copies share one buff and raise its stack cap by `extra-stacks` each. Stat names as in `stat`.',
     args: ['event', 'name', 'amount'],
     props: { time: 3, stacks: 5, percent: false, 'extra-stacks': 0 },
     make: ([event, name, amount], p, where) => {
@@ -1921,6 +1923,26 @@ export const TREASURE_WORDS = {
       return (m) => {
         const b = m.bleedOnHit;
         m.bleedOnHit = b ? { ...b, chance: Math.min(1, b.chance + p.chance), dmg: Math.max(b.dmg, p.dmg), time: Math.max(b.time, p.time), stacks: Math.max(b.stacks, p.stacks) } : { ...p };
+      };
+    },
+  },
+  'first-treasure-bonus': {
+    doc: 'Once each act, the first Treasure you open offers `count` more pick straight after. Copies add.',
+    args: ['count'],
+    make: ([n]) => {
+      if (!(Number.isInteger(n) && n >= 1)) throw new Error('first-treasure-bonus: count must be a whole number, 1 or more');
+      return (m) => { m.firstTreasureBonus += n; };
+    },
+  },
+  'elite-jump': {
+    doc: 'After defeating an Elite, you gain +`jumps` mid-air jump for `time` s. Copies take the biggest.',
+    args: ['jumps'],
+    props: { time: 30 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 1 && p.time > 0)) throw new Error('elite-jump: jumps must be a whole number of 1 or more and time above 0');
+      return (m) => {
+        const e = m.eliteJump;
+        m.eliteJump = e ? { jumps: Math.max(e.jumps, n), time: Math.max(e.time, p.time) } : { jumps: n, time: p.time };
       };
     },
   },

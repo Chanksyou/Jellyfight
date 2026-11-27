@@ -375,7 +375,7 @@ export function compileMods(ids, evolved = [], upgrades = [], jelly = null) {
 // Notes which treasure (or evolution) each timer it adds belongs to, so the HUD can show that
 // treasure's countdown (Run.cooldowns) and the pause menu its growth (treasure-bag.js): what it adds
 // to the timed, when-hit, squeak, growth and per lists, and the one-off effects it sets. Only for showing: the systems still read the combined effects.
-const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth', 'decoy'];
+const SINGLES = ['mouse', 'reflect', 'deathSave', 'rebirth', 'decoy', 'firstTreasureBonus'];
 function owned(m, id, apply) {
   const lists = [m.timed, m.onHurt, m.squeaks, m.growth, m.per], at = lists.map((l) => l.length), had = SINGLES.map((k) => m[k]);
   apply();

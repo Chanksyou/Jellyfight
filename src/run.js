@@ -411,6 +411,8 @@ export class Run {
     this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {}; this.buffs = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
+    this.actTreasuresOpened = 0;      // first-treasure-bonus (Store Coupon): resets each act
+    this.eliteJumpT = 0;              // elite-jump (Gold Medal): seconds of extra mid-air jump left
     this.evolved = [];                // evolutions taken (content/evolutions.kdl): one per act's boss, or with jelly types any number from the Legendary pick
     this.upgrades = [];               // Attack upgrades taken (content/upgrades.kdl), one after each of the first three bosses
     this.streaks = {};                // streak: when each one's recent kills died
@@ -510,7 +512,7 @@ export class Run {
   // where the act stands now (keepProgress, throughStageDoor), as resumeAct reads it back
   progress() {
     return {
-      scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
+      scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn, actTreasuresOpened: this.actTreasuresOpened,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt, bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, taken: this.taken,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, offerLog: this.offerLog, cardLog: this.cardLog, dealt: this.dealt, bossDoor: this.bossDoor, treasuresObtained: this.treasuresObtained,
@@ -525,7 +527,7 @@ export class Run {
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt, bugsOut: M.bugsOut || 0, bugsCleared: M.bugsCleared || 0, taken: M.taken || 0,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], offerLog: M.offerLog || [], cardLog: M.cardLog || [], dealt: M.dealt || {}, bossDoor: M.bossDoor || null, treasuresObtained: M.treasuresObtained || 0,
-      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null, actTreasuresOpened: M.actTreasuresOpened || 0,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
     if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
@@ -670,7 +672,7 @@ export class Run {
       const riding = !!P.flight;
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
-        airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
+        airJumps: this.mods.extraJumps + (this.eliteJumpT > 0 && this.mods.eliteJump ? this.mods.eliteJump.jumps : 0),       // no mid-air jump until Pen Spring or Gold Medal
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0, spin: this.thrownSpin(),
@@ -693,6 +695,7 @@ export class Run {
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
     if (this.dashT > 0 && this.dashEf?.dmg) this.surgeThrough();
     for (const k in this.buffs) if ((this.buffs[k].t -= dt) <= 0) delete this.buffs[k];   // stack-buff: its stacks run out together
+    if (this.eliteJumpT > 0) this.eliteJumpT = Math.max(0, this.eliteJumpT - dt);
     if (this.mods.per.some((c) => c.of === 'burning-nearby')) {   // per of="burning-nearby" (Fuel): counted once a frame
       let n = 0;
       for (const [e, f] of this.bubbles.burning) if (!e.dead && f.t > 0 && this.enemies.center(e, _near).distanceTo(P.position) < NEARBY) n++;
@@ -1375,6 +1378,8 @@ export class Run {
       if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
+      this.buff('elite-kill');
+      if (this.mods.eliteJump) this.eliteJumpT = this.mods.eliteJump.time;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite cleared! It left a treasure.', 1800);
     }
@@ -1383,6 +1388,8 @@ export class Run {
 
   // One of the high-ground elites (elites.js) is beaten
   eliteDefeated(e) {
+    this.buff('elite-kill');
+    if (this.mods.eliteJump) this.eliteJumpT = this.mods.eliteJump.time;
     this.challenges.eliteKills++;
     const list = this.challenges.elites[this.stage.id] ||= [];
     if (this.phase === 'explore' && this.t < this.duration && !list.includes(e.spec.kind)) {
@@ -1541,11 +1548,12 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
-  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room') {
+  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room', bonusLeft = null) {
     this.chestsOpened++;
+    if (bonusLeft === null) this.actTreasuresOpened++;
     // three of a kind: one goes up a rarity, from anything takeable (chest weight or not)
     let left = shuffle(threeOfAKindTreasures(this.rollChest(source), TREASURES.filter((t) => this.takeable(t))));
-    if (!left.length) return;
+    if (!left.length) { if (bonusLeft !== null) this.resume(); return; }
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
       const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
@@ -1554,8 +1562,10 @@ export class Run {
       const delta = levelled ? (next > 1 ? `Lv ${next - 1} → Lv ${next}` : 'Lv 1') : t.stack > 1 ? (next > 1 ? `×${next - 1} → ×${next}` : `1/${t.stack}`) : null;
       return { ...t, tier: treasureTier(t), text, delta };
     });
+    const extra = bonusLeft === null ? (this.actTreasuresOpened === 1 ? this.mods.firstTreasureBonus : 0) : bonusLeft;
+    const then = extra > 0 ? () => this.pickTreasure('Store Coupon!', 'Choose an extra treasure.', source, extra - 1) : undefined;
     const pool = TREASURES.filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0 && this.takeable(t));   // what the chest could hold (the Luck panel's odds)
-    this.offer(title, sub, left, undefined, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
+    this.offer(title, sub, left, then, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
   }
 
   // The Boss reward: a Legendary pick of three from the Legendary treasures you can take, the
@@ -2441,6 +2451,7 @@ export class Run {
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
     if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
+    if (M.firstTreasureBonus) put(O.firstTreasureBonus, this.actTreasuresOpened >= 1 ? 1 : 0, this.actTreasuresOpened >= 1);
     return out;
   }
 

@@ -1363,4 +1363,74 @@ story('treasures/bleed-on-hit', {
     );
   },
 });
+story('treasures/first-treasure-bonus', {
+  about: 'first-treasure-bonus (Store Coupon): first Treasure opened each act chains a second pick, second Treasure does not, resets on new act, persists via progress/resumeAct, and resumes cleanly if pool is exhausted.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('storeCoupon'); },
+  play() {
+    const { run } = G(), offers = [], realOffer = run.offer.bind(run), realResume = run.resume.bind(run), realRoll = run.rollChest.bind(run);
+    let resumed = 0;
+    const cdBefore = run.cooldowns().storeCoupon;
+    let cdAfter, count1, count2, countNewAct, savedOpened, restoredOpened;
+    try {
+      run.offer = (title, sub, left, then) => { offers.push(title); if (then) then(); };
+      run.resume = () => { resumed++; };
+      // 1st Treasure of the act -> chains a 2nd pick
+      run.pickTreasure();
+      count1 = offers.length;
+      cdAfter = run.cooldowns().storeCoupon;
+      // 2nd Treasure of the act -> only 1 pick
+      run.pickTreasure();
+      count2 = offers.length;
+      // Persist and restore mid-act progress
+      const prog = run.progress();
+      savedOpened = prog.actTreasuresOpened;
+      run.actTreasuresOpened = 0;
+      run.resumeAct(prog);
+      restoredOpened = run.actTreasuresOpened;
+      // New act resets actTreasuresOpened -> chains again
+      run.actTreasuresOpened = 0;
+      run.pickTreasure();
+      countNewAct = offers.length;
+      // Exhausted pool on a chained bonus pick calls resume()
+      run.rollChest = () => [];
+      run.pickTreasure('Store Coupon!', 'Choose an extra treasure.', 'room', 0);
+    } finally {
+      run.offer = realOffer;
+      run.resume = realResume;
+      run.rollChest = realRoll;
+    }
+    return ok(
+      cdBefore?.left === 0 && cdBefore?.spent === false
+      && cdAfter?.left === 1 && cdAfter?.spent === true
+      && count1 === 2
+      && count2 === 3
+      && savedOpened === 2 && restoredOpened === 2
+      && countNewAct === 5
+      && resumed === 1,
+      { cdBefore, cdAfter, count1, count2, savedOpened, restoredOpened, countNewAct, resumed, offers },
+    );
+  },
+});
+story('treasures/elite-jump', {
+  about: 'elite-jump and stack-buff "elite-kill" (Gold Medal): defeating an Elite grants +35% Move speed, +35% Fire rate (+70% at 2 copies) and +1 mid-air jump (still +1 at 2 copies) for 30 s, then all three expire.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('goldMedal'); },
+  play() {
+    const { run } = G(), baseSpeed = run.S.moveSpeed, baseRate = run.S.fireRate;
+    const fakeElite = () => ({ kind: 'controller', name: 'Controller', spec: { kind: 'controller', area: 'couch' }, base: near(0, -0.3), r: 0.04 });
+    run.eliteDefeated(fakeElite());
+    const speed1 = run.S.moveSpeed / baseSpeed, rate1 = run.S.fireRate / baseRate, jumpT1 = run.eliteJumpT, jumps1 = run.mods.eliteJump?.jumps;
+    give('goldMedal');
+    run.eliteDefeated(fakeElite());
+    const speed2 = run.S.moveSpeed / baseSpeed, rate2 = run.S.fireRate / baseRate, jumps2 = run.mods.eliteJump?.jumps;
+    step(60 * 31);
+    const speedAfter = run.S.moveSpeed / baseSpeed, rateAfter = run.S.fireRate / baseRate, jumpTAfter = run.eliteJumpT;
+    return ok(
+      Math.abs(speed1 - 1.35) < 1e-6 && Math.abs(rate1 - 1.35) < 1e-6 && jumpT1 > 29 && jumps1 === 1
+      && Math.abs(speed2 - 1.7) < 1e-6 && Math.abs(rate2 - 1.7) < 1e-6 && jumps2 === 1
+      && Math.abs(speedAfter - 1) < 1e-6 && Math.abs(rateAfter - 1) < 1e-6 && jumpTAfter === 0,
+      { speed1, rate1, jumpT1, jumps1, speed2, rate2, jumps2, speedAfter, rateAfter, jumpTAfter },
+    );
+  },
+});
+
 

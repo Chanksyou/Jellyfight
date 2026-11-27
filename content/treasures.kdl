@@ -581,3 +581,11 @@ treasure "readingGlasses" name="Reading Glasses" icon="👓" rarity="common" att
 treasure "letterOpener" name="Letter Opener" icon="🗡️" rarity="rare" attack=#true text="1 in 10 hits: Bleed for 2.4x Attack damage over 5 s, up to 5 stacks." stack=5 {
     bleed-on-hit chance=0.1 dmg=2.4 time=5 stacks=5
 }
+treasure "storeCoupon" name="Store Coupon" icon="🎟️" rarity="epic" text="Once per act: the first Treasure you open offers a second pick." stack=1 {
+    first-treasure-bonus 1
+}
+treasure "goldMedal" name="Gold Medal" icon="🏅" rarity="epic" text="On an Elite kill: +35% Move speed, +35% Fire rate and +1 mid-air jump for 30 s." stack=5 {
+    stack-buff "elite-kill" "move-speed" 35 percent=#true time=30 stacks=1
+    stack-buff "elite-kill" "fire-rate" 35 percent=#true time=30 stacks=1
+    elite-jump 1 time=30
+}
