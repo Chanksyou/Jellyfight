@@ -209,7 +209,8 @@ export class HouseGadgets {
     const C = g.companions;
     this.ball.position.copy(center).y += 0.07;
     if (!quiet) this.ball.rotation.y += dt * (1.5 + 9 * C.kick);   // spins up as it picks
-    if (g.every('spotlight', dt, L.every, 0.5)) {
+    const cd = M.cooldownScale ?? 1;
+    if (g.every('spotlight', dt, L.every * cd, 0.5)) {
       const hp = (e) => (e.proxy ? 1e9 + (e.proxy.hp || 0) : e.hp), found = g.near(center, L.range).sort((a, b) => hp(b) - hp(a));
       if (found[0]) {
         this.spot = { e: found[0], t: L.time };

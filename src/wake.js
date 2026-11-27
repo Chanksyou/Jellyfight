@@ -98,8 +98,8 @@ export class Wake {
 
   // player.js onJump (a jump off the ground): the pulse races from the jelly down the whole trail
   ignite() {
-    const W = this.run.mods.wake;
-    if (!W || this.clock - this.lastIgnite < W.cooldown) return false;
+    const W = this.run.mods.wake, cd = this.run.mods.cooldownScale ?? 1;
+    if (!W || this.clock - this.lastIgnite < W.cooldown * cd) return false;
     const live = [];
     for (let i = this.points.length - 1; i >= 0; i--) if (this.points[i].lit < 0) live.push(this.points[i]);
     if (live.length < 2) return false;

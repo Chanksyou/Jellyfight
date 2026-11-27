@@ -1222,3 +1222,365 @@ story('treasures/on-attack', {
     return ok(counts.normal.attacks >= 2 && counts.fire.attacks >= 2 && T.attacks >= 2 && T.stings >= T.attacks * 2, counts);
   },
 });
+story('treasures/heal-on-crit', {
+  about: 'heal-on-crit (Juice Box): each Crit gives back +1 Health with 1 copy and +2 Health with 2 copies.',
+  setup() { setupFight({ lash: false }); give('juiceBox'); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), log = record('damage_taken'), real = Math.random;
+    e.hp = e.maxHp = 1000;
+    let h1, h2;
+    try {
+      Math.random = () => 0.01;
+      run.health = 10;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      h1 = run.health;
+      give('juiceBox');
+      run.health = 10;
+      const n1 = dmgBy(log, 'bubble').length;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > n1; });
+      h2 = run.health;
+    } finally { Math.random = real; }
+    return ok(Math.abs(h1 - 11) < 1e-6 && Math.abs(h2 - 12) < 1e-6, { h1, h2 });
+  },
+});
+story('treasures/crit-damage', {
+  about: 'crit-damage and needs-crit (Laser Pointer): not offered before owning a Crit source; once owned with Nail Clipper, Crits deal 4x damage instead of 3x.',
+  setup() { setupFight({ lash: false }); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), LP = CONTENT.treasures.find((t) => t.id === 'laserPointer');
+    const before = run.takeable(LP);
+    give('nailClipper');
+    const afterCrit = run.takeable(LP);
+    give('laserPointer');
+    const pop = run.S.bubbleDamage, log = record('damage_taken'), real = Math.random;
+    let hit;
+    try {
+      Math.random = () => 0.01;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      hit = dmgBy(log, 'bubble')[0];
+    } finally { Math.random = real; }
+    return ok(!before && afterCrit && !!hit?.feedback?.crit && Math.abs(hit.amount - pop * 4) < 1e-6, { before, afterCrit, crit: hit?.feedback?.crit, amount: hit?.amount, want: pop * 4 });
+  },
+});
+story('treasures/regen-mult', {
+  about: 'regen-mult (Humidifier): doubles S.regen, doubles active healing (run.heal(2) -> +4), passive regen over 1 s heals 2 (not 4), and halves Shield refill time.',
+  setup() { setupFight({ lash: false, bubbles: false }); },
+  play() {
+    const { run } = G();
+    run.stats.regen = 1; run.stats.shield = 10; step(1);
+    const regenBefore = run.S.regen, fillBefore = run.shield.fill;
+    give('humidifier'); step(1);
+    const regenAfter = run.S.regen, fillAfter = run.shield.fill;
+    run.health = 10; run.heal(2); const afterHeal = run.health;
+    run.health = 10; step(60); const passive = +(run.health - 10).toFixed(3);
+    return ok(
+      Math.abs(regenAfter - regenBefore * 2) < 1e-6
+      && Math.abs(fillAfter - fillBefore / 2) < 1e-6
+      && Math.abs(afterHeal - 14) < 1e-6
+      && Math.abs(passive - 2) < 0.05,
+      { regenBefore, regenAfter, fillBefore, fillAfter, afterHeal, passive },
+    );
+  },
+});
+story('treasures/espresso-cup-and-lucky-seven', {
+  about: 'Espresso Cup (stack-buff "crit" with extra-stacks) caps at +45% Fire rate (3 stacks) at 1 copy and +75% (5 stacks) at 2 copies; Lucky Seven raises all 6 stats.',
+  setup() { setupFight({ lash: false, bubbles: false }); },
+  play() {
+    const { run } = G(), base = run.stats.fireRate, rate = () => run.S.fireRate / base;
+    give('espressoCup');
+    for (let i = 0; i < 5; i++) run.buff('crit');
+    const oneCopy = rate();
+    give('espressoCup');
+    for (let i = 0; i < 6; i++) run.buff('crit');
+    const twoCopies = rate();
+    setupFight({ lash: false, bubbles: false });
+    const r2 = G().run;
+    const before = { health: r2.S.health, fireRate: r2.S.fireRate, moveSpeed: r2.S.moveSpeed, dodge: r2.S.dodge, range: r2.S.range, crit: r2.mods.hits.bubbles.crit?.chance || 0 };
+    give('luckySeven');
+    const after = { health: r2.S.health, fireRate: r2.S.fireRate, moveSpeed: r2.S.moveSpeed, dodge: r2.S.dodge, range: r2.S.range, crit: r2.mods.hits.bubbles.crit?.chance || 0 };
+    const sevenOk = Math.abs(after.health - (before.health + 7)) < 1e-6
+      && Math.abs(after.fireRate - before.fireRate * 1.07) < 1e-6
+      && Math.abs(after.moveSpeed - before.moveSpeed * 1.07) < 1e-6
+      && Math.abs(after.dodge - 7) < 1e-6
+      && Math.abs(after.range - before.range * 1.07) < 1e-6
+      && Math.abs(after.crit - 0.07) < 1e-6;
+    return ok(Math.abs(oneCopy - 1.45) < 1e-6 && Math.abs(twoCopies - 1.75) < 1e-6 && sevenOk, { oneCopy, twoCopies, before, after });
+  },
+});
+story('treasures/close-damage', {
+  about: 'close-damage (Reading Glasses): hits on bugs within 14 cm deal +30% damage per copy; bugs farther away take normal damage.',
+  setup() {
+    setupFight({ lash: false, bubbles: false });
+    give('readingGlasses');
+    spawn('mantis', near(0.10, 0), { still: true });
+    spawn('mantis', near(0.22, 0), { still: true });
+  },
+  play() {
+    step(1);
+    const [closeBug, farBug] = G().enemies.list;
+    closeBug.hp = closeBug.maxHp = farBug.hp = farBug.maxHp = 1000;
+    const hit = (e) => { const hp0 = e.hp; bus.emit('damage_taken', { targetId: e.id, amount: 10, source: 'story' }); return +(hp0 - e.hp).toFixed(6); };
+    const close1 = hit(closeBug), far1 = hit(farBug);
+    give('readingGlasses');
+    step(1);
+    const close2 = hit(closeBug), far2 = hit(farBug);
+    return ok(close1 === 13 && far1 === 10 && close2 === 16 && far2 === 10, { close1, far1, close2, far2 });
+  },
+});
+story('treasures/bleed-on-hit', {
+  about: 'bleed-on-hit (Letter Opener): bubble hits on Normal jelly apply Bleed stacks capped at 5 (never 6), dealing ~2.4x Attack damage per stack over 5 s.',
+  setup() { setupFight({ lash: false }); give('letterOpener'); G().run.stats.bubbles = 1; roachAt(0, -0.12); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone(), pop = run.S.bubbleDamage;
+    e.hp = e.maxHp = 1000;
+    const log = record('damage_taken'), real = Math.random;
+    let firstStacks = 0, stackHistory = [], capped = 0, bleedTotal = 0, afterExpire = -1;
+    try {
+      Math.random = () => 0.01;
+      // 1) Real bubble hit on Normal jelly applies 1 Bleed stack, then let it tick out over 5 s
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      firstStacks = enemies.statuses.bleeding(e);
+      // Move bug out of bubble range so only the 1 Bleed stack ticks for 5 s
+      e.pos.copy(near(0, -1.5));
+      step(310, () => { e.pos.copy(near(0, -1.5)); return false; });
+      bleedTotal = dmgBy(log, 'venom').reduce((s, d) => s + d.amount, 0);
+      afterExpire = enemies.statuses.bleeding(e);
+      // 2) Verify stacking increments up to 5 and caps at 5 (never 6)
+      for (let i = 0; i < 6; i++) {
+        bus.emit('damage_taken', { targetId: e.id, amount: 1, source: 'bubble' });
+        stackHistory.push(enemies.statuses.bleeding(e));
+      }
+      capped = enemies.statuses.bleeding(e);
+    } finally { Math.random = real; }
+    const expected = 2.4 * pop;
+    return ok(
+      firstStacks === 1
+      && afterExpire === 0
+      && bleedTotal >= expected * 0.9 && bleedTotal <= expected * 1.05
+      && stackHistory.join(',') === '1,2,3,4,5,5'
+      && capped === 5,
+      { firstStacks, bleedTotal: +bleedTotal.toFixed(4), expected: +expected.toFixed(4), afterExpire, stackHistory, capped },
+    );
+  },
+});
+story('treasures/first-treasure-bonus', {
+  about: 'first-treasure-bonus (Store Coupon): first Treasure opened each act chains a second pick, second Treasure does not, resets on new act, persists via progress/resumeAct, and resumes cleanly if pool is exhausted.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('storeCoupon'); },
+  play() {
+    const { run } = G(), offers = [], realOffer = run.offer.bind(run), realResume = run.resume.bind(run), realRoll = run.rollChest.bind(run);
+    let resumed = 0;
+    const cdBefore = run.cooldowns().storeCoupon;
+    let cdAfter, count1, count2, countNewAct, savedOpened, restoredOpened;
+    try {
+      run.offer = (title, sub, left, then) => { offers.push(title); if (then) then(); };
+      run.resume = () => { resumed++; };
+      // 1st Treasure of the act -> chains a 2nd pick
+      run.pickTreasure();
+      count1 = offers.length;
+      cdAfter = run.cooldowns().storeCoupon;
+      // 2nd Treasure of the act -> only 1 pick
+      run.pickTreasure();
+      count2 = offers.length;
+      // Persist and restore mid-act progress
+      const prog = run.progress();
+      savedOpened = prog.actTreasuresOpened;
+      run.actTreasuresOpened = 0;
+      run.resumeAct(prog);
+      restoredOpened = run.actTreasuresOpened;
+      // New act resets actTreasuresOpened -> chains again
+      run.actTreasuresOpened = 0;
+      run.pickTreasure();
+      countNewAct = offers.length;
+      // Exhausted pool on a chained bonus pick calls resume()
+      run.rollChest = () => [];
+      run.pickTreasure('Store Coupon!', 'Choose an extra treasure.', 'room', 0);
+    } finally {
+      run.offer = realOffer;
+      run.resume = realResume;
+      run.rollChest = realRoll;
+    }
+    return ok(
+      cdBefore?.left === 0 && cdBefore?.spent === false
+      && cdAfter?.left === 1 && cdAfter?.spent === true
+      && count1 === 2
+      && count2 === 3
+      && savedOpened === 2 && restoredOpened === 2
+      && countNewAct === 5
+      && resumed === 1,
+      { cdBefore, cdAfter, count1, count2, savedOpened, restoredOpened, countNewAct, resumed, offers },
+    );
+  },
+});
+story('treasures/elite-jump', {
+  about: 'elite-jump and stack-buff "elite-kill" (Gold Medal): defeating an Elite grants +35% Move speed, +35% Fire rate (+70% at 2 copies) and +1 mid-air jump (still +1 at 2 copies) for 30 s, then all three expire.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('goldMedal'); },
+  play() {
+    const { run } = G(), baseSpeed = run.S.moveSpeed, baseRate = run.S.fireRate;
+    const fakeElite = () => ({ kind: 'controller', name: 'Controller', spec: { kind: 'controller', area: 'couch' }, base: near(0, -0.3), r: 0.04 });
+    run.eliteDefeated(fakeElite());
+    const speed1 = run.S.moveSpeed / baseSpeed, rate1 = run.S.fireRate / baseRate, jumpT1 = run.eliteJumpT, jumps1 = run.mods.eliteJump?.jumps;
+    give('goldMedal');
+    run.eliteDefeated(fakeElite());
+    const speed2 = run.S.moveSpeed / baseSpeed, rate2 = run.S.fireRate / baseRate, jumps2 = run.mods.eliteJump?.jumps;
+    step(60 * 31);
+    const speedAfter = run.S.moveSpeed / baseSpeed, rateAfter = run.S.fireRate / baseRate, jumpTAfter = run.eliteJumpT;
+    return ok(
+      Math.abs(speed1 - 1.35) < 1e-6 && Math.abs(rate1 - 1.35) < 1e-6 && jumpT1 > 29 && jumps1 === 1
+      && Math.abs(speed2 - 1.7) < 1e-6 && Math.abs(rate2 - 1.7) < 1e-6 && jumps2 === 1
+      && Math.abs(speedAfter - 1) < 1e-6 && Math.abs(rateAfter - 1) < 1e-6 && jumpTAfter === 0,
+      { speed1, rate1, jumpT1, jumps1, speed2, rate2, jumps2, speedAfter, rateAfter, jumpTAfter },
+    );
+  },
+});
+story('treasures/still-heal', {
+  about: 'still-heal (Damp Sponge): standing still for 1 s opens a floor zone healing 5% max Health/s (+2.5% per extra copy), and Pot Lid skips offering it.',
+  setup() { setupFight({ lash: false, bubbles: false }); give('dampSponge'); },
+  play() {
+    const { run } = G(), maxHp = run.S.health, half = maxHp * 0.5;
+    run.health = half;
+    step(30);   // 0.5 s standing still: below wait=1 s
+    const earlyVisible = run.gadgets.healZone.visible, earlyHp = run.health;
+    step(90);   // 1.5 s more (total 2.0 s -> 1.0 s active healing)
+    const activeVisible = run.gadgets.healZone.visible, healed1 = run.health - half;
+    give('dampSponge');
+    run.health = half;
+    step(60);   // 1.0 s more at 2 copies (7.5% max Health/s)
+    const healed2 = run.health - half;
+    give('potLid');
+    const sponge = CONTENT.treasures.find((t) => t.id === 'dampSponge');
+    const skippedByPotLid = !run.takeable(sponge);
+    const want1 = maxHp * 0.05, want2 = maxHp * 0.075;
+    return ok(
+      !earlyVisible && Math.abs(earlyHp - half) < 1e-6
+      && activeVisible
+      && Math.abs(healed1 - want1) < want1 * 0.12
+      && Math.abs(healed2 - want2) < want2 * 0.12
+      && skippedByPotLid,
+      { earlyVisible, earlyHp, activeVisible, healed1: +healed1.toFixed(4), want1: +want1.toFixed(4), healed2: +healed2.toFixed(4), want2: +want2.toFixed(4), skippedByPotLid },
+    );
+  },
+});
+story('treasures/bomb-on-hit', {
+  about: 'bomb-on-hit (Pop Rocks): bubble hit sticks a bomb to the bug that detonates after 1.5 s for 1.8x Attack damage to target and nearby bugs; 2 copies raise chance from 0.05 to 0.10.',
+  setup() { setupFight({ lash: false }); give('popRocks'); G().run.stats.bubbles = 1; roachAt(0, -0.12); roachAt(0.05, -0.12); },
+  play() {
+    const { run, enemies } = G(), [e0, e1] = enemies.list, pop = run.S.bubbleDamage;
+    const h0 = e0.pos.clone(), h1 = e1.pos.clone();
+    const p0 = near(0, -1.2), p1 = near(0.05, -1.2);
+    e0.hp = e0.maxHp = 1000; e1.hp = e1.maxHp = 1000;
+    const chance1 = run.mods.bombOnHit?.chance, chancy = run.mods.chancy;
+    const log = record('damage_taken'), real = Math.random;
+    let attached = 0, afterCount = -1;
+    try {
+      Math.random = () => 0;
+      step(120, () => { e0.pos.copy(h0); e1.pos.copy(h1); return dmgBy(log, 'bubble').length > 0; });
+      attached = run.gadgets.stickyBombs.length;
+      // Move both bugs out of bubble range together so only the attached bomb detonates
+      step(105, () => { e0.pos.copy(p0); e1.pos.copy(p1); return false; });
+      afterCount = run.gadgets.stickyBombs.length;
+    } finally { Math.random = real; }
+    const bombHits = dmgBy(log, 'bomb-treasure');
+    const hitIds = new Set(bombHits.map((d) => d.targetId));
+    const expected = 1.8 * pop;
+    const dmgOk = bombHits.length >= 2 && bombHits.every((d) => Math.abs(d.amount - expected) < 1e-6);
+    give('popRocks');
+    const chance2 = run.mods.bombOnHit?.chance;
+    return ok(
+      chancy === true
+      && Math.abs(chance1 - 0.05) < 1e-6
+      && Math.abs(chance2 - 0.1) < 1e-6
+      && attached >= 1
+      && afterCount === 0
+      && hitIds.has(e0.id) && hitIds.has(e1.id)
+      && dmgOk,
+      { chancy, chance1, chance2, attached, afterCount, bombHits: bombHits.length, expected: +expected.toFixed(4) },
+    );
+  },
+});
+story('treasures/missile-on-hit', {
+  about: 'missile-on-hit (Toy Rocket): bubble hit launches a homing rocket that steers to the bug and deals 2.5x Attack damage; 2 copies keep chance 0.1 and raise damage to 5.0x.',
+  setup() { setupFight({ lash: false }); give('toyRocket'); G().run.stats.bubbles = 1; roachAt(0, -0.14); },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], pop = run.S.bubbleDamage;
+    const home = e.pos.clone(), park = near(0.16, -0.38);
+    e.hp = e.maxHp = 1000;
+    const chance1 = run.mods.missileOnHit?.chance, dmg1 = run.mods.missileOnHit?.dmg, chancy = run.mods.chancy;
+    const log = record('damage_taken'), real = Math.random;
+    let spawned = 0, afterCount = -1;
+    try {
+      Math.random = () => 0;
+      step(120, () => { e.pos.copy(home); return dmgBy(log, 'bubble').length > 0; });
+      spawned = run.gadgets.rockets.length;
+      // Park bug off-axis out of bubble range so the rocket must home to hit it
+      step(150, () => { e.pos.copy(park); return dmgBy(log, 'missile-treasure').length > 0; });
+      afterCount = run.gadgets.rockets.length;
+    } finally { Math.random = real; }
+    const hits = dmgBy(log, 'missile-treasure');
+    const expected = 2.5 * pop;
+    give('toyRocket');
+    const chance2 = run.mods.missileOnHit?.chance, dmg2 = run.mods.missileOnHit?.dmg;
+    return ok(
+      chancy === true
+      && Math.abs(chance1 - 0.1) < 1e-6 && Math.abs(dmg1 - 2.5) < 1e-6
+      && Math.abs(chance2 - 0.1) < 1e-6 && Math.abs(dmg2 - 5.0) < 1e-6
+      && spawned >= 1
+      && afterCount === 0
+      && hits.length >= 1
+      && hits[0].targetId === e.id
+      && Math.abs(hits[0].amount - expected) < 1e-6,
+      { chancy, chance1, dmg1, chance2, dmg2, spawned, afterCount, hits: hits.length, amount: hits[0]?.amount, expected: +expected.toFixed(4) },
+    );
+  },
+});
+story('treasures/cooldown-scale', {
+  about: 'cooldown-scale (Pocket Watch): scales timed Treasure periods and reactive cooldowns by 0.75x (Guitar Pick fires every 3.75 s instead of 5 s, Rubber Duck resets in 3.0 s instead of 4.0 s) and keeps HUD cooldowns() normalized in [0, 1].',
+  setup() {
+    setupFight({ hurt: true, lash: false, bubbles: false });
+    give('guitarPick');
+    give('rubberDuck');
+    give('pocketWatch');
+    roachAt(0, -0.10);
+  },
+  play() {
+    const { run, enemies } = G(), e = enemies.list[0], home = e.pos.clone();
+    e.hp = e.maxHp = 1000;
+    const scale = run.mods.cooldownScale;
+    const cdInit = run.cooldowns();
+    const initNorm = Object.values(cdInit).every((c) => c.left >= 0 && c.left <= 1);
+    const log = record('damage_taken');
+    // Wait for Guitar Pick's first chord (~5 * 0.6 * 0.75 = 2.25 s)
+    let t1 = -1, t2 = -1;
+    step(200, () => {
+      e.pos.copy(home);
+      if (dmgBy(log, 'ring').length >= 1) { t1 = run.t; return true; }
+      return false;
+    });
+    // Wait for Guitar Pick's second chord (~3.75 s later, well before 5.0 s)
+    step(260, () => {
+      e.pos.copy(home);
+      if (dmgBy(log, 'ring').length >= 2) { t2 = run.t; return true; }
+      return false;
+    });
+    const period = +(t2 - t1).toFixed(3);
+    // Trigger Rubber Duck (4 s base -> 3.0 s scaled cooldown)
+    run.iFrames = 0;
+    bus.emit('damage_taken', { targetId: PLAYER, amount: 1, source: 'story' });
+    const duckCdAt = run.squeakCd[0], duckWait = +(duckCdAt - run.t).toFixed(3);
+    const cdMid = run.cooldowns();
+    const midNorm = Object.values(cdMid).every((c) => c.left >= 0 && c.left <= 1) && cdMid.rubberDuck?.left > 0.9;
+    // Step 3.05 s (183 frames): Rubber Duck cooldown should now be expired (< 4.0 s)
+    step(183, () => { e.pos.copy(home); return false; });
+    const duckReadyAt3s = run.t >= duckCdAt;
+    const cdAfter = run.cooldowns();
+    const afterNorm = Object.values(cdAfter).every((c) => c.left >= 0 && c.left <= 1) && cdAfter.rubberDuck?.left === 0;
+    return ok(
+      Math.abs(scale - 0.75) < 1e-6
+      && initNorm && midNorm && afterNorm
+      && t1 > 0 && t2 > t1
+      && Math.abs(period - 3.75) < 0.1
+      && Math.abs(duckWait - 3.0) < 0.05
+      && duckReadyAt3s,
+      { scale, initNorm, midNorm, afterNorm, t1: +t1.toFixed(3), t2: +t2.toFixed(3), period, duckWait, duckReadyAt3s },
+    );
+  },
+});

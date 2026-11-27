@@ -18,6 +18,7 @@ import { TreasureCompanions } from './treasure-companions.js';
 import { TreasureLegends } from './treasure-legends.js';
 
 const _white = new THREE.Color(1, 1, 1), _to = new THREE.Vector3(), _up = new THREE.Vector3(), _cone = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), DOWN = new THREE.Vector3(0, -1, 0), _o = new THREE.Vector3();
+const _rbDir = new THREE.Vector3(), _rbTarget = new THREE.Vector3(), _rbPos = new THREE.Vector3(), _rbAxis = new THREE.Vector3();
 
 export class Gadgets {
   constructor(scene, enemies, fx, world) {
@@ -126,6 +127,21 @@ export class Gadgets {
       g.visible = false; this.group.add(g);
       return g;
     });
+    // Damp Sponge: a soft mint-aqua healing pool on the floor under you while standing still
+    this.healZone = glowPool('lamp', LOOK.color('treasure-dampSponge', '#6effc8'));
+    this.group.add(this.healZone);
+    this.healZoneAlpha = 0;
+    // Pop Rocks & Toy Rocket: pre-allocated pooled meshes in this.group (auto-instanced, zero lights)
+    this.bombColorStr = LOOK.color('treasure-popRocks', '#ff9be2');
+    this.bombColor = new THREE.Color(this.bombColorStr);
+    this.rocketColorStr = LOOK.color('treasure-toyRocket', '#7ce8ff');
+    this.rocketColor = new THREE.Color(this.rocketColorStr);
+    const bombGeo = new THREE.SphereGeometry(0.008, 10, 8), bombMat = new THREE.MeshBasicMaterial({ color: this.bombColor, toneMapped: false });
+    this.bombPool = Array.from({ length: 16 }, () => { const m = new THREE.Mesh(bombGeo, bombMat); m.visible = false; this.group.add(m); return m; });
+    const rocketGeo = new THREE.ConeGeometry(0.006, 0.022, 8).rotateX(Math.PI / 2), rocketMat = new THREE.MeshBasicMaterial({ color: this.rocketColor, toneMapped: false });
+    this.rocketPool = Array.from({ length: 12 }, () => { const m = new THREE.Mesh(rocketGeo, rocketMat); m.visible = false; this.group.add(m); return m; });
+    this.stickyBombs = [];
+    this.rockets = [];
     // Chore List: a gold target over the marked bug
     const gold = LOOK.color('bounty', '#ffd23a');
     this.bountyMark = new THREE.Group();
@@ -158,6 +174,12 @@ export class Gadgets {
     this.bulbs.forEach((b) => { b.visible = false; });
     this.beam.visible = this.aura.visible = false;
     this.auraCharge = 0; this.auraPulse = 1;
+    this.healZone.visible = false;
+    this.healZoneAlpha = 0;
+    this.stickyBombs = [];
+    this.rockets = [];
+    this.bombPool.forEach((m) => { m.visible = false; m.scale.setScalar(1); });
+    this.rocketPool.forEach((m) => { m.visible = false; });
     this.props.reset(); this.bursts.reset();
     this.companions.reset();
     this.lamps = []; this.lit = false; this.enemies.keepOut.length = 0;
@@ -207,9 +229,9 @@ export class Gadgets {
 
   // bounty: now and then an ordinary bug far from you gets a gold target (run.js onKill pays it out)
   tickBounty(dt, M, feet) {
-    const B = M.bounty, e = this.bountyBug;
+    const B = M.bounty, e = this.bountyBug, cd = M.cooldownScale ?? 1;
     if (e && (e.dead || !B)) { this.bountyBug = null; this.bountyId = null; }
-    if (B && !this.bountyBug && this.every('bounty', dt, B.every, B.every * 0.5)) {
+    if (B && !this.bountyBug && this.every('bounty', dt, B.every * cd, B.every * cd * 0.5)) {
       const bugs = this.enemies.list.filter((x) => !x.dead && !x.proxy).map((x) => [Math.hypot(x.pos.x - feet.x, x.pos.z - feet.z), x]);
       const far = bugs.filter(([d]) => d >= B.far);
       const pick = far.length ? far[(Math.random() * far.length) | 0][1] : bugs.sort((a, b) => b[0] - a[0])[0]?.[1];
@@ -286,13 +308,18 @@ export class Gadgets {
     for(const m of [this.bathReady,this.mirrorReady,this.mirrorSheen,this.mirrorShards,this.mirrorShell]){m.visible=on;if(on)m.position.copy(at);}
     this.bulbs.forEach((b) => { b.visible = on; });
     this.beam.visible = this.aura.visible = this.mouse.visible = on;
-    this.lampPool[0].visible = this.bountyMark.visible = on;   // night-light and bounty shaders, compiled up front too
+    this.lampPool[0].visible = this.bountyMark.visible = this.bombPool[0].visible = this.rocketPool[0].visible = on;   // night-light, bounty, bomb and rocket shaders, compiled up front too
     this.house.warm(on, at);
     this.props.warm(on, at);
     this.companions.warm(on);
-    if (!on) this.lamps?.forEach((L) => { L.g.visible = true; });
+    if (!on) {
+      this.lamps?.forEach((L) => { L.g.visible = true; });
+      this.stickyBombs?.forEach((b) => { b.mesh.visible = true; });
+      this.rockets?.forEach((r) => { r.mesh.visible = true; });
+    }
     if (on) {
       this.lampPool[0].position.copy(at); this.bountyMark.position.copy(at);
+      this.bombPool[0].position.copy(at); this.rocketPool[0].position.copy(at);
       this.mouse.position.copy(at);
       this.bulbs.forEach((b) => b.position.copy(at));
       this.beam.position.copy(at);
@@ -408,6 +435,8 @@ export class Gadgets {
     this.tickLights(dt, M, feet);
     this.tickBounty(dt, M, feet);
     this.tickGhosts(dt, M, power);
+    this.tickBombs(dt);
+    this.tickRockets(dt);
     this.house.update(dt, ctx);
     this.chordReady.visible=this.bathReady.visible=false;
     this.mirrorState(center,!!M.reflect&&ctx.mirrorReady,!!M.reflect&&ctx.mirrorActive,dt);
@@ -418,8 +447,9 @@ export class Gadgets {
     if(this.steamOn&&(this.steamT=(this.steamT??0)-dt)<=0){this.steamT=LOOK.num('gadget-steam-gap',.12);this.looks.steam(center);}
 
     // timed effects: every N s, do what's in the block
+    const cd = M.cooldownScale ?? 1;
     for (const T of M.timed) {
-      if (this.every(T.key, dt, T.every, T.first)) for (const ef of T.effects) this.fire(ef, ctx);
+      if (this.every(T.key, dt, T.every * cd, T.first * cd)) for (const ef of T.effects) this.fire(ef, ctx);
       else for(const ef of T.effects) {
         if(ef.kind==='bubble-ring'&&this.t[T.key]<LOOK.num('gadget-bath-prepare',.3)){
           this.bathReady.visible=true;this.bathReady.position.copy(center);
@@ -519,6 +549,21 @@ export class Gadgets {
       s.userData.opacity = 0.55 + 0.45 * k;
     } else this.stick.visible = false;
 
+    // still-heal (Damp Sponge): standing still on the ground opens a healing floor zone under you
+    const H = M.stillHeal;
+    const healActive = !!(H && (ctx.stillT || 0) >= H.wait);
+    if (healActive) {
+      this.healZone.position.set(feet.x, feet.y + 0.004, feet.z);
+      this.healZone.scale.set(H.radius, 1, H.radius);
+      this.healZoneAlpha = Math.min(1, this.healZoneAlpha + dt * 5);
+      ctx.heal?.(ctx.maxHealth * H.share * dt);
+      if (!this.looks.quiet) this.healZone.material.uniforms.uTime.value += dt * 0.4;
+    } else {
+      this.healZoneAlpha = Math.max(0, this.healZoneAlpha - dt * 6);
+    }
+    this.healZone.visible = this.healZoneAlpha > 0.01;
+    this.healZone.material.uniforms.uOpacity.value = this.healZoneAlpha * LOOK.num('treasure-sponge-glow', 0.65);
+
     // touch-sting (Lion's Mane): whatever touches you gets stung
     const Tc = M.touch;
     if (Tc && this.every('touch', dt, Tc.every)) for (const e of this.near(center, (ctx.radius || 0.03) + Tc.reach)) {
@@ -558,14 +603,14 @@ export class Gadgets {
     // toy-mouse: now and then it scurries to the nearest enemy and slams into it
     const Mo = M.mouse;
     this.mouseReady.visible=false;
-    if(Mo&&!this.mouseRun&&(this.t.mouse??Mo.every*.6)>0&&(this.t.mouse??Mo.every*.6)<LOOK.num('gadget-mouse-prepare',.25)){
+    if(Mo&&!this.mouseRun&&(this.t.mouse??Mo.every*cd*.6)>0&&(this.t.mouse??Mo.every*cd*.6)<LOOK.num('gadget-mouse-prepare',.25)){
       this.mouseReady.visible=true;this.mouseReady.position.copy(center).y+=.035;
       if(!this.looks.quiet)this.mouseReady.rotation.z+=dt*18;
       ctx.pulse?.(.08);
     }
     if (!Mo) { this.mouse.visible = false; this.mouseRun = null; }
     else {
-      if (!this.mouseRun && this.every('mouse', dt, Mo.every)) {
+      if (!this.mouseRun && this.every('mouse', dt, Mo.every * cd)) {
         const prey = this.near(center, 1.2, { proxies: false })[0];
         if (prey) {
           this.mouseRun = { prey, t: 0 };
@@ -898,5 +943,108 @@ export class Gadgets {
       if (!e.dead) B?.ignite(e, power * 2.5, mods?.element?.fire);   // power is Attack damage x 1.8; Burn's is x 4.5
     }
     if (hit) { sfx.fireLaunch(1.4); sfx.fire(1.2); pulse?.(0.3); juice.feel('hit'); }   // feedback follows a hit: an empty cone only flickers
+  }
+
+  // bomb-on-hit (Pop Rocks): stick a bomb to a bug; after `fuse` s (or on its death) it blasts nearby bugs
+  attachBomb(enemy, dmg, fuse, radius) {
+    if (!enemy || enemy.dead) return;
+    const mesh = this.bombPool.find((m) => !m.visible);
+    if (!mesh) return;
+    const pos = new THREE.Vector3();
+    this.enemies.center(enemy, pos);
+    mesh.position.copy(pos);
+    mesh.scale.setScalar(1);
+    mesh.visible = true;
+    this.stickyBombs.push({ enemy, pos, t: fuse, fuse, dmg, radius, mesh });
+  }
+
+  tickBombs(dt) {
+    if (!this.stickyBombs.length) return;
+    const E = this.enemies, fx = this.fx, hex = this.bombColor.getHex();
+    for (let i = this.stickyBombs.length - 1; i >= 0; i--) {
+      const b = this.stickyBombs[i];
+      if (!b.enemy.dead) {
+        E.center(b.enemy, b.pos);
+        b.mesh.position.copy(b.pos);
+        const s = this.looks.quiet ? 1 : 1 + 0.35 * Math.sin((b.fuse - b.t) * 18);
+        b.mesh.scale.setScalar(s);
+      }
+      b.t -= dt;
+      if (b.t <= 0 || b.enemy.dead) {
+        for (const e of this.near(b.pos, b.radius)) {
+          bus.emit('damage_taken', { targetId: e.id, amount: b.dmg, color: this.bombColorStr, source: 'bomb-treasure' });
+        }
+        fx.ring(_rbPos.set(b.pos.x, E.floorBelow(b.pos, b.pos.y) + 0.004, b.pos.z), hex, b.radius, 0.35);
+        fx.puff(b.pos, hex, Math.max(0.018, b.radius * 0.3), 0.35);
+        fx.impact(b.pos, hex, Math.max(0.02, b.radius * 0.35), 10);
+        sfx.boom();
+        b.mesh.visible = false;
+        b.mesh.scale.setScalar(1);
+        this.stickyBombs.splice(i, 1);
+      }
+    }
+  }
+
+  // missile-on-hit (Toy Rocket): fire a homing rocket that steers toward the nearest living bug
+  launchRocket(origin, facing, dmg, speed, turn, life) {
+    const mesh = this.rocketPool.find((m) => !m.visible);
+    if (!mesh) return;
+    const pos = origin.clone();
+    const vel = new THREE.Vector3(Math.sin(facing), 0.35, Math.cos(facing)).normalize().multiplyScalar(speed);
+    mesh.position.copy(pos);
+    mesh.lookAt(_rbTarget.copy(pos).add(vel));
+    mesh.visible = true;
+    this.rockets.push({ pos, vel, t: life, life, dmg, speed, turn, mesh });
+  }
+
+  tickRockets(dt) {
+    if (!this.rockets.length) return;
+    const E = this.enemies, fx = this.fx, hex = this.rocketColor.getHex();
+    for (let i = this.rockets.length - 1; i >= 0; i--) {
+      const r = this.rockets[i];
+      r.t -= dt;
+      let best = null, bestD2 = Infinity;
+      for (const e of E.list) {
+        if (e.dead || e.under || e.proxy?.immune) continue;
+        const d2 = E.center(e, _rbPos).distanceToSquared(r.pos);
+        if (d2 < bestD2) { bestD2 = d2; best = e; _rbTarget.copy(_rbPos); }
+      }
+      if (best) {
+        _rbDir.copy(_rbTarget).sub(r.pos);
+        if (_rbDir.lengthSq() > 1e-10) {
+          _rbDir.normalize();
+          _to.copy(r.vel).normalize();
+          const dot = Math.max(-1, Math.min(1, _to.dot(_rbDir)));
+          const step = Math.min(Math.acos(dot), r.turn * dt);
+          if (step > 1e-6) {
+            _rbAxis.crossVectors(_to, _rbDir);
+            if (_rbAxis.lengthSq() > 1e-10) _to.applyAxisAngle(_rbAxis.normalize(), step);
+            else if (dot < 0) _to.applyAxisAngle(UP, step);
+            r.vel.copy(_to).normalize().multiplyScalar(r.speed);
+          }
+        }
+      }
+      r.pos.addScaledVector(r.vel, dt);
+      r.mesh.position.copy(r.pos);
+      r.mesh.lookAt(_rbTarget.copy(r.pos).add(r.vel));
+      let hit = false;
+      for (const e of E.list) {
+        if (e.dead || e.under || e.proxy?.immune) continue;
+        if (E.center(e, _rbPos).distanceTo(r.pos) <= e.r + 0.015) {
+          bus.emit('damage_taken', { targetId: e.id, amount: r.dmg, color: this.rocketColorStr, source: 'missile-treasure', feedback: { dir: r.vel.clone().normalize() } });
+          fx.impact(_rbPos, hex, Math.max(0.016, e.r * 0.7), 8);
+          fx.puff(_rbPos, hex, 0.018, 0.3);
+          sfx.boom();
+          r.mesh.visible = false;
+          this.rockets.splice(i, 1);
+          hit = true;
+          break;
+        }
+      }
+      if (!hit && r.t <= 0) {
+        r.mesh.visible = false;
+        this.rockets.splice(i, 1);
+      }
+    }
   }
 }

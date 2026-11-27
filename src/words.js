@@ -988,6 +988,15 @@ export function newMods() {
     refreshAll: [],                  // refresh-all: statuses a hit on a bug that has it refreshes on every bug (bubbles.js)
     streaks: [],                     // streak: { kills, within, status, effects, key } (run.js onKill)
     chillFreeze: null,               // chill-to-freeze: { hits, time } (bubbles.js strike)
+    healOnCrit: 0,                   // heal-on-crit: Health gained on each Crit (run.js)
+    critBonus: 0,                    // crit-damage: added to Crit multiplier (bubbles.js, combat.js)
+    regenMult: 1,                    // regen-mult: multiplies Health healing, Health regen and Shield refill (run.js, shield.js)
+    firstTreasureBonus: 0,           // first-treasure-bonus: extra Treasure picks on the first Treasure opened each act (run.js)
+    eliteJump: null,                 // elite-jump: { jumps, time } extra mid-air jumps after killing an Elite (run.js)
+    stillHeal: null,                 // still-heal: { share, perStack, wait, radius } (gadgets.js, run.js)
+    bombOnHit: null,                 // bomb-on-hit: { chance, dmg, fuse, radius } (run.js -> gadgets)
+    missileOnHit: null,              // missile-on-hit: { chance, dmg, speed, turn, life } (run.js -> gadgets)
+    cooldownScale: 1,                // cooldown-scale: multiplies Treasure cooldowns and timer periods (0.75 = 25% shorter)
     groundLock: [],                  // ground-lock: statuses whose bugs can't jump, fly up or climb (enemies.js)
     slideOnHit: [],                  // slide-on-hit: { status, distance } (bubbles.js strike)
     percentDots: [],                 // percent-dot: { status, share, boss } (bubbles.js effects)
@@ -1012,6 +1021,8 @@ export function newMods() {
     orbitMisses: false,              // orbit-misses (bubbles.js fly)
     execute: null,                   // execute: { under, elites } (enemies.js applyDamage)
     freshMore: 0, freshAbove: 0.9,   // fresh-damage: hits on a bug above freshAbove of its Health do this much more (enemies.js)
+    closeMore: 0, closeRange: 0,     // close-damage: hits within closeRange m do this much more (enemies.js)
+    bleedOnHit: null,                // bleed-on-hit: { chance, dmg, time, stacks } (run.js -> combat.bleed)
     hitLess: 0, hitLeast: 0.5,       // hit-less: each hit on you takes this much less, never below hitLeast (run.js hit)
     bossLevels: 0,                   // boss-levels: Treasures that level up when an act's boss falls (run.js onBossDead)
     nightLight: null,                // night-light: { radius, most } (gadgets.js; while "lit")
@@ -1295,7 +1306,7 @@ export const ATTACK_WORDS = {
 };
 
 // stack-buff's events: a kill, a hit by your attack, a lightning arc, a splash that kills 3 or more
-export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up'];
+export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up', 'crit', 'elite-kill'];
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
@@ -1591,15 +1602,24 @@ export const TREASURE_WORDS = {
     },
   },
   'stack-buff': {
-    doc: 'On each `event` (kill, hit, arc or big-splash), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. Stat names as in `stat`.',
+    doc: 'On each `event` (kill, hit, arc, big-splash, level-up, crit or elite-kill), a stat rises by `amount` (a % of its starting value with percent=#true) for `time` s, up to `stacks` at once; each new one restarts the time. With `extra-stacks`, copies share one buff and raise its stack cap by `extra-stacks` each. Stat names as in `stat`.',
     args: ['event', 'name', 'amount'],
-    props: { time: 3, stacks: 5, percent: false },
+    props: { time: 3, stacks: 5, percent: false, 'extra-stacks': 0 },
     make: ([event, name, amount], p, where) => {
       if (!BUFF_EVENTS.includes(event)) throw new Error(`stack-buff: event must be one of ${BUFF_EVENTS.join(', ')}, not "${event}"`);
       const key = STAT_NAMES[name];
       if (!key) throw new Error(`stack-buff: stat must be one of ${Object.keys(STAT_NAMES).join(', ')}, not "${name}"`);
-      if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('stack-buff: time must be above 0 and stacks a whole number, 1 or more');
-      return (m, copy = 0) => { m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` }); };
+      const extra = p['extra-stacks'];
+      if (!(p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1 && Number.isInteger(extra) && extra >= 0)) throw new Error('stack-buff: time must be above 0, stacks a whole number 1 or more, and extra-stacks 0 or more');
+      return (m, copy = 0) => {
+        if (extra > 0) {
+          const existing = m.buffs.find((b) => b.key === where);
+          if (existing) { existing.stacks += extra; return; }
+          m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: where });
+          return;
+        }
+        m.buffs.push({ event, stat: key, amount, percent: p.percent, time: p.time, stacks: p.stacks, key: `${where}#${copy}` });
+      };
     },
   },
   'burn-ramp': {
@@ -1866,10 +1886,116 @@ export const TREASURE_WORDS = {
       return (m) => { m.luckyRolls = Math.max(m.luckyRolls, n); };
     },
   },
+  'heal-on-crit': {
+    doc: 'Each Crit gives back `health` Health. Copies add.',
+    args: ['health'],
+    make: ([n]) => {
+      if (!(n > 0)) throw new Error('heal-on-crit: health must be above 0');
+      return (m) => { m.healOnCrit += n; };
+    },
+  },
+  'crit-damage': {
+    doc: 'Adds `extra` (1 = +100%) to your Crit damage multiplier. Copies add.',
+    args: ['extra'],
+    make: ([n]) => {
+      if (!(n > 0)) throw new Error('crit-damage: extra must be above 0');
+      return (m) => { m.critBonus += n; };
+    },
+  },
+  'regen-mult': {
+    doc: 'Multiplies all Health healing, Health regen and Shield refill speed by `times`. Copies multiply.',
+    args: ['times'],
+    make: ([k]) => {
+      if (!(k > 0)) throw new Error('regen-mult: times must be above 0');
+      return (m) => { m.regenMult *= k; };
+    },
+  },
+  'close-damage': {
+    doc: 'Hits (not damage over time) on anything within `range` m of you do `percent`% more damage. Copies add.',
+    args: ['percent'],
+    props: { range: 0.14 },
+    make: ([n], p) => {
+      if (!(n > 0 && p.range > 0)) throw new Error('close-damage: percent and range must be above 0');
+      return (m) => { m.closeMore += n / 100; m.closeRange = Math.max(m.closeRange, p.range); };
+    },
+  },
+  'bleed-on-hit': {
+    doc: '`chance` that a hit adds a Bleed stack (at most `stacks`): each stack deals `dmg` times your Attack damage over `time` s, and a new stack refreshes the time. Copies add their chances.',
+    props: { chance: 0.1, dmg: 2.4, time: 5, stacks: 5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.time > 0 && Number.isInteger(p.stacks) && p.stacks >= 1)) throw new Error('bleed-on-hit: chance must be in (0, 1], dmg and time above 0, and stacks a whole number of 1 or more');
+      return (m) => {
+        const b = m.bleedOnHit;
+        m.bleedOnHit = b ? { ...b, chance: Math.min(1, b.chance + p.chance), dmg: Math.max(b.dmg, p.dmg), time: Math.max(b.time, p.time), stacks: Math.max(b.stacks, p.stacks) } : { ...p };
+      };
+    },
+  },
+  'first-treasure-bonus': {
+    doc: 'Once each act, the first Treasure you open offers `count` more pick straight after. Copies add.',
+    args: ['count'],
+    make: ([n]) => {
+      if (!(Number.isInteger(n) && n >= 1)) throw new Error('first-treasure-bonus: count must be a whole number, 1 or more');
+      return (m) => { m.firstTreasureBonus += n; };
+    },
+  },
+  'elite-jump': {
+    doc: 'After defeating an Elite, you gain +`jumps` mid-air jump for `time` s. Copies take the biggest.',
+    args: ['jumps'],
+    props: { time: 30 },
+    make: ([n], p) => {
+      if (!(Number.isInteger(n) && n >= 1 && p.time > 0)) throw new Error('elite-jump: jumps must be a whole number of 1 or more and time above 0');
+      return (m) => {
+        const e = m.eliteJump;
+        m.eliteJump = e ? { jumps: Math.max(e.jumps, n), time: Math.max(e.time, p.time) } : { jumps: n, time: p.time };
+      };
+    },
+  },
+  'still-heal': {
+    doc: 'After standing still on the ground for `wait` s, a floor zone of `radius` m opens under you and heals `share` (0.05 = 5%) of your max Health a second while you stay in it. Extra copies add `per-stack`.',
+    args: ['share'],
+    props: { 'per-stack': 0.025, wait: 1, radius: 0.12 },
+    make: ([share], p) => {
+      if (!(share > 0 && p['per-stack'] >= 0 && p.wait > 0 && p.radius > 0)) throw new Error('still-heal: share, wait and radius must be above 0, and per-stack 0 or more');
+      return (m) => {
+        const s = m.stillHeal;
+        m.stillHeal = s ? { ...s, share: s.share + p['per-stack'], radius: Math.max(s.radius, p.radius) } : { share, perStack: p['per-stack'], wait: p.wait, radius: p.radius };
+      };
+    },
+  },
+  'bomb-on-hit': {
+    doc: '`chance` that a hit attaches a bomb to the bug; after `fuse` s (or when it dies) it blasts bugs within `radius` m for `dmg` times your Attack damage. Copies add their chances.',
+    props: { chance: 0.05, dmg: 1.8, fuse: 1.5, radius: 0.09 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.fuse > 0 && p.radius > 0)) throw new Error('bomb-on-hit: chance must be in (0, 1], and dmg, fuse and radius above 0');
+      return (m) => {
+        const b = m.bombOnHit;
+        m.bombOnHit = b ? { ...b, chance: Math.min(1, b.chance + p.chance), dmg: Math.max(b.dmg, p.dmg), radius: Math.max(b.radius, p.radius) } : { ...p };
+      };
+    },
+  },
+  'missile-on-hit': {
+    doc: '`chance` that a hit fires a homing rocket at `speed` m/s (turning up to `turn` rad/s for `life` s) for `dmg` times your Attack damage. Copies add their damage.',
+    props: { chance: 0.1, dmg: 2.5, speed: 0.65, turn: 8, life: 2.5 },
+    make: (_, p) => {
+      if (!(p.chance > 0 && p.chance <= 1 && p.dmg > 0 && p.speed > 0 && p.turn > 0 && p.life > 0)) throw new Error('missile-on-hit: chance must be in (0, 1], and dmg, speed, turn and life above 0');
+      return (m) => {
+        const r = m.missileOnHit;
+        m.missileOnHit = r ? { ...r, chance: Math.max(r.chance, p.chance), dmg: r.dmg + p.dmg } : { ...p };
+      };
+    },
+  },
+  'cooldown-scale': {
+    doc: 'Multiplies every Treasure cooldown and timer period by `scale` (0.75 = 25% shorter). Copies multiply.',
+    args: ['scale'],
+    make: ([s]) => {
+      if (!(s > 0 && s <= 1)) throw new Error('cooldown-scale: scale must be in (0, 1]');
+      return (m) => { m.cooldownScale *= s; };
+    },
+  },
 };
 
 // the words whose chance rolls through chance.js: owning one lets a needs-chance treasure be offered
-for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit']) {
+for (const k of ['crit', 'zap-on-pop', 'on-attack', 'heal-on-hit', 'leave-on-kill', 'crumb-on-kill', 'ghosts', 'gild', 'trap-on-hit', 'bleed-on-hit', 'bomb-on-hit', 'missile-on-hit']) {
   const w = TREASURE_WORDS[k], make = w.make;
   w.make = (...a) => { const apply = make(...a); return (m, copy) => { apply(m, copy); m.chancy = true; }; };
 }

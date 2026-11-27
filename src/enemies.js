@@ -287,6 +287,7 @@ export class Enemies {
     this.gapAt = -Infinity; this.gapBy = null; this.seenWant = false;   // the last bug attack start (the attack gap)
     this._o = new THREE.Vector3();
     this._d = new THREE.Vector3();
+    this._closeAt = new THREE.Vector3();
     this._c = { flatDir: new THREE.Vector3(), dir: new THREE.Vector3(), foot: new THREE.Vector3() };   // the frame every word sees
     this.leapMarks = [];      // pooled: the ring under each leaping bug's landing spot (the leap word)
     this.burrowMarks = [];    // pooled: the circle and dome over each locked mound about to burst up (the burrow word)
@@ -508,6 +509,10 @@ export class Enemies {
       if (blast) this.statusBlast(e, blast, amount * share);
       const M = this.mods, H = e.proxy || e;   // fresh-damage (Rolling Pin): a hit on something still near full Health
       if (M?.freshMore && H.maxHp && H.hp >= H.maxHp * M.freshAbove) { amount *= 1 + M.freshMore; if (!feedback.soft) this.bonusSign(e); }
+      if (M?.closeMore && this.player?.position && this.center(e, this._closeAt).distanceTo(this.player.position) <= M.closeRange) {
+        amount *= 1 + M.closeMore;
+        if (!feedback.soft) this.bonusSign(e);
+      }
     }
     e.lastBy = feedback.by;               // what dealt the last hit: on-kill-of by=
     if (!feedback.tick) e.lastGolden = !!feedback.golden;   // golden-bubble coin: the last real hit was golden

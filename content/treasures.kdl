@@ -553,3 +553,51 @@ treasure "racket" name="Badminton Racket" icon="🏸" rarity="legendary" attack=
 treasure "pogoStick" name="Pogo Stick" icon="🤸" rarity="legendary" attack=#true text="Land on a bug to stomp it for 1x Attack damage and spring back up. Each stomp in a row adds 1x, up to 4x." {
     stomp dmg=1 step=1 most=4 stun=1 safe=0.3 reach=0.02 drop=0.03
 }
+treasure "juiceBox" name="Juice Box" icon="🧃" rarity="rare" attack=#true text="+5% Crit chance. On a Crit: +1 Health." stack=5 {
+    crit chance=0.05 mult=3
+    heal-on-crit 1
+}
+treasure "espressoCup" name="Espresso Cup" icon="🧉" rarity="epic" attack=#true text="+5% Crit chance. On a Crit: +15% Fire rate for 4 s, up to +45%." stack=5 {
+    crit chance=0.05 mult=3
+    stack-buff "crit" "fire-rate" 15 percent=#true time=4 stacks=3 extra-stacks=2
+}
+treasure "luckySeven" name="Lucky Seven" icon="🎰" rarity="legendary" text="+7 max Health, +7% Fire rate, Move speed, Dodge, Range and Crit chance." {
+    stat fire-rate 7 percent=#true
+    stat health 7
+    stat move-speed 7 percent=#true
+    stat dodge 7
+    stat range 7 percent=#true
+    crit chance=0.07 mult=3
+}
+treasure "laserPointer" name="Laser Pointer" icon="🔴" rarity="legendary" attack=#true needs-crit=#true text="Crits deal +100% extra damage." {
+    crit-damage 1
+}
+treasure "humidifier" name="Humidifier" icon="🚿" rarity="legendary" text="2x all Health healing, Health regen and Shield refill speed." {
+    regen-mult 2
+}
+treasure "readingGlasses" name="Reading Glasses" icon="👓" rarity="common" attack=#true text="+30% damage to bugs within 14 cm." stack=5 {
+    close-damage 30 range=0.14
+}
+treasure "letterOpener" name="Letter Opener" icon="🗡️" rarity="rare" attack=#true text="1 in 10 hits: Bleed for 2.4x Attack damage over 5 s, up to 5 stacks." stack=5 {
+    bleed-on-hit chance=0.1 dmg=2.4 time=5 stacks=5
+}
+treasure "storeCoupon" name="Store Coupon" icon="🎟️" rarity="epic" text="Once per act: the first Treasure you open offers a second pick." stack=1 {
+    first-treasure-bonus 1
+}
+treasure "goldMedal" name="Gold Medal" icon="🏅" rarity="epic" text="On an Elite kill: +35% Move speed, +35% Fire rate and +1 mid-air jump for 30 s." stack=5 {
+    stack-buff "elite-kill" "move-speed" 35 percent=#true time=30 stacks=1
+    stack-buff "elite-kill" "fire-rate" 35 percent=#true time=30 stacks=1
+    elite-jump 1 time=30
+}
+treasure "dampSponge" heals=#true name="Damp Sponge" icon="🧽" rarity="common" text="Stand still for 1 s: a damp zone heals 5% max Health a second." stack=5 {
+    still-heal 0.05 per-stack=0.025 wait=1 radius=0.12
+}
+treasure "popRocks" name="Pop Rocks" icon="🧨" rarity="common" attack=#true text="1 in 20 hits: stick a bomb to the bug that blasts for 1.8x Attack damage." stack=5 {
+    bomb-on-hit chance=0.05 dmg=1.8 fuse=1.5 radius=0.09
+}
+treasure "toyRocket" name="Toy Rocket" icon="🚀" rarity="rare" attack=#true text="1 in 10 hits: fire a homing rocket for 2.5x Attack damage." stack=5 {
+    missile-on-hit chance=0.1 dmg=2.5 speed=0.65 turn=8 life=2.5
+}
+treasure "pocketWatch" name="Pocket Watch" icon="⏱️" rarity="legendary" text="Treasure cooldowns are 25% shorter." {
+    cooldown-scale 0.75
+}

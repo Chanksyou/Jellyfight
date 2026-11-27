@@ -220,11 +220,33 @@ export class Run {
     bus.on('enemy_spawned', ({ targetId }) => { if (this.phase === 'explore') { this.bugsOut++; this.outIds.add(targetId); } });
     bus.on('enemy_killed', (k) => { if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
+    this._procOrigin = new THREE.Vector3();
     bus.on('damage_taken', (d) => {
       if (d.targetId !== PLAYER && d.amount > 0 && d.source) this.dealt[d.source] = (this.dealt[d.source] || 0) + d.amount;
       if (d.targetId !== PLAYER) this.buff(d.source === 'lightning' ? 'arc' : d.source === 'bubble' || d.source === 'tentacle' ? 'hit' : null);   // stack-buff
+      if (d.targetId !== PLAYER && d.feedback?.crit) {
+        this.buff('crit');
+        if (this.mods.healOnCrit > 0) this.heal(this.mods.healOnCrit);
+      }
       const H = this.mods.healOnHit;
       if (H && d.targetId !== PLAYER && (d.source === 'bubble' || d.source === 'tentacle') && rollChance(H.chance, this.mods)) this.heal(H.health);
+      const hit = d.targetId !== PLAYER && !d.feedback?.tick && !d.feedback?.pass && (d.source === 'bubble' || d.source === 'tentacle' || d.source === 'splash');
+      const Bl = this.mods.bleedOnHit;
+      if (Bl && hit && rollChance(Bl.chance, this.mods)) {
+        const target = this.enemies.byId.get(d.targetId);
+        if (target && !target.dead) this.lash.bleed(target, 1, { dps: Bl.dmg / Bl.time, time: Bl.time, stacks: Bl.stacks }, this.S.bubbleDamage);
+      }
+      const Bo = this.mods.bombOnHit;
+      if (Bo && hit && rollChance(Bo.chance, this.mods)) {
+        const target = this.enemies.byId.get(d.targetId);
+        if (target && !target.dead) this.gadgets.attachBomb(target, this.S.bubbleDamage * Bo.dmg, Bo.fuse, Bo.radius);
+      }
+      const Mi = this.mods.missileOnHit;
+      if (Mi && hit && rollChance(Mi.chance, this.mods)) {
+        const P = this.player.position;
+        this._procOrigin.set(P.x, P.y + this.cfg.height * 0.45, P.z);
+        this.gadgets.launchRocket(this._procOrigin, this.player.facing, this.S.bubbleDamage * Mi.dmg, Mi.speed, Mi.turn, Mi.life);
+      }
     });
     bus.on('elite_defeated', ({ elite }) => this.eliteDefeated(elite));
     bus.on('big_splash', ({ kills }) => { this.buff('big-splash'); this.wish(kills); });
@@ -257,12 +279,12 @@ export class Run {
       const M = this.mods;
       const L = M.landingShockwave;
       if (L && drop > L.drop) this.shockwave(this.player.position.clone(), L.radius, this.power * L.dmg, 0xffffff, L.push);
-      const W = M.landHeal;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
-      if (W && drop > 0.04 && this.t - this.spoutAt >= W.every) {
+      const W = M.landHeal, cd = M.cooldownScale ?? 1;   // land-heal (Whale Bath Toy): a landing spouts water and gives Health back
+      if (W && drop > 0.04 && this.t - this.spoutAt >= W.every * cd) {
         const P = this.player.position;
-        this.spoutAt = this.t; this.heal(W.health);
+        this.spoutAt = this.t; const healed = this.heal(W.health);
         this.gadgets.looks.spout(P.clone(), this.cfg.radius); sfx.whaleSpout(); this.player.avatar?.pulse(0.5);
-        this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${W.health} Health`, '#c6ffb0', 14);
+        this.fx.number(P.clone().setY(P.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14);
       }
     };
     this.player.onFall = (from, to) => this.stomp(from, to);   // stomp (Pogo Stick): a fall onto a bug bounces instead of landing
@@ -402,6 +424,8 @@ export class Run {
     this.saved = false;               // the run's one death-save is spent
     this.grown = {}; this.growCount = {}; this.growTotal = {}; this.buffs = {};
     this.chestsOpened = 0;            // treasure chests opened this run (every 3rd offers an Element upgrade)
+    this.actTreasuresOpened = 0;      // first-treasure-bonus (Store Coupon): resets each act
+    this.eliteJumpT = 0;              // elite-jump (Gold Medal): seconds of extra mid-air jump left
     this.evolved = [];                // evolutions taken (content/evolutions.kdl): one per act's boss, or with jelly types any number from the Legendary pick
     this.upgrades = [];               // Attack upgrades taken (content/upgrades.kdl), one after each of the first three bosses
     this.streaks = {};                // streak: when each one's recent kills died
@@ -501,7 +525,7 @@ export class Run {
   // where the act stands now (keepProgress, throughStageDoor), as resumeAct reads it back
   progress() {
     return {
-      scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn,
+      scene: this.stage.scene || 1, now: this.carryOver(), t: this.t, health: this.health, shield: this.shield.hp, polypT: this.polypT, rebornThisAct: this.rebornThisAct, onceUsed: [...this.onceUsed], wishedIn: this.wishedIn, actTreasuresOpened: this.actTreasuresOpened,
       levels: this.pendingLevels + (this.choosingCard ? 1 : 0), cards: this.choosingCard ? this.cardsOnOffer : null, rerolls: this.rerolls, bleeds: this.bleeds,
       kills: this.kills, elitesBeaten: this.elitesBeaten, bossHurt: this.bossHurt, bugsOut: this.bugsOut, bugsCleared: this.bugsCleared, taken: this.taken,
       lost: this.lost, eliteLog: this.eliteLog, pickupLog: this.pickupLog, offerLog: this.offerLog, cardLog: this.cardLog, dealt: this.dealt, bossDoor: this.bossDoor, treasuresObtained: this.treasuresObtained,
@@ -516,7 +540,7 @@ export class Run {
     Object.assign(this, {
       kills: M.kills, featKills: M.kills, elitesBeaten: M.elitesBeaten, bossHurt: !!M.bossHurt, bugsOut: M.bugsOut || 0, bugsCleared: M.bugsCleared || 0, taken: M.taken || 0,
       lost: M.lost || {}, eliteLog: M.eliteLog || [], pickupLog: M.pickupLog || [], offerLog: M.offerLog || [], cardLog: M.cardLog || [], dealt: M.dealt || {}, bossDoor: M.bossDoor || null, treasuresObtained: M.treasuresObtained || 0,
-      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null,
+      pendingLevels: M.levels || 0, rerolls: M.rerolls ?? 1, bleeds: M.bleeds || [], polypT: M.polypT || 0, rebornThisAct: !!M.rebornThisAct, onceUsed: new Set(M.onceUsed || []), wishedIn: M.wishedIn ?? null, actTreasuresOpened: M.actTreasuresOpened || 0,
       treasureTimesLeft: M.treasureTimesLeft || [], bonusTreasureAt: new Set(M.bonusTreasureAt || []), recentTreasureSpots: M.recentTreasureSpots || [],
     });
     if (M.cards) this.owedCards = [M.cards.map((c) => ({ ...c, rarity: RARITY.find((r) => r.id === c.rarity?.id) || RARITY[0] }))];
@@ -561,6 +585,7 @@ export class Run {
     for (const d of this.mods.stats.dodge) left *= 1 - Math.min(1, d / cap);
     S.dodge = Math.min(cap, Math.max(0, S.dodge) + cap * (1 - left));
     S.tentacles = Math.max(1, Math.min(MAX_TENTACLES, Math.round(S.tentacles)));
+    if (this.mods.regenMult !== 1) S.regen *= this.mods.regenMult;
     if (this.mods.noRegen === true || (this.mods.noRegen && this.reborn)) S.regen = 0;   // no-regen (Immortal Jelly: once reborn)
     if (this.mods.shield.fromHealth) { S.shield += Math.max(0, S.health - 1); S.health = 1; }   // health-to-shield
     if (this.dashT > 0) S.moveSpeed += BASE_STATS.moveSpeed * this.dashK;   // dash (Moon Jelly's pulse)
@@ -660,7 +685,7 @@ export class Run {
       const riding = !!P.flight;
       P.update(dt, this.input, this.tpc.yaw, {
         speedMul: s.moveSpeed, jumpMul: s.jumpHeight, vent: this.phase === 'explore' ? tr.vent : null, climb: !!tr.climb,
-        airJumps: this.mods.extraJumps,       // no mid-air jump until Pen Spring
+        airJumps: this.mods.extraJumps + (this.eliteJumpT > 0 && this.mods.eliteJump ? this.mods.eliteJump.jumps : 0),       // no mid-air jump until Pen Spring or Gold Medal
         glide: this.mods.glide?.fall,         // hold jump in the air to drift down (Glide)
         slow: Math.max(this.slowT > 0 ? 0.4 : 0, this.slowHardT > 0 ? this.slowK : 0), push,
         slip: this.slipT > 0 ? 1 : 0, tumble: this.tumbleT > 0 ? 1 : 0, spin: this.thrownSpin(),
@@ -683,6 +708,7 @@ export class Run {
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
     if (this.dashT > 0 && this.dashEf?.dmg) this.surgeThrough();
     for (const k in this.buffs) if ((this.buffs[k].t -= dt) <= 0) delete this.buffs[k];   // stack-buff: its stacks run out together
+    if (this.eliteJumpT > 0) this.eliteJumpT = Math.max(0, this.eliteJumpT - dt);
     if (this.mods.per.some((c) => c.of === 'burning-nearby')) {   // per of="burning-nearby" (Fuel): counted once a frame
       let n = 0;
       for (const [e, f] of this.bubbles.burning) if (!e.dead && f.t > 0 && this.enemies.center(e, _near).distanceTo(P.position) < NEARBY) n++;
@@ -734,6 +760,7 @@ export class Run {
       if (!polyp && (!A || A.kind === 'tentacle')) this.lash.update(dt, origin, this.tentacleStats, this.mods.hits.tentacles, { nth: this.mods.nth, stingCount: this.mods.stingCount, mods: this.mods });
       else this.lash.animate(dt, origin);
       if (!polyp) this.gadgets.update(dt, { mods: this.mods, feet: P.position, center: origin, facing: P.facing, power: this.power, radius: this.cfg.radius, moving: P.fullSpeed,
+        stillT: this.stillT, maxHealth: s.health, heal: (n) => this.heal(n, true),
         pulse: (k) => P.avatar?.pulse(k),
         grab: (ef) => this.lash.grab(origin, this.tentacleStats, this.mods.hits.tentacles, ef),
         flare: (mult) => { this.lash.flare = Math.max(this.lash.flare, mult); return this.tentacleStats.reach * mult; },
@@ -763,7 +790,7 @@ export class Run {
     for (const b of this.bursts.splice(0)) this.burst(b);
 
     // --- treasure effects that tick here (timed and area ones run in gadgets.js)
-    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true);   // health regen (cards, treasures)
+    if (s.regen > 0 && this.phase !== 'intro') this.heal(s.regen * dt, true, false);   // health regen (cards, treasures; S.regen already scaled by regenMult)
     if (this.phase === 'explore' || this.phase === 'boss') { this.drain(dt); this.pedometer(); }
     this.sunrise.update(dt);   // a stage's sun: drying the jelly while it stands in it
 
@@ -784,12 +811,12 @@ export class Run {
       this.xpChainT = LOOK.num('xp-chain-window', 0.65);
     }
     const crumbs = this.crumbs.update(dt, origin, this.mods.xpReach);   // each crumb is worth its Health
-    if (crumbs) { this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${crumbs} Health`, '#c6ffb0', 14); }
+    if (crumbs) { const healed = this.heal(crumbs); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14); }
     for (const L of this.mods.leaves) {   // leave-on-kill: only swimming onto one picks it up (well inside XP's reach, never Fridge Magnet's)
       const pool = this.left[L.look]; pool.life = L.last;
       const n = pool.update(dt, origin, 0.6);
       if (!n) continue;
-      if (L.health) { this.heal(n * L.health); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${n * L.health} Health`, '#c6ffb0', 14); }
+      if (L.health) { const healed = this.heal(n * L.health); this.fx.number(origin.clone().setY(origin.y + this.cfg.height), `+${healed} Health`, '#c6ffb0', 14); }
       for (let i = 0; i < n; i++) this.buff(L.event);
       this.fx.puff(origin, pool.mat.color.getHex(), 0.014, 0.3);
       if (L.look === 'meatball') sfx.snackChomp(); else sfx.dustSweep();
@@ -1038,8 +1065,9 @@ export class Run {
       return;
     }
     // reflect: the first hit every so often goes back where it came from, and you take none of it
+    const cd = M.cooldownScale ?? 1;
     if (M.reflect && this.t >= this.reflectAt) {
-      this.reflectAt = this.t + M.reflect.every;
+      this.reflectAt = this.t + M.reflect.every * cd;
       this.iFrames = M.reflect.invuln;
       this.mirrorUntil=this.t+M.reflect.invuln;
       const P = this.player.position, at = P.clone().setY(P.y + this.cfg.height * 0.5);
@@ -1063,7 +1091,7 @@ export class Run {
     // squeak-when-hit effects (they stack), each on its own cooldown
     M.squeaks.forEach((Q, i) => {
       if ((this.squeakCd[i] || 0) > this.t) return;
-      this.squeakCd[i] = this.t + Q.cooldown;
+      this.squeakCd[i] = this.t + Q.cooldown * cd;
       const P = this.player.position;
       this.gadgets.bursts.squeak(P,Q.radius);sfx.gadgetSqueak();
       this.fx.number(P.clone().setY(P.y + 0.05), 'SQUEAK', '#ffe066', 16);
@@ -1083,7 +1111,7 @@ export class Run {
       if ((this.hurtCd[H.key] || 0) > this.t) continue;
       if (H.lowHealth != null && this.health > this.S.health * H.lowHealth) continue;   // low-health: only when you are down
       if (H.oncePerAct) { if (this.onceUsed.has(H.key)) continue; this.onceUsed.add(H.key); }   // once-per-act
-      this.hurtCd[H.key] = this.t + H.cooldown;
+      this.hurtCd[H.key] = this.t + H.cooldown * cd;
       const P = this.player.position, center = P.clone().setY(P.y + this.cfg.height * 0.5);
       const lash = (e, k) => this.lash.strike(center, e, this.tentacleStats.tentacleDamage * k, this.mods.hits.tentacles);   // the lash word: a tentacle hits back
       const lashAll = (k) => this.lash.sweepNow(center, this.tentacleStats, this.mods.hits.tentacles, k);   // the lash word with all=#true
@@ -1227,10 +1255,12 @@ export class Run {
     this.hud.toast('You bloom again, whole.', 2000);
   }
 
-  heal(amount, quiet = false) {
+  heal(amount, quiet = false, scale = true) {
+    if (scale && amount > 0) amount *= this.mods.regenMult || 1;
     const before = this.health;
     this.health = Math.min(this.S.health, this.health + amount);
     if (!quiet && this.health > before) this.healthPulse = true;
+    return amount;
   }
 
   // an enemy_killed event: { pos, r, xp, elite }
@@ -1346,7 +1376,7 @@ export class Run {
       this.growTotal[g.key] = (this.growTotal[g.key] || 0) + step;
       const amount = g.percent ? BASE_STATS[g.stat] * step / 100 : step;
       this.grown[g.stat] = (this.grown[g.stat] || 0) + amount;
-      if (g.stat === 'health') this.heal(amount);
+      if (g.stat === 'health') this.heal(amount, false, false);
       if (g.percent) continue;             // a percent grows in small steps: no number for each one
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height * 1.2), `+${g.amount} ${STAT_INFO[g.stat]?.icon || ''}`, '#c6ffb0', 15);
@@ -1363,6 +1393,8 @@ export class Run {
       if (this.xpDrops.gem(c, Math.max(1, Math.ceil(xpToNext(this.level) - this.xp)))) { this.fx.number(c.clone().setY(c.y + r * 3), 'JACKPOT!', '#ffd23a', 20); sfx.combo(10); }
     }
     if (elite) {                         // elites leave a treasure where they fall
+      this.buff('elite-kill');
+      if (this.mods.eliteJump) this.eliteJumpT = this.mods.eliteJump.time;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
       if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite cleared! It left a treasure.', 1800);
     }
@@ -1371,6 +1403,8 @@ export class Run {
 
   // One of the high-ground elites (elites.js) is beaten
   eliteDefeated(e) {
+    this.buff('elite-kill');
+    if (this.mods.eliteJump) this.eliteJumpT = this.mods.eliteJump.time;
     this.challenges.eliteKills++;
     const list = this.challenges.elites[this.stage.id] ||= [];
     if (this.phase === 'explore' && this.t < this.duration && !list.includes(e.spec.kind)) {
@@ -1490,7 +1524,7 @@ export class Run {
       if (this.cardLog.length < 48) this.cardLog.push([Math.round(this.t * 10) / 10, this.cardsOnOffer.map(tag), tag(card)]);
       applyCard(this.stats, card);
       this.challenges.cards[card.stat] = (this.challenges.cards[card.stat] || 0) + 1;
-      if (this.stats.health > before) this.heal(this.stats.health - before);
+      if (this.stats.health > before) this.heal(this.stats.health - before, false, false);
       this.resume();
     }, () => { this.rerolls--; this.challenges.rerolls++; return (this.cardsOnOffer = roll()); }, this.hud.$('.lvl').getBoundingClientRect(),
     // the reward spin (spin-screen.js): not for cards a reload owes; its filler is real rolls on its own dice
@@ -1529,11 +1563,12 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
-  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room') {
+  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room', bonusLeft = null) {
     this.chestsOpened++;
+    if (bonusLeft === null) this.actTreasuresOpened++;
     // three of a kind: one goes up a rarity, from anything takeable (chest weight or not)
     let left = shuffle(threeOfAKindTreasures(this.rollChest(source), TREASURES.filter((t) => this.takeable(t))));
-    if (!left.length) return;
+    if (!left.length) { if (bonusLeft !== null) this.resume(); return; }
     // stackable ones say how many you'd have; levelled ones which level it'd be and what it adds
     left = left.map((t) => {
       const next = this.owned.count(t.id) + 1, levelled = t.levels.length > 1;
@@ -1542,8 +1577,10 @@ export class Run {
       const delta = levelled ? (next > 1 ? `Lv ${next - 1} → Lv ${next}` : 'Lv 1') : t.stack > 1 ? (next > 1 ? `×${next - 1} → ×${next}` : `1/${t.stack}`) : null;
       return { ...t, tier: treasureTier(t), text, delta };
     });
+    const extra = bonusLeft === null ? (this.actTreasuresOpened === 1 ? this.mods.firstTreasureBonus : 0) : bonusLeft;
+    const then = extra > 0 ? () => this.pickTreasure('Store Coupon!', 'Choose an extra treasure.', source, extra - 1) : undefined;
     const pool = TREASURES.filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0 && this.takeable(t));   // what the chest could hold (the Luck panel's odds)
-    this.offer(title, sub, left, undefined, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
+    this.offer(title, sub, left, then, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
   }
 
   // The Boss reward: a Legendary pick of three from the Legendary treasures you can take, the
@@ -1567,7 +1604,7 @@ export class Run {
   spinHint() { return this.ui.spinOn && !document.body.classList.contains('calm') ? this.firstRun.spinHint() : null; }
 
   // needs-stat: a treasure offered only once that stat is above 0 (shield treasures need a Shield bar)
-  hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy); }   // needs-chance: some effect of yours rolls a chance
+  hasStat(t) { return (!t.needsStat || this.S[t.needsStat] > 0) && (!t.needsChance || this.mods.chancy) && (!t.needsCrit || !!(this.mods.hits.bubbles.crit || this.mods.hits.tentacles.crit || this.mods.hits.splash.crit)); }   // needs-chance: some effect of yours rolls a chance; needs-crit: some attack of yours can Crit
   // not-for: a treasure that does nothing for the jelly type's attack isn't offered (Range for tentacles).
   // and no retired=#true Treasure (the old tentacle ones, now Tentacle Attack upgrades)
   forAttack(t) { return !(t.notFor?.includes(this.attack.kind) || t.retired); }
@@ -1587,7 +1624,7 @@ export class Run {
       this.pickedOffer(u.id);
       this.upgrades.push(u.id);
       this.found('upgrades', u.id, `${u.icon} ${u.name}`);
-      if (this.S.health > before) this.heal(this.S.health - before);
+      if (this.S.health > before) this.heal(this.S.health - before, false, false);
       this.health = Math.min(this.health, this.S.health);
       this.ui.treasure(u);
       then();
@@ -1623,7 +1660,7 @@ export class Run {
       if (this.challenges.seen.includes(t.id)) this.challenges.duplicate = true;
       else this.challenges.seen.push(t.id);
       this.found('treasures', t.id, `${t.icon} ${t.name}`);
-      if (this.S.health > before) this.heal(this.S.health - before);
+      if (this.S.health > before) this.heal(this.S.health - before, false, false);
       this.health = Math.min(this.health, this.S.health);   // health-to-shield takes all but 1
       this.ui.treasure(t, this.owned.count(t.id));
       then();
@@ -2410,25 +2447,26 @@ export class Run {
   // share of its wait still to go (0 = ready or going off now, 1 = just went off) and spent is a
   // once-a-run (or once-an-act) effect already used. The HUD draws them as clock faces.
   cooldowns() {
-    const M = this.mods, G = this.gadgets, out = (this._cd ||= {});
+    const M = this.mods, G = this.gadgets, cd = M.cooldownScale ?? 1, out = (this._cd ||= {});
     for (const k in out) delete out[k];
     const put = (id, left, spent = false) => {
       if (!id) return;
       left = Math.max(0, Math.min(1, left));
       if (!out[id] || left < out[id].left) out[id] = { left, spent };   // several copies: the soonest
     };
-    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first) / T.every);
+    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first * cd) / (T.every * cd));
     for (const H of M.onHurt) {
       const used = H.oncePerAct && this.onceUsed.has(H.key);   // once-per-act: spent until the next act
-      put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / H.cooldown, used);
+      put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / (H.cooldown * cd), used);
     }
-    M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / Q.cooldown));
+    M.squeaks.forEach((Q, i) => put(Q.owner, ((this.squeakCd[i] || 0) - this.t) / (Q.cooldown * cd)));
     const O = M.owners;
-    if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * 0.6) / M.mouse.every);
-    if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / M.reflect.every);
+    if (M.mouse) put(O.mouse, G.mouseRun ? 0 : (G.t.mouse ?? M.mouse.every * cd * 0.6) / (M.mouse.every * cd));
+    if (M.reflect) put(O.reflect, (this.reflectAt - this.t) / (M.reflect.every * cd));
     if (M.deathSave) put(O.deathSave, this.saved ? 1 : 0, this.saved);
     if (M.rebirth) put(O.rebirth, this.polypT > 0 ? 0 : this.rebornThisAct ? 1 : 0, this.rebornThisAct && !(this.polypT > 0));
-    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / M.decoy.every);
+    if (M.decoy) put(O.decoy, 1 - this.mirage.wait / (M.decoy.every * cd));
+    if (M.firstTreasureBonus) put(O.firstTreasureBonus, this.actTreasuresOpened >= 1 ? 1 : 0, this.actTreasuresOpened >= 1);
     return out;
   }
 
