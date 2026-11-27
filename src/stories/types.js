@@ -42,13 +42,13 @@ story('types/normal-is-todays-jelly', {
 });
 
 story('types/jelly-stats-apply', {
-  about: 'A run started as Fire begins with Health 19, Attack damage 7.5, Fire rate 1.5/s and Move speed 105%; every other stat is Normal\'s.',
+  about: 'A run started as Fire begins with Health 17, Attack damage 7.5, Fire rate 1.5/s and Move speed 105%; every other stat is Normal\'s.',
   setup() { fresh({ types: 'fire' }); },
   play() {
     const { run } = G(), s = run.stats;
-    const fire = run.jelly === 'fire' && s.health === 19 && s.bubbleDamage === 7.5 && s.fireRate === 1.5 && s.moveSpeed === 1.05 && run.health === 19;
+    const fire = run.jelly === 'fire' && s.health === 17 && s.bubbleDamage === 7.5 && s.fireRate === 1.5 && s.moveSpeed === 1.05 && run.health === 17;
     const rest = Object.keys(BASE_STATS).filter((k) => !['health', 'bubbleDamage', 'fireRate', 'moveSpeed'].includes(k)).every((k) => s[k] === BASE_STATS[k]);
-    const live = run.S.health === 19 && run.S.bubbleDamage >= 7.5;   // what the systems read, with the act's carried Treasures on top
+    const live = run.S.health === 17 && run.S.bubbleDamage >= 7.5;   // what the systems read, with the act's carried Treasures on top
     fresh();
     return ok(fire && rest && live, { fire, rest, live, stats: { health: s.health, bubbleDamage: s.bubbleDamage, fireRate: s.fireRate, moveSpeed: s.moveSpeed } });
   },
@@ -71,7 +71,7 @@ story('types/jelly-survives-reload', {
       keepRun(2, start);
       run.carry = start; run.resumed = false;
       run.start();
-      const carriedOn = run.jelly === 'fire' && run.stats.health === 19 && run.stats.bubbleDamage === 7.5;
+      const carriedOn = run.jelly === 'fire' && run.stats.health === 17 && run.stats.bubbleDamage === 7.5;
       // part way through, then the page reloads
       run.t = 120; run.health = 9; run.dev = false;
       run.keepProgress();
@@ -109,7 +109,7 @@ story('types/normal-has-no-lash', {
 });
 
 story('types/fire-shot-is-the-only-attack', {
-  about: 'A Fire jelly hurts a bug only with its Fire shot and the Burn it sets: no plain bubbles, no tentacle stings, and no Element pick at the start of a run or, on a new player\'s first run, after the first card. Each shot hits for hit= x Attack damage (7.5 x 0.5).',
+  about: 'A Fire jelly hurts a bug only with its Fire shot and the Burn it sets: no plain bubbles, no tentacle stings, and no Element pick at the start of a run or, on a new player\'s first run, after the first card. Each shot hits for hit= x Attack damage (7.5 x 0.75).',
   setup() { setupFight({ types: 'fire' }); },
   play() {
     const { run, menus } = G();
@@ -118,7 +118,7 @@ story('types/fire-shot-is-the-only-attack', {
     roachAt(0, -0.06);
     const by = hurtBy(60 * 4);
     const only = Object.keys(by).every((k) => k === 'fire') && by.fire?.length > 0;
-    const shots = (by.fire || []).filter((a) => Math.abs(a - 7.5 * 0.6) < 1e-9).length, burns = (by.fire || []).length - shots;
+    const shots = (by.fire || []).filter((a) => Math.abs(a - 7.5 * 0.75) < 1e-9).length, burns = (by.fire || []).length - shots;
     // a new player's first run opens the Element pick after the first card instead: not for a jelly type
     fresh({ types: 'fire', firstRun: true, levels: true });
         const offers = [];
@@ -137,7 +137,7 @@ story('types/fire-fires-at-full-fire-rate', {
   setup() { setupFight({ types: 'fire' }); },
   play() {
     const { run } = G();
-    roachAt(0, -0.15);
+    roachAt(0, -0.15, { hp: 9999 });   // a bug that dies would spread its Burn, which is a volley too
     const shots = spy(run.bubbles, 'elementVolley');
     step(60 * 8);
     const base = shots.length;
@@ -149,7 +149,7 @@ story('types/fire-fires-at-full-fire-rate', {
 });
 
 story('types/tentacle-has-no-bubbles', {
-  about: 'A Tentacle jelly never blows a bubble or fires an Element, even with a bug in Range; it stings what comes into Tentacle reach (11 cm) for its Attack damage (9), Fire rate times a second.',
+  about: 'A Tentacle jelly never blows a bubble or fires an Element, even with a bug in Range; it stings what comes into Tentacle reach (13 cm) for its Attack damage (9), Fire rate times a second.',
   setup() { setupFight({ types: 'tentacle' }); },
   play() {
     const { run } = G();
@@ -177,7 +177,7 @@ story('types/tentacle-attacks-strike-different-bugs', {
     const first = strikes.map((a) => a[1]), dmg = strikes.map((a) => a[2]);
     const T = run.tentacleStats;
     const pass = first.length === 3 && new Set(first).size === 3 && first.every((e) => bugs.includes(e)) && dmg.every((d) => Math.abs(d - 9) < 1e-9)
-      && T.tentacles === 3 && Math.abs(T.reach - 0.11) < 1e-9 && T.tentacleDamage === run.S.bubbleDamage && T.tentacleSpeed === run.S.fireRate;
+      && T.tentacles === 3 && Math.abs(T.reach - 0.13) < 1e-9 && T.tentacleDamage === run.S.bubbleDamage && T.tentacleSpeed === run.S.fireRate;
     return ok(pass, { strikes: first.length, distinct: new Set(first).size, dmg, T });
   },
 });
@@ -350,18 +350,18 @@ story('types/pick-screen-locked-card-cannot-play', {
 });
 
 story('types/pick-screen-bars-normal-is-half', {
-  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives, as 10 segments (Normal: 5 lit).',
+  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (a 13 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives, as 10 segments (Normal: 5 lit).',
   setup() {},
   play() {
     const { picker } = G();
     const half = typeBars('normal').every((b) => Math.abs(b - 0.5) < 1e-9);
     const inRange = Object.keys(CONTENT.jellies).every((id) => { const b = typeBars(id); return b.length === 6 && b.every((x) => x >= 0 && x <= 1); });
     const t = typeBars('tentacle'), l = typeBars('lightning'), f = typeBars('fire');
-    const tentacle = Math.abs(t[2] - 0.11 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
-    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.375) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.6 trims its Damage
+    const tentacle = Math.abs(t[2] - 0.13 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
+    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.46875) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.75 trims its Damage
     const same = (id) => JSON.stringify(typeDetails(id));
-    const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
-      && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
+    const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 110%","Pierce +1"]'
+      && same('glitter') === '["Dodge 10%","+15 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
     const drawn = picker.cards.every((c, i) => [...c.querySelectorAll('.tp-bar')].every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(picker.ids[i])[k] * 100)
       && bar.querySelectorAll('.tp-seg').length === 10 && bar.querySelectorAll('.tp-seg.on').length === barSegments(typeBars(picker.ids[i])[k])));
     const segments = barSegments(0.5) === 5 && barSegments(0.01) === 1 && barSegments(1) === 10;   // Normal's bars are half lit

@@ -169,13 +169,13 @@ function chain() {
   B.pop(a, own, run.S, run.mods);
   return { own: took(log, own), nb: took(log, nb), nc: took(log, nc), nf: took(log, nf), done: [a, b, c, far].map((x) => (x.done ? 1 : 0)).join('') };
 }
-const three = (r) => r.nb.length === 1 && r.nb[0][0] === 3 && r.nc.length === 1 && r.nc[0][0] === 3 && !r.nf.length && r.done === '1110';
+const three = (r) => r.nb.length === 1 && Math.abs(r.nb[0][0] - 3.6) < 1e-9 && r.nc.length === 1 && Math.abs(r.nc[0][0] - 3.6) < 1e-9 && !r.nf.length && r.done === '1110';
 story('treasures/pop-chain', {
-  about: 'pop-chain 0.5: a bubble popping on a bug also pops the bubbles within 4 cm of it, each in a splash doing 50% of its damage, and those pop the ones next to them in turn; one 20 cm away stays; without the word none pop; dmg=0 is a mistake.',
+  about: 'pop-chain 0.6: a bubble popping on a bug also pops the bubbles within 4 cm of it, each in a splash doing 60% of its damage, and those pop the ones next to them in turn; one 20 cm away stays; without the word none pop; dmg=0 is a mistake.',
   setup() { calm(); },
   play() {
     const off = chain();
-    withWords('pop-chain 0.5');
+    withWords('pop-chain 0.6');
     const on = chain();
     return ok(!off.nb.length && !off.nc.length && off.done === '1000' && three(on) && on.own.length === 1 && !!mistake('pop-chain 0'), { off, on });
   },
@@ -322,15 +322,15 @@ story('treasures/stat-no-penalty', {
 // ------------------------------------------------------------------ the upgrades
 const SAYS = {
   doubleBubble: (m) => m.freeAttacks === 1 && m.stats.add.bubbles === 1,
-  popcorn: (m) => m.split?.count === 3 && m.split.dmg === 0.3,
-  bubbleTrap: (m) => m.trap?.chance === 0.125 && m.trap.time === 1.5,
-  bigBubble: (m) => m.stats.pct.bubbleSize === 50,
-  homing: (m) => m.homing?.turn === 4,
-  popChain: (m) => m.popChain?.dmg === 0.5,
+  popcorn: (m) => m.split?.count === 3 && m.split.dmg === 0.35,
+  bubbleTrap: (m) => m.trap?.chance === 0.5 && m.trap.time === 1.5,
+  bigBubble: (m) => m.stats.pct.bubbleSize === 100,
+  homing: (m) => m.homing?.turn === 5,
+  popChain: (m) => m.popChain?.dmg === 0.6,
   wobble: (m) => m.wobble?.width === 0.02,
-  ricochet: (m) => m.ricochet === 1 && !m.rebound,
+  ricochet: (m) => m.ricochet === 3 && !m.rebound,
   bubbleChain: (m) => m.bubbles.echo?.onKill === true && m.bubbles.echo.dmg === 1,
-  rapidPop: (m) => m.focusRamp?.step === 0.1 && m.focusRamp.most === 0.5,
+  rapidPop: (m) => m.focusRamp?.step === 0.2 && m.focusRamp.most === 2,
   bigFinish: (m) => m.rangePop?.splash === 2,
   orbit: (m) => m.orbitMisses === true,
 };
@@ -373,33 +373,33 @@ upgrade('doubleBubble', 'Double Bubble: the Normal jelly blows 2 bubbles side by
   return ok(run.S.bubbles === 2 && dmg.join() === '6' && blows.length >= 4 && blows.length % 2 === 0, { bubbles: run.S.bubbles, dmg, blows: blows.length });
 });
 
-upgrade('popcorn', 'Popcorn: every bubble that pops on a bug splits into 3 small ones for 30% of its damage each, which fly on and never split again.', live, () => {
+upgrade('popcorn', 'Popcorn: every bubble that pops on a bug splits into 3 small ones for 35% of its damage each, which fly on and never split again.', live, () => {
   const { run } = G();
   give(['popcorn']);
   const a = roachAt(0, -0.08), log = record('damage_taken'), blows = spy(run.bubbles, 'blow');
   step(60 * 2);
   const full = run.S.bubbleDamage, parents = log.filter((d) => d.targetId === a.id && d.source === 'bubble' && Math.abs(d.amount - full) < 1e-9).length;
-  const halves = blows.filter((c) => Math.abs(c[2].dmg - full * 0.3) < 1e-9).length;
+  const halves = blows.filter((c) => Math.abs(c[2].dmg - full * 0.35) < 1e-9).length;
   return ok(parents >= 2 && halves === 3 * parents, { parents, halves });
 });
 
-upgrade('bubbleTrap', 'Bubble Trap: about 1 hit in 8 traps the bug in a bubble for 1.5 s (it stands still); 160 hits trap somewhere between 4 and 45 bugs.', calm, () => {
+upgrade('bubbleTrap', 'Bubble Trap: about 1 hit in 2 traps the bug in a bubble for 1.5 s (it stands still); 160 hits trap somewhere between 60 and 100 bugs.', calm, () => {
   const { run } = G(), B = run.bubbles;
   give(['bubbleTrap']);
   const a = roachAt(0, -0.4, { hp: 9999 }), traps = spy(B, 'trapBug');
   for (let i = 0; i < 160; i++) { hit(a); step(1); }
   const times = new Set(traps.map((c) => c[1]));
-  return ok(traps.length >= 4 && traps.length <= 45 && times.size === 1 && times.has(1.5), { traps: traps.length });
+  return ok(traps.length >= 60 && traps.length <= 100 && times.size === 1 && times.has(1.5), { traps: traps.length });
 });
 
-upgrade('bigBubble', 'Big Bubble: Attack size is 50% bigger, so each bubble is 1.5 times as wide (and its splash with it).', live, () => {
+upgrade('bigBubble', 'Big Bubble: Attack size is 100% bigger, so each bubble is 2 times as wide (and its splash with it).', live, () => {
   const { run } = G(), B = run.bubbles, RADIUS = 0.0065;
   const before = run.S.bubbleSize;
   give(['bigBubble']);
   roachAt(0, -0.1);
   step(40);
   const b = B.list[0];
-  return ok(before === 1 && Math.abs(run.S.bubbleSize - 1.5) < 1e-9 && b && Math.abs(b.r - RADIUS * 1.5) < 1e-6, { before, size: run.S.bubbleSize, r: b?.r });
+  return ok(before === 1 && Math.abs(run.S.bubbleSize - 2) < 1e-9 && b && Math.abs(b.r - RADIUS * 2) < 1e-6, { before, size: run.S.bubbleSize, r: b?.r });
 });
 
 upgrade('homing', 'Homing: a bubble flying past a bug 6 cm off its line curves in and hits it, where it missed before; it keeps its speed.', calm, () => {
@@ -409,7 +409,7 @@ upgrade('homing', 'Homing: a bubble flying past a bug 6 cm off its line curves i
   return ok(!off.hit && on.hit && Math.abs(on.speed - 0.57) < 0.01, { off, on });
 });
 
-upgrade('popChain', 'Pop Chain: a bubble popping on a bug pops the bubbles within 4 cm of it, and theirs in turn, each in a splash for 50% of its damage; one 20 cm off stays.', calm, () => {
+upgrade('popChain', 'Pop Chain: a bubble popping on a bug pops the bubbles within 4 cm of it, and theirs in turn, each in a splash for 60% of its damage; one 20 cm off stays.', calm, () => {
   const off = chain();
   give(['popChain']);
   const on = chain();
@@ -437,13 +437,13 @@ upgrade('bubbleChain', 'Bubble Chain: a bubble that kills its bug flies on to th
   return ok(off === '100' && kill === '111' && noKill === '100', { off, kill, noKill });
 });
 
-upgrade('rapidPop', 'Rapid Pop: each hit in a row on the same bug does 10% more, up to +50%: 6, 6.6, 7.2, 7.8, 8.4, then 9 a hit.', live, () => {
+upgrade('rapidPop', 'Rapid Pop: each hit in a row on the same bug does 20% more, up to +200%: 6, 7.2, 8.4, 9.6, then 18 a hit.', live, () => {
   const { run } = G();
   give(['rapidPop']);
   const a = roachAt(0, -0.1), log = record('damage_taken');
-  step(60 * 5);
-  const seq = log.filter((d) => d.targetId === a.id && d.source === 'bubble').map((d) => +d.amount.toFixed(3)), want = [6, 6.6, 7.2, 7.8, 8.4, 9];
-  return ok(seq.length > 7 && want.every((x, i) => Math.abs(seq[i] - x) < 0.01) && seq.slice(6).every((x) => Math.abs(x - 9) < 0.01) && run.S.bubbleDamage === 6, { seq });
+  step(60 * 8);
+  const seq = log.filter((d) => d.targetId === a.id && d.source === 'bubble').map((d) => +d.amount.toFixed(3)), want = [6, 7.2, 8.4, 9.6, 10.8, 12, 13.2, 14.4, 15.6, 16.8, 18];
+  return ok(seq.length > 11 && want.every((x, i) => Math.abs(seq[i] - x) < 0.01) && seq.slice(10).every((x) => Math.abs(x - 18) < 0.01) && run.S.bubbleDamage === 6, { seq });
 });
 
 upgrade('bigFinish', 'Big Finish: a bubble that flies to the end of its Range and pops in the air splashes twice as wide, hurting a bug 7.5 cm off that a plain splash would miss.', calm, () => {

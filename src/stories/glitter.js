@@ -28,18 +28,18 @@ function withWords(src) {
 const mistake = (src) => { try { compileTreasures(parse(`treasure "x" name="X" icon="x" text="x" {\n${src}\n}`, 't.kdl'), 't.kdl'); return null; } catch (e) { return e.message; } };
 // a Glitter fight whose jelly doesn't fire on its own
 const quiet = () => { setupFight({ types: 'glitter' }); stub(G().run.bubbles, 'elementVolley', () => false); };
-// a glitter bomb (the Glitter jelly's: ep.main) that hit `hit`, as bubbles.js blows it: 4.8 Attack damage at Attack size 1.25
-const AD = 4.8, HIT = 1.3, SIZE = 1.25;
+// a glitter bomb (the Glitter jelly's: ep.main) that hit `hit`, as bubbles.js blows it: 6 Attack damage at Attack size 1.5
+const AD = 6, HIT = 1.3, SIZE = 1.5;
 function bomb(hit, at = G().enemies.center(hit).clone()) {
   return { m: { position: at }, r: 0.0065 * SIZE, dmg: AD * HIT, pw: AD * 4.5, ep: G().run.bubbles.mainParams('glitter', G().run.mods), elems: new Set(['glitter']), hit: new Set(hit ? [hit] : []) };
 }
-const RADIUS = 0.026 * SIZE * (0.08 / 0.026);   // the burst's radius: 10 cm
+const RADIUS = 0.026 * SIZE * (0.08 / 0.026);   // the burst's radius: 12 cm
 const splashOn = (log, e) => log.filter((d) => d.targetId === e.id && d.source === 'splash').map((d) => d.amount);
 const kill = (e) => bus.emit('damage_taken', { targetId: e.id, amount: 1e6, source: 'splash' });
 const GLITTER_POOL = ['prism', 'rainbow', 'luckySparkle', 'confettiPop', 'midasTouch', 'discoBomb', 'mirrorGlitter', 'wish', 'jackpot', 'hotStreak', 'partyPopper', 'starBurst'];
 
 story('types/glitter-plays', {
-  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 4.8 x 1.3 = 6.24 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 1.92. Each burst shows as a cloud of glitter.',
+  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 6 x 1.3 = 7.8 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 2.4. Each burst shows as a cloud of glitter.',
   setup() { setupFight({ types: 'glitter' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley');
@@ -55,11 +55,11 @@ story('types/glitter-plays', {
 });
 
 story('types/glitter-burst-sphere', {
-  about: 'The Glitter jelly\'s burst is a 10 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 15 cm off nor the bug the bomb hit, and shows its glitter flung out to fill that same 10 cm, roughly (no shell drawn round it). The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
+  about: 'The Glitter jelly\'s burst is a 12 cm sphere: it splashes a bug beside the one it hit and a mosquito 6 cm above, not one 19 cm off nor the bug the bomb hit, and shows its glitter flung out to fill that same 12 cm, roughly (no shell drawn round it). The Glitter Element bought as a Treasure (jelly types off) keeps its floor ring.',
   setup() { quiet(); },
   play() {
     const { run, enemies } = G(), B = run.bubbles;
-    const hit = roachAt(0, -0.25), beside = roachAt(0.06, -0.25), far = roachAt(0.15, -0.25), flyer = spawn('mosquito', near(0, -0.25, 0.06), { still: true, hp: 9999 });
+    const hit = roachAt(0, -0.25), beside = roachAt(0.06, -0.25), far = roachAt(0.19, -0.25), flyer = spawn('mosquito', near(0, -0.25, 0.06), { still: true, hp: 9999 });
     const log = record('damage_taken');
     B.splash(bomb(hit));
     const got = { hit: splashOn(log, hit).length, beside: splashOn(log, beside)[0], flyer: splashOn(log, flyer)[0], far: splashOn(log, far).length };
@@ -281,12 +281,12 @@ const SAYS = {
   luckySparkle: (m) => m.hits.splash.crit?.chance === 0.15 && m.hits.splash.crit.mult === 3,
   confettiPop: (m) => m.killsOf.some((K) => K.by === 'splash' && K.effects[0].kind === 'splash' && K.effects[0].dmg === 0.5),
   midasTouch: (m) => m.gild?.chance === 0.05 && m.gild.time === 3 && m.gild.bombs === 5,
-  discoBomb: (m) => m.timed.some((T) => T.every === 8 && T.effects[0].kind === 'next-attack' && T.effects[0].width === 3),
+  discoBomb: (m) => m.timed.some((T) => T.every === 4 && T.effects[0].kind === 'next-attack' && T.effects[0].width === 3),
   mirrorGlitter: (m) => m.splashReflect === true,
   wish: (m) => m.wish?.kills === 10,
-  jackpot: (m) => m.jackpot?.chance === 0.01,
-  hotStreak: (m) => m.buffs.some((b) => b.event === 'big-splash' && b.stat === 'bubbleSize' && b.amount === 50 && b.percent && b.stacks === 3),
-  partyPopper: (m) => m.nth.some((N) => N.every === 10 && N.random && N.effects[0].kind === 'big' && N.effects[0].dmg === 3),
+  jackpot: (m) => m.jackpot?.chance === 0.02,
+  hotStreak: (m) => m.buffs.some((b) => b.event === 'big-splash' && b.stat === 'bubbleSize' && b.amount === 75 && b.percent && b.stacks === 3),
+  partyPopper: (m) => m.nth.some((N) => N.every === 8 && N.random && N.effects[0].kind === 'big' && N.effects[0].dmg === 3),
   starBurst: (m) => m.splashShots.some((S) => S.min === 5 && S.dmg === 0.5),
 };
 story('upgrades/glitter-pool', {
@@ -316,7 +316,7 @@ story('upgrades/glitter-pool', {
 });
 
 story('upgrades/glitter-party-popper', {
-  about: 'Party Popper (nth-attack 10 random=#true { big dmg=3 size=2 }) works on the Glitter bomb: with every bomb a big one, each hits for 3x (18.72) and is twice the size.',
+  about: 'Party Popper (nth-attack 10 random=#true { big dmg=3 size=2 }) works on the Glitter bomb: with every bomb a big one, each hits for 3x (23.4) and is twice the size.',
   setup() { setupFight({ types: 'glitter' }); },
   play() {
     const { run } = G();

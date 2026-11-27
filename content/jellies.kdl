@@ -20,16 +20,17 @@
 
 jelly "normal" name="Normal Jelly" icon="💭" about="Blows a steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1 aura="bubbles"
 
-// Fire: the Fire shot at full Fire rate. hit=0.6 lands it at 12.5 damage a second on one bug
-// (7.5 x 0.6 x 1.5/s = 6.8 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
-// just over the 9-12 budget on purpose: Burn doesn't grow with Fire rate cards, so Fire fell behind
-// on the Vacuum and Clog once levelled (hit 0.5 -> 0.6, Nov 24: Vacuum fight about 20% shorter, Clog about 8%)
+// Fire: the Fire shot at full Fire rate. hit=0.75 lands it at 14.2 damage a second on one bug
+// (7.5 x 0.75 x 1.5/s = 8.4 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
+// over the 9-12 budget on purpose: Burn doesn't grow with Fire rate cards, so Fire fell behind
+// on the Vacuum and Clog once levelled (hit 0.5 -> 0.6, Nov 24: Vacuum fight about 20% shorter, Clog about 8%;
+// hit 0.6 -> 0.75 and health 19 -> 17, Nov 27)
 // hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
 // about half of Fire's damage
-jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, and a Burning bug that dies lights its neighbours." attack="fire" hit=0.6 adorn="ember" aura="flames" {
+jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, and a Burning bug that dies lights its neighbours." attack="fire" hit=0.75 adorn="ember" aura="flames" {
     stat bubble-damage 7.5
     stat move-speed 1.05
-    stat health 19
+    stat health 17
     stat fire-rate 1.5
 }
 
@@ -69,27 +70,27 @@ jelly "poison" name="Poison Jelly" icon="🧪" unlock-act=3 about="Blobs burst i
     stat range 0.25
 }
 
-// Wind: the gust at full Fire rate. hit=1.15 lands it at 10.35 damage a second on one bug (6 x 1.15 x 1.5/s,
-// the 0.28 s wind-up inside each 0.67 s gust), in the middle of the 9-12 budget (docs/jelly-types/spec-core.md).
+// Wind: the gust at full Fire rate. hit=0.9 (Nov 27 tune, was 1.15) lands it at 8.1 damage a second on one bug (6 x 0.9 x 1.5/s,
+// the 0.28 s wind-up inside each 0.67 s gust), under the 9-12 budget (docs/jelly-types/spec-core.md); its pierce and push are on top.
 // Its pierce, push and the hit again on scenery are on top and don't count: they need other bugs or walls
-jelly "wind" name="Wind Jelly" icon="🌬️" unlock-elites=9 about="Fast Gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=1.15 adorn="gale" aura="gust" {
-    stat move-speed 1.2
-    stat jump-height 1.2
-    stat range 0.36
+jelly "wind" name="Wind Jelly" icon="🌬️" unlock-elites=9 about="Fast Gusts blow through bugs and shove them back, even into furniture." attack="wind" hit=0.9 adorn="gale" aura="gust" {
+    stat move-speed 1.1
+    stat jump-height 1.1
+    stat range 0.4
     stat pierce 1
     stat health 20
     stat fire-rate 1.5
 }
 
-// Glitter: slow bombs that burst in an 8 cm sphere (10 cm at its Attack size), 40% of Attack damage to
-// every other bug inside, flying ones too. hit=1.3 lands it at 9.4 damage a second on one bug:
-// 4.8 x 1.3 x 1.5/s (the splash never hits the bug the bomb hit, so it doesn't count), the low end of
-// the 9-12 budget: a crowd of 5 takes 9.4 + 4 x 4.8 x 0.4 x 1.5 = 21 more (docs/jelly-types/spec-core.md)
+// Glitter: slow bombs that burst in an 8 cm sphere (12 cm at its Attack size, Nov 27 tune), 40% of Attack damage to
+// every other bug inside, flying ones too. hit=1.3 lands it at 11.7 damage a second on one bug:
+// 6 x 1.3 x 1.5/s (the splash never hits the bug the bomb hit, so it doesn't count), the low end of
+// the 9-12 budget: a crowd of 5 takes 11.7 + 4 x 6 x 0.4 x 1.5 = 26.1 more (docs/jelly-types/spec-core.md)
 jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs burst into a sparkling splash that hits every bug inside." attack="glitter" hit=1.3 adorn="sparkle" area=#true aura="glitter" {
-    stat luck 10
-    stat bubble-size 1.25
-    stat dodge 5
-    stat bubble-damage 4.8
+    stat luck 15
+    stat bubble-size 1.5
+    stat dodge 10
+    stat bubble-damage 6
     stat fire-rate 1.5
 }
 
@@ -98,8 +99,8 @@ jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs bur
 jelly "tentacle" name="Tentacle Jelly" icon="🐙" unlock-act=4 about="No ranged attack: tentacles sting up to 3 bugs within reach." attack="tentacle" hit=1 adorn="barbs" aura="sting" {
     stat bubble-damage 9
     stat bubbles 3
-    stat tentacle-reach 0.11
-    stat health 32
+    stat tentacle-reach 0.13
+    stat health 35
     stat shield 3
-    stat move-speed 1.1
+    stat move-speed 1
 }

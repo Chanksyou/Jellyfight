@@ -297,18 +297,18 @@ story('treasures/burning-nearby', {
 // ------------------------------------------------------------------ Fire's pool, as content
 // each upgrade compiled alone: the combined effects it must set (its behaviour is its words' stories)
 const SAYS = {
-  flashpoint: (m) => m.statusDamage.some((d) => d.status === 'burning' && d.blast === 0.04 && d.blastDmg === 0.5),
+  flashpoint: (m) => m.statusDamage.some((d) => d.status === 'burning' && d.blast === 0.08 && d.blastDmg === 0.75),
   slowBurn: (m) => m.element.fire.burnStacks === 3 && m.element.fire.burnTime === 6,
   fireBreath: (m) => m.timed.some((T) => T.every === 4 && T.effects[0].kind === 'cone'),
   wildfire: (m) => Math.abs(m.element.fire.spread - 0.12) < 1e-9,
   hotHead: (m) => m.whiles.some((w) => w.when === 'low-health' && w.stat === 'burnDamage' && w.amount === 1 && w.under === 0.5),
-  stoke: (m) => m.burnRamp?.step === 0.2 && m.burnRamp.most === 1,
+  stoke: (m) => m.burnRamp?.step === 0.3 && m.burnRamp.most === 2,
   inferno: (m) => m.killsOf.some((K) => K.status === 'burning' && K.stacks === 3 && K.effects[0].kind === 'ring'),
-  backdraft: (m) => m.streaks.some((S) => S.kills === 5 && S.within === 3 && S.status === 'burning'),
-  fuel: (m) => m.per.some((p) => p.of === 'burning-nearby' && p.most === 5 && p.amount === 5 && p.percent),
-  blueFlame: (m) => m.element.fire.burn === 1.5 && Math.abs(m.damageTaken - 1.1) < 1e-9,
+  backdraft: (m) => m.streaks.some((S) => S.kills === 4 && S.within === 3 && S.status === 'burning'),
+  fuel: (m) => m.per.some((p) => p.of === 'burning-nearby' && p.most === 5 && p.amount === 10 && p.percent),
+  blueFlame: (m) => m.element.fire.burn === 1.75 && Math.abs(m.damageTaken - 1.1) < 1e-9,
   flareUp: (m) => m.refreshAll.includes('burning'),
-  melt: (m) => m.statusDamage.some((d) => d.status === 'burning' && d.more === 0.2 && d.elites && d.bugs === false),
+  melt: (m) => m.statusDamage.some((d) => d.status === 'burning' && d.more === 0.25 && d.elites && d.bugs === false),
 };
 story('upgrades/fire-pool', {
   about: 'Each of Fire\'s 12 Attack upgrades, taken in a Fire run, sets what its text says (Flashpoint\'s blast, Slow Burn\'s 3 stacks for 6 s, Fire Breath\'s cone every 4 s, …), and nothing before it is taken.',
@@ -514,14 +514,14 @@ const TENT_SAYS = {
   tapeMeasureReel: (m) => m.stats.pct.reach === 60 && m.timed.some((T) => T.every === 2 && T.effects[0].kind === 'grab' && T.effects[0].range === 0.3 && T.effects[0].dmg === 3),
   spaghettiSweep: (m) => m.nth.some((N) => N.every === 4 && N.effects[0].kind === 'sweep'),
   toasterCord: (m) => m.onHurt.some((H) => H.cooldown === 0.2 && H.effects[0].kind === 'lash' && H.effects[0].all && H.effects[0].dmg === 2),
-  chopstickRush: (m) => m.buffs.some((b) => b.event === 'kill' && b.stat === 'fireRate' && b.amount === 10 && b.percent && b.time === 3 && b.stacks === 5),
+  chopstickRush: (m) => m.buffs.some((b) => b.event === 'kill' && b.stat === 'fireRate' && b.amount === 20 && b.percent && b.time === 3 && b.stacks === 5),
   paperclipHop: (m) => m.hits.tentacles.echo?.dmg === 0.6 && !m.bubbles.echo,
   whipCrack: (m) => m.hits.tentacles.edge?.from === 0.75 && m.hits.tentacles.edge.mult === 2,
-  anchor: (m) => m.whiles.some((w) => w.when === 'rooted' && w.stat === 'bubbleDamage' && w.amount === 50 && w.percent),
+  anchor: (m) => m.whiles.some((w) => w.when === 'rooted' && w.stat === 'bubbleDamage' && w.amount === 75 && w.percent),
   inkCloud: (m) => m.onHurt.some((H) => H.cooldown === 2 && H.effects[0].kind === 'ink' && H.effects[0].time === 2 && H.effects[0].miss === 0.5),
-  venomSac: (m) => m.stingCount.some((S) => S.every === 20 && S.effects[0].kind === 'sweep' && S.effects[0].bleed === 3),
-  coil: (m) => m.hits.tentacles.coil?.hits === 5 && m.hits.tentacles.coil.within === 2 && m.hits.tentacles.coil.seconds === 1,
-  bellPulse: (m) => m.timed.some((T) => T.every === 3 && T.effects[0].kind === 'reach-flare' && T.effects[0].mult === 2),
+  venomSac: (m) => m.stingCount.some((S) => S.every === 10 && S.effects[0].kind === 'sweep' && S.effects[0].bleed === 3),
+  coil: (m) => m.hits.tentacles.coil?.hits === 4 && m.hits.tentacles.coil.within === 2 && m.hits.tentacles.coil.seconds === 1,
+  bellPulse: (m) => m.timed.some((T) => T.every === 2 && T.effects[0].kind === 'reach-flare' && T.effects[0].mult === 3),
 };
 story('upgrades/tentacle-pool', {
   about: 'Tentacle has exactly 12 Attack upgrades, each setting what its text says (Tape Measure\'s grab every 2 s, Toaster Cord\'s lash back at everything in reach, Venom Sac\'s sweep every 20 stings, …) and nothing before it is taken; a Tentacle run is offered only those, a Fire run none of them.',

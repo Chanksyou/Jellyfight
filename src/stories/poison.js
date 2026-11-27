@@ -203,15 +203,15 @@ story('treasures/blob', {
 
 // ------------------------------------------------------------------ Poison's pool, as content
 const SAYS = {
-  wither: (m) => m.statusDamage.some((d) => d.status === 'poisoned' && d.perStack === 0.06 && d.more === 0 && d.elites),
+  wither: (m) => m.statusDamage.some((d) => d.status === 'poisoned' && d.perStack === 0.1 && d.more === 0 && d.elites),
   lingeringDose: (m) => m.element.poison.poisonTime === 10,
   overdose: (m) => m.element.poison.poisonStacks === 10,
   splatter: (m) => Math.abs(m.element.poison.width - 1.5 * 0.05 / 0.026) < 1e-9,
   venomStrike: (m) => m.statusDamage.some((d) => d.status === 'poisoned' && d.perStack === 0.2 && d.by === 'poison'),
-  wasteAway: (m) => m.percentDots.some((d) => d.status === 'poisoned' && d.share === 0.01 && !d.boss),
+  wasteAway: (m) => m.percentDots.some((d) => d.status === 'poisoned' && d.share === 0.02 && !d.boss),
   toxicCloud: (m) => m.killsOf.some((K) => K.status === 'poisoned' && K.effects[0].kind === 'cloud' && K.effects[0].radius === 0.05 && K.effects[0].time === 3),
-  burstSac: (m) => m.killsOf.some((K) => K.status === 'poisoned' && K.effects[0].kind === 'pass-stacks' && K.effects[0].radius === 0.06),
-  leech: (m) => m.killsOf.some((K) => K.status === 'poisoned' && K.effects[0].kind === 'heal' && K.effects[0].health === 1 && K.effects[0].most === 3),
+  burstSac: (m) => m.killsOf.some((K) => K.status === 'poisoned' && K.effects[0].kind === 'pass-stacks' && K.effects[0].radius === 0.08),
+  leech: (m) => m.killsOf.some((K) => K.status === 'poisoned' && K.effects[0].kind === 'heal' && K.effects[0].health === 1 && K.effects[0].most === 5),
   contagion: (m) => m.spreadOnTouch.includes('poisoned'),
   poisonRain: (m) => m.timed.some((T) => T.every === 8 && T.effects[0].kind === 'blob' && T.effects[0].count === 4),
   splitBlob: (m) => m.split?.count === 2 && m.split.dmg === 0.5,

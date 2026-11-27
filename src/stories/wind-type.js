@@ -35,7 +35,7 @@ function gust(e, o = {}) {
 }
 
 story('types/wind-plays', {
-  about: 'A Wind jelly hurts a bug only with its gusts: no plain bubbles, no tentacle stings. Each gust hits for hit= x Attack damage (6 x 1.15 = 6.9) and goes through 3 bugs (1 + the gust\'s 1 + the type\'s Pierce +1), at its full Fire rate of 1.5 a second.',
+  about: 'A Wind jelly hurts a bug only with its gusts: no plain bubbles, no tentacle stings. Each gust hits for hit= x Attack damage (6 x 0.9 = 5.4) and goes through 3 bugs (1 + the gust\'s 1 + the type\'s Pierce +1), at its full Fire rate of 1.5 a second.',
   setup() { setupFight({ types: 'wind' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley'), shots = spy(run.bubbles, 'elementVolley'), blows = spy(run.bubbles, 'blow');
@@ -44,7 +44,7 @@ story('types/wind-plays', {
     const by = {};
     for (const d of log) if (d.targetId !== PLAYER) { const k = d.source === 'bubble' && d.feedback?.element ? d.feedback.element : d.source; (by[k] ||= []).push(d.amount); }
     const only = Object.keys(by).every((k) => k === 'wind' || k === 'wind-collision') && by.wind?.length > 0;
-    const hits = (by.wind || []).filter((a) => Math.abs(a - 6.9) < 1e-9).length;
+    const hits = (by.wind || []).filter((a) => Math.abs(a - 5.4) < 1e-9).length;
     const winds = blows.filter((c) => c[2].tint === 'wind'), pierce = winds.length > 0 && winds.every((c) => c[2].pierce === 3);
     const rate = shots.length >= 5 && shots.length <= 7;
     return ok(only && hits === (by.wind || []).length && hits >= 4 && pierce && rate && !volleys.length, { sources: Object.keys(by), hits, winds: winds.length, pierce: winds.map((c) => c[2].pierce), fired: shots.length, volleys: volleys.length });
@@ -233,7 +233,7 @@ const SAYS = {
   gale: (m) => m.element.wind.pierce === 100 && Math.abs(m.element.wind.falloff - 0.2) < 1e-9,
   slipstream: (m) => m.whiles.some((c) => c.when === 'moving' && c.stat === 'dodge' && c.amount === 20),
   crosswind: (m) => m.element.wind.count === 1 && m.element.wind.angle === 30,
-  eyeOfTheStorm: (m) => m.timed.some((T) => T.every === 2 && T.effects[0].kind === 'ring' && T.effects[0].radius === 0.06 && T.effects[0].push === 0.04 && T.effects[0].dmg === 0),
+  eyeOfTheStorm: (m) => m.timed.some((T) => T.every === 2 && T.effects[0].kind === 'ring' && T.effects[0].radius === 0.1 && T.effects[0].push === 0.06 && T.effects[0].dmg === 0.5),
   slamDunk: (m) => m.element.wind.collision === 3,
   secondWind: (m) => m.onHurt.some((H) => H.oncePerAct && H.lowHealth === 0.3 && H.effects[0].kind === 'ring' && H.effects[1].kind === 'dash' && H.effects[1].speed === 0.5 && H.effects[1].time === 5),
   jetStream: (m) => Math.abs(m.element.wind.speed - 1.5 * 1.6 / 0.57) < 1e-9 && m.element.wind.range === 1.5,
@@ -310,7 +310,7 @@ story('upgrades/wind-crosswind', {
 });
 
 story('upgrades/wind-tailwind', {
-  about: 'Tailwind: a gust that hits gives +30% Move speed for 2 s (it does not stack), then it is gone; Eye of the Storm: every 2 s a ring pushes a bug 4 cm off 4 cm further out and leaves one 20 cm off.',
+  about: 'Tailwind: each gust that hits gives +30% Move speed for 2 s (up to 2 stacks), then it is gone; Eye of the Storm: every 2 s a ring pushes a bug 4 cm off 4 cm further out and leaves one 20 cm off.',
   setup() { quiet(); },
   play() {
     const { run } = G();
@@ -318,7 +318,7 @@ story('upgrades/wind-tailwind', {
     const base = run.S.moveSpeed, bug = roachAt(0, -0.2);
     const hit = () => bus.emit('damage_taken', { targetId: bug.id, amount: 1, source: 'bubble', feedback: { element: 'wind' } });
     hit(); hit();
-    const boosted = run.S.moveSpeed, want = base + run.baseStats.moveSpeed * 0.3;
+    const boosted = run.S.moveSpeed, want = base + run.baseStats.moveSpeed * 0.3 * 2;
     step(60 * 2.2);
     const gone = Math.abs(run.S.moveSpeed - base) < 1e-9;
     // Eye of the Storm
