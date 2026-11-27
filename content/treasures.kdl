@@ -248,7 +248,7 @@ treasure "glowStick" name="Glow Stick" icon="🟢" rarity="epic" attack=#true te
 }
 
 // --- things that bend the rules
-treasure "coin" name="Lucky Penny" icon="🪙" rarity="common" text="Bugs drop 25% more XP." stack=5 {
+treasure "coin" name="Lucky Penny" icon="🥉" rarity="common" text="Bugs drop 25% more XP." stack=5 {
     xp-mult 1.25
 }
 treasure "dice" name="Game Die" icon="🎲" rarity="legendary" text="Level-up cards roll one rarity higher." {
@@ -267,7 +267,7 @@ treasure "sock" name="Odd Sock" icon="🧦" rarity="common" text="+15% Dodge, an
 treasure "bandage" name="Bandage" icon="🩹" rarity="rare" text="Every 30 kills: +1 max Health." stack=2 {
     grow-on-kills health 1 kills=30
 }
-treasure "coffeeBean" name="Coffee Bean" icon="🫘" rarity="common" attack=#true text="+15% Fire rate. After each level-up: +40% Fire rate for 8 s." stack=5 {
+treasure "coffeeBean" name="Coffee Bean" icon="🌰" rarity="common" attack=#true text="+15% Fire rate. After each level-up: +40% Fire rate for 8 s." stack=5 {
     stat fire-rate 15 percent=#true
     stack-buff "level-up" "fire-rate" 40 percent=#true time=8 stacks=1
 }
@@ -279,7 +279,7 @@ treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true tex
     stat bubble-damage 2
 }
 // behind you, at full damage (Double Bubble is the side-by-side one)
-treasure "bubbleWand" name="Bubble Wand" icon="🪄" rarity="rare" attack=#true not-for="tentacle" text="You also fire one attack straight behind you, at full damage." stack=2 {
+treasure "bubbleWand" name="Bubble Wand" icon="🍭" rarity="rare" attack=#true not-for="tentacle" text="You also fire one attack straight behind you, at full damage." stack=2 {
     rear-shot 1
 }
 treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flies to you from 3x as far." {
@@ -303,7 +303,7 @@ treasure "chili" name="Hot Chili" icon="🌶️" rarity="rare" attack=#true text
     stat range -30 percent=#true
     stat tentacle-reach -30 percent=#true
 }
-treasure "flipFlop" name="Flip Flop" icon="🩴" rarity="common" text="+20% Move speed, +40% in the air." stack=2 {
+treasure "flipFlop" name="Flip Flop" icon="👡" rarity="common" text="+20% Move speed, +40% in the air." stack=2 {
     stat move-speed 20 percent=#true
     while "airborne" "move-speed" 20 percent=#true
 }
@@ -317,7 +317,7 @@ treasure "trophy" name="Little Trophy" icon="🏆" rarity="rare" attack=#true te
 treasure "stopwatch" name="Kitchen Timer" icon="⏲️" rarity="rare" attack=#true text="Every 12 kills: +0.03 Fire rate." stack=2 {
     grow-on-kills fire-rate 0.03 kills=12
 }
-treasure "houseplant" name="Houseplant" icon="🪴" rarity="rare" text="Every 10 s: 3 XP drips at your feet." {
+treasure "houseplant" name="Houseplant" icon="🌱" rarity="rare" text="Every 10 s: 3 XP drips at your feet." {
     every 10 {
         xp 3
     }
@@ -348,7 +348,7 @@ treasure "sugar" name="Spilled Sugar" icon="🍬" rarity="epic" text="25% more b
 treasure "medicineBall" name="Medicine Ball" icon="🏐" rarity="epic" text="+1 Attack damage per 10 max Health." stack=3 {
     per "bubble-damage" 1 every=10 of="max-health"
 }
-treasure "rollerSkate" name="Roller Skate" icon="🛼" rarity="epic" text="+3% Fire rate per 10% Move speed above your start." stack=3 {
+treasure "rollerSkate" name="Roller Skate" icon="🛹" rarity="epic" text="+3% Fire rate per 10% Move speed above your start." stack=3 {
     per "fire-rate" 3 every=10 of="move-speed-bonus" percent=#true
 }
 treasure "paperclipChain" name="Paperclip Chain" icon="📎" rarity="epic" text="+1 Tentacle damage per Level gained." stack=3 retired=#true {
@@ -395,13 +395,13 @@ treasure "thumbtack" name="Thumbtack" icon="📌" rarity="rare" attack=#true tex
 }
 
 // --- Legendary: rule-changers, one of a kind (the Boss reward offers these)
-treasure "handMirror" name="Hand Mirror" icon="🪞" rarity="legendary" text="When hit (8 s cooldown): the hit shatters back at its source, a shockwave throws nearby bugs back, and you can't be hurt for 1 s." {
+treasure "handMirror" name="Hand Mirror" icon="🤳" rarity="legendary" text="When hit (8 s cooldown): the hit shatters back at its source, a shockwave throws nearby bugs back, and you can't be hurt for 1 s." {
     reflect every=8 invuln=1 dmg=8 burst=0.15 burstDmg=3 push=0.05
 }
 treasure "snooze" name="Snooze Button" icon="⏰" rarity="legendary" text="Once per run: a hit that would take your last Health leaves you at half instead." {
     death-save health=0.5
 }
-treasure "discoBall" name="Disco Ball" icon="🪩" rarity="legendary" attack=#true text="Every 4 s: a spotlight picks the toughest bug nearby (Elites and the Boss first). For 4 s it takes 2x damage." {
+treasure "discoBall" name="Disco Ball" icon="💿" rarity="legendary" attack=#true text="Every 4 s: a spotlight picks the toughest bug nearby (Elites and the Boss first). For 4 s it takes 2x damage." {
     spotlight every=4 time=4 more=1 range=0.4
 }
 treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#true text="Every 5 s: a bubble bursts out in each of 8 directions." {
@@ -409,7 +409,7 @@ treasure "bubbleBath" name="Bubble Bath" icon="🛁" rarity="legendary" attack=#
         bubble-ring 8
     }
 }
-treasure "hotWaterBottle" name="Hot Water Bottle" icon="🫖" rarity="legendary" text="Below 65% Health: +50% Fire rate, +40% Attack damage and +20% Move speed." {
+treasure "hotWaterBottle" name="Hot Water Bottle" icon="🍶" rarity="legendary" text="Below 65% Health: +50% Fire rate, +40% Attack damage and +20% Move speed." {
     while "low-health" "fire-rate" 50 percent=#true under=0.65
     while "low-health" "bubble-damage" 40 percent=#true under=0.65
     while "low-health" "move-speed" 20 percent=#true under=0.65
@@ -428,7 +428,7 @@ treasure "spareChange" name="Spare Change" icon="💰" rarity="common" text="+3 
 treasure "teaBag" heals=#true name="Tea Bag" icon="🍵" rarity="common" text="+0.05 Health regen per 2 Levels gained." stack=3 {
     per "health-regen" 0.05 every=2 of="levels"
 }
-treasure "flySwatter" name="Fly Swatter" icon="🪰" rarity="rare" attack=#true text="Every 6 s: swat the nearest flying bug for 3x Attack damage and Stun it for 1 s. No flyer near: the nearest bug, for 2x." stack=2 {
+treasure "flySwatter" name="Fly Swatter" icon="🦟" rarity="rare" attack=#true text="Every 6 s: swat the nearest flying bug for 3x Attack damage and Stun it for 1 s. No flyer near: the nearest bug, for 2x." stack=2 {
     every 6 {
         swatter mult=3 plain=2 stun=1 range=0.3
     }
@@ -461,7 +461,7 @@ treasure "canOpener" name="Can Opener" icon="🥫" rarity="rare" text="+15% dama
 treasure "pizzaCutter" name="Pizza Cutter" icon="🍕" rarity="rare" text="Hits finish off bugs under 15% Health (Elites under 8%, never the Boss)." stack=1 {
     execute under=0.15 elites=0.08
 }
-treasure "rollingPin" name="Rolling Pin" icon="🫓" rarity="rare" text="+40% damage to anything above 90% Health." stack=3 {
+treasure "rollingPin" name="Rolling Pin" icon="🥖" rarity="rare" text="+40% damage to anything above 90% Health." stack=3 {
     fresh-damage 40 above=0.9
 }
 treasure "thimble" name="Thimble" icon="🧵" rarity="rare" text="Hits take 1 less Health, never under 0.5." stack=2 {

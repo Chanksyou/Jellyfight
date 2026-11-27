@@ -146,7 +146,7 @@ export class LayoutUi {
   // the prop library (content/props.kdl): tap one to place it, then stamp more
   showAdd() {
     const sheet = this.sheet('Add', `<p class="ui-text">It lands in the middle of the view. Then tap surfaces to drop more.</p>
-      <div class="jf-lt-grid">${CONTENT.props.map((p) => `<button class="ui-tile" data-prop="${esc(p.id)}"><span style="font-size:24px" aria-hidden="true">🪴</span>${esc(p.label)}</button>`).join('')}</div><p class="ui-text" data-err></p>`);
+      <div class="jf-lt-grid">${CONTENT.props.map((p) => `<button class="ui-tile" data-prop="${esc(p.id)}"><span style="font-size:24px" aria-hidden="true">🌱</span>${esc(p.label)}</button>`).join('')}</div><p class="ui-text" data-err></p>`);
     sheet.addEventListener('click', async (e) => {
       const tile = e.target.closest('[data-prop]');
       if (!tile) return;

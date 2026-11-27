@@ -31,7 +31,7 @@ export const knockFor = (dmg) => Math.min(0.03, 0.001 * dmg);
 
 // How each stat is shown on a card and in the stats panel
 export const STAT_INFO = {
-  bubbles:         { name: 'Attacks',         icon: '🫧', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },
+  bubbles:         { name: 'Attacks',         icon: '🔘', fmt: (v) => (v > 1 ? `${v} side by side · ${Math.round(bubbleShare(v) * 100)}% damage each` : `${v}`) },
   range:           { name: 'Range',           icon: '📏', fmt: (v) => `${Math.round(v * 100)} cm` },
   bubbleDamage:    { name: 'Attack damage',   icon: '💥', fmt: (v) => `${+v.toFixed(1)}` },
   fireRate:        { name: 'Fire rate',       icon: '💨', fmt: (v) => `${v.toFixed(2)}/s` },
@@ -45,7 +45,7 @@ export const STAT_INFO = {
   luck:            { name: 'Luck',            icon: '🍀', fmt: (v) => `${Math.round(v)}` },
   pierce:          { name: 'Pierce',          icon: '🧷', fmt: (v) => `+${Math.round(v)}` },
   burnDamage:      { name: 'Burn damage',     icon: '🔥', fmt: (v) => `${Math.round(v * 100)}%` },
-  tentacles:       { name: 'Tentacles',       icon: '🪼', fmt: (v) => `${v}` },
+  tentacles:       { name: 'Tentacles',       icon: '🐙', fmt: (v) => `${v}` },
   reach:           { name: 'Tentacle reach',  icon: '📐', fmt: (v) => `${(v * 100).toFixed(1)} cm` },
   tentacleDamage:  { name: 'Tentacle damage', icon: '⚡', fmt: (v) => `${Math.round(v)}` },
   tentacleSpeed:   { name: 'Tentacle speed',  icon: '🌀', fmt: (v) => `${v.toFixed(2)}/s` },

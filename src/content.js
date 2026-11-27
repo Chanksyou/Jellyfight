@@ -344,7 +344,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       stats[key] = value;
     }
     out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, aura: n.props.aura ?? null, area: n.props.area === true, stats, effects,
-      icon: typeof n.props.icon === 'string' ? n.props.icon : '🪼', unlock: act ? { act } : elites ? { elites } : null };
+      icon: typeof n.props.icon === 'string' ? n.props.icon : '🐙', unlock: act ? { act } : elites ? { elites } : null };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);
