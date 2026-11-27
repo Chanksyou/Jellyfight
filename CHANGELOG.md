@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v745 - Icons that showed as blank boxes on Windows 10 now draw: 22 icons (11 Treasures, the Normal and Tentacle jellies, Rebound, The Clog and 6 Attack upgrades) use older emoji, and a guard story keeps new ones to Emoji 12. - The Health bar no longer starts a run undrawn on some Windows PCs: the menu now hides the HUD with opacity instead of visibility.
+
 v744 overhauls Dendi's boss-finish sequence with an immediate break callout and sound before fade, smooth pose cross-fading, a 4-beat paw strike with knockback and celebratory rings, camera dolly-in, and victory fanfare.
 
 v743 improves both visual quality and CPU/GPU performance across the rendering pipeline: Karis-weighted 13-tap bloom, packed R11G11B10 + 2x MSAA Medium default, half-res bokeh DOF fused into the output pass, geometric specular AA and micro-roughness, act-matched procedural room reflections and ?tone=agx switch, pre-baked surface grain and gated ImageBitmap loading, load-time shell lightUv projection with bounded lightmap mipmaps, a 128x128 2D GPU mist wake field, BatchedMesh per-instance color bucketing for flat-colored furniture, single-draw GPU-driven jelly tentacles, and frustum rejection in dynamic Batcher.sync().
