@@ -82,7 +82,7 @@ story('buff-looks/bonus-damage-flash-at-most-five-a-second', {
     const { enemies } = G(), log = record('bonus_damage'), hp = enemies.list.map((e) => e.hp);
     for (const e of enemies.list) bus.emit('damage_taken', { targetId: e.id, amount: 1, source: 'story' });
     const burst = log.length;
-    const dealt = enemies.list.every((e, i) => Math.abs((hp[i] - e.hp) - 1.4) < 1e-6);
+    const dealt = enemies.list.every((e, i) => Math.abs((hp[i] - e.hp) - 1.5) < 1e-6);
     step(15);
     enemies.list[0].hp = enemies.list[0].maxHp * 0.5;
     bus.emit('damage_taken', { targetId: enemies.list[0].id, amount: 1, source: 'story' });
