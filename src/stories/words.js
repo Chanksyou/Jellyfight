@@ -1069,6 +1069,30 @@ story('vocabulary/no-emoji-in-ui-chrome', {
     return ok(!hits.length, { hits });
   },
 });
+// Icons are emoji drawn by the device's own font. Windows 10's (Segoe UI Emoji) stops at Emoji 12, so
+// anything newer shows as a blank box there. Emoji 13 and later: almost all of U+1FA70-1FAFF (bar the
+// Emoji 12 ones), a few stragglers, and joined (ZWJ) sequences.
+const NEWER_THAN_EMOJI_12 = (s) => [...s].some((ch) => {
+  const c = ch.codePointAt(0);
+  if (c === 0x200D) return true;
+  if (c >= 0x1FA70 && c <= 0x1FAFF) return !((c <= 0x1FA73) || (c >= 0x1FA78 && c <= 0x1FA7A) || (c >= 0x1FA80 && c <= 0x1FA82) || (c >= 0x1FA90 && c <= 0x1FA95));
+  return [0x1F6D6, 0x1F6D7, 0x1F6DC, 0x1F6DD, 0x1F6DE, 0x1F6DF, 0x1F6FB, 0x1F6FC, 0x1F7F0, 0x1F90C, 0x1F972, 0x1F977, 0x1F978, 0x1F979,
+    0x1F9A3, 0x1F9A4, 0x1F9AB, 0x1F9AC, 0x1F9AD, 0x1F9CB, 0x1F9CC].includes(c);
+});
+story('vocabulary/icons-show-on-windows-10', {
+  about: 'Every icon in content (Treasures, jelly types, evolutions, Attack upgrades, bosses, Elites) and every stat icon is an emoji from Emoji 12 or older, so it draws on Windows 10 instead of a blank box.',
+  setup() {},
+  async play() {
+    const hits = [];
+    for (const f of ['treasures', 'jellies', 'evolutions', 'upgrades', 'bosses', 'elites']) {
+      const src = await (await fetch(`/content/${f}.kdl`)).text();
+      for (const m of src.matchAll(/^\s*\w+ "([\w-]+)".*?\bicon="([^"]*)"/gm)) if (NEWER_THAN_EMOJI_12(m[2])) hits.push(`${f}.kdl ${m[1]} ${m[2]}`);
+    }
+    for (const [k, v] of Object.entries(STAT_INFO)) if (v.icon && NEWER_THAN_EMOJI_12(v.icon)) hits.push(`stat ${k} ${v.icon}`);
+    const checks = [NEWER_THAN_EMOJI_12('🪼'), NEWER_THAN_EMOJI_12('🫧'), NEWER_THAN_EMOJI_12('🪙'), !NEWER_THAN_EMOJI_12('🪁'), !NEWER_THAN_EMOJI_12('🩸'), !NEWER_THAN_EMOJI_12('🐙')];
+    return ok(checks.every(Boolean) && !hits.length, { checks, hits });
+  },
+});
 story('vocabulary/every-word-documented-used-and-proven', {
   about: 'Every behaviour word has a description, is used by some bug, and has a words/ story.',
   setup() {},

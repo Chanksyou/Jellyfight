@@ -21,7 +21,7 @@ export function kitSheet() {
       <button class="ui-btn ui-btn--icon" aria-label="Settings">${icon('gear')}</button><button class="ui-btn" disabled>${icon('lock')}Locked</button></div>`),
     box('Header and panel', `<div class="ui-panel" style="box-shadow:none"><div class="ui-header"><h2>Treasure book</h2>
       <button class="ui-btn ui-btn--icon" aria-label="Close">${icon('close')}</button></div><p class="ui-text">A panel is solid and a little see-through.</p></div>`),
-    box('Cards', `<div style="display:grid;gap:8px">${[['common', '🪙', 'Gold Ring', 'Damage <b>+10%</b>.', '×2'], ['rare', '🧲', 'Fridge Magnet', 'Pull XP from <b>+40%</b> farther.', ''],
+    box('Cards', `<div style="display:grid;gap:8px">${[['common', '💍', 'Gold Ring', 'Damage <b>+10%</b>.', '×2'], ['rare', '🧲', 'Fridge Magnet', 'Pull XP from <b>+40%</b> farther.', ''],
       ['epic', '🕯️', 'Candle', 'Every <b>3 s</b> a ring of fire deals <b>8</b>.', ''], ['legendary', '🌙', 'Night-Light', 'While lit: <b>+40%</b> Fire rate, <b>+0.5</b> Health a second.', '']]
       .map(([r, i, n, t, c]) => `<button class="ui-card" data-rarity="${r}"><span class="ui-card-icon">${i}</span><span class="ui-card-rarity">${r}</span><h3 class="ui-card-name">${n}</h3><p class="ui-card-body">${t}</p>${c ? `<span class="ui-card-count">${c}</span>` : ''}</button>`).join('')}</div>`),
     box('Tiles', `<div ${row}><button class="ui-tile">${icon('book')}Book</button><button class="ui-tile">${icon('medal')}Achievements</button><button class="ui-tile">${icon('trophy')}Leaderboard</button><button class="ui-tile">${icon('pearl')}Shop</button></div>`),

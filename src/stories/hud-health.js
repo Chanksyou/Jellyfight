@@ -200,3 +200,19 @@ story('hud/motion-squash-pop-and-refill', {
     return ok(squash && edge && first && popped && bumped && emptied && refilled, { squash, edge, first, popped, bumped, emptied, refilled });
   },
 });
+
+story('hud/health-bar-stays-drawn-behind-the-menu', {
+  about: 'The title and pause menu hide the HUD with opacity, not visibility, so the Health bar stays painted behind them (Chrome on some Windows PCs left it undrawn after visibility: hidden until the next pause); with the menu closed the bar shows full Health and its number.',
+  setup,
+  play() {
+    const { run, hud: h } = G(), menu = document.getElementById('g-over');
+    h.setHealth(run.health, run.S.health);
+    menu.hidden = false;
+    const behind = getComputedStyle(h.el), hiddenByOpacity = behind.opacity === '0' && behind.visibility === 'visible';
+    menu.hidden = true;
+    const shown = getComputedStyle(h.el).opacity === '1';
+    const fill = h.hpNodes['hp-fill'].style.transform, number = h.$('.hpn').textContent;
+    const full = fill === 'scaleX(1)' && number === String(Math.ceil(run.health));
+    return ok(hiddenByOpacity && shown && full, { hiddenByOpacity, shown, fill, number });
+  },
+});

@@ -1,0 +1,2 @@
+- Icons that showed as blank boxes on Windows 10 now draw: 22 icons (11 Treasures, the Normal and Tentacle jellies, Rebound, The Clog and 6 Attack upgrades) use older emoji, and a guard story keeps new ones to Emoji 12.
+- The Health bar no longer starts a run undrawn on some Windows PCs: the menu now hides the HUD with opacity instead of visibility.

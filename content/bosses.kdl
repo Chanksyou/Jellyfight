@@ -23,7 +23,7 @@ boss "vacuum" name="The Vacuum" icon="🤖" hp=1200 contact=2 {
     enrage  at=0.5 pace=2
 }
 
-boss "clog" name="The Clog" icon="🪠" hp=1500 contact=3 {
+boss "clog" name="The Clog" icon="🚽" hp=1500 contact=3 {
     // between attacks it hops at you: `hop` m a hop (less if you're closer), `air` s in the air,
     // `height` m up, a hop every `every` s (`angryEvery` angry); bumping into it tangles you `tangle` s
     chase   time=2.4 angryTime=1.5 speed=0.2 angrySpeed=0.3 hop=0.16 air=0.32 height=0.05 every=0.6 angryEvery=0.4 tangle=0.8

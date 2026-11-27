@@ -18,7 +18,7 @@
 // finish act N (beat its boss), or defeat N Elites across all runs. A type with neither is open
 // from the start (Normal). src/jelly-types.js typeLock reads it.
 
-jelly "normal" name="Normal Jelly" icon="🫧" about="Blows a steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1 aura="bubbles"
+jelly "normal" name="Normal Jelly" icon="💭" about="Blows a steady stream at the nearest bug. Simple and easy to read." attack="bubble" hit=1 aura="bubbles"
 
 // Fire: the Fire shot at full Fire rate. hit=0.6 lands it at 12.5 damage a second on one bug
 // (7.5 x 0.6 x 1.5/s = 6.8 from hits, plus Burn 7.5 x 4.5 x 0.17 = 5.7/s, kept lit by every hit):
@@ -95,7 +95,7 @@ jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs bur
 
 // Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a
 // second: 9 x 1.76 = 15.8 a second on one bug, up to 47.5 on three in reach
-jelly "tentacle" name="Tentacle Jelly" icon="🪼" unlock-act=4 about="No ranged attack: tentacles sting up to 3 bugs within reach." attack="tentacle" hit=1 adorn="barbs" aura="sting" {
+jelly "tentacle" name="Tentacle Jelly" icon="🐙" unlock-act=4 about="No ranged attack: tentacles sting up to 3 bugs within reach." attack="tentacle" hit=1 adorn="barbs" aura="sting" {
     stat bubble-damage 9
     stat bubbles 3
     stat tentacle-reach 0.11

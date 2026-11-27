@@ -99,7 +99,8 @@ ui.innerHTML = `
   /* Pausing keeps browser zoom blocked, while the Treasure bag can still scroll. */
   #g-over:not(.menu-home) { touch-action: pan-y; }
   /* the main screen (and the pause menu) shows just itself: the HUD waits behind it */
-  #g-over:not([hidden]) ~ #hud { visibility: hidden; }
+  /* opacity, not visibility: Chrome on some Windows PCs left the Health bar undrawn after the HUD came back from visibility: hidden (fixed by pausing again) */
+  #g-over:not([hidden]) ~ #hud { opacity: 0; }
   #g-over > .menu-col { box-sizing: border-box; width: min(100%, 880px); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: var(--ui-space-3);
     padding: max(var(--ui-space-3), env(safe-area-inset-top)) max(var(--ui-space-4), env(safe-area-inset-right)) max(var(--ui-space-3), env(safe-area-inset-bottom)) max(var(--ui-space-4), env(safe-area-inset-left)); }
   #g-over > .menu-col > * { flex-shrink: 0; }   /* a tall menu scrolls; it never squeezes its pieces */
