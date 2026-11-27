@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v750 redraws Normal's bubble as a soap bubble twice the size: a clear middle, a rainbow rim and two window highlights, in one draw. Hits, damage and Range are unchanged.
+
 v749 retunes 41 Attack upgrades and four jelly types (Fire, Wind, Glitter, Tentacle) from Chan's number list: Fire hits harder and has less Health, Wind's gust hits softer, Glitter's bombs grow and hit harder, Tentacle reaches further.
 
 v748 replaces the jelly pick screen's carousel with a two-column Spotlight and 2D Roster Grid featuring one-shot aura-lit tiles, Favorites pinning, a Random roulette tile, and remembered last-picked jelly across sessions.
