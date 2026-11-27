@@ -652,7 +652,7 @@ story('types/pick-stage-films-through-bloom', {
 });
 
 story('types/pick-side-card-shader', {
-  about: 'A kind with a shader (pick-auras/: Ice\'s frost, Lightning\'s sparks) paints the Spotlight\'s aura and one-shot snapshots on the roster tiles with the game\'s renderer: once a tile snapshot is lit it does not redraw per frame; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
+  about: 'A kind with a shader (pick-auras/: Ice\'s frost, Lightning\'s sparks) animates both the Spotlight aura and visible roster tiles with the game\'s renderer; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
   setup() {},
   async play() {
     const { picker, gfx } = G(), back = asPlayer(true), P = picker.painter;
@@ -668,8 +668,8 @@ story('types/pick-side-card-shader', {
       const lit = spot.classList.contains('lit') && iceTile.classList.contains('lit') && stormTile.classList.contains('lit') && P.built.frost === true && P.built.sparks === true;
       const draws = spy(P, 'draw');
       picker.auraAt = -1; tick();
-      // Spotlight redraws on the clock; already-lit tiles do NOT redraw (one-shot snapshots)
-      const shader = draws.some(([c, kind]) => c === spot && kind === 'frost') && !draws.some(([c]) => c === iceTile || c === stormTile);
+      // Spotlight and visible roster tiles animate on the clock
+      const shader = draws.some(([c, kind]) => c === spot && kind === 'frost') && draws.some(([c, kind]) => c === iceTile && kind === 'frost') && draws.some(([c, kind]) => c === stormTile && kind === 'sparks');
       const medium = P.mats.frost.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
       const low = P.mats.frost.uniforms.uLayers.value;
