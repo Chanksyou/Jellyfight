@@ -27,12 +27,12 @@ const CSS = `
     radial-gradient(120% 90% at 50% 0%, var(--menu-water-shallow) 0%, var(--menu-water-deep) 62%, var(--ui-deep) 100%);
   color: var(--ui-ink); font: 400 var(--ui-size-body)/1.4 var(--ui-font-text); }
 #type-pick[hidden] { display: none; }
-#type-pick header { flex: none; margin-bottom: var(--ui-space-2); }
-#type-pick .tp-headline { display: flex; align-items: center; gap: var(--ui-space-3); }
-#type-pick .tp-count { font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink-dim); white-space: nowrap; }
-#type-pick .tp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); gap: var(--ui-space-4); width: min(1080px, 100%); margin: 0 auto; align-items: stretch; }
+#type-pick header { flex: none; width: min(1480px, 100%); margin: 0 auto var(--ui-space-2); box-sizing: border-box; }
+#type-pick .tp-headline { display: flex; align-items: center; gap: var(--ui-space-3); min-width: 0; }
+#type-pick .tp-count { flex: none; font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); color: var(--ui-ink-dim); white-space: nowrap; }
+#type-pick .tp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr); gap: var(--ui-space-4); width: min(1480px, 100%); margin: 0 auto; align-items: center; }
 /* --- Spotlight (left column) --- */
-#type-pick .tp-spot { display: flex; flex-direction: column; align-self: start; max-height: 100%; box-sizing: border-box; min-height: 0; gap: var(--ui-space-3); padding: var(--ui-space-4);
+#type-pick .tp-spot { display: flex; flex-direction: column; align-self: center; max-height: 100%; box-sizing: border-box; min-height: 0; gap: var(--ui-space-3); padding: var(--ui-space-4);
   border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: var(--ui-radius-m); background: var(--ui-panel);
   box-shadow: 0 14px 44px var(--ui-shade), 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 0 40px color-mix(in srgb, var(--accent) 16%, transparent);
   touch-action: pan-y; user-select: none; -webkit-user-select: none; }
@@ -42,7 +42,7 @@ const CSS = `
 #type-pick .tp-fav[aria-pressed="true"] { color: var(--ui-gold); border-color: color-mix(in srgb, var(--ui-gold) 65%, transparent); background: color-mix(in srgb, var(--ui-gold) 14%, var(--ui-glass)); }
 #type-pick .tp-fav[aria-pressed="true"] .ui-icon { fill: currentColor; }
 #type-pick .tp-body { flex: 1; min-height: 0; display: flex; align-items: center; gap: var(--ui-space-4); }
-#type-pick .tp-art { --art: clamp(132px, min(22vw, 34vh), 240px); position: relative; flex: none; width: var(--art); height: var(--art);
+#type-pick .tp-art { --art: clamp(160px, min(24vw, 38vh), 320px); position: relative; flex: none; width: var(--art); height: var(--art);
   border-radius: var(--ui-radius-m); overflow: hidden; border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); background: var(--ui-deep); }
 #type-pick .tp-spot.locked .tp-art { filter: grayscale(.9) brightness(.8); }
 #type-pick .tp-art img, #type-pick .tp-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
@@ -67,9 +67,9 @@ const CSS = `
 #type-pick .tp-goal { display: flex; align-items: center; justify-content: center; min-height: var(--ui-target); margin: 0; padding: 0 var(--ui-space-3); border: 1px dashed var(--ui-line); border-radius: var(--ui-radius-pill); color: var(--ui-ink-dim); font-weight: 600; text-align: center; }
 #type-pick .tp-play[hidden], #type-pick .tp-goal[hidden], #type-pick .tp-back[hidden] { display: none; }
 /* --- Roster Grid (right column) --- */
-#type-pick .tp-roster { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 4px; -webkit-overflow-scrolling: touch; }
-#type-pick .tp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--ui-space-2); align-content: start; }
-#type-pick .tp-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; box-sizing: border-box; padding: 6px;
+#type-pick .tp-roster { max-height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 4px; -webkit-overflow-scrolling: touch; }
+#type-pick .tp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--ui-space-3); align-content: start; }
+#type-pick .tp-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; box-sizing: border-box; padding: 7px;
   min-width: var(--ui-target); min-height: var(--ui-target); border: 2px solid var(--ui-line); border-radius: var(--ui-radius-m); background: var(--ui-panel); color: var(--ui-ink);
   font: 600 var(--ui-size-label)/1.2 var(--ui-font-text); cursor: pointer; touch-action: manipulation;
   transition: transform var(--ui-fast) var(--ui-ease-arrive), border-color var(--ui-fast), box-shadow var(--ui-fast), background-color var(--ui-fast); }
@@ -92,13 +92,23 @@ const CSS = `
 #type-pick .tp-random .tp-thumb .ui-icon { width: 34%; height: 34%; min-width: 24px; min-height: 24px; }
 #type-pick .tp-random { border-color: color-mix(in srgb, var(--ui-gold) 45%, var(--ui-line)); }
 body.calm #type-pick .tp-tile, body.calm #type-pick .tp-tile.rolling { transition: none; transform: none; }
+/* desktop screens: generous centered showcase with larger live preview, 2-column bars and bigger roster cards */
+@media (min-width: 1100px) and (min-height: 620px) {
+  #type-pick .tp-main { gap: var(--ui-space-5); }
+  #type-pick .tp-spot { padding: var(--ui-space-5); gap: var(--ui-space-4); }
+  #type-pick .tp-body { flex-direction: column; align-items: stretch; gap: var(--ui-space-3); }
+  #type-pick .tp-art { --art: clamp(240px, min(26vw, 40vh), 360px); align-self: center; }
+  #type-pick .tp-bars { grid-template-columns: 1fr 1fr; gap: var(--ui-space-2) var(--ui-space-4); }
+  #type-pick .tp-grid { grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); gap: var(--ui-space-3); }
+  #type-pick .tp-tile { padding: 8px; gap: 6px; font-size: var(--ui-size-body); }
+}
 /* a phone held sideways: tighten padding and art size so Spotlight + Roster Grid fit with zero overflow */
 @media (max-height: 520px) {
   #type-pick { padding-top: var(--ui-space-2); padding-bottom: var(--ui-space-2); }
   #type-pick header { margin-bottom: var(--ui-space-1); min-height: var(--ui-target); }
   #type-pick h2 { font-size: var(--ui-size-heading); }
-  #type-pick .tp-main { gap: var(--ui-space-3); }
-  #type-pick .tp-spot { gap: var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); }
+  #type-pick .tp-main { gap: var(--ui-space-3); align-items: stretch; }
+  #type-pick .tp-spot { align-self: start; gap: var(--ui-space-2); padding: var(--ui-space-2) var(--ui-space-3); }
   #type-pick .tp-name { font-size: var(--ui-size-heading); }
   #type-pick .tp-body { gap: var(--ui-space-3); }
   #type-pick .tp-art { --art: clamp(104px, calc(100vh - 210px), 164px); }
@@ -112,7 +122,8 @@ body.calm #type-pick .tp-tile, body.calm #type-pick .tp-tile.rolling { transitio
 }
 /* portrait window/screen: Spotlight hugs its contents on top, Roster Grid below */
 @media (max-aspect-ratio: 4/5) {
-  #type-pick .tp-main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: var(--ui-space-3); }
+  #type-pick .tp-main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: var(--ui-space-3); align-items: stretch; }
+  #type-pick .tp-spot { align-self: start; }
   #type-pick .tp-art { --art: clamp(112px, 28vw, 180px); }
   #type-pick .tp-grid { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); }
 }
@@ -210,6 +221,7 @@ export class TypePicker {
     this.spot.addEventListener('pointerup', (e) => this.up(e));
     this.spot.addEventListener('pointercancel', () => { this.swipe = null; });
     this.spot.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+    this.roster.addEventListener('scroll', () => { if (this.isOpen) { this.auraAt = -1; this.kick(); } }, { passive: true });
     addEventListener('keydown', (e) => this.onKey(e), true);
     addEventListener('resize', () => { if (this.isOpen) this.measure(); });
   }
@@ -458,38 +470,46 @@ export class TypePicker {
     const dpr = Math.min(2, devicePixelRatio || 1);
     const spotPx = Math.round((this.spotArt.clientWidth || 180) * dpr);
     if (this.spotAura.width !== spotPx) this.spotAura.width = this.spotAura.height = spotPx;
-    const thumbW = this.tiles[0]?.querySelector('.tp-thumb')?.clientWidth || 88;
-    const tilePx = Math.min(192, Math.round(thumbW * dpr));
+    const thumbW = this.tiles[0]?.querySelector('.tp-thumb')?.clientWidth || 120;
+    const tilePx = Math.min(256, Math.round(thumbW * dpr));
     this.auras.forEach((c, i) => {
       if (c.width !== tilePx) { c.width = c.height = tilePx; this.tileLit[this.ids[i]] = false; c.classList.remove('lit'); }
     });
     this.auraAt = -1;
   }
 
-  // --- element auras: live on Spotlight (when AttackPreview isn't covering it), one-shot on tiles
+  // --- element auras: live on Spotlight (when AttackPreview isn't covering it) and visible tiles
   drawAuras(dt) {
     const calm = this.calm();
     this.auraT += calm ? 0 : dt;
-    const strength = LOOK.num('pick-aura-strength', 1);
+    if (this.auraAt >= 0 && (calm || this.auraT - this.auraAt < 1 / LOOK.num('pick-aura-fps', 30))) return;
+    this.auraAt = this.auraT;
+    const t = calm ? 0.6 : this.auraT, strength = LOOK.num('pick-aura-strength', 1);
     const covered = this.liveFor && this.live?.canvas && !this.live.canvas.hidden;
-    const due = this.auraAt < 0 || (!calm && this.auraT - this.auraAt >= 1 / LOOK.num('pick-aura-fps', 30));
-    if (due && !covered) {
-      this.auraAt = this.auraT;
+    if (!covered) {
       const id = this.centre, kind = this.spotAura.dataset.aura, colour = LOOK.color(`type-${id}`, '#8fd9ff');
-      const t = calm ? 0.6 : this.auraT;
       let lit = false;
       try { lit = !!this.painter?.has(kind) && !!this.frames[id][0] && this.painter.draw(this.spotAura, kind, this.look(), t + this.index * 0.37, colour, strength); } catch (e) { console.warn('pick aura', e); }
       if (!lit) { this.spotAura.getContext('2d').clearRect(0, 0, this.spotAura.width, this.spotAura.height); if (calm && this.frames[id][0] !== '') this.auraAt = -1; }
       this.spotAura.classList.toggle('lit', lit);
     }
-    // Paint at most one unlit roster tile per frame (one-shot snapshot, zero ongoing GPU cost)
-    const pending = [this.centre, ...this.order].find((id) => !this.tileLit[id] && this.frames[id][0] && this.painter?.has(CONTENT.jellies[id].aura || ''));
-    if (pending) {
-      const i = this.ids.indexOf(pending), c = this.auras[i], kind = c.dataset.aura, colour = LOOK.color(`type-${pending}`, '#8fd9ff');
+    const vr = this.roster.getBoundingClientRect();
+    let pendingCalm = false;
+    this.auras.forEach((c, i) => {
+      const id = this.ids[i], kind = c.dataset.aura;
+      if (!this.frames[id][0] || !this.painter?.has(kind)) return;
+      if (calm && this.tileLit[id]) return;
+      if (vr.height > 0) {
+        const r = this.tiles[i].getBoundingClientRect();
+        if (r.bottom < vr.top - 40 || r.top > vr.bottom + 40) return;
+      }
+      const colour = LOOK.color(`type-${id}`, '#8fd9ff');
       let lit = false;
-      try { lit = this.painter.draw(c, kind, this.look(), 0.6 + i * 0.37, colour, strength); } catch (e) { console.warn('pick tile aura', e); }
-      if (lit) { this.tileLit[pending] = true; c.classList.add('lit'); }
-    }
+      try { lit = this.painter.draw(c, kind, this.look(), t + i * 0.37, colour, strength); } catch (e) { console.warn('pick tile aura', e); }
+      if (lit) { this.tileLit[id] = true; c.classList.add('lit'); }
+      else if (calm && this.frames[id][0] !== '') pendingCalm = true;
+    });
+    if (pendingCalm) this.auraAt = -1;
   }
 
   // --- portraits: drawn lazily one a frame -----------------------------------------------------

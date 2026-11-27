@@ -11,7 +11,7 @@ Built in P5 and redesigned as a Spotlight + 2D Roster Grid so the screen scales 
   2. **Favorites (`★`)** (unlocked, in `content/jellies.kdl` order)
   3. **Remaining unlocked jellies** (in `content/jellies.kdl` order)
   4. **Locked jellies** at the end, dimmed with a lock pip (still tappable to inspect aura, stats, and unlock progress)
-- **Tile visuals.** Each jelly tile renders a **one-shot aura-lit portrait snapshot** (`src/pick-aura.js`) of the player's own jelly in that type's element, plus its short name underneath—zero per-frame GPU cost once painted.
+- **Tile visuals.** Each visible jelly tile animates its element aura shader (`src/pick-aura.js`) around the player's own jelly at `--pick-aura-fps`, plus its short name underneath (Reduce effects holds a single frozen frame).
 - **Navigation.** Tap/click any tile to select immediately; swipe left/right or scroll wheel on the Spotlight to browse casually; arrow keys move in 2D (`Left`/`Right` step, `Up`/`Down` move by row); `Enter` plays; `Escape` goes back.
 - **Random (`?`) roulette.** Tapping Random sweeps a highlight across unlocked tiles (`--pick-roll-time`, `--pick-roll-steps`) with `spinTick` / `spinStop` sounds and selects the landed jelly into the Spotlight (instant jump with Reduce effects).
 - **Persistence.** Last-picked jelly (`jellyrun.jelly`) and Favorites (`jellyrun.favJellies`) persist in `localStorage`.
