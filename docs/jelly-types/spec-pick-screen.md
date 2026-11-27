@@ -1,25 +1,27 @@
 # Jelly types: the pick screen
 
-Built in P5. The owner's sketch is `pick-screen-sketch.png` in this folder.
+Built in P5 and redesigned as a Spotlight + 2D Roster Grid so the screen scales cleanly as the roster grows past 10–20+ types.
 
 ## Layout
 
-- **Carousel.** One card per type in a row. The centre card is the largest, its neighbours are smaller, and the next ones are cut off at the screen edges, so it's clear there's more to scroll.
-- **Card.** The type's name on top. Then a framed portrait: the player's own jelly wearing that type's look, spinning slowly (`src/jelly-portrait.js`). Then the 6 bars.
-- **Moving.** Swipe or drag on phones. Arrow keys or the mouse wheel on desktop. Tapping a side card brings it to the centre. The centre card snaps into place.
-- **Centre card only: a details panel under the bars.**
-  - The stats the bars fold together or leave out, each as a difference from Normal: "+5 Shield", "Pierce +1", "+10 Luck", "Dodge 5%", "Jump height 120%". List only what differs.
-  - One line on the signature attack.
-  - **Play**, or for a locked type its unlock goal and progress ("Defeat 6 Elites: 4/6").
-- **Side cards** show only the name, portrait and bars. A locked card is greyed out.
-- **Phones in landscape.** The centre card must fit the screen height. If it doesn't, put the bars beside the portrait instead of under it.
+- **Two-column landscape layout** (both desktop and phones held sideways; stacks Spotlight above Roster Grid on narrow portrait screens).
+- **Left — Spotlight card.** The selected jelly's full name, a **Favorite (`★`)** toggle, its framed portrait/live attack preview beside the 6 stat bars, stat-diff chips, one line on the signature attack, and **Play** (or for a locked type, its unlock goal and progress, e.g. `"Defeat 6 Elites: 4/6"`).
+- **Right — 2D Roster Grid.** A scrollable grid of square tiles, ordered:
+  1. **Random (`?`)** tile first (always visible without scrolling)
+  2. **Favorites (`★`)** (unlocked, in `content/jellies.kdl` order)
+  3. **Remaining unlocked jellies** (in `content/jellies.kdl` order)
+  4. **Locked jellies** at the end, dimmed with a lock pip (still tappable to inspect aura, stats, and unlock progress)
+- **Tile visuals.** Each jelly tile renders a **one-shot aura-lit portrait snapshot** (`src/pick-aura.js`) of the player's own jelly in that type's element, plus its short name underneath—zero per-frame GPU cost once painted.
+- **Navigation.** Tap/click any tile to select immediately; swipe left/right or scroll wheel on the Spotlight to browse casually; arrow keys move in 2D (`Left`/`Right` step, `Up`/`Down` move by row); `Enter` plays; `Escape` goes back.
+- **Random (`?`) roulette.** Tapping Random sweeps a highlight across unlocked tiles (`--pick-roll-time`, `--pick-roll-steps`) with `spinTick` / `spinStop` sounds and selects the landed jelly into the Spotlight (instant jump with Reduce effects).
+- **Persistence.** Last-picked jelly (`jellyrun.jelly`) and Favorites (`jellyrun.favJellies`) persist in `localStorage`.
 - **First run.** A first-time player never sees this screen (`src/first-run.js`); the run starts as Normal.
 
-## The live centre card
+## The live Spotlight
 
-Once the row is still, the centre card's portrait comes alive (`src/attack-preview.js`, added after P5 at the owner's request): the jelly, in the player's look and the type's look, fires its real main attack at three roaches with a roach's Health, which die the game's way (`showKill` in `src/feedback.js`) and come back.
-It runs the game's own `Bubbles` and `Lash` with the type's level-1 stats and `attack=`/`hit=`, so a P8 type whose attack works in play shows here with nothing added; a new attack kind outside those two systems needs one line in `AttackPreview.simulate`.
-Only the centre card animates; side cards and Reduce motion keep the still portrait. Framing and frame rate are `--preview-*` in `content/look.css`.
+Once settled on an unlocked jelly, the Spotlight's portrait comes alive (`src/attack-preview.js`): the jelly, in the player's look and the type's look, fires its real main attack at three roaches with a roach's Health, which die the game's way (`showKill` in `src/feedback.js`) and come back.
+It runs the game's own `Bubbles` and `Lash` with the type's level-1 stats and `attack=`/`hit=`, so a new type whose attack works in play shows here with nothing added.
+Only the Spotlight animates; while loading, on locked jellies, or when live preview is off, the Spotlight shows the type's animated element aura shader (`src/pick-aura.js`). Reduce effects holds a single frozen frame and skips the roulette sweep and Play squeeze.
 
 ## The 6 bars
 
@@ -40,12 +42,16 @@ Put the formula in one function with a story that pins Normal at 0.5 on all six.
 
 ## Feel
 
-This screen is the first thing a returning player touches each run. Give the snap, the card change and Play the same care as the existing menus (`src/main-menu.js`, sounds in `src/sfx.js`). Honour the OS "reduce motion" setting, as the rest of the game does.
+This screen is the first thing a returning player touches each run. Give the tile pick, the Random roulette, Favorite pinning, and Play the same care as the existing menus (`src/main-menu.js`, sounds in `src/sfx.js`). Honour the OS "reduce motion" setting, as the rest of the game does.
 
 ## Stories
 
 - `types/pick-screen-shows-every-type`
+- `types/pick-screen-motion`
+- `types/pick-screen-favorites-and-random`
+- `types/pick-screen-locked-card-says-how-to-open`
 - `types/pick-screen-locked-card-cannot-play`
 - `types/pick-screen-bars-normal-is-half`
 - `types/pick-screen-fits-phone` (`phone: true`)
+- `types/pick-screen-centre-card-attacks`
 - `types/first-run-is-normal`
