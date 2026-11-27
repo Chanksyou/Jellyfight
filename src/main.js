@@ -59,7 +59,7 @@ import { Fx } from './fx.js';
 import { UI } from './ui.js';
 import { Run, makeBoss, DEV_KEY } from './run.js';
 import { devSheetHtml, initDevPanel } from './dev-panel.js';
-import { TYPE_PICK } from './jelly-types.js';
+import { TYPE_PICK, savedJelly, saveJelly } from './jelly-types.js';
 import { TypePicker } from './pick-screen.js';
 import { AttackPreview } from './attack-preview.js';
 import { picksType } from './first-run.js';
@@ -256,6 +256,7 @@ const creator = new Creator({
 });
 creator.mount(ui);
 // the jelly type pick screen (pick-screen.js), shown by the title's Play while jelly types are switched on
+TYPE_PICK.start = savedJelly();
 const picker = new TypePicker({ calm: () => juice.calm, look: () => state.look, portrait: (id, turn) => jellyPortrait(renderer, state.look, { turn, room: LOOK.num('pick-portrait-room', 1.3) }), live: new AttackPreview(renderer, () => gfx.quality) });
 picker.mount(ui);
 
@@ -437,14 +438,14 @@ function play() {
 function startRun() {
   const begin = () => { if (stage.id === 1) { forgetRun(); showKept(); } play(); endContinue(); };
   if (stage.id !== 1 || !mainMenu.home) return begin();
-  const choose = (id) => { TYPE_PICK.start = id; if (run.jelly !== id) { forgetRun(); showKept(); run.start(); } begin(); };
+  const choose = (id) => { TYPE_PICK.start = id; if (picksType()) saveJelly(id); if (run.jelly !== id) { forgetRun(); showKept(); run.start(); } begin(); };
   if (!picksType()) choose('normal');
   else picker.open({ start: TYPE_PICK.start, onPlay: choose, onBack: () => {} });
 }
 // the end screen's Try again: a returning player picks a type again (true: the screen took it over)
 run.pickType = () => {
   if (!picksType()) { TYPE_PICK.start = 'normal'; return false; }   // a first-time player's run is Normal
-  picker.open({ start: TYPE_PICK.start, onPlay: (id) => { TYPE_PICK.start = id; run.start(); run.resume(); } });
+  picker.open({ start: TYPE_PICK.start, onPlay: (id) => { TYPE_PICK.start = id; saveJelly(id); run.start(); run.resume(); } });
   return true;
 };
 function pause() {

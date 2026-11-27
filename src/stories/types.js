@@ -5,7 +5,7 @@ import { PLAYER } from '../events.js';
 import { juice } from '../juice.js';
 import { parse } from '../kdl.js';
 import { BASE_STATS } from '../stats.js';
-import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK } from '../jelly-types.js';
+import { jellyStats, typeBars, typeDetails, barSegments, TYPE_PICK, LAST_JELLY_KEY, FAV_JELLIES_KEY, savedJelly, favJellies } from '../jelly-types.js';
 import { picksType } from '../first-run.js';
 import { SHADERS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
@@ -215,49 +215,53 @@ function pressPlay(start) {
   GAME.startRun();
 }
 const key = (code) => dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
-const cardName = (picker) => picker.cards[picker.index].querySelector('h3').textContent;
+const cardName = (picker) => picker.nameEl.textContent;
 
 story('types/pick-screen-shows-every-type', {
-  about: 'A returning player\'s Play opens the pick screen on the last type picked, with one card per type in content/jellies.kdl, six bars each, and the centre card\'s panel; arrow keys, the wheel and a tap on a neighbour move the row; Play starts the run as the centre type.',
+  about: 'A returning player\'s Play opens the pick screen on the last type picked, with one roster tile per type in content/jellies.kdl plus the Random tile, six bars in the Spotlight, and its details panel; arrow keys, wheel on the Spotlight, swipe, and tapping a tile select that type; Play starts the run as the selected type.',
   setup() {},
   play() {
-    const { picker, run } = G(), back = asPlayer(true);
+    const { picker, run } = G(), back = asPlayer(true), hadFavs = localStorage.getItem(FAV_JELLIES_KEY);
+    localStorage.removeItem(FAV_JELLIES_KEY);
     try {
       pressPlay('fire');
       const ids = Object.keys(CONTENT.jellies);
-      const open = picker.isOpen && picker.cards.length === ids.length && cardName(picker) === 'Fire Jelly';
-      const names = picker.cards.every((c, i) => c.querySelector('h3').textContent === CONTENT.jellies[ids[i]].name && c.querySelectorAll('.tp-bar').length === 6);
+      const open = picker.isOpen && picker.tiles.length === ids.length && cardName(picker) === 'Fire Jelly';
+      const bars = picker.barEls.length === 6;
       const panel = picker.panel.about.textContent === CONTENT.jellies.fire.about && !picker.panel.play.hidden;
       key('ArrowRight');
       const right = cardName(picker) === 'Lightning Jelly' && picker.panel.about.textContent === CONTENT.jellies.lightning.about;
       key('ArrowLeft'); key('ArrowLeft');
       const left = cardName(picker) === 'Normal Jelly' && picker.panel.diff.children.length === 0;   // Normal differs from itself in nothing
-      picker.root.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
-      const wheel = picker.index === 1;
-      picker.cards[3].dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 10, bubbles: true }));
-      picker.cards[3].dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, clientX: 10, bubbles: true }));
-      const tap = picker.centre === 'ice';
+      picker.spot.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+      const wheel = picker.centre === 'fire';
+      picker.tiles[ids.indexOf('ice')].click();
+      const tap = picker.centre === 'ice' && cardName(picker) === 'Ice Jelly';
+      // swipe left on Spotlight steps to next jelly
+      picker.spot.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 200, clientY: 100, bubbles: true }));
+      picker.spot.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, clientX: 120, clientY: 100, bubbles: true }));
+      const swiped = picker.centre === 'poison';
+      picker.tiles[ids.indexOf('ice')].click();
       const before = run.jelly;
       picker.play();
       const played = !picker.isOpen && run.jelly === 'ice' && run.stats.health === 31 && before === 'fire';
-      return ok(open && names && panel && right && left && wheel && tap && played, { open, names, panel, right, left, wheel, tap, played, jelly: run.jelly });
-    } finally { back(); picker.close(); G().mainMenu.home = false; }
+      return ok(open && bars && panel && right && left && wheel && tap && swiped && played, { open, bars, panel, right, left, wheel, tap, swiped, played, jelly: run.jelly });
+    } finally {
+      if (hadFavs === null) localStorage.removeItem(FAV_JELLIES_KEY); else localStorage.setItem(FAV_JELLIES_KEY, hadFavs);
+      back(); picker.close(); G().mainMenu.home = false;
+    }
   },
 });
 
 story('types/pick-screen-motion', {
-  about: 'The pick row settles on a card with a small overshoot and comes back; Play squeezes for --pick-squeeze (80 ms at most) before the run starts, and with Reduce effects it starts at once; the title\'s tiles come in one after another.',
+  about: 'Play squeezes for --pick-squeeze (80 ms at most) before the run starts, and with Reduce effects it starts at once; the title\'s tiles come in one after another.',
   setup() {},
   play() {
     const { picker, run } = G(), back = asPlayer(true), calm = juice.calm;
     try {
       pressPlay('normal');
       juice.calm = false;
-      // the spring: a step to the next card lands past it, then ends exactly on it
       picker.go(1);
-      let now = picker.last, peak = 0;
-      for (let i = 0; i < 120; i++) { now += 16; picker.tick(now); peak = Math.max(peak, picker.pos); }
-      const overshoots = peak > 1.005 && peak < 1.15 && picker.pos === 1 && picker.vel === 0;
       // Play: squeezes, waits at most 80 ms, then starts the run
       let timer = null, delay = 0;
       stub(window, 'setTimeout', (fn, ms) => { timer = fn; delay = ms; return 1; });
@@ -280,13 +284,58 @@ story('types/pick-screen-motion', {
       const delays = tiles.map((t) => parseFloat(getComputedStyle(t).animationDelay) * 1000);
       over.classList.toggle('menu-home', had);
       const cascade = tiles.length === 3 && delays[0] === 0 && delays[1] > delays[0] && delays[2] > delays[1] && delays[2] < 200;
-      return ok(overshoots && squeezing && once && started && calmNow && cascade, { overshoots, peak, squeezing, delay, once, started, calmNow, cascade, delays });
+      return ok(squeezing && once && started && calmNow && cascade, { squeezing, delay, once, started, calmNow, cascade, delays });
     } finally { juice.calm = calm; back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 
+story('types/pick-screen-favorites-and-random', {
+  about: 'Starring a jelly pins it to the front of the roster grid (after Random) and persists in localStorage; the Random (?) tile sweeps across unlocked tiles and lands on an unlocked jelly in the Spotlight (instant with Reduce effects); playing saves the last picked jelly.',
+  setup() {},
+  play() {
+    const { picker } = G(), back = asPlayer(true), calm = juice.calm;
+    const hadFavs = localStorage.getItem(FAV_JELLIES_KEY), hadLast = localStorage.getItem(LAST_JELLY_KEY);
+    localStorage.removeItem(FAV_JELLIES_KEY); localStorage.removeItem(LAST_JELLY_KEY);
+    try {
+      pressPlay('tentacle');
+      juice.calm = false;
+      // Random (?) tile is always first in the grid
+      const randomFirst = picker.grid.firstElementChild === picker.randomBtn;
+      // Star Tentacle -> pinned first among jellies, persisted in localStorage
+      picker.favBtn.click();
+      const pinned = picker.order[0] === 'tentacle' && picker.grid.children[1].dataset.id === 'tentacle' && favJellies().has('tentacle');
+      // Random roulette sweeps unlocked tiles and lands on an unlocked jelly (not starting the run)
+      const before = picker.centre;
+      picker.randomBtn.click();
+      const rolling = !!picker.roll;
+      let now = picker.last, sawHighlight = false;
+      for (let i = 0; i < 60 && picker.roll; i++) {
+        now += 25; picker.tick(now);
+        if (picker.tiles.some((t) => t.classList.contains('rolling'))) sawHighlight = true;
+      }
+      const landed = !picker.roll && picker.isOpen && picker.centre !== before;
+      // Reduce effects: Random jumps immediately without sweeping
+      juice.calm = true;
+      const beforeCalm = picker.centre;
+      picker.randomBtn.click();
+      const calmJump = !picker.roll && picker.centre !== beforeCalm;
+      // Playing persists last jelly
+      const picked = picker.centre;
+      picker.play();
+      const saved = savedJelly() === picked;
+      return ok(randomFirst && pinned && rolling && sawHighlight && landed && calmJump && saved,
+        { randomFirst, pinned, rolling, sawHighlight, landed, calmJump, saved, picked });
+    } finally {
+      juice.calm = calm;
+      if (hadFavs === null) localStorage.removeItem(FAV_JELLIES_KEY); else localStorage.setItem(FAV_JELLIES_KEY, hadFavs);
+      if (hadLast === null) localStorage.removeItem(LAST_JELLY_KEY); else localStorage.setItem(LAST_JELLY_KEY, hadLast);
+      back(); picker.close(); G().mainMenu.home = false;
+    }
+  },
+});
+
 story('types/pick-screen-squeeze-onto-locked-card', {
-  about: 'Turned onto a locked card while Play squeezes, nothing starts and Play is pressable again; back on an open card it starts the run.',
+  about: 'Switched onto a locked jelly while Play squeezes, nothing starts and Play is pressable again; back on an open jelly it starts the run.',
   setup() {},
   play() {
     const { picker } = G(), back = asPlayer(true, { feats: { elites: 4 } }), calm = juice.calm;
@@ -305,7 +354,7 @@ story('types/pick-screen-squeeze-onto-locked-card', {
 });
 
 story('types/pick-screen-locked-card-says-how-to-open', {
-  about: 'Every locked card says how to open it in one short line on its portrait ("Finish act 1", "Defeat 9 Elites"), read from the type\'s unlock; open cards say nothing. The arrows step the row (the first hides its Back arrow, the last its Next) and the dots follow the centre card.',
+  about: 'Locked jellies sit at the end of the roster grid with a lock pip, and selecting one shows how to open it on the Spotlight portrait ("Finish act 1", "Defeat 9 Elites"); open jellies show none.',
   setup() {},
   play() {
     const { picker } = G(), back = asPlayer(true, { feats: { elites: 4 } });
@@ -313,20 +362,19 @@ story('types/pick-screen-locked-card-says-how-to-open', {
       fresh({ types: 'normal' });
       G().mainMenu.home = true;
       G().GAME.startRun();
-      const line = (id) => picker.cards[picker.ids.indexOf(id)].querySelector('.tp-lock')?.textContent.trim() || '';
+      const line = (id) => { picker.go(picker.ids.indexOf(id)); return picker.spotLock.hidden ? '' : picker.spotLock.textContent.trim(); };
       const lines = line('fire') === 'Finish act 1' && line('wind') === 'Defeat 9 Elites' && line('glitter') === 'Defeat 6 Elites' && line('normal') === '' && line('ice') === '';
-      const [prev, next] = picker.arrows, atStart = prev.hidden && !next.hidden && picker.dots[0].classList.contains('on');
-      next.click();
-      const stepped = picker.centre === 'fire' && !prev.hidden && picker.dots[1].classList.contains('on') && picker.dots.filter((d) => d.classList.contains('on')).length === 1;
-      picker.go(picker.ids.length - 1);
-      const atEnd = next.hidden && !prev.hidden;
-      return ok(lines && atStart && stepped && atEnd, { lines, atStart, stepped, atEnd });
+      // unlocked jellies (normal, ice) come before locked jellies in the grid order
+      const openIdx = Math.max(picker.order.indexOf('normal'), picker.order.indexOf('ice'));
+      const lockIdx = Math.min(picker.order.indexOf('fire'), picker.order.indexOf('wind'), picker.order.indexOf('glitter'));
+      const ordered = openIdx < lockIdx;
+      return ok(lines && ordered, { lines, ordered, order: picker.order });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 
 story('types/pick-screen-locked-card-cannot-play', {
-  about: 'A locked type\'s card is greyed out and its panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6", from the save\'s real Elite count) instead of Play; Play and Enter do nothing on it, and the next open type plays.',
+  about: 'A locked type is dimmed in the roster and its Spotlight panel shows the unlock goal and progress ("Defeat 6 Elites: 4/6", from the save\'s real Elite count) instead of Play; Play and Enter do nothing on it, and an open type plays.',
   setup() {},
   play() {
     const { picker, run } = G(), back = asPlayer(true, { feats: { elites: 4 }, book: { bosses: STAGES.map((st) => st.boss.kind) } });
@@ -335,13 +383,13 @@ story('types/pick-screen-locked-card-cannot-play', {
       G().mainMenu.home = true;
       G().GAME.startRun();
       picker.go(picker.ids.indexOf('glitter'));
-      const card = picker.cards[picker.ids.indexOf('glitter')];
-      const shown = card.classList.contains('locked') && !!card.querySelector('.tp-lock') && !picker.cards[0].classList.contains('locked')
+      const tile = picker.tiles[picker.ids.indexOf('glitter')];
+      const shown = tile.classList.contains('locked') && picker.spot.classList.contains('locked') && !picker.spotLock.hidden && !picker.tiles[0].classList.contains('locked')
         && picker.panel.play.hidden && !picker.panel.goal.hidden && picker.panel.goal.textContent === 'Defeat 6 Elites: 4/6';
       const refused = picker.play() === false && picker.isOpen;
       key('Enter');
       const enter = picker.isOpen && run.jelly === 'normal';
-      key('ArrowRight');
+      picker.go(picker.ids.indexOf('tentacle'));
       const next = picker.centre === 'tentacle' && !picker.panel.play.hidden && picker.panel.goal.hidden;
       picker.play();
       return ok(shown && refused && enter && next && run.jelly === 'tentacle', { shown, refused, enter, next, jelly: run.jelly });
@@ -350,28 +398,34 @@ story('types/pick-screen-locked-card-cannot-play', {
 });
 
 story('types/pick-screen-bars-normal-is-half', {
-  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the bars drawn are the ones the formula gives, as 10 segments (Normal: 5 lit).',
+  about: 'Normal sits at 0.5 on all six bars; every bar is from 0 to 1; the Tentacle jelly is scaled the same as the rest (an 11 cm reach is a short Range bar, three Attacks is half the Area bar); the panel lists only what differs from Normal; the Spotlight bars match the formula for every type, as 10 segments (Normal: 5 lit).',
   setup() {},
   play() {
-    const { picker } = G();
-    const half = typeBars('normal').every((b) => Math.abs(b - 0.5) < 1e-9);
-    const inRange = Object.keys(CONTENT.jellies).every((id) => { const b = typeBars(id); return b.length === 6 && b.every((x) => x >= 0 && x <= 1); });
-    const t = typeBars('tentacle'), l = typeBars('lightning'), f = typeBars('fire');
-    const tentacle = Math.abs(t[2] - 0.11 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
-    const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.375) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.6 trims its Damage
-    const same = (id) => JSON.stringify(typeDetails(id));
-    const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
-      && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
-    const drawn = picker.cards.every((c, i) => [...c.querySelectorAll('.tp-bar')].every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(picker.ids[i])[k] * 100)
-      && bar.querySelectorAll('.tp-seg').length === 10 && bar.querySelectorAll('.tp-seg.on').length === barSegments(typeBars(picker.ids[i])[k])));
-    const segments = barSegments(0.5) === 5 && barSegments(0.01) === 1 && barSegments(1) === 10;   // Normal's bars are half lit
-    return ok(half && inRange && tentacle && area && details && drawn && segments, { half, inRange, tentacle, area, segments, details: ['normal', 'ice', 'wind', 'glitter', 'poison', 'tentacle'].map(same), drawn });
+    const { picker } = G(), back = asPlayer(true);
+    try {
+      pressPlay('normal');
+      const half = typeBars('normal').every((b) => Math.abs(b - 0.5) < 1e-9);
+      const inRange = Object.keys(CONTENT.jellies).every((id) => { const b = typeBars(id); return b.length === 6 && b.every((x) => x >= 0 && x <= 1); });
+      const t = typeBars('tentacle'), l = typeBars('lightning'), f = typeBars('fire');
+      const tentacle = Math.abs(t[2] - 0.11 / 0.6) < 1e-9 && Math.abs(t[3] - 0.5) < 1e-9 && Math.abs(t[0] - 0.75) < 1e-9;
+      const area = Math.abs(l[3] - 0.75) < 1e-9 && Math.abs(f[0] - 0.375) < 1e-9;   // an arc counts 1.5x; Fire's hit=0.6 trims its Damage
+      const same = (id) => JSON.stringify(typeDetails(id));
+      const details = same('normal') === '[]' && same('ice') === '["+5 Shield","Jump height 90%"]' && same('wind') === '["Jump height 120%","Pierce +1"]'
+        && same('glitter') === '["Dodge 5%","+10 Luck"]' && same('poison') === '["Health regen 0.5 every 5 s"]' && same('tentacle') === '["+3 Shield"]';
+      const drawn = picker.ids.every((id, i) => {
+        picker.go(i);
+        return picker.barEls.every((bar, k) => +bar.getAttribute('aria-valuenow') === Math.round(typeBars(id)[k] * 100)
+          && bar.querySelectorAll('.tp-seg').length === 10 && bar.querySelectorAll('.tp-seg.on').length === barSegments(typeBars(id)[k]));
+      });
+      const segments = barSegments(0.5) === 5 && barSegments(0.01) === 1 && barSegments(1) === 10;   // Normal's bars are half lit
+      return ok(half && inRange && tentacle && area && details && drawn && segments, { half, inRange, tentacle, area, segments, details: ['normal', 'ice', 'wind', 'glitter', 'poison', 'tentacle'].map(same), drawn });
+    } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 
 story('types/pick-screen-fits-phone', {
   phone: true,
-  about: 'On a phone held sideways the centre card and its panel fit the screen (Play inside it, at least 44 px tall), the page does not scroll sideways, the neighbours are cut off by the screen\'s edge, and the card\'s bars sit beside its portrait.',
+  about: 'On a phone held sideways the Spotlight (with Play at least 44 px tall) sits on the left and the Roster Grid on the right, both fit the screen with zero sideways scroll, and the Spotlight\'s bars sit beside its portrait.',
   setup() {},
   play() {
     const { picker } = G(), back = asPlayer(true);
@@ -379,20 +433,21 @@ story('types/pick-screen-fits-phone', {
       pressPlay('lightning');
       step(3);
       const W = innerWidth, H = innerHeight, rect = (el) => el.getBoundingClientRect();
-      const centre = rect(picker.cards[picker.index]), panel = rect(picker.panel.play), card = picker.cards[picker.index];
-      const inside = (r) => r.top >= 0 && r.bottom <= H && r.left >= 0 && r.right <= W;
-      const fits = inside(centre) && inside(panel) && panel.height >= 44 && centre.bottom <= rect(picker.root.querySelector('.tp-panel')).top + 1;
-      const cut = picker.cards.some((c) => { const r = rect(c); return r.right > W || r.left < 0; }) && picker.cards.some((c) => { const r = rect(c); return r.right > 0 && r.left < W && c !== card; });
-      const art = rect(card.querySelector('.tp-art')), bars = rect(card.querySelector('.tp-bars'));
+      const spot = rect(picker.spot), roster = rect(picker.roster), playBtn = rect(picker.panel.play);
+      const inside = (r) => r.top >= 0 && r.bottom <= H + 1 && r.left >= 0 && r.right <= W + 1;
+      const fits = inside(spot) && inside(roster) && inside(playBtn) && playBtn.height >= 44;
+      const split = spot.right <= roster.left + 1;
+      const art = rect(picker.spotArt), bars = rect(picker.spot.querySelector('.tp-bars'));
       const beside = art.right <= bars.left + 1;
+      const tilesOk = picker.tiles.every((t) => { const r = rect(t); return r.width >= 44 && r.height >= 44; });
       const still = document.documentElement.scrollWidth <= W;
-      return ok(fits && cut && beside && still, { fits, cut, beside, still, size: [W, H], centre: [centre.top, centre.bottom], panel: [panel.top, panel.bottom, panel.height] });
+      return ok(fits && split && beside && tilesOk && still, { fits, split, beside, tilesOk, still, size: [W, H], spot: [spot.left, spot.right, spot.bottom], roster: [roster.left, roster.right], play: [playBtn.top, playBtn.bottom, playBtn.height] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
 
 story('types/pick-screen-centre-card-attacks', {
-  about: 'Once the row is still, only the centre card comes alive (attack-preview.js): Fire\'s jelly fires real Fire shots at three roaches that burn, die and come back; the Tentacle jelly\'s lash takes all three at once; nothing reaches the game (no damage event, no shake); moving to another card stops it; Reduce motion keeps the still portrait.',
+  about: 'Only the Spotlight comes alive (attack-preview.js): Fire\'s jelly fires real Fire shots at three roaches that burn, die and come back; the Tentacle jelly\'s lash takes all three at once; nothing reaches the game (no damage event, no shake); switching jellies stops it; Reduce motion keeps the still portrait.',
   setup() {},
   play() {
     const { picker } = G(), live = picker.live, back = asPlayer(true);
@@ -415,13 +470,12 @@ story('types/pick-screen-centre-card-attacks', {
       stub(live.renderer, 'compileAsync', () => Promise.resolve());
       stub(picker, 'portrait', () => '');   // and the still portraits (the same ~40 s)
       settle();
-      const arts = picker.cards.map((c) => c.querySelector('.tp-art .tp-live'));
-      const centreOnly = live.on && picker.liveFor === 'fire' && arts.filter(Boolean).length === 1 && !!arts[picker.index];
+      const centreOnly = live.on && picker.liveFor === 'fire' && picker.root.querySelectorAll('.tp-live').length === 1 && !!picker.spotArt.querySelector('.tp-live');
       const fire = watch(10, 'fire');
       const burned = fire.shots >= 1 && fire.kills >= 3;
       key('ArrowRight');
       const stopped = !live.on && picker.liveFor === null;
-      picker.go(picker.ids.indexOf('tentacle')); picker.pos = picker.target; settle();
+      picker.go(picker.ids.indexOf('tentacle')); settle();
       const lash = watch(4, 'tentacle');
       const lashed = picker.liveFor === 'tentacle' && lash.shots === 3 && lash.kills >= 3;
       const quiet = hurt.length === 0 && juice.trauma === trauma;
@@ -598,7 +652,7 @@ story('types/pick-stage-films-through-bloom', {
 });
 
 story('types/pick-side-card-shader', {
-  about: 'A kind with a shader (pick-auras/: Fire\'s flames, Lightning\'s sparks) paints its card\'s whole picture with the game\'s renderer: the player\'s jelly (jelly-portrait.js portraitLayers, kept on the GPU) relit in the element, once its still portrait is drawn and its shader built; a kind without one still draws in 2D over its portrait; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
+  about: 'A kind with a shader (pick-auras/: Ice\'s frost, Lightning\'s sparks) paints the Spotlight\'s aura and one-shot snapshots on the roster tiles with the game\'s renderer: once a tile snapshot is lit it does not redraw per frame; Low graphics uses fewer noise layers; closing the screen frees the jelly\'s pictures.',
   setup() {},
   async play() {
     const { picker, gfx } = G(), back = asPlayer(true), P = picker.painter;
@@ -606,27 +660,23 @@ story('types/pick-side-card-shader', {
     const tick = (n = 1) => { for (let i = 0; i < n; i++) picker.tick(t += 50); };
     try {
       pressPlay('ice');
-      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
+      stub(picker, 'live', null);   // no live Spotlight: Ice shows its element aura in the Spotlight
       stub(picker, 'calm', () => false);
       stub(gfx, 'quality', 'medium');
-      const card = (id) => picker.auras[picker.ids.indexOf(id)];
-      const fire = card('ice'), storm = card('lightning');
-      const flatId = [picker.index - 1, picker.index + 1].map((k) => picker.ids[k]).find((id) => id && !P.has(CONTENT.jellies[id].aura)), bolt = flatId && card(flatId);   // a neighbour still drawn in 2D (while any is)
-      // its still portrait first (a software renderer takes a while: the jelly's shaders build), then its shader;
-      // Lightning (the next card) comes alive beside it
-      for (let i = 0; i < 400 && !(fire.classList.contains('lit') && storm.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
-      const lit = fire.classList.contains('lit') && P.built.frost === true && storm.classList.contains('lit') && P.built.sparks === true;
-      const draws = spy(P, 'draw'), flat = bolt ? spy(bolt, 'getContext') : [];
+      const spot = picker.spotAura, iceTile = picker.auras[picker.ids.indexOf('ice')], stormTile = picker.auras[picker.ids.indexOf('lightning')];
+      for (let i = 0; i < 400 && !(spot.classList.contains('lit') && iceTile.classList.contains('lit') && stormTile.classList.contains('lit')); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
+      const lit = spot.classList.contains('lit') && iceTile.classList.contains('lit') && stormTile.classList.contains('lit') && P.built.frost === true && P.built.sparks === true;
+      const draws = spy(P, 'draw');
       picker.auraAt = -1; tick();
-      const shader = draws.some(([c, kind]) => c === fire && kind === 'frost') && draws.some(([c, kind]) => c === storm && kind === 'sparks') && !draws.some(([c]) => c === bolt);
-      const twoD = !bolt || (flat.length > 0 && !bolt.classList.contains('lit'));
+      // Spotlight redraws on the clock; already-lit tiles do NOT redraw (one-shot snapshots)
+      const shader = draws.some(([c, kind]) => c === spot && kind === 'frost') && !draws.some(([c]) => c === iceTile || c === stormTile);
       const medium = P.mats.frost.uniforms.uLayers.value;
       stub(gfx, 'quality', 'low'); picker.auraAt = -1; tick();
       const low = P.mats.frost.uniforms.uLayers.value;
       const R = P.renderer, textures = R.info.memory.textures;
       picker.close();
       const gone = R.info.memory.textures <= textures - 2;   // the jelly's two pictures freed
-      return ok(lit && shader && twoD && medium > low && low >= 1 && gone, { lit, built: P.built, shader, twoD, flatId, layers: [medium, low], textures: [textures, R.info.memory.textures] });
+      return ok(lit && shader && medium > low && low >= 1 && gone, { lit, built: P.built, shader, layers: [medium, low], textures: [textures, R.info.memory.textures] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });
@@ -640,13 +690,12 @@ story('types/pick-side-card-frost', {
     const tick = () => picker.tick(t += 50);
     try {
       pressPlay('ice');
-      stub(picker, 'live', null);   // no live centre card: the Ice card shows its element in the centre
+      stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const ice = picker.auras[picker.ids.indexOf('ice')];
+      const ice = picker.spotAura;
       for (let i = 0; i < 400 && !ice.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = ice.classList.contains('lit') && P.built.frost === true && P.has('frost');
       picker.auraAt = -1; tick();
-      // (a few small reads of the card's own 2D canvas, once: frost is bright, the open water round the jelly dark)
       const S = ice.width, ctx = ice.getContext('2d');
       const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
       const corners = Math.min(lum(0, 0), lum(0.92, 0), lum(0, 0.92), lum(0.92, 0.92)), open = Math.max(lum(0.2, 0.3), lum(0.72, 0.3));
@@ -664,13 +713,12 @@ story('types/pick-side-card-gust', {
     const tick = () => picker.tick(t += 50);
     try {
       pressPlay('wind');
-      stub(picker, 'live', null);   // no live centre card: the Wind card shows its element in the centre
+      stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const wind = picker.auras[picker.ids.indexOf('wind')];
+      const wind = picker.spotAura;
       for (let i = 0; i < 400 && !wind.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = wind.classList.contains('lit') && P.built.gust === true && P.has('gust');
       picker.auraAt = -1; tick();
-      // (a few small reads of the card's own 2D canvas, once: the jelly's middle is lit, the corners dark water)
       const S = wind.width, ctx = wind.getContext('2d');
       const lum = (x, y) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(S * 0.08), Math.ceil(S * 0.08)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k] * 0.3 + d[k + 1] * 0.5 + d[k + 2] * 0.2; return v / (d.length / 4); };
       const middle = lum(0.46, 0.4), corners = Math.max(lum(0, 0.92), lum(0.92, 0.92));
@@ -688,12 +736,11 @@ story('types/pick-side-card-bubbles', {
     const tick = () => picker.tick(t += 50);
     try {
       pressPlay('normal');
-      stub(picker, 'live', null);   // no live centre card: the Normal card shows its element in the centre
+      stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const card = picker.auras[picker.ids.indexOf('normal')];
+      const card = picker.spotAura;
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = card.classList.contains('lit') && P.built.bubbles === true && P.has('bubbles');
-      // (a few small reads of the card's own 2D canvas, once: the same patch of it a few frames on)
       const S = card.width, ctx = card.getContext('2d');
       const grab = () => ctx.getImageData(0, 0, S, S).data;
       const before = grab();
@@ -716,16 +763,15 @@ story('types/pick-side-card-toxic', {
     const tick = () => picker.tick(t += 50);
     try {
       pressPlay('poison');
-      stub(picker, 'live', null);   // no live centre card: the Poison card shows its element in the centre
+      stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const card = picker.auras[picker.ids.indexOf('poison')];
+      const card = picker.spotAura;
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = card.classList.contains('lit') && P.built.toxic === true && P.has('toxic');
       picker.auraAt = -1; tick();
-      // (a few small reads of the card's own 2D canvas, once: how much greener than red or blue a strip is)
       const S = card.width, ctx = card.getContext('2d');
       const green = (x, y, w, h) => { const d = ctx.getImageData(Math.floor(x * S), Math.floor(y * S), Math.ceil(w * S), Math.ceil(h * S)).data; let v = 0; for (let k = 0; k < d.length; k += 4) v += d[k + 1] - Math.max(d[k], d[k + 2]); return v / (d.length / 4); };
-      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));   // (the least green of three open patches: a bubble may cross one)
+      const lip = green(0.1, 0, 0.8, 0.02), pool = green(0.1, 0.98, 0.8, 0.02), water = Math.min(green(0.3, 0.12, 0.08, 0.08), green(0.62, 0.12, 0.08, 0.08), green(0.3, 0.55, 0.06, 0.06));
       return ok(lit && lip > water + 15 && pool > water + 15, { lit, lip: Math.round(lip), pool: Math.round(pool), water: Math.round(water) });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
@@ -742,11 +788,10 @@ story('types/pick-side-card-sting', {
       pressPlay('tentacle');
       stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const card = picker.auras[picker.ids.indexOf('tentacle')];
+      const card = picker.spotAura;
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = card.classList.contains('lit') && P.built.sting === true && P.has('sting');
       picker.auraAt = -1; tick();
-      // (one small read of the card's own 2D canvas: the dusk in its top left corner, violet where Ice's water is teal)
       const S = card.width, d = card.getContext('2d').getImageData(0, 0, Math.ceil(S * 0.1), Math.ceil(S * 0.1)).data;
       let r = 0, g = 0, b = 0;
       for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; }
@@ -764,20 +809,18 @@ story('types/pick-side-card-glitter', {
     const tick = () => picker.tick(t += 50);
     try {
       pressPlay('glitter');
-      stub(picker, 'live', null);   // no live centre card: the Glitter card shows its element in the centre
+      stub(picker, 'live', null);
       stub(picker, 'calm', () => false);
-      const card = picker.auras[picker.ids.indexOf('glitter')];
+      const card = picker.spotAura;
       for (let i = 0; i < 400 && !card.classList.contains('lit'); i++) { tick(); await new Promise((r) => setTimeout(r, 50)); }
       const lit = card.classList.contains('lit') && P.built.glitter === true && P.has('glitter');
       picker.auraAt = -1; tick();
-      // (a few small reads of the card's own 2D canvas: some pixel bright over the open water, the card changing from frame to frame)
       const S = card.width, ctx = card.getContext('2d');
       const grab = () => ctx.getImageData(0, 0, S, Math.floor(S * 0.4)).data;
       const bright = (d) => { let n = 0; for (let k = 0; k < d.length; k += 4) n += d[k] + d[k + 1] + d[k + 2] > 600; return n; };
       const a = grab(); picker.auraAt = -1; tick(); tick(); tick(); tick(); tick(); tick();
       const b = grab();
       let moved = 0; for (let k = 0; k < a.length; k += 16) moved += Math.abs(a[k] - b[k]) > 30;
-      // every type now has its own shader kind (the last 2D one is gone)
       const kinds = picker.ids.map((id) => CONTENT.jellies[id].aura);
       const distinct = kinds.every((k) => k && P.has(k)) && new Set(kinds).size === kinds.length;
       return ok(lit && distinct && bright(a) > 20 && moved > 50, { lit, distinct, kinds, bright: bright(a), moved });
@@ -786,7 +829,7 @@ story('types/pick-side-card-glitter', {
 });
 
 story('types/pick-side-card-shader-holds-still-calm', {
-  about: 'With Reduce effects on, a shader kind\'s card is one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
+  about: 'With Reduce effects on, a shader kind\'s Spotlight and tile are one frozen frame: drawn once at a fixed moment, not again while the screen stays open; if it can\'t be drawn yet (its shader building) it is drawn as soon as it can.',
   setup() {},
   play() {
     const { picker } = G(), back = asPlayer(true), P = picker.painter;
@@ -796,15 +839,15 @@ story('types/pick-side-card-shader-holds-still-calm', {
       pressPlay('fire');
       stub(picker, 'live', null);
       stub(picker, 'calm', () => true);
-      stub(picker, 'portrait', () => 'data:,');   // (a stand-in still portrait: the shader card waits for one)
+      stub(picker, 'portrait', () => 'data:,');
       let ready = false;
       const draws = [];
-      stub(P, 'draw', (c, kind, look, at) => { if (kind === 'flames') draws.push(at); return ready; });   // (the Fire card's; Lightning's beside it is a shader too)
+      stub(P, 'draw', (c, kind, look, at) => { if (kind === 'flames') draws.push(at); return ready; });
       picker.measure(); tick(3);
-      const waited = draws.length >= 2;   // not drawn yet: it tries again
+      const waited = draws.length >= 2;
       ready = true; tick(1);
       const n = draws.length; tick(6);
-      const frozen = draws.length === n && picker.auras[picker.index].classList.contains('lit');
+      const frozen = draws.length === n && picker.spotAura.classList.contains('lit') && picker.auras[picker.index].classList.contains('lit');
       return ok(waited && frozen && new Set(draws).size === 1, { tries: draws.length, waited, frozen, at: [...new Set(draws)] });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
@@ -927,16 +970,18 @@ story('types/crit-treasures-reach-glitter-bursts', {
 
 story('types/pick-card-hugs-its-contents-on-a-tall-screen', {
   portrait: true,
-  about: 'On a tall window the pick cards are as tall as what they hold: between the centre card\'s portrait and its bars there is no more than a little gap, not an empty half card (Chan, Nov 17).',
+  about: 'On a tall window the Spotlight hugs its contents instead of stretching into a giant empty box.',
   setup() {},
   play() {
     const { picker } = G(), back = asPlayer(true);
     try {
       pressPlay('lightning');
       step(3);
-      const card = picker.cards[picker.index], art = card.querySelector('.tp-art').getBoundingClientRect(), bars = card.querySelector('.tp-bars').getBoundingClientRect();
-      const gap = Math.round(bars.top - art.bottom);   // the space between the portrait and the bars
-      return ok(gap <= 40, { gap, art: Math.round(art.bottom), bars: Math.round(bars.top) });
+      const spot = picker.spot.getBoundingClientRect();
+      const art = picker.spotArt.getBoundingClientRect(), bars = picker.spot.querySelector('.tp-bars').getBoundingClientRect();
+      const hugs = spot.height < innerHeight * 0.6;
+      const compact = Math.abs(art.top - bars.top) <= 60;
+      return ok(hugs && compact, { hugs, compact, spotH: Math.round(spot.height), winH: innerHeight });
     } finally { back(); picker.close(); G().mainMenu.home = false; }
   },
 });

@@ -483,10 +483,8 @@
   --type-wind: #c4f0e0;
   --type-glitter: #ff9ae8;
   --type-tentacle: #c79bff;
-  --pick-step: 0.96;           /* card spacing, in card widths: a neighbour sits this far from the centre (on a row too narrow for it, it sits just clear of the centre card instead) */
-  --pick-side-scale: 0.78;     /* how big a neighbour is next to the centre card; one more step out shrinks it again by 0.18 */
-  --pick-snap: 14;             /* how fast the row settles on a card (bigger is snappier) */
-  --pick-bounce: 0.7;          /* how springy it is: 1 settles with no overshoot, lower overshoots a little more (0.7 is about 5%) */
+  --pick-roll-time: 0.58;      /* seconds the Random (?) tile sweeps across unlocked jellies before landing */
+  --pick-roll-steps: 10;       /* hops the Random (?) roulette makes before landing */
   --pick-squeeze: 0.08;        /* seconds the Play button squeezes before the run starts (the start waits this long) */
   --pick-aura-fps: 30;         /* frames a second the elements round the jellies on the cards draw at */
   --pick-aura-strength: 1;     /* how bright those elements are (0 hides them) */
