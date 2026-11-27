@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v752 The bubble now wobbles as it leaves the bell and tears open from where it touches when it pops.
+
 v751 The dev tools have a Phone bench button. It lists acts 1 to 4 and the Encore and opens that act's bench page, where Copy results and Send to the developer are at the end.
 
 v750 redraws Normal's bubble as a soap bubble twice the size: a clear middle, a rainbow rim and two window highlights, in one draw. Hits, damage and Range are unchanged.
