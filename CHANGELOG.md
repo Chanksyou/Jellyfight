@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v753 makes golden bubbles clearly gold again under the new soap film.
+
 v752 The bubble now wobbles as it leaves the bell and tears open from where it touches when it pops.
 
 v751 The dev tools have a Phone bench button. It lists acts 1 to 4 and the Encore and opens that act's bench page, where Copy results and Send to the developer are at the end.
