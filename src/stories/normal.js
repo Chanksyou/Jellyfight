@@ -187,7 +187,7 @@ story('treasures/pop-chain-damage-lands-at-once', {
   about: 'pop-chain: the damage of every chained pop lands in the same frame as the first, but each one\'s picture (its puff, pop sound and tearing film) starts 0.04 s after the one that set it off: 0, 0.04 and 0.08 s down a row of three.',
   setup() { calm(); },
   play() {
-    withWords('pop-chain 0.5');
+    withWords('pop-chain 0.6');
     juice.calm = false;
     const B = G().run.bubbles, pops = spy(sfx, 'pop');
     const on = chain();
