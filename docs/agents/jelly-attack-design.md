@@ -79,7 +79,7 @@ These are target qualities, not instructions to change attack mechanics.
 
 | Family | Shape and motion | Contact and continuing information |
 |---|---|---|
-| Ordinary bubbles | A rounded translucent body, readable rim, and buoyant motion from the bell. | A quick, local pop and restrained fragments; retain a visible rim on Low without bloom. |
+| Ordinary bubbles | A soap film drawn 2x its hit size, with a clear middle, a rainbow rim and two window highlights; it swells out of the bell with a damped stretch along its flight. | On a hit it tears open from the front with a ring of six droplets; a miss tears quietly with no flash. Pop Chain pops ripple 0.04 s apart while their damage lands at once. Retain a visible rim on Low without bloom. |
 | Tentacle stings | A readable lash from the correct tentacle toward the chosen enemy, followed by recovery. | A localized sting at contact; venom has its own continuing cue. Decorative deformation must not imply an extra hit or interrupt movement. |
 | Fire | A compact energetic core, irregular flame envelope, and trailing embers. | A brief ignition at contact; burning remains visible only while the status is active. |
 | Lightning | An irregular angular path, varying thickness, tapered ends, limited secondary arcs, and a narrow bright core within the element's colored halo. | A sharp local contact and brief afterimage. Chain segments join actual struck enemies; do not draw damaging-looking connections to untouched targets. |
