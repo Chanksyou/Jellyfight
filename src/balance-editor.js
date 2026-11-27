@@ -1,11 +1,14 @@
 // Dev: the balance editor (pause menu → ⚖️ Tuner, behind the dev password). Every number in
-// content/enemies.kdl, content/treasures.kdl, content/evolutions.kdl, content/bosses.kdl,
-// content/elites.kdl and content/levelups.kdl as a box you can type into. Changing one
+// content/enemies.kdl, content/treasures.kdl (the Legendary Treasures include the evolutions,
+// content/evolutions.kdl), content/jellies.kdl, content/upgrades.kdl, content/bosses.kdl,
+// content/elites.kdl and content/levelups.kdl as a box you can type into. It is shown in
+// five groups: Bugs, Treasures (by rarity), Jelly types (each type's starting stats, then its
+// Attack upgrades), Bosses and Elites, and Level-ups. Changing one
 // recompiles the content on the spot: the next bug that spawns uses the new numbers, and so
 // do the treasures you already hold (the run's combined effects recompute). A boss or elite
 // already fighting reads its skills fresh each attack, so its new numbers land from the next
 // attack (its Health, from its next spawn or power-on); level-up numbers land at the next
-// level-up. Bugs already alive keep the numbers they spawned with. Elites and level-up cards
+// level-up; a jelly type's starting stats, from the next run. Bugs already alive keep the numbers they spawned with. Elites and level-up cards
 // can also be removed for the session: a removed elite doesn't spawn and a removed card
 // isn't offered, until restored. Nothing is written back to the files: "Copy changes" lists
 // what you changed, ready to make permanent (or hand to an agent), and Reset puts the file
@@ -28,6 +31,7 @@ const HINTS = {
   weight: 'how likely it is offered (1 = as likely as any; 0 = never)',
   windup: 'warning time (s)', time: 'how long it runs (s)', speed: 'm/s', rest: 'rest afterwards (s)',
   every: 'seconds between goes', slow: 'seconds you stay slowed', at: 'the Health fraction that trips it',
+  hit: "multiplies the damage of this type's attack (the damage budget's one knob)",
   radius: 'radius (m)', reach: 'how far it reaches (m)', count: 'how many', height: 'how high (m)',
 };
 const OWN_HINTS = { ...HINTS, dmg: 'damage when it touches you' };   // an entry's own dmg is its touch
@@ -65,16 +69,18 @@ function leaf(where, label, box, key, hint = '') {
 function wordFields(where, node, registry, path, out) {
   const def = registry?.[node.name];
   const hint = (k) => (def ? hintFrom(def.doc, k) : '') || (node.name === 'element-up' && ELEMENT_HINTS[k] && `${ELEMENT_ADD.has(k) ? 'adds to' : 'multiplies'} ${ELEMENT_HINTS[k]}`) || HINTS[k] || '';
-  node.args.forEach((a, i) => { if (isNum(a)) { const k = def?.args?.[i]; out.push(leaf(where, `${path}${node.name} ${k ?? 'arg ' + (i + 1)}`, node.args, i, hint(k))); } });
+  // a `stat` line is named by the stat it changes ("stat fire-rate"), not by its argument
+  const named = node.name === 'stat' && typeof node.args[0] === 'string' ? node.args[0] : null;
+  node.args.forEach((a, i) => { if (isNum(a)) { const k = def?.args?.[i]; out.push(leaf(where, `${path}${node.name} ${named ?? k ?? 'arg ' + (i + 1)}`, node.args, i, hint(k))); } });
   for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, `${path}${node.name} ${k}`, node.props, k, hint(k)));
   for (const c of node.children) wordFields(where, c, def?.block ?? registry, path, out);
 }
 
 // One content entry's numbers: its own numeric props first (a bug's hp/r/dmg/xp, a treasure's
 // stack), then its words; a treasure's levels get their own word lists, labelled Lv2, Lv3.
-function entryFields(where, node, registry) {
+function entryFields(where, node, registry, skip = []) {
   const out = [];
-  for (const k of Object.keys(node.props)) if (isNum(node.props[k])) out.push(leaf(where, k, node.props, k, OWN_HINTS[k] || ''));
+  for (const k of Object.keys(node.props)) if (isNum(node.props[k]) && !skip.includes(k)) out.push(leaf(where, k, node.props, k, OWN_HINTS[k] || ''));
   for (const c of node.children) {
     if (c.name === 'level') for (const w of c.children) wordFields(where, w, registry, `Lv${c.args[0]} · `, out);
     else wordFields(where, c, registry, '', out);
@@ -83,19 +89,28 @@ function entryFields(where, node, registry) {
 }
 
 let groups = null;
-// The editable things, as the panel shows them: bugs, then treasures, then evolutions. Built
-// once: the parsed nodes live as long as the page does, and the fields point into them.
+// The editable things, as the panel shows them: bugs, treasures, jelly types with their Attack
+// upgrades, bosses, elites, then level-ups. Built once: the parsed nodes live as long as the page does, and the fields point into them.
 export function balanceGroups() {
   if (groups) return groups;
-  const build = (nodes, compiled, kind, file, registry) => nodes.map((n, i) => ({
-    kind, id: n.args[0], file, icon: compiled?.[i]?.icon || n.props.icon || (kind === 'boss' ? '👹' : kind === 'elite' ? '👺' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
+  const build = (nodes, compiled, kind, file, registry, extra = () => ({})) => nodes.map((n, i) => ({
+    kind, id: n.args[0], ...extra(compiled?.[i]), file, icon: compiled?.[i]?.icon || n.props.icon || (kind === 'boss' ? '👹' : kind === 'elite' ? '👺' : '🐞'), name: n.props.name || n.args[0], desc: n.props.text || '',
     fields: entryFields(`${file} · ${n.props.name || n.args[0]}`, n, registry),
   }));
   const lu = CONTENT.nodes.levelups;
   groups = [
     ...build(CONTENT.nodes.enemies, null, 'bug', 'content/enemies.kdl', ENEMY_WORDS),
-    ...build(CONTENT.nodes.treasures, CONTENT.treasures, 'treasure', 'content/treasures.kdl', TREASURE_WORDS),
-    ...build(CONTENT.nodes.evolutions, CONTENT.evolutions, 'evolution', 'content/evolutions.kdl', TREASURE_WORDS),
+    // Treasures by rarity; the evolutions are Legendary Treasures now
+    ...[...build(CONTENT.nodes.treasures, CONTENT.treasures, 'treasure', 'content/treasures.kdl', TREASURE_WORDS, (t) => ({ sub: t.rarity })),
+      ...build(CONTENT.nodes.evolutions, CONTENT.evolutions, 'treasure', 'content/evolutions.kdl', TREASURE_WORDS, () => ({ sub: 'legendary' }))]
+      .sort((a, b) => TIERS.indexOf(a.sub) - TIERS.indexOf(b.sub)),
+    // Jelly types: each one's starting stats, then its own Attack upgrades
+    ...Object.keys(CONTENT.jellies).flatMap((jid) => [
+      ...build(CONTENT.nodes.jellies.filter((n) => n.args[0] === jid), null, 'jelly', 'content/jellies.kdl', TREASURE_WORDS, () => ({ sub: jid })).map((g) => ({
+        ...g, id: jid, icon: CONTENT.jellies[jid].icon, name: `${CONTENT.jellies[jid].name}: start`, desc: 'What a run of this type starts with (from the next run): its stats, and hit, the multiplier on its attack\'s damage.',
+        fields: entryFields(`content/jellies.kdl · ${CONTENT.jellies[jid].name}`, CONTENT.nodes.jellies.find((n) => n.args[0] === jid), TREASURE_WORDS, ['unlock-act', 'unlock-elites']) })),
+      ...build(CONTENT.nodes.upgrades.filter((n) => n.props.jelly === jid), CONTENT.upgrades.filter((u) => u.jelly === jid), 'upgrade', 'content/upgrades.kdl', TREASURE_WORDS, () => ({ sub: jid })),
+    ]),
     ...build(CONTENT.nodes.bosses, null, 'boss', 'content/bosses.kdl', null),
     { kind: 'elite', id: 'pace', file: 'content/elites.kdl', icon: '⏱️', name: 'Elite pace', desc: 'How fast every elite fights: its rest between attacks runs down recover× as fast, and each attack plays tempo× as fast.', fields: entryFields('content/elites.kdl · Elite pace', CONTENT.nodes.elites.find((n) => n.name === 'pace'), null) },
     ...build(CONTENT.nodes.elites.filter((n) => n.name === 'elite'), null, 'elite', 'content/elites.kdl', null).map((g) => ({ ...g, removeKey: `elite:${g.id}` })),
@@ -180,7 +195,11 @@ const CSS = `
 `;
 
 const TAP = 'Tap a number to see what it does.';
-const FILTERS = [['all', 'All'], ['bug', 'Bugs'], ['treasure', 'Treasures'], ['evolution', 'Evolutions'], ['boss', 'Bosses'], ['elite', 'Elites'], ['levelup', 'Level-ups']];
+const TIERS = ['common', 'rare', 'epic', 'legendary'];
+const cap = (w) => w[0].toUpperCase() + w.slice(1);
+// The top chips and the kinds each holds; Treasures and Jelly types have a second row of chips
+const FILTERS = [['all', 'All', null], ['bug', 'Bugs', ['bug']], ['treasure', 'Treasures', ['treasure']], ['jelly', 'Jelly types', ['jelly', 'upgrade']], ['boss', 'Bosses', ['boss']], ['elite', 'Elites', ['elite']], ['levelup', 'Level-ups', ['levelup']]];
+const kindsOf = (id) => FILTERS.find((f) => f[0] === id)?.[2];
 
 export class BalanceEditor {
   constructor(parent) {
@@ -194,6 +213,7 @@ export class BalanceEditor {
     this.el.hidden = true;
     parent.appendChild(this.el);
     this.filter = 'all';
+    this.sub = 'all';
     this.query = '';
     this.openId = null;
     this.status = '';
@@ -222,9 +242,10 @@ export class BalanceEditor {
     this.groups = balanceGroups();
     this.el.innerHTML = `<div class="box">
       <header><h2>⚖️ Balance editor</h2><button data-k="back">✕</button></header>
-      <details class="note"><summary>How it works</summary>Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss or elite uses a skill's new numbers from its next attack (its Health, from its next spawn or power-on). Level-up numbers land at the next level-up. ✕ Remove takes an elite out of the run or a card out of the offers until you restore it. Nothing is saved to the files — Copy changes lists your edits to make permanent. Tap a number to see what it does.</details>
-      <input type="search" placeholder="Search bugs, treasures, bosses, elites and level-ups" value="${this.query}">
+      <details class="note"><summary>How it works</summary>Type a number and it's live: the next bug spawns with it, treasures you hold use it at once, and a boss or elite uses a skill's new numbers from its next attack (its Health, from its next spawn or power-on). Level-up numbers land at the next level-up, and a jelly type's starting stats at the next run. Jelly types holds each type's starting stats and its Attack upgrades. ✕ Remove takes an elite out of the run or a card out of the offers until you restore it. Nothing is saved to the files — Copy changes lists your edits to make permanent. Tap a number to see what it does.</details>
+      <input type="search" placeholder="Search bugs, treasures, jelly types, upgrades, bosses, elites and level-ups" value="${this.query}">
       <div class="chips">${FILTERS.map(([id, label]) => `<button data-f="${id}">${label}</button>`).join('')}</div>
+      <div class="chips subs"></div>
       <div class="list"></div>
       <div class="status"></div>
       <footer><button data-k="back">Back to menu</button><button data-k="copy">Copy changes</button><button data-k="reset">Reset</button><button data-k="play" class="go">▶ Play with this</button></footer>
@@ -237,12 +258,16 @@ export class BalanceEditor {
 
   items() {
     const q = this.query, f = this.filter;
-    return this.groups.filter((g) => (f === 'all' || g.kind === f)
+    return this.groups.filter((g) => (f === 'all' || kindsOf(f).includes(g.kind)) && (this.sub === 'all' || g.sub === this.sub)
       && (!q || `${g.name} ${g.id}`.toLowerCase().includes(q)));
   }
 
   draw() {
-    this.el.querySelectorAll('[data-f]').forEach((b) => b.classList.toggle('on', b.dataset.f === this.filter));
+    this.el.querySelectorAll('.chips:not(.subs) [data-f]').forEach((b) => b.classList.toggle('on', b.dataset.f === this.filter));
+    const subs = this.el.querySelector('.subs');
+    const ids = this.filter === 'treasure' ? TIERS : this.filter === 'jelly' ? Object.keys(CONTENT.jellies) : [];
+    subs.hidden = !ids.length;
+    subs.innerHTML = ids.length ? [['all', 'All'], ...ids.map((id) => [id, this.filter === 'jelly' ? `${CONTENT.jellies[id].icon} ${CONTENT.jellies[id].name.replace(' Jelly', '')}` : cap(id)])].map(([id, label]) => `<button data-s="${id}" class="${id === this.sub ? 'on' : ''}">${label}</button>`).join('') : '';
     this.drawStatus();
     this.drawList();
   }
@@ -258,10 +283,11 @@ export class BalanceEditor {
     list.innerHTML = this.items().map((g) => {
       const gi = this.groups.indexOf(g);
       const removed = g.removeKey && REMOVED.has(g.removeKey);
-      const fields = g.id === this.openId ? `<div class="hint">${TAP}</div><div class="fields">${g.fields.map((f, fi) =>
+      const key = `${g.kind}:${g.id}`, isOpen = key === this.openId;
+      const fields = isOpen ? `<div class="hint">${TAP}</div><div class="fields">${g.fields.map((f, fi) =>
         `<label class="fld" title="${f.hint.replace(/\*\*/g, '')}">${f.label} <input type="number" step="any" data-g="${gi}" data-f="${fi}" value="${f.get()}" class="${f.edited() ? 'edited' : ''}"></label>`).join('')}</div>` : '';
-      return `<div class="row${removed ? ' removed' : ''}" data-id="${g.id}">
-        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}${g.removeKey ? `<span class="rm" data-k="remove" data-g="${gi}">${removed ? '↩ Restore' : '✕ Remove'}</span>` : ''}<span>${g.id === this.openId ? '▾' : '▸'}</span></button>
+      return `<div class="row${removed ? ' removed' : ''}" data-id="${g.id}" data-key="${key}">
+        <button class="head" data-k="toggle"><span class="ic">${g.icon}</span><span class="tx"><b>${g.name}</b>${g.desc ? `<span>${g.desc}</span>` : ''}</span>${g.fields.some((f) => f.edited()) ? '<span class="dot">●</span>' : ''}${g.removeKey ? `<span class="rm" data-k="remove" data-g="${gi}">${removed ? '↩ Restore' : '✕ Remove'}</span>` : ''}<span>${isOpen ? '▾' : '▸'}</span></button>
         ${fields}
       </div>`;
     }).join('') || '<p style="padding:14px;opacity:.7">Nothing matches.</p>';
@@ -278,9 +304,10 @@ export class BalanceEditor {
     const b = e.target.closest('button');
     if (!b) return;
     const k = b.dataset.k;
-    if (b.dataset.f) { this.filter = b.dataset.f; this.draw(); return; }
+    if (b.dataset.f) { this.filter = b.dataset.f; this.sub = 'all'; this.draw(); return; }
+    if (b.dataset.s) { this.sub = b.dataset.s; this.draw(); return; }
     if (k === 'toggle') {
-      const id = b.closest('.row').dataset.id;
+      const id = b.closest('.row').dataset.key;
       this.openId = this.openId === id ? null : id;
       this.drawList();
     } else if (k === 'back') { this.hide(); this.onBack?.(); }

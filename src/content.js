@@ -387,7 +387,7 @@ export async function loadContent(base = './content/') {
   const [enemies, waves, treasures, evolutions, bosses, elites, levelups, jellies, upgrades, props] = await Promise.all([read('enemies.kdl'), read('waves.kdl'), read('treasures.kdl'), read('evolutions.kdl'), read('bosses.kdl'), read('elites.kdl'), read('levelups.kdl'), read('jellies.kdl'), read('upgrades.kdl'), read('props.kdl')]);
   // The parsed files are kept (CONTENT.nodes): the dev balance editor edits their numbers and
   // recompiles from them, without reloading the page.
-  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl'), elites: parse(elites, 'content/elites.kdl'), levelups: parse(levelups, 'content/levelups.kdl') };
+  CONTENT.nodes = { enemies: parse(enemies, 'content/enemies.kdl'), treasures: parse(treasures, 'content/treasures.kdl'), evolutions: parse(evolutions, 'content/evolutions.kdl'), bosses: parse(bosses, 'content/bosses.kdl'), elites: parse(elites, 'content/elites.kdl'), levelups: parse(levelups, 'content/levelups.kdl'), jellies: parse(jellies, 'content/jellies.kdl'), upgrades: parse(upgrades, 'content/upgrades.kdl') };
   CONTENT.enemies = compileEnemies(CONTENT.nodes.enemies);
   CONTENT.waves = compileWaves(parse(waves, 'content/waves.kdl'), CONTENT.enemies);
   CONTENT.treasures = compileTreasures(CONTENT.nodes.treasures);
@@ -395,8 +395,8 @@ export async function loadContent(base = './content/') {
   CONTENT.bosses = compileBosses(CONTENT.nodes.bosses);
   CONTENT.elites = compileElites(CONTENT.nodes.elites);
   CONTENT.levelups = compileLevelups(CONTENT.nodes.levelups);
-  CONTENT.jellies = compileJellies(parse(jellies, 'content/jellies.kdl'));
-  CONTENT.upgrades = compileUpgrades(parse(upgrades, 'content/upgrades.kdl'), CONTENT.jellies);
+  CONTENT.jellies = compileJellies(CONTENT.nodes.jellies);
+  CONTENT.upgrades = compileUpgrades(CONTENT.nodes.upgrades, CONTENT.jellies);
   CONTENT.props = compileProps(parse(props, 'content/props.kdl'));
   return CONTENT;
 }
@@ -413,10 +413,14 @@ export function recompileContent() {
   const bosses = compileBosses(CONTENT.nodes.bosses);
   const elites = compileElites(CONTENT.nodes.elites);
   const levelups = compileLevelups(CONTENT.nodes.levelups);
+  const jellies = compileJellies(CONTENT.nodes.jellies);
+  const upgrades = compileUpgrades(CONTENT.nodes.upgrades, jellies);
   for (const id of Object.keys(CONTENT.enemies)) if (!enemies[id]) delete CONTENT.enemies[id];
   Object.assign(CONTENT.enemies, enemies);
   CONTENT.treasures.forEach((t, i) => Object.assign(t, treasures[i]));
   CONTENT.evolutions.forEach((t, i) => Object.assign(t, evolutions[i]));
+  CONTENT.upgrades.forEach((t, i) => Object.assign(t, upgrades[i]));
+  for (const [id, j] of Object.entries(jellies)) Object.assign(CONTENT.jellies[id], j);   // a type's start stats and hit: read when a run starts
   // bosses swap in place, skill by skill: a boss already fighting holds its compiled object
   // (vacuum.js's this.def) and reads it fresh each attack, so identity is the whole point
   for (const id of Object.keys(CONTENT.bosses)) if (!bosses[id]) delete CONTENT.bosses[id];

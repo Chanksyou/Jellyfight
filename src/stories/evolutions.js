@@ -202,7 +202,7 @@ story('dev/balance-editor', {
     const second = spawn('roach', near(-0.3, 0), { still: true });
     give('coffeeBean');
     const fr1 = S().fireRate;
-    field('treasure', 'coffeeBean', 'stat amount').set(50); applyBalance(run);
+    field('treasure', 'coffeeBean', 'stat fire-rate').set(50); applyBalance(run);
     const fr2 = S().fireRate;
     const bossDmg0 = CONTENT.bosses.vacuum.skills.charge.dmg;
     field('boss', 'vacuum', 'charge dmg').set(9); applyBalance(run);
@@ -232,11 +232,39 @@ story('dev/balance-editor', {
       { rows, described, hp0, second: second.hp, first: first.hp, fr1, fr2, fr3, third: third.hp, bossDmg0, bossDmg1, bossDmg2, mugDmg0, mugDmg1, xp0, xp1, card0, card1, mugRemoved, healthOffered, restored });
   },
 });
-story('dev/balance-editor-hints', {
-  about: 'Every number of every bug, treasure and evolution in the balance editor has a short note on what it does (from its word\'s doc, or the file\'s own key), and tapping a number in an open row shows that note in the row\'s one hint line: Cockroach chase speed says it walks at you at that many m/s.',
+story('dev/balance-editor-groups', {
+  about: 'The balance editor groups what is live: no Evolutions tab (they are Legendary Treasures, under Treasures), Jelly types holds each type\'s starting stats and its 12 Attack upgrades (Fire, Ice, Lightning, Poison, Wind, Glitter, Tentacle and Normal), and an upgrade number typed in changes what the Attack upgrade does at once: Fire\'s Slow Burn raises how many Burns stack.',
   setup() { fresh(); },
   play() {
-    const groups = balanceGroups().filter((g) => ['bug', 'treasure', 'evolution'].includes(g.kind));
+    const groups = balanceGroups(), panel = window.tuner; panel.show(G().run, {});
+    const chips = [...panel.el.querySelectorAll('.chips:not(.subs) button')].map((b) => b.textContent);
+    const click = (sel) => panel.el.querySelector(sel).click();
+    click('[data-f="jelly"]'); click('[data-s="fire"]');
+    const fireRows = [...panel.el.querySelectorAll('.row')].map((r) => r.dataset.id);
+    click('[data-f="treasure"]'); click('[data-s="legendary"]');
+    const legendary = [...panel.el.querySelectorAll('.row')].map((r) => r.dataset.id);
+    click('[data-f="all"]');
+    panel.hide();
+    const perType = Object.keys(CONTENT.jellies).map((id) => groups.filter((g) => g.kind === 'upgrade' && g.sub === id).length);
+    const start = groups.find((g) => g.kind === 'jelly' && g.id === 'fire');
+    const hit = start.fields.find((f) => f.label === 'hit'), hp = start.fields.find((f) => f.label === 'stat health');
+    const burn = groups.find((g) => g.kind === 'upgrade' && g.id === 'slowBurn').fields.find((f) => f.label === 'element-up burnStacks');
+    const before = CONTENT.upgrades.find((u) => u.id === 'slowBurn');
+    burn.set(5); hit.set(0.7); hp.set(25); applyBalance(G().run);
+    const mods = CONTENT.jellies.fire;
+    const live = mods.hit === 0.7 && mods.stats.health === 25;
+    resetBalance(G().run);
+    return ok(!chips.includes('Evolutions') && chips.includes('Jelly types') && perType.length === 8 && perType.every((n) => n === 12)
+      && fireRows.length === 13 && fireRows[0] === 'fire' && fireRows.includes('slowBurn') && legendary.includes('cinder') && !!burn && !!hit && !!hp && live
+      && CONTENT.jellies.fire.hit === 0.6 && before.id === 'slowBurn',
+      { chips, perType, fireRows, legendary: legendary.length, burn: !!burn, live, hit: CONTENT.jellies.fire.hit });
+  },
+});
+story('dev/balance-editor-hints', {
+  about: 'Every number of every bug, treasure, jelly type and Attack upgrade in the balance editor has a short note on what it does (from its word\'s doc, or the file\'s own key), and tapping a number in an open row shows that note in the row\'s one hint line: Cockroach chase speed says it walks at you at that many m/s.',
+  setup() { fresh(); },
+  play() {
+    const groups = balanceGroups().filter((g) => ['bug', 'treasure', 'jelly', 'upgrade'].includes(g.kind));
     const bare = groups.flatMap((g) => g.fields.filter((f) => !f.hint).map((f) => `${g.id} ${f.label}`));
     const panel = window.tuner; panel.show(G().run, {});
     panel.el.querySelector('.row[data-id="roach"] .head').click();
