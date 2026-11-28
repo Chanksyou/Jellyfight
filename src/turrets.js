@@ -131,7 +131,7 @@ export class Turrets {
     const T = {
       position: new THREE.Vector3(at.x, y, at.z), center: new THREE.Vector3(at.x, y + this.H * 0.55, at.z),
       range: LOOK.num('turret-lure', 0.3), takes: true,   // a decoy (enemies.update) that takes the hits aimed at it
-      health: ef.health * U.health, t: ef.time * U.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, flash: 0, kick: 0, face: R.player.facing ?? 0,
+      health: ef.health * U.health, t: ef.time * U.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, touchAt: new Map(), flash: 0, kick: 0, face: R.player.facing ?? 0,
       element: els.length ? els[this.nextElement++ % els.length] : null,   // turret-element: each one set down takes the next in turn
       beats: R.mods.turretOn.map(() => 0),                                  // turret-on every=: its own clock for each
       hurt: (n) => this.hurt(T, n),
@@ -144,9 +144,17 @@ export class Turrets {
     this.on('place', T);
   }
 
-  // a bug's hit or touch: Health off, a white flash, then a moment it can't be hurt (as the jelly's own)
-  hurt(T, n) {
-    if (T.health <= 0 || T.noHurt > 0 || !(n > 0)) return;
+  // a bug's hit or touch: Health off, a white flash, then a moment it can't be hurt (as the jelly's own).
+  // toucher: a touching bug's id; like the jelly's (run.js hit), each bug hurts by touch once every touchGap s
+  // and its touch skips the no-hurt moment another bug left, so two bugs touching at once both land
+  hurt(T, n, toucher = null) {
+    if (T.health <= 0 || !(n > 0)) return;
+    if (toucher == null ? T.noHurt > 0 : T.noHurt > 0 && T.noHurtFrom === toucher) return;
+    if (toucher != null) {
+      if (T.age < (T.touchAt.get(toucher) ?? -1)) return;
+      T.touchAt.set(toucher, T.age + this.run.cfg.touchGap);
+    }
+    T.noHurtFrom = toucher;
     T.health -= n; T.noHurt = LOOK.num('turret-no-hurt', 0.25); T.flash = 1;
     const fx = this.run.fx;
     fx.number(_p.copy(T.center).setY(T.center.y + this.H * 0.6), String(Math.round(n * 10) / 10), LOOK.color('turret-hurt', '#ffffff'), 11);
@@ -176,7 +184,7 @@ export class Turrets {
     const E = this.run.enemies, power = this.run.stage.power || 1;
     for (const e of E.list) {
       if (e.dead || e.proxy || e.freezeT > 0 || e.under || e.airborne || !e.T.dmg) continue;
-      if (E.center(e, _c).distanceTo(T.center) < (e.hitR || e.r) + this.R) { T.hurt((e.state === 'dash' && e.T.rollDmg ? e.T.rollDmg : e.T.dmg) * power); if (T.health <= 0) return; }
+      if (E.center(e, _c).distanceTo(T.center) < (e.hitR || e.r) + this.R) { { const roll = e.state === 'dash' && e.T.rollDmg; this.hurt(T, (roll ? e.T.rollDmg : e.T.dmg) * power, roll ? null : e.id); } if (T.health <= 0) return; }
     }
   }
 

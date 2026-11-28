@@ -608,6 +608,7 @@ export class Clog {
     const out = this.tick(dt, player);
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss', knock: this.knock > 0 });
+    if (out.bump) bus.emit('damage_taken', { targetId: PLAYER, amount: out.bump, source: 'boss', knock: this.knock > 0, body: true });   // a touch: once a second (run.js hit)
     if (out.slow) bus.emit('status_applied', { targetId: PLAYER, status: 'slow', duration: out.slow });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded, shieldText: 'SHIELDED: GET ON A DUCK' });
     return { push: out.push };
@@ -636,7 +637,7 @@ export class Clog {
     this.t += dt;
     if (!this.solid) { this.solid = true; this.world.addCollider(this.acidFloor); for (const d of this.ducks) this.world.addCollider(d.back); }
     const SK = this.def.skills;
-    const out = { push: null, hurt: 0, hit: 0, slow: 0 };
+    const out = { push: null, hurt: 0, hit: 0, slow: 0, bump: 0 };
     const p = this.holder.position, P = player.position, M = this.model;
     const hide = () => { for (const m of [...this.lines, ...this.snares, ...this.volumes(), this.pinTele, ...this.combTeles, this.waveMesh]) { m.visible = false; } this.wave = this.pin = this.comb = this.hop = null; this.lift = 0; this.struck = this.sprung = false; this.rearing = 0; };
     if (this.dead) {
@@ -932,7 +933,7 @@ export class Clog {
     // bumping into it knocks you back
     if (this.knock <= 0 && dist < this.r + 0.02 && Math.abs(P.y - (p.y - this.r * 0.05)) < 0.12) {
       const rolling = this.state === 'roll' && this.locked;
-      out.hit = Math.max(out.hit, rolling ? SK.roll.dmg : this.def.contact);
+      if (rolling) out.hit = Math.max(out.hit, SK.roll.dmg); else out.bump = this.def.contact;   // the roll is its attack; a plain bump is a touch
       out.slow = Math.max(out.slow, SK.chase.tangle ?? 0.8);                  // a mouthful of hair: tangled for a moment
       this.knockBack(toP, rolling ? 1.0 : 0.8);
       this.slam(_rel.copy(toP).normalize().multiplyScalar(this.r).add(p).setY(P.y + 0.03), 1);

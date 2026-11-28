@@ -266,7 +266,7 @@ export class Vacuum {
     const out = this.tick(dt * k, player);
     out.hurt /= k;                     // damage over time stays per real second
     if (out.hurt) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hurt, source: 'boss', drain: true });
-    if (out.contact) bus.emit('damage_taken', { targetId: PLAYER, amount: 4, source: 'boss', knock: this.knock > 0 });
+    if (out.bump) bus.emit('damage_taken', { targetId: PLAYER, amount: out.bump, source: 'boss', knock: this.knock > 0, body: true });   // a touch: once a second (run.js hit)
     if (out.hit) bus.emit('damage_taken', { targetId: PLAYER, amount: out.hit, source: 'boss', knock: this.knock > 0 });
     bus.emit('boss_health', { name: this.arena.name, hp: this.hp, maxHp: this.maxHp, shielded: this.shielded });
     return { push: out.push };
@@ -275,7 +275,7 @@ export class Vacuum {
   tick(dt, player) {
     this.t += dt;
     const SK = this.def.skills;
-    const out = { push: null, hurt: 0, hit: 0, contact: false };
+    const out = { push: null, hurt: 0, hit: 0, bump: 0 };
     const p = this.holder.position, P = player.position;
     if (this.dead) {
       if (!this.deathSound) { this.deathSound = true; sfx.vacDeath(); }
@@ -527,7 +527,7 @@ export class Vacuum {
     // (while it rams, the charge's lane is its hit: the bump reaches no higher than the lane)
     const ramming = this.state === 'charge' && this.locked;
     if (this.knock <= 0 && dist < this.r + 0.018 && P.y - p.y < (ramming ? this.h : 0.1)) {   // feet over its floor: a jump clears it
-      out.hit = Math.max(out.hit, this.state === 'charge' && this.locked ? SK.charge.dmg : this.def.contact);
+      if (ramming) out.hit = Math.max(out.hit, SK.charge.dmg); else out.bump = this.def.contact;   // the ram is its attack; a plain bump is a touch
       this.knockBack(toP, this.state === 'charge' && this.locked ? 1.0 : 0.6);
       if (ramming) this.smack(P, player.cfg);
     }

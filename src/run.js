@@ -165,7 +165,7 @@ export class Run {
     document.body.appendChild(this.fade);
 
     // The run owns the jelly's health, slow and knockback, and what kills are worth
-    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, touch, knock, at, source, unit }) => {
+    bus.on('damage_taken', ({ targetId, amount, drain, from, contact, touch, body, knock, at, source, unit }) => {
       if (targetId !== PLAYER) return;
       amount *= this.stage.power || 1;       // later acts hit harder (stage files)
       if (this.enemies.striking) { this.enemies.striking.hurt(amount); return; }   // a bug going for a Jelly Mould's jelly: its hit lands there (turrets.js)
@@ -178,7 +178,7 @@ export class Run {
       this.hurtUnit = unit || (from != null ? this.enemies.byId.get(from)?.type : null);
       try {
         if (drain) this.hurt(amount, true);   // puddles and suction: no i-frames, no flinch
-        else this.hit(amount, from, contact, knock, at);
+        else this.hit(amount, from, contact, knock, at, body ? (from ?? source ?? 'other') : null);
       } finally { this.hurtBy = beforeBy; this.hurtUnit = beforeUnit; this.hurtTouch = beforeTouch; }
     });
     // Lucky Cat: a second roll that hit shows a paw and rings a soft bell, at most twice a second
@@ -219,7 +219,7 @@ export class Run {
     });
     // the score's Bugs cleared (score.js): bugs that came out during the night, and which of those the jelly cleared
     bus.on('enemy_spawned', ({ targetId }) => { if (this.phase === 'explore') { this.bugsOut++; this.outIds.add(targetId); } });
-    bus.on('enemy_killed', (k) => { if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
+    bus.on('enemy_killed', (k) => { this.touchAt.delete(k.targetId); if (this.outIds.delete(k.targetId) && !k.silent) this.bugsCleared++; if (!k.silent) this.onKill(k); });
     // heal-on-hit (treasures): a chance that your bubble or tentacle hits give back health
     this._procOrigin = new THREE.Vector3();
     bus.on('damage_taken', (d) => {
@@ -370,6 +370,7 @@ export class Run {
     this.doorWarming = false;         // time's up: the door's few beats of flare before it opens (concert-dressing.js)
     this.t = 0; this.hurtAt = 0; this.spoutAt = -1e9; this.pawT = -1e9;
     this.hitPush = null; this.frame = 0; this.shovedAt = -1;
+    this.touchAt = new Map();         // body touches: when each bug (or the Boss) may next hurt by touch (hit, cfg.touchGap)
     this.startPicked = false;         // the run's opening tip is shown on its first frame
     this.hint = null; this.hintT = 0;
     this.dev = false;                 // a dev mode's run (1 on 1, fight the boss): never a first run, never counts as played
@@ -401,7 +402,7 @@ export class Run {
     this.wishedIn = null;               // wish: the act its free level-up was used in
     this.choosingCard = false;        // a level-up's cards are open (keepProgress)
     this.owedCards = [];              // cards a reload owes, offered before any new roll
-    this.iFrames = 0;
+    this.iFrames = 0; this.grace = 0; this.graceFrom = null;   // grace: the part of iFrames a plain hit left (hit)
     this.stompChain = 0;              // stomp (Pogo Stick): stomps in a row since the jelly last touched the ground
     this.slowT = 0;
     this.slowHardT = this.slowK = 0;    // a slow with its own strength
@@ -703,7 +704,7 @@ export class Run {
     // --- timers
     this.fireTrail.draw();
     this.wake.draw();
-    this.iFrames = Math.max(0, this.iFrames - dt);
+    this.iFrames = Math.max(0, this.iFrames - dt); this.grace = Math.max(0, this.grace - dt);
     this.slowT = Math.max(0, this.slowT - dt);
     this.slowHardT = Math.max(0, this.slowHardT - dt);
     this.dashT = Math.max(0, (this.dashT || 0) - dt);
@@ -1042,15 +1043,23 @@ export class Run {
       if (d < (e.hitR || e.r) + this.cfg.radius) {
         // rolling bugs hit harder
         const roll = e.state === 'dash' && e.T.rollDmg;   // (a millipede's ball: the roll is its attack, the rest is just its body)
-        bus.emit('damage_taken', { targetId: PLAYER, amount: roll ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true, touch: !roll });
+        bus.emit('damage_taken', { targetId: PLAYER, amount: roll ? e.T.rollDmg : e.T.dmg, source: e.type, from: e.id, contact: true, touch: !roll, body: !roll });   // a touch, once a second per bug (hit); the roll is an attack
       }
     }
   }
 
   // from: the enemy id that dealt the hit, if one did (when-hit effects can answer it)
-  hit(amount, from = null, contact = false, knock = false, at = null) {
-    if (this.iFrames > 0 || this.phase === 'dead') return;
-    this.iFrames = 0.25;
+  // toucher: set for a body touch (a bug or Boss bumping into you): its id, which may hurt by touch once every
+  // touchGap s (config.js). A touch skips the short no-hurt time another bug's hit leaves (grace), so two bugs
+  // touching at once both land; longer no-hurt times (a revive, a Reflect) and the same bug's own hit still hold it.
+  hit(amount, from = null, contact = false, knock = false, at = null, toucher = null) {
+    if (this.phase === 'dead') return;
+    if (toucher != null) {
+      if (this.iFrames > 0 && (this.iFrames > this.grace + 1e-9 || this.graceFrom === toucher)) return;
+      if (this.t < (this.touchAt.get(toucher) ?? -1)) return;
+      this.touchAt.set(toucher, this.t + this.cfg.touchGap);
+    } else if (this.iFrames > 0) return;
+    this.iFrames = this.grace = 0.25; this.graceFrom = toucher ?? from;
     const M = this.mods;
     amount *= M.damageTaken;
     if (M.hitLess && amount > M.hitLeast) { amount = Math.max(M.hitLeast, amount - M.hitLess); this.buffLooks.tink(); }   // hit-less (Thimble)
@@ -1059,7 +1068,7 @@ export class Run {
     const I = this.ink, inked = I && this.t < I.until && from != null && this.enemies.list.some((e) => e.id === from && !e.dead && e.pos.distanceTo(this.player.position) <= I.radius);
     // (two independent chances to be missed, so Dodge and the ink together never reach 100%)
     if (Math.random() < 1 - (1 - this.S.dodge / 100) * (1 - (inked ? I.miss : 0))) {
-      this.iFrames = 0.4;
+      this.iFrames = this.grace = 0.4;
       const P = this.player.position;
       this.fx.number(P.clone().setY(P.y + this.cfg.height), 'DODGE', '#bfffd0', 15);
       const slip = M.dodgeSlip && from != null && this.enemies.list.find((e) => e.id === from && !e.dead && !e.proxy);   // dodge-slip (Odd Sock): the attacker skids

@@ -24,6 +24,7 @@ import './stories/bug-collision.js';
 import './stories/bug-nav.js';
 import './stories/bug-steering.js';
 import './stories/attack-gap.js';
+import './stories/touch-gap.js';
 import './stories/bug-climb.js';
 import './stories/bug-facing.js';
 import './stories/bug-rhythm.js';

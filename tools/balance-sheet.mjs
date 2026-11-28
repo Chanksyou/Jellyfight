@@ -1109,7 +1109,7 @@ load = arriving Health a second / Offence: above 1 the jelly cannot keep up and 
 // Elite and Boss timings live in code (src/elites.js, src/vacuum.js, src/clog.js, src/shark.js, src/encore.js), not only in
 // content: each one here is read from its line (num), so a moved or changed timing fails loudly or redraws.
 const num = (f, re) => { const m = read(f).match(re); if (!m) throw new Error(`balance-sheet: ${f} has no match for ${re}`); return +m[1]; };
-const IFRAMES = num('src/run.js', /this\.phase === 'dead'\) return;\n\s*this\.iFrames = ([\d.]+);/);             // after a hit, nothing else lands for this long (run.js hit)
+const IFRAMES = num('src/run.js', /this\.iFrames = this\.grace = ([\d.]+); this\.graceFrom/);   // after a hit, nothing but another bug's touch lands for this long (run.js hit)
 const TEMPO = CONTENT.elites.pace.tempo, RECOVER = CONTENT.elites.pace.recover;
 const BPM4 = num('src/music.js', /name: 'Sunrise Set', bpm: (\d+)/), BEAT = 60 / BPM4;   // act 4's song: its Elites keep its beat
 const SWIM = num('src/config.js', /walkSpeed: ([\d.]+)/), JUMP_H = num('src/config.js', /jumpHeight: ([\d.]+)/);
@@ -1276,7 +1276,7 @@ function sheetC3() {
     lede: 'Each Elite\'s loop of attacks: how long it takes to beat, the Health it sends if nothing is dodged, how long you have to react, and what its chest is worth against what it costs.',
     numbers: [
       ['Pace: rest runs down x, attacks play x', `${RECOVER}, ${TEMPO}`, at('content/elites.kdl', /^pace /)],
-      ['After a hit nothing lands for (s)', IFRAMES, at('src/run.js', /this\.iFrames = 0\.25;/)],
+      ['After a hit nothing lands for (s)', IFRAMES, at('src/run.js', /this\.iFrames = this\.grace = 0\.25;/)],
       ['Act 4\'s Elites keep the song\'s beat: bpm', BPM4, at('src/music.js', /name: 'Sunrise Set'/)],
       ...ACTS.map((A) => [`Act ${A.n}: eliteHp, power`, `${A.stage.eliteHp || 1}, ${A.power}`, A.n === 1 ? A.file : knob(A, 'eliteHp')]),
       ...fights.map((f) => [`${f.name}: Health, angry at`, `${CONTENT.elites[f.kind].hp}, ${CONTENT.elites[f.kind].angry ?? 'never'}`, kdl('content/elites.kdl', 'elite', f.kind)]),
