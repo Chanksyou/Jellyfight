@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v764 words every Attack upgrade, jelly type blurb, level-up card, hint, achievement and toast by one formula (trigger, effect, cost, who it leaves out), with the numbers the code really uses (rings, zaps and cones now say `Nx Attack damage`, "nearby" says `within N cm`), the pick screen's bars read Attack damage and Fire rate, and a guard story names any paraphrase that creeps back.
+
 v763 rewrites every Treasure and evolution description in the one formula (trigger, effect, cost, who it leaves out): damage reads as Nx Attack damage worked out from the code (Bath Bomb, Fly Swatter, Cotton Ball, Pogo Stick and others now show their real numbers), areas read within N cm, Crit and Mark join the glossary, and a new guard story fails on the old paraphrases.
 
 v762 raises every jelly type's Attack damage by 1: Normal 6 to 7, Fire 7.5 to 8.5, Lightning 4.5 to 5.5, Ice 9 to 10, Poison 5 to 6, Wind 6 to 7, Glitter 6 to 7, Summoner 4.5 to 5.5, Tentacle 9 to 10.
