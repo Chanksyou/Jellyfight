@@ -30,12 +30,12 @@ upgrade "stoke" jelly="fire" name="Stoke" icon="🌲" text="+30% Burn damage per
     burn-ramp 0.3 most=2
 }
 // only Slow Burn lets a bug hold 3 Burns, so Inferno is offered after it
-upgrade "inferno" jelly="fire" name="Inferno" icon="☄️" needs="slowBurn" text="When a bug with 3 Burn stacks dies: a ring within 10 cm hits bugs for 3.6x Attack damage." {
+upgrade "inferno" jelly="fire" name="Inferno" icon="☄️" needs="slowBurn" text="When a bug with 3 Burn stacks dies: a ring hits bugs within 10 cm for 3.6x Attack damage." {
     on-kill-of status="burning" stacks=3 {
         ring 0.1 dmg=2 color="#ff8a3a"
     }
 }
-upgrade "backdraft" jelly="fire" name="Backdraft" icon="🚪" text="When 4 Burning bugs die within 3 s: a ring within 12 cm hits bugs for 3.6x Attack damage." {
+upgrade "backdraft" jelly="fire" name="Backdraft" icon="🚪" text="When 4 Burning bugs die within 3 s: a ring hits bugs within 12 cm for 3.6x Attack damage." {
     streak 4 within=3 status="burning" {
         ring 0.12 dmg=2 color="#ff8a3a"
     }
@@ -337,7 +337,7 @@ upgrade "overcharge" jelly="lightning" name="Overcharge" icon="🔋" text="Every
 upgrade "conductor" jelly="lightning" name="Conductor" icon="🔌" text="Arcs jump to 3 more bugs and can return to bugs already hit." {
     element-up "lightning" revisit=1 chain=3
 }
-upgrade "staticSkin" jelly="lightning" name="Static Skin" icon="🦔" text="Bugs touching you are zapped for 1.08x Attack damage and Stunned for 1 s. 2 s cooldown on each bug. Elites and the Boss are not Stunned." {
+upgrade "staticSkin" jelly="lightning" name="Static Skin" icon="🦔" text="Bugs touching you are zapped for 1.1x Attack damage and Stunned for 1 s. 2 s cooldown on each bug. Elites and the Boss are not Stunned." {
     touch-zap dmg=0.6 stun=1 each=2
 }
 upgrade "stormCell" jelly="lightning" name="Storm Cell" icon="⛈️" text="After 2 s standing still: your next shot also hits every bug within 20 cm of where it lands for 200% of the hit." {
@@ -378,7 +378,7 @@ upgrade "grounded" jelly="lightning" name="Grounded" icon="🌍" text="Arcs do 3
 // --- Summoner: the little jellies (docs/jelly-types/types/summoner.md). Numbers are starting values. Ring and zap
 // dmg= are x your power (1.8 x Attack damage): 1.1 is 2x Attack damage, 1.67 3x, 0.28 half.
 // The six Moulds give the little jellies an Element; with two or more, each one set down takes the next in turn.
-upgrade "cinderMould" jelly="summoner" name="Cinder Mould" icon="🔥" text="Little jellies fire Fire shots. When a little jelly is gone: a ring within 10 cm hits bugs for 2x Attack damage. Little jellies stay 8 s longer." {
+upgrade "cinderMould" jelly="summoner" name="Cinder Mould" icon="🔥" text="Little jellies fire Fire shots. When a little jelly is gone: a ring hits bugs within 10 cm for 2x Attack damage. Little jellies stay 8 s longer." {
     turret-up more-time=8
     turret-element "fire"
     turret-on "end" {
@@ -430,7 +430,7 @@ upgrade "crossPollination" jelly="summoner" name="Cross-Pollination" icon="🌈"
     turret-up more-time=8
     turret-up per-element=0.4
 }
-upgrade "martyrPop" jelly="summoner" name="Martyr Pop" icon="💥" text="When a little jelly is popped: a ring within 12 cm hits bugs for 3x Attack damage. Little jellies stay 8 s longer." {
+upgrade "martyrPop" jelly="summoner" name="Martyr Pop" icon="💥" text="When a little jelly is popped: a ring hits bugs within 12 cm for 3x Attack damage. Little jellies stay 8 s longer." {
     turret-up more-time=8
     turret-on "popped" {
         ring 0.12 dmg=1.67 color="#7fe0ff"
