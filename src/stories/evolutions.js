@@ -233,7 +233,7 @@ story('dev/balance-editor', {
   },
 });
 story('dev/balance-editor-groups', {
-  about: 'The balance editor groups what is live: no Evolutions tab (they are Legendary Treasures, under Treasures), Jelly types holds each type\'s starting stats and its 12 Attack upgrades (Fire, Ice, Lightning, Poison, Wind, Glitter, Tentacle and Normal), and an upgrade number typed in changes what the Attack upgrade does at once: Fire\'s Slow Burn raises how many Burns stack.',
+  about: 'The balance editor groups what is live: no Evolutions tab (they are Legendary Treasures, under Treasures), Jelly types holds each type\'s starting stats and its 12 Attack upgrades (Fire, Ice, Lightning, Poison, Wind, Glitter, Summoner, Tentacle and Normal), and an upgrade number typed in changes what the Attack upgrade does at once: Fire\'s Slow Burn raises how many Burns stack.',
   setup() { fresh(); },
   play() {
     const groups = balanceGroups(), panel = window.tuner; panel.show(G().run, {});
@@ -254,7 +254,7 @@ story('dev/balance-editor-groups', {
     const mods = CONTENT.jellies.fire;
     const live = mods.hit === 0.7 && mods.stats.health === 25;
     resetBalance(G().run);
-    return ok(!chips.includes('Evolutions') && chips.includes('Jelly types') && perType.length === 8 && perType.every((n) => n === 12)
+    return ok(!chips.includes('Evolutions') && chips.includes('Jelly types') && perType.length === 9 && perType.every((n) => n === 12)
       && fireRows.length === 13 && fireRows[0] === 'fire' && fireRows.includes('slowBurn') && legendary.includes('cinder') && !!burn && !!hit && !!hp && live
       && CONTENT.jellies.fire.hit === 0.75 && before.id === 'slowBurn',
       { chips, perType, fireRows, legendary: legendary.length, burn: !!burn, live, hit: CONTENT.jellies.fire.hit });
