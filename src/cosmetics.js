@@ -160,12 +160,12 @@ export function needText(need, f = null) {
     if (k === 'won') return 'win a run';
     if (k === 'wins') return (v === 1 ? 'win a run' : `win ${v} runs`) + so(k, v);
     if (k === 'runs') return `play ${v} runs` + so(k, v);
-    if (k === 'kills') return `clear ${Number(v).toLocaleString()} bugs` + so(k, v);
+    if (k === 'kills') return `kill ${Number(v).toLocaleString()} bugs` + so(k, v);
     if (k === 'elites') return `beat ${v} Elites` + so(k, v);
     if (k === 'bestScore') return `a best of ${Number(v).toLocaleString()}`;
-    if (k === 'bestLevel') return `reach level ${v}`;
+    if (k === 'bestLevel') return `reach Level ${v}`;
     if (k === 'bestKills') return `${v} kills in a run`;
-    if (k === 'flawless') return 'beat a boss without losing Health';
+    if (k === 'flawless') return 'beat a Boss without losing Health';
     if (k === 'boss') return `beat ${theName(STAGES.find((s) => s.boss.kind === v)?.boss.name || v)}`;
     if (k === 'winAs') return `win a run as a ${SPECIES[v]?.name || v}`;
     if (k === 'book') return v >= 1 ? 'find every Treasure' : `find ${Math.round(v * 100)}% of all Treasures` + (f && 'book' in f ? ` (${Math.round(f.book * 100)}% so far)` : '');

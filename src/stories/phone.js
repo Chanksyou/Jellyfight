@@ -353,7 +353,7 @@ phone('book-close-is-in-view-and-sections-are-tabs', {
     const unfound = book.querySelector('.jf-book-grid button:disabled'), where = unfound?.textContent.trim() || '';
     const m = { inView, tabs: tabs.length, first, second, pressed, where };
     run.ui.close();
-    return ok(inView && tabs.length >= 4 && first[0] && first.filter(Boolean).length === 1 && second[2] && second.filter(Boolean).length === 1 && pressed[2] === 'true' && /^(Find in a run|Beat an Elite|Beat a boss|After a boss)$/.test(where), m);
+    return ok(inView && tabs.length >= 4 && first[0] && first.filter(Boolean).length === 1 && second[2] && second.filter(Boolean).length === 1 && pressed[2] === 'true' && /^(Find in a run|Beat an Elite|Beat a Boss|After a Boss)$/.test(where), m);
   },
 });
 

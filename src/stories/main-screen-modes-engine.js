@@ -665,7 +665,7 @@ story('modes/cosmetics-framework', {
     const carried = !!look && roundTrip.body === look.body && roundTrip.top === 'goldcrown' && roundTrip.color === look.color && roundTrip.eyes === look.eyes;
     const zero = { runs: 0, wins: 0, kills: 0, elites: 0 };
     const rules = requirement('top', 'goldcrown')?.wins === 1 && !unlocked('top', 'goldcrown', zero) && unlocked('top', 'goldcrown', { ...zero, wins: 1 })
-      && unlocked('top', 'bow', zero) && requirementText(requirement('top', 'laurel'), { kills: 412 }) === 'Earned: clear 1,000 bugs (412 so far)';
+      && unlocked('top', 'bow', zero) && requirementText(requirement('top', 'laurel'), { kills: 412 }) === 'Earned: kill 1,000 bugs (412 so far)';
     // every golden item builds, in gold
     const GOLD = new THREE.Color('#ffc93a').convertSRGBToLinear().getHexString();   // character.js M.award
     const gold = (l) => { let n = 0; const c = buildCharacter(normalizeLook({ ...DEFAULT_LOOK, ...l }), 0.03); (c.group || c.root || c).traverse((o) => { if (o.isMesh && o.material.color?.getHexString() === GOLD) n++; }); return n; };

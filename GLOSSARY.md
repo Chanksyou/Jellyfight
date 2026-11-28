@@ -1,6 +1,6 @@
 # Jelly Run
 
-A jellyfish roguelike in a real-scale apartment at night. Core systems a player must understand use plain game words, the same in the game's text, its code and its content files; the things a player meets (items, enemies, bosses, species) keep their own names.
+A jellyfish roguelike in a real-scale apartment at night. Core systems a player must understand use plain game words, the same in the game's text, its code and its content files; the things a player meets (items, bugs, Bosses, species) keep their own names.
 
 ## Language
 
@@ -11,7 +11,7 @@ How much damage the jelly can take before the run ends.
 _Avoid_: Moisture, HP
 
 **XP**:
-What fills the bar toward the next Level; enemies drop it as droplets the jelly collects.
+What fills the bar toward the next Level; bugs drop it as XP droplets the jelly collects.
 _Avoid_: Dew, experience points
 
 **Health regen**:
@@ -45,6 +45,12 @@ _Avoid_: Blow rate
 **Attack size**:
 How big each of the jelly's attacks is; bigger ones are easier to land and splash wider.
 _Avoid_: Bubble size
+
+**Range**:
+How far the jelly's attacks fly before they stop.
+
+**Dodge**:
+The chance a hit on the jelly misses, up to 60%.
 
 **Attacks**:
 How many attacks the jelly fires side by side in each blow (the stat; the thing a run's attack does is its _attack_).
@@ -91,24 +97,24 @@ The player whose run is the best with one jelly type in the current season. The 
 ### Things the jelly meets
 
 **Treasure**:
-An item the jelly keeps for the rest of the run, chosen from a pick of three. Treasures turn up in the room on a schedule, and every beaten Elite drops one; either way it waits as a small golden chest the jelly touches to open the same pick of treasures.
-_Avoid_: Gift, golden gift, lost things, item, chest (the chest is just how a treasure looks before it's picked)
+An item the jelly keeps for the rest of the run, chosen from a pick of three. Treasures turn up in the room on a schedule, and every beaten Elite drops one; either way it waits as a small golden chest the jelly touches to open the same pick of Treasures.
+_Avoid_: Gift, golden gift, lost things, item, chest (the chest is just how a Treasure looks before it's picked)
 
 **Rarity**:
-How special a Treasure is: Common, Rare, Epic or Legendary. Legendary treasures change a rule of the game and are always one of a kind. Three of the same rarity on one Spin upgrades one of them a rarity, except three Epic level-up cards and Legendary Treasures, which stay as they are.
+How special a Treasure is: Common, Rare, Epic or Legendary. Legendary Treasures change a rule of the game and are always one of a kind. Three of the same rarity on one Spin upgrades one of them a rarity, except three Epic level-up cards and Legendary Treasures, which stay as they are.
 
 **Stacking**:
-Taking the same Treasure again. A treasure with levels goes up a level; one without adds its effect again, up to 5 copies, unless it changes a rule.
+Taking the same Treasure again. A Treasure with levels goes up a level; one without adds its effect again, up to 5 copies, unless it changes a rule.
 _Avoid_: Duplicates
 
 **Boss reward**:
-What beating a Boss gives: one Legendary pick of three from the Legendary treasures, the evolutions included, then an Attack upgrade.
+What beating a Boss gives: one Legendary pick of three from the Legendary Treasures, the evolutions included, then an Attack upgrade.
 
 **Evolution**:
-A Legendary treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis.
+A Legendary Treasure that changes what the jelly is (Cinder Jelly, Moon Jelly, Lion's Mane…): a trick, a cost, and a piece drawn on the jelly. A run can hold several, and their costs add up; picking one plays the metamorphosis.
 
 **Bug**:
-An ordinary enemy (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; in act 4 the firefly, monarch butterfly and cicada; a wasp nest is one too, one that never moves), as opposed to an Elite or the boss.
+An ordinary fighter (roach, ant, mosquito, lanternfly, fly, spider, millipede, ladybug, dragonfly, mantis, worm, wasp, stag beetle; in act 4 the firefly, monarch butterfly and cicada; a wasp nest is one too, one that never moves), as opposed to an Elite or the Boss.
 _Avoid_: Mob, critter
 
 **Boss**:
@@ -118,16 +124,16 @@ The one big enemy that ends each act, arriving when the countdown runs out (the 
 The kind of shot a Fire, Lightning, Ice, Poison, Wind or Glitter jelly type fires as its one attack. Not a Treasure any more.
 
 **Jelly type**:
-What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter or Tentacle (`content/jellies.kdl`). A first-time player has Normal only; each other type unlocks for good by finishing an act or defeating Elites across all runs (`unlock-act=`, `unlock-elites=`).
+What a run starts as: its base stats and its one attack (bubbles, an Element shot, or tentacle lashes). Normal, Fire, Lightning, Ice, Poison, Wind, Glitter, Summoner or Tentacle (`content/jellies.kdl`). A first-time player has Normal only; each other type unlocks for good by finishing an act or defeating Elites across all runs (`unlock-act=`, `unlock-elites=`).
 
 **Attack upgrade**:
-A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three bosses (after the Legendary pick). Never in a treasure chest, and each one of a kind (`content/upgrades.kdl`).
+A change to the jelly type's attack, picked 1 of 3 from that type's own pool after each of the first three Bosses (after the Legendary pick). Never in a Treasure chest, and each one of a kind (`content/upgrades.kdl`).
 
 **Type bars**:
-The six bars on a jelly type's card on the pick screen: Damage, Attack speed, Range, Area, Toughness and Mobility, each worked out from the type's level-1 stats with Normal at the middle of every bar.
+The six bars on a jelly type's card on the pick screen: Attack damage, Fire rate, Range, Area, Toughness and Mobility, each worked out from the type's level-1 stats with Normal at the middle of every bar.
 
 **Elite**:
-A mini-boss: a household object that fights back, tougher than a bug and weaker than the boss.
+A mini-Boss: a household object that fights back, tougher than a bug and weaker than the Boss.
 _Avoid_: Miniboss
 
 ### Attacks
@@ -137,16 +143,19 @@ Health the jelly loses each second for a few seconds after a bite that bleeds (t
 Bugs can Bleed too: the Tentacle jelly's stings (Stinging Nettle, Venom Sac) add Bleed stacks that each take a share of the sting's damage every second for 3 s.
 
 **Chill**:
-What the Ice jelly's shards do to a bug: it moves at 55% speed for 2 s, and a new hit starts the 2 s again. A Chilled bug that dies shatters. Elites and Bosses are Chilled too but slowed only 10%.
+What the Ice jelly's shards do to a bug: it moves at 55% speed for 2 s, and a new hit starts the 2 s again. A Chilled bug that dies shatters. Elites and the Boss are Chilled too but slowed only 10%.
+
+**Burn**:
+What the Fire jelly type's shots do to a bug: it takes damage a second for 3 s, and a new hit starts the time again. A Burning bug that dies sets bugs within 6 cm Burning. The Burn damage stat (1 is as usual) raises how hard it hurts.
 
 **Frozen**:
 A bug held solid for a short time (Permafrost): it can't move or hurt anything. A hit that shatters the ice ends it (Deep Freeze).
 
 **Trapped**:
-A bug held still in a bubble (Bubble Trap) for 1.5 s: it can't move until the bubble bursts, or it dies. Elites and the boss can't be trapped.
+A bug held still in a bubble (Bubble Trap) for 1.5 s: it can't move until the bubble bursts, or it dies. Elites and the Boss can't be Trapped.
 
 **Stun**:
-A bug held still by lightning or a Treasure. On an Elite or Boss it is a mini-stun: 0.1 s, however long the stun. Elites and Bosses can't be Frozen, trapped or marked.
+A bug held still by lightning or a Treasure. On an Elite or Boss it is a mini-stun: 0.1 s, however long the stun. Elites and the Boss can't be Frozen, Trapped or marked.
 
 **Crit**:
 A hit that does 3x damage, rolled with the Crit chance stat (Nail Clipper, Juice Box, Espresso Cup...). Laser Pointer makes it 4x.
@@ -155,7 +164,7 @@ A hit that does 3x damage, rolled with the Crit chance stat (Nail Clipper, Juice
 Sticky Note's status on a bug: a Marked bug takes more damage from everything for a few seconds. Elites and Bosses can't be Marked. Not the same as the Signal.
 
 **Poison**:
-The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to every bug inside: each stack does 20% of Attack damage a second for 5 s, up to 5 stacks, and a new stack starts the time again. A Poisoned bug also deals 20% less damage to the jelly (Elites and the boss don't). Not the Clog's acid, which stays "acid".
+The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to every bug inside: each stack does 20% of Attack damage a second for 5 s, up to 5 stacks, and a new stack starts the time again. A Poisoned bug also deals 20% less damage to the jelly (Elites and the Boss don't). Not the Clog's acid, which stays "acid".
 
 **Gust**:
 The Wind jelly type's attack: a fast crescent of wind that goes through bugs, shoves each one back, and hits a bug it slams into furniture a second time. Its upgrades (Gale, Crosswind, Jet Stream…) change how it flies.
@@ -171,7 +180,7 @@ What Jelly Mould sets down on the floor: it fires your jelly type's attack for a
 Act 4's daylight, a line that creeps across the living room from the window wall. Standing on its side of the line costs Health every second (the jelly dries out); bugs and Elites aren't hurt.
 
 **Stage door**:
-What opens on the media console when act 4's countdown runs out, in place of a boss arriving. Landing on it takes the run through to the Encore's concert arena.
+What opens on the media console when act 4's countdown runs out, in place of a Boss arriving. Landing on it takes the run through to the Encore's concert arena.
 
 **Solo**:
 A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the gold DJ, or both in the duet) plays his attack under a spotlight while the lasers rest. He plays it on the floor, out of the booth, and takes half damage until he bows.
@@ -180,7 +189,7 @@ A stretch of the Encore's fight, 4 bars long, when one DJ (the silver DJ, the go
 What a DJ does when his Solo ends: 2 bars, or 4 if nothing hit the jelly during it. The Encore is Exposed while he bows. He bows on the floor, then goes home to the booth.
 
 **Exposed**:
-The Encore's state while a DJ bows, and in the song's breakdown: the boss bar turns gold and says so, and hits do regular damage again (ending the solo's half-damage reduction).
+The Encore's state while a DJ bows, and in the song's breakdown: the Boss bar turns gold and says so, and hits do regular damage again (ending the solo's half-damage reduction).
 
 **Easy mode**:
 A choice in Settings for a whole run: the jelly deals double damage and takes half, and earns half the Pearls. An Easy run's score is never posted.

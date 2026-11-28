@@ -52,7 +52,7 @@ export const jellyAttack = (id) => {
 // stats, so they can't drift from the real values. Normal sits at 0.5 on every bar: bar = value / (2 x
 // Normal's value), capped at 1. The Tentacle jelly is measured on the same scale (its 11 cm reach
 // against Normal's 30 cm range makes its Range bar honestly short); its Area is Attacks out of 6.
-export const BAR_NAMES = ['Damage', 'Attack speed', 'Range', 'Area', 'Toughness', 'Mobility'];
+export const BAR_NAMES = ['Attack damage', 'Fire rate', 'Range', 'Area', 'Toughness', 'Mobility'];
 const barValues = (id) => {
   const J = CONTENT.jellies[id], s = jellyStats(id), melee = J.attack === 'tentacle';
   return [

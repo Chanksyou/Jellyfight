@@ -1407,7 +1407,7 @@ export class Run {
       this.buff('elite-kill');
       if (this.mods.eliteJump) this.eliteJumpT = this.mods.eliteJump.time;
       this.fx.puff(c, 0xffd23a, r * 3, 0.5);
-      if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite cleared! It left a treasure.', 1800);
+      if (this.phase === 'explore') this.eliteTreasure(_drop.set(c.x, floor, c.z), 'Elite beaten! It left a Treasure.', 1800);
     }
     if (this.mods.burstOnKill) {this.gadgets.looks.salt(c,this.mods.burstOnKill.radius,true);this.bursts.push(c);}
   }
@@ -1428,7 +1428,7 @@ export class Run {
     if (!this.dev) { addFeats({ elites: 1, [`elite_${e.kind}`]: 1 }); this.earn(PEARLS.elite); }
     this.found('elites', e.kind, e.name);
     juice.feel('elite-kill'); if (ELITE_DOWN[e.kind]) sfx[ELITE_DOWN[e.kind]](); else sfx.boom();   // an Elite's own breaking sound (elites.js KINDS `down`), else the plain boom
-    this.eliteTreasure(e.base, `${e.name} is beaten! It left a treasure on the ${e.spec.area}.`, 2400);
+    this.eliteTreasure(e.base, `${e.name} is beaten! It left a Treasure on the ${e.spec.area}.`, 2400);
   }
 
   // A beaten Elite's treasure; with the Goodie Bag (elite-bonus) every `every`th Elite leaves a second one beside it
@@ -1438,7 +1438,7 @@ export class Run {
     const n = this.growCount.goodieBag = (this.growCount.goodieBag || 0) + 1;
     if (n % B.every) return this.hud.toast(`${text} Goodie Bag: next one.`, ms);
     this.placeTreasure(this.spotBeside(first), Infinity, Math.random() * Math.PI * 2);
-    this.hud.toast('Goodie Bag! It left two treasures.', ms);
+    this.hud.toast('Goodie Bag! It left two Treasures.', ms);
   }
 
   // stomp (Pogo Stick): the jelly's underside falling from `from` to `to` (after a drop) through the top of
@@ -1574,7 +1574,7 @@ export class Run {
   // Pick 1 of 3 treasures you can still take (unique ones you don't have, stackable ones below
   // their stack=N) from a treasure chest.
   // source: chest-specific rarity weights (CHEST_WEIGHTS), with no forced minimum rarity
-  pickTreasure(title = 'A treasure', sub = 'Choose a treasure.', source = 'room', bonusLeft = null) {
+  pickTreasure(title = 'A Treasure', sub = 'Choose a Treasure.', source = 'room', bonusLeft = null) {
     this.chestsOpened++;
     if (bonusLeft === null) this.actTreasuresOpened++;
     // three of a kind: one goes up a rarity, from anything takeable (chest weight or not)
@@ -1589,7 +1589,7 @@ export class Run {
       return { ...t, tier: treasureTier(t), text, delta };
     });
     const extra = bonusLeft === null ? (this.actTreasuresOpened === 1 ? this.mods.firstTreasureBonus : 0) : bonusLeft;
-    const then = extra > 0 ? () => this.pickTreasure('Store Coupon!', 'Choose an extra treasure.', source, extra - 1) : undefined;
+    const then = extra > 0 ? () => this.pickTreasure('Store Coupon!', 'Choose an extra Treasure.', source, extra - 1) : undefined;
     const pool = TREASURES.filter((t) => CHEST_WEIGHTS[source][t.rarity] > 0 && this.takeable(t));   // what the chest could hold (the Luck panel's odds)
     this.offer(title, sub, left, then, { kind: 'treasure', hint: this.spinHint(), rollOne: (rng) => this.rollChest(source, 1, rng), luck: this.S.luck, odds: tierOdds('treasure', { luck: this.S.luck, source, pool }) });
   }
@@ -1723,7 +1723,7 @@ export class Run {
     }
     this.lastTreasureSpot = spot;
     this.recentTreasureSpots = [spot.label, ...this.recentTreasureSpots].slice(0, 3);
-    this.hud.toast(`A treasure appeared: ${spot.label}. ${T.stay} seconds to grab it!`, 2800);
+    this.hud.toast(`A Treasure appeared: ${spot.label}. ${T.stay} s to grab it!`, 2800);
   }
 
   // A beaten elite leaves its treasure where it fell, on the nearest open spot (openSpot: open
@@ -1784,9 +1784,9 @@ export class Run {
           const slots = this.challenges.scheduled[this.stage.id] ||= [];
           if (!slots.includes(t.scheduledSlot)) slots.push(t.scheduledSlot);
         }
-        this.pickTreasure('A treasure!', 'Choose a treasure.', t.timed ? 'room' : 'elite');
+        this.pickTreasure('A Treasure!', 'Choose a Treasure.', t.timed ? 'room' : 'elite');
       }
-      else if (r === 'gone') this.hud.toast('The treasure faded away…', 1800);
+      else if (r === 'gone') this.hud.toast('The Treasure faded away…', 1800);
     }
   }
 
@@ -1960,7 +1960,7 @@ export class Run {
     this.feedTreasures(this.mods.bossLevels);
     for (const e of this.enemies.list) if (!e.dead && !e.proxy) this.enemies.kill(e, true);
     if (!announced) {
-      this.hud.toast(`${this.stage.boss.name} is cleared!`, 2200, 'stamp');
+      this.hud.toast(`${this.stage.boss.name} is beaten!`, 2200, 'stamp');
       if (!still) juice.shake(LOOK.num('cleared-shake', 0.35));
       sfx.stamp();
     }
@@ -2015,7 +2015,7 @@ export class Run {
     if (document.pointerLockElement) document.exitPointerLock();
     const next = STAGES[this.stage.id];           // the act after this one, if there is one
     // no separate evolution pick (they're in the Legendary pick), then an Attack upgrade
-    if (next) this.pickLegendary('A Legendary treasure', `Choose a treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
+    if (next) this.pickLegendary('A Legendary Treasure', `Choose a Treasure for act ${next.id}.`, () => { this.phase = 'won'; this.pickUpgrade(next, () => this.actComplete(next)); });
     else { this.phase = 'won'; this.endRun(`${icon('trophy')} You won!`, this.stage.won || 'Your jelly is a full-grown Medusa, and the apartment is yours.', 'Play again from act 1', { parts: true }); }
   }
 
@@ -2068,7 +2068,7 @@ export class Run {
   scoreHint(parts) {
     if (!parts.some(([k, v]) => v && (k === 'Clean play' || k === 'Boss pace'))) return '';
     try { if (localStorage.getItem(SCORE_HINT_KEY)) return ''; localStorage.setItem(SCORE_HINT_KEY, '1'); } catch {}
-    return 'Clean play: the less Health you lose (Shield hits count too), the more it pays. Boss pace: beat the boss within a minute for all of it.';
+    return 'Clean play: the less Health you lose (Shield hits count too), the more it pays. Boss pace: beat the Boss within 60 s for all of it.';
   }
 
   score() { return this.scoreParts().reduce((n, [, v]) => n + v, 0); }
@@ -2103,7 +2103,7 @@ export class Run {
     // Easy mode offered after a second act 1 death by a player who has never cleared it (easy.js)
     const offerEasy = dead && !this.dev && !this.easy && this.stage.id === 1 && easyOffered(isFound('bosses', STAGES[0].boss.kind));
     // a death in act 1 or 2: one random hint for doing better next run (first-run.js)
-    const hint = offerEasy ? 'Try Easy mode: you deal twice the damage and take half. You earn half the Pearls and your score is not on the leaderboard. Turn it off in Settings.' : dead && this.stage.id <= 2 ? deathHint(!!this.attack) : parts ? this.scoreHint(this.scoreParts()) : '';   // or, on a win, what Clean play and Boss pace are
+    const hint = offerEasy ? 'Try Easy mode: you do 2x damage, take 50% less and earn 50% fewer Pearls. Your score is not on the leaderboard. Turn it off in Settings.' : dead && this.stage.id <= 2 ? deathHint(!!this.attack) : parts ? this.scoreHint(this.scoreParts()) : '';   // or, on a win, what Clean play and Boss pace are
     const finds = this.newFinds.length ? [[`${icon('book')} New in your book`, `${this.newFinds.slice(0, 3).map(esc).join(', ')}${this.newFinds.length > 3 ? ` <small>+${this.newFinds.length - 3} more</small>` : ''}`]] : [];
     // result: what came of a Submit (null until you submit); last: the newest one, for coming back from elsewhere
     let last = null;
@@ -2111,7 +2111,7 @@ export class Run {
       this.endView = 'summary';
       last = result;
       const said = !result ? '' : result.posted ? ' <small>· on the leaderboard</small>'
-        : { taken: ' <small>· that name is already in use; choose another</small>', slow: ' <small>· please wait 15 seconds and try again</small>', lower: ' <small>· not posted: your best on the board is higher</small>', unverified: ' <small>· not posted: this run couldn\'t be checked</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
+        : { taken: ' <small>· that name is already in use; choose another</small>', slow: ' <small>· please wait 15 s and try again</small>', lower: ' <small>· not posted: your best on the board is higher</small>', unverified: ' <small>· not posted: this run couldn\'t be checked</small>', readonly: ' <small>· view-only here, not posted</small>' }[result.why] || ' <small>· couldn\'t post, try again</small>';
       // the first time it's shown, its numbers count up (ui.js tally): the score, the Pearls going into your bank, each part
       const n = (v, pre = '', from = 0) => (result ? pre + v.toLocaleString() : counter(v, pre, from)), banked = bank().pearls;
       const rows = [['Score', `<span class="jf-score">${n(score)}</span>${best ? ' <small class="jf-best">new best!</small>' : ''}${said}`],
@@ -2347,7 +2347,7 @@ export class Run {
       } });
     }
     buttons.push(backButton);
-    const note = data.error === 'taken' ? 'That name is already in use. Choose another.' : data.error === 'slow' ? 'Please wait a few seconds before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
+    const note = data.error === 'taken' ? 'That name is already in use. Choose another.' : data.error === 'slow' ? 'Please wait a moment before sharing again.' : data.error ? 'The shared achievement board is unavailable. Your earned achievements are safe in this browser.'
       : `${entry ? 'Achievements shared. ' : ''}${data.top.length ? 'Most unique achievements earned across winning runs. Equal totals share a rank.' : 'No players yet. Earn an achievement and share it to enter.'}`;
     this.ui.message('Achievement Top 5', note, rows, buttons, 'jf-book jf-board jf-achievement-board');
   }
@@ -2410,7 +2410,7 @@ export class Run {
         const result = await this.board.rename(typed);
         if (this.endView !== 'rename') return;
         if (result.renamed) { back(); return; }
-        draw({ taken: 'That name is already in use. Choose another.', slow: 'Please wait 15 seconds and try again.' }[result.why] || 'Couldn’t save your name. Please try again.');
+        draw({ taken: 'That name is already in use. Choose another.', slow: 'Please wait 15 s and try again.' }[result.why] || 'Couldn’t save your name. Please try again.');
       } });
       this.ui.message('Change name', note, [['Name', `<input name="player" class="jf-name" maxlength="20" autocomplete="nickname" aria-label="Leaderboard name" value="${esc(typed)}">`]], buttons);
     };

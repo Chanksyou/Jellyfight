@@ -18,16 +18,16 @@ story('first-run/no-element-pick-at-start', {
   },
 });
 story('first-run/auto-attack-tip-at-start', {
-  about: 'A player\'s first run opens with one tip for a few seconds: attacks are automatic, collect XP, survive until the boss. Other runs never show it.',
+  about: 'A player\'s first run opens with one tip for a few seconds: attacks are automatic, collect XP, survive until the Boss. Other runs never show it.',
   setup() { fresh({ elites: false, firstRun: true }); tp(3.2, 0.05, 3.0, 0); },
   play() {
     step(2);
     const shown = hintShown();
     step(60 * 8);
-    const gone = !/Attack automatically/.test(hintShown());
+    const gone = !/attacks bugs within Range on its own/.test(hintShown());
     fresh({ elites: false }); G().run.startPicked = false; step(2); pickFirstCard(); step(50);   // another run's start: no tip
-    const other = /Attack automatically/.test(hintShown());
-    return ok(/^Attack automatically when bugs are nearby\. Collect XP to grow stronger and survive until the boss arrives\.$/.test(shown) && gone && !other, { shown, gone, other });
+    const other = /attacks bugs within Range on its own/.test(hintShown());
+    return ok(/^Your jelly attacks bugs within Range on its own\. Collect XP droplets to level up, and survive until the Boss arrives\.$/.test(shown) && gone && !other, { shown, gone, other });
   },
 });
 story('first-run/health-hint-on-first-hit', {

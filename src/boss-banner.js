@@ -51,7 +51,7 @@ export function createBossBanner() {
     },
 
     showVictory(bossName, calm) {
-      const label = bossName ? `${bossName} cleared!` : 'Boss cleared!';
+      const label = bossName ? `${bossName} beaten!` : 'Boss beaten!';
       showCallout('victory', label, '', calm);
     },
 

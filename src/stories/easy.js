@@ -109,7 +109,7 @@ story('easy/offered-after-a-second-act-1-death', {
       localStorage.setItem(DEATHS_KEY, '5'); const cleared = easyOffered(true);
       chooseEasy(true); const already = easyOffered(false); chooseEasy(false);
       run.dev = true; const dev = !!dieAt(run, 5, false); run.dev = false;
-      const btn = dieAt(run, 2, false), says = /deal twice the damage and take half/.test(modal().innerText);
+      const btn = dieAt(run, 2, false), says = /do 2x damage, take 50% less/.test(modal().innerText);
       btn?.click();
       G().picker.close(); run.ui.close();
       return ok(counted && !first && !cleared && !dev && !already && !!btn && says && easyChosen(), { counted, first, cleared, dev, already, btn: !!btn, says, chosen: easyChosen() });

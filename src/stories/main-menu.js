@@ -17,7 +17,7 @@ const gameplaySummary = {
       const closed = !help.open && !summary.checkVisibility() && toggle.textContent.trim() === 'How to play' && icon?.getAttribute('aria-hidden') === 'true';
       toggle.click();
       const text = summary.textContent;
-      const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'treasures', 'countdown', 'boss', 'next act'].every(word => text.includes(word));
+      const loop = ['dodge', 'automatically', 'XP', 'upgrades', 'Treasures', 'countdown', 'Boss', 'next act'].every(word => text.includes(word));
       const r = summary.getBoundingClientRect(), button = play.getBoundingClientRect();
       const fits = r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= button.top && summary.scrollWidth <= summary.clientWidth;
       toggle.click();

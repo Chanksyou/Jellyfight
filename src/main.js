@@ -192,7 +192,7 @@ ui.innerHTML = `
   <p class="cont-note"></p>
   <details class="menu-help home-only">
     <summary class="ui-btn ui-btn--ghost"><span class="menu-help-icon" aria-hidden="true">${icon('info')}</span>How to play</summary>
-    <p class="menu-loop ui-text">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find treasures. Survive the countdown, beat the boss, and grow into the next act.</p>
+    <p class="menu-loop ui-text">Move and dodge while your jelly attacks automatically. Collect XP to level up, choose upgrades, and find Treasures. Survive the countdown, beat the Boss, and grow into the next act.</p>
   </details>
   <button class="resume ui-btn ui-btn--primary" hidden></button>
   <button class="play ui-btn ui-btn--primary title-only">Play</button>
@@ -942,7 +942,7 @@ const segRow = (label, attr, choices) => `<div class="set-row"><span class="ui-l
 settingsGrid.innerHTML = segRow('Sound', 'data-sound', [['on', 'On'], ['off', 'Off']]) + segRow('Music', 'data-music', [['on', 'On'], ['off', 'Off']])
   + segRow('Graphics', 'data-q', CHOICES.map((q) => [q, q[0].toUpperCase() + q.slice(1)])) + (IS_TOUCH ? segRow('Frame rate', 'data-fps', FPS_CHOICES.map((f) => [f, f])) : '')
   + segRow('Text size', 'data-text', [['normal', 'Normal'], ['large', 'Large']])
-  + `<div class="set-easy">${segRow('Easy mode', 'data-easy', [['off', 'Off'], ['on', 'On']])}<p class="ui-text">From your next run: twice the damage you deal, half the damage you take, half the Pearls, and no leaderboard score.</p></div>`;
+  + `<div class="set-easy">${segRow('Easy mode', 'data-easy', [['off', 'Off'], ['on', 'On']])}<p class="ui-text">From your next run: you do 2x damage, take 50% less and earn 50% fewer Pearls. No leaderboard score.</p></div>`;
 function syncSettings() {
   const now = { sound: isMuted() ? 'off' : 'on', music: musicOn ? 'on' : 'off', q: gfx.choice, fps: String(phoneFps), text: textSize, easy: easyChosen() ? 'on' : 'off' };
   for (const b of settingsGrid.querySelectorAll('button')) { const [k, v] = Object.entries(b.dataset)[0]; b.setAttribute('aria-pressed', String(now[k] === v)); }
@@ -1037,7 +1037,7 @@ async function unlockDev() {
     const r = await fetch('api/dev', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pass }) });
     const a = await r.json();
     open = !!a.open;
-    if (a.why === 'slow') { box.value = ''; box.placeholder = 'Wait 3 seconds, then try again'; return; }
+    if (a.why === 'slow') { box.value = ''; box.placeholder = 'Wait 3 s, then try again'; return; }
     if (a.why === 'unset') { box.value = ''; box.classList.add('wrong'); box.placeholder = 'No dev password set on the server'; return; }
   } catch {   // no Worker answering: only your own computer's file server opens without one
     open = ['localhost', '127.0.0.1'].includes(location.hostname);

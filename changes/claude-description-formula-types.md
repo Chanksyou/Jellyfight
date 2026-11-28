@@ -1,0 +1,1 @@
+words every Attack upgrade, jelly type blurb, level-up card, hint, achievement and toast by one formula (trigger, effect, cost, who it leaves out), with the numbers the code really uses (rings, zaps and cones now say `Nx Attack damage`, "nearby" says `within N cm`), the pick screen's bars read Attack damage and Fire rate, and a guard story names any paraphrase that creeps back.

@@ -243,7 +243,7 @@ body.calm .jf-tally .jf-stats > *, body.calm .jf-best.on, body.calm .jf-award, b
 `;
 
 // the Treasure book's unfound tiles: a dim icon for the section, and where its things turn up
-const WHERE = { Treasures: ['star', 'Find in a run'], Elites: ['shield', 'Beat an Elite'], Bosses: ['trophy', 'Beat a boss'], Upgrades: ['medal', 'After a boss'] };
+const WHERE = { Treasures: ['star', 'Find in a run'], Elites: ['shield', 'Beat an Elite'], Bosses: ['trophy', 'Beat a Boss'], Upgrades: ['medal', 'After a Boss'] };
 // a title without the emoji run.js still puts in front of it (the screens draw an icon of their own)
 const bare = (t) => t.replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '');
 
