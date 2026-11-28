@@ -81,10 +81,17 @@ function attackPhases(children) {
 
 // spawning { rate … cap … arrive … }, attack-gap, and  bug "id" weight= from= act=
 export function compileWaves(nodes, enemies, file = 'content/waves.kdl') {
-  const w = { rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, noticeMin: 0, noticeMax: 0, loseTrack: 0, startleRange: 0, startleTime: 0, arrive: null, attackGap: 0, bugs: [] };
+  const w = { byAct: {}, rate: 0.22, grow: 0, cap: 6, capEvery: 15, capMax: 20, noticeMin: 0, noticeMax: 0, loseTrack: 0, startleRange: 0, startleTime: 0, arrive: null, attackGap: 0, bugs: [] };
   for (const n of nodes) {
     const where = `${file}:${n.line}`;
-    if (n.name === 'spawning') {
+    if (n.name === 'spawning' && n.props.act != null) {   // spawning act=N { rate … cap … }: that act's own rate and cap, over the plain block's
+      const o = w.byAct[n.props.act] = {};
+      for (const s of n.children) {
+        if (s.name === 'rate') { o.rate = s.args[0]; o.grow = s.props.grow ?? 0; }
+        else if (s.name === 'cap') { o.cap = s.args[0]; o.capEvery = s.props.every ?? Infinity; o.capMax = s.props.max ?? o.cap; }
+        else throw new Error(`${where}: an act's spawning block takes only rate and cap, got "${s.name}"`);
+      }
+    } else if (n.name === 'spawning') {
       for (const s of n.children) {
         if (s.name === 'rate') { w.rate = s.args[0]; w.grow = s.props.grow ?? 0; }
         else if (s.name === 'cap') { w.cap = s.args[0]; w.capEvery = s.props.every ?? Infinity; w.capMax = s.props.max ?? w.cap; }
@@ -290,7 +297,7 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
     if (n.name === 'xp') {
       if (out.xp) throw new Error(`${where}: two xp blocks`);
       needProps(n, ['base', 'growth', 'steady-from', 'step'], where, 'xp');
-      out.xp = { base: n.props.base, growth: n.props.growth, steadyFrom: n.props['steady-from'], step: n.props.step };
+      out.xp = { base: n.props.base, growth: n.props.growth, steadyFrom: n.props['steady-from'], step: n.props.step, first: n.props.first ?? null };
     } else if (n.name === 'rarities') {
       if (out.rarities) throw new Error(`${where}: two rarities blocks`);
       needProps(n, ['common', 'rare', 'epic'], where, 'rarities');

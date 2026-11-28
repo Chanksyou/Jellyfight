@@ -1,0 +1,1 @@
+makes the opening minutes of act 1 easier: the first level-up needs 3 XP instead of 4, and act 1's night fills with bugs more slowly (the bug rate climbs 0.0015 a second instead of 0.0022, and a seventh bug is allowed after 20 s, not 15).

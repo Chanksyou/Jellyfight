@@ -178,7 +178,8 @@ export function threeOfAKind(cards, now = {}, rng = Math.random) {
 // up to `steady-from` (4, 5, 7, 10, 13, 18, 24), then each level costs `step` more than the last
 // (54, 84, 114…)
 export const xpToNext = (level) => {
-  const { base, growth, steadyFrom, step } = CONTENT.levelups.xp;
+  const { base, growth, steadyFrom, step, first } = CONTENT.levelups.xp;
+  if (level === 1 && first != null) return first;
   const to = Math.min(level, steadyFrom);
   return Math.round(base * growth ** (to - 1)) + step * Math.max(0, level - steadyFrom);
 };
