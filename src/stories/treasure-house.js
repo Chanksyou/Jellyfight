@@ -22,7 +22,7 @@ story('treasures/swatter', {
 });
 
 story('treasures/geyser', {
-  about: 'geyser (Bath Bomb, every 6 s): a bath bomb is lobbed onto the biggest crowd (three bugs together, not the lone one nearer), fizzes for 0.6 s showing its reach, then erupts: each bug in it takes 2x Attack damage, is thrown up off the floor and Stunned until it lands; the lone bug is untouched.',
+  about: 'geyser (Bath Bomb, every 6 s): a bath bomb is lobbed onto the biggest crowd (three bugs together, not the lone one nearer), fizzes for 0.6 s showing its reach, then erupts: each bug in it takes 3.6x Attack damage (2x power), is thrown up off the floor and Stunned until it lands; the lone bug is untouched.',
   setup() { setupFight({ bubbles: false, lash: false }); give('bathBomb'); roachAt(0.1, 0); for (const [x, z] of [[-0.25, 0], [-0.27, 0.03], [-0.23, -0.03]]) roachAt(x, z); },
   play() {
     const { run, enemies } = G(), [lone, ...crowd] = enemies.list, log = record('damage_taken'), H = run.gadgets.house;

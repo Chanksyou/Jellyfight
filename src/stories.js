@@ -20,6 +20,7 @@ import './stories/achievements.js';
 import './stories/board.js';
 import './stories/movement-bubbles-progression.js';
 import './stories/words.js';
+import './stories/description-formula.js';
 import './stories/bug-collision.js';
 import './stories/bug-nav.js';
 import './stories/bug-steering.js';
