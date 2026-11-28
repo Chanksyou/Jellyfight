@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v763 rewrites every Treasure and evolution description in the one formula (trigger, effect, cost, who it leaves out): damage reads as Nx Attack damage worked out from the code (Bath Bomb, Fly Swatter, Cotton Ball, Pogo Stick and others now show their real numbers), areas read within N cm, Crit and Mark join the glossary, and a new guard story fails on the old paraphrases.
+
 v762 raises every jelly type's Attack damage by 1: Normal 6 to 7, Fire 7.5 to 8.5, Lightning 4.5 to 5.5, Ice 9 to 10, Poison 5 to 6, Wind 6 to 7, Glitter 6 to 7, Summoner 4.5 to 5.5, Tentacle 9 to 10.
 
 v761 makes Jelly Mould's little jellies about 50% bigger on screen (hit size unchanged), and every Summoner Attack upgrade makes them last 8 s longer.

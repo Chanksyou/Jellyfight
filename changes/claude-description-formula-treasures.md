@@ -1,1 +1,0 @@
-rewrites every Treasure and evolution description in the one formula (trigger, effect, cost, who it leaves out): damage reads as Nx Attack damage worked out from the code (Bath Bomb, Fly Swatter, Cotton Ball, Pogo Stick and others now show their real numbers), areas read within N cm, Crit and Mark join the glossary, and a new guard story fails on the old paraphrases.
