@@ -191,7 +191,7 @@ story('payoff/golden-award-is-revealed', {
       run.phase = 'dead';
       run.endRun('You dried out', 'dead', 'Try again');
       const el = document.querySelector('.jf-award'), text = el?.innerText || '';
-      const shown = /Golden award unlocked/i.test(text) && /Golden laurel/.test(text) && /Clear 1,000 bugs/.test(text) && /^data:image/.test(el?.querySelector('img')?.src || '');
+      const shown = /Golden award unlocked/i.test(text) && /Golden laurel/.test(text) && /Kill 1,000 bugs/.test(text) && /^data:image/.test(el?.querySelector('img')?.src || '');
       const listed = /Unlocked\s*Golden laurel/.test(modal().innerText);
       const turns = getComputedStyle(el.querySelector('.face'), '::before').animationIterationCount;   // the gold rays turn twice, then rest
       step(30);
@@ -208,7 +208,7 @@ story('payoff/golden-award-is-revealed', {
 });
 
 story('payoff/boss-cleared-stamps-in', {
-  about: 'Beating a boss slows the game for a moment after its hit-stop, and "… is cleared!" stamps in big and gold with a shake.',
+  about: 'Beating a boss slows the game for a moment after its hit-stop, and "… is beaten!" stamps in big and gold with a shake.',
   setup() { fresh({ elites: false }); },
   play() {
     const { run } = G();
@@ -217,7 +217,7 @@ story('payoff/boss-cleared-stamps-in', {
       juice.slowT = 0;
       run.onBossDead();
       const toast = document.querySelector('#hud .toast');
-      const stamped = toast.classList.contains('stamp') && toast.classList.contains('on') && /is cleared!/.test(toast.textContent);
+      const stamped = toast.classList.contains('stamp') && toast.classList.contains('on') && /is beaten!/.test(toast.textContent);
       const slowed = juice.slowT > 0 && juice.slowK < 1, shook = juice.trauma > 0;
       juice.slowT = 0;
       return ok(stamped && slowed && shook, { stamped, slowed, shook, slowT: juice.slowT, text: toast.textContent });

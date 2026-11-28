@@ -13,7 +13,7 @@ const PER_FROM = {
   'max-health': (n) => `from ${Math.round(n)} max Health`,
   'move-speed-bonus': (n) => `from +${Math.round(n)}% Move speed`,
   levels: (n) => `from ${n} ${n === 1 ? 'Level' : 'Levels'} gained`,
-  chests: (n) => `from ${n} ${n === 1 ? 'treasure' : 'treasures'} found`,
+  chests: (n) => `from ${n} ${n === 1 ? 'Treasure' : 'Treasures'} found`,
 };
 
 // lines for what `id` has grown this run: { text, k } (k: 0..1 toward the next step, for a bar)
@@ -39,7 +39,7 @@ function growing(run, id) {
     const c = P[0], S = run.S, src = run.perSource(c.of, S), each = c.amount * P.length;
     out.push({ text: `Now: ${plus((src / c.every) * each, c.percent, c.stat)}, ${PER_FROM[c.of](src)}` });
     if (c.of === 'levels') { const need = xpToNext(run.level); out.push({ text: `Next ${plus(each, c.percent, c.stat)} at Level ${run.level + 1}: ${Math.max(0, Math.ceil(need - run.xp))} XP to go`, k: run.xp / need }); }
-    if (c.of === 'chests') out.push({ text: `Next ${plus(each, c.percent, c.stat)} with the next treasure you open` });
+    if (c.of === 'chests') out.push({ text: `Next ${plus(each, c.percent, c.stat)} with the next Treasure you open` });
   }
   const cd = run.cooldowns()[id];
   if (cd?.spent) out.push({ text: 'Already used' });
@@ -72,7 +72,7 @@ export function bagRows(run) {
 export function bagHtml(run) {
   const rows = bagRows(run);
   if (!rows.length) return '';
-  return `<h2>Your treasures</h2><div class="list">${rows.map((r) => `<div class="t" data-id="${esc(r.id)}"><b class="i">${r.icon}</b><div>`
+  return `<h2>Your Treasures</h2><div class="list">${rows.map((r) => `<div class="t" data-id="${esc(r.id)}"><b class="i">${r.icon}</b><div>`
     + `<div class="n">${esc(r.name)}${r.tag ? ` <span class="tag">${esc(r.tag)}</span>` : ''}</div><p>${esc(r.text)}</p>`
     + r.lines.map((l) => `<div class="g${l.dim ? ' dim' : ''}">${esc(l.text)}${l.k != null ? `<i style="--k:${Math.max(0, Math.min(1, l.k)).toFixed(3)}"></i>` : ''}</div>`).join('')
     + '</div></div>').join('')}</div>`;

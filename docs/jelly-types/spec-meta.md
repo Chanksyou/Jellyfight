@@ -39,7 +39,7 @@ A first-time player has Normal only. Each other type unlocks once, for good, and
 ## Player text
 
 - Death hints (`DEATH_HINTS` in `src/first-run.js`): replace the two Element hints with type hints.
-- First-run tips: the Element pick tip goes. The opening tip "Attack automatically when bugs are nearby…" stays.
+- First-run tips: the Element pick tip goes. The opening tip "Your jelly attacks bugs within Range on its own…" stays.
 - The Treasure pick, level-up and stats panels use the Attack words.
 
 ## Leaderboard and run log

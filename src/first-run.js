@@ -22,13 +22,13 @@ const JUMP_TIP_AT = 12;         // seconds into a first run
 // Hints on the death screen of acts 1 and 2 (run.js endRun): one, picked at random, per death
 // (with jelly types on, TYPE_HINTS join them)
 export const TYPE_HINTS = [
-  'Each jelly type has its own attack. Pick treasures that fit the way yours hits.',
+  'Each jelly type has its own attack. Pick Treasures that fit the way yours hits.',
   'Finish acts and defeat Elites to unlock new jelly types. Each one plays differently.',
 ];
 export const DEATH_HINTS = [
   'You attack on your own. Keep swimming and let bugs come into range instead of standing still.',
   'Grab XP droplets as you go. An early Level makes the rest of the act easier.',
-  'Every beaten Elite drops a treasure, and those are rarer than the ones in the room.',
+  'Every beaten Elite drops a Treasure, rarer than the ones in the room.',
   'You get one reroll per act. Save it for a Level-up where no card helps.',
   'Watch the Warnings. Step out of the shape before it fills, or jump over a low Blast.',
   'Shield refills after 5 s without damage, Health does not. Back off for a moment instead of trading hits.',
@@ -75,7 +75,7 @@ export class FirstRun {
 
   // the run just began: the tip to show (a first run's opening line), or null
   get startHint() {
-    return this.active ? 'Attack automatically when bugs are nearby. Collect XP to grow stronger and survive until the boss arrives.' : null;
+    return this.active ? 'Your jelly attacks bugs within Range on its own. Collect XP droplets to level up, and survive until the Boss arrives.' : null;
   }
 
   // the jelly was just hurt: the hint to show (once, on the first hit), or null

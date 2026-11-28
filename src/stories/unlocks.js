@@ -128,7 +128,7 @@ story('types/player-text-without-elements', {
   setup() {},
   play() {
     const F = new FirstRun(true);
-    const first = /Attack automatically/.test(F.startHint);
+    const first = /attacks bugs within Range on its own/.test(F.startHint);
     const hints = Array.from({ length: 200 }, () => deathHint(true));
     const noElement = hints.every((h) => !/Element/.test(h)) && TYPE_HINTS.every((h) => hints.includes(h));
     const texts = ACHIEVEMENTS.map((a) => a.typesText || a.text);
