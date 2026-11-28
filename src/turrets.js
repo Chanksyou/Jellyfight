@@ -51,6 +51,7 @@ export class Turrets {
     this.run = run;
     this.list = [];
     const R = this.R = LOOK.num('turret-radius', 0.022), H = this.H = LOOK.num('turret-height', 0.05);
+    this.drawK = LOOK.num('turret-draw', 1.5);   // drawn size only: R and H stay the hit size
     const g = shape(R, H);
     this.state = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4).setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('aState', this.state);
@@ -131,7 +132,7 @@ export class Turrets {
     const T = {
       position: new THREE.Vector3(at.x, y, at.z), center: new THREE.Vector3(at.x, y + this.H * 0.55, at.z),
       range: LOOK.num('turret-lure', 0.3), takes: true,   // a decoy (enemies.update) that takes the hits aimed at it
-      health: ef.health * U.health, t: ef.time * U.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, touchAt: new Map(), flash: 0, kick: 0, face: R.player.facing ?? 0,
+      health: ef.health * U.health, t: (ef.time + U.addTime) * U.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, touchAt: new Map(), flash: 0, kick: 0, face: R.player.facing ?? 0,
       element: els.length ? els[this.nextElement++ % els.length] : null,   // turret-element: each one set down takes the next in turn
       beats: R.mods.turretOn.map(() => 0),                                  // turret-on every=: its own clock for each
       hurt: (n) => this.hurt(T, n),
@@ -214,7 +215,7 @@ export class Turrets {
       if (T.health <= 0 || !this.list.includes(T)) continue;
       T.timer = Math.min(1, T.timer + dt * fireRate);   // the jelly's own Fire rate: one shot a beat of it
       if (T.timer < 1 || T.age < 0.25) continue;
-      const m = _p.set(Math.sin(T.face) * this.R * 0.9, this.H * 0.55, Math.cos(T.face) * this.R * 0.9).add(T.position);
+      const m = _p.set(Math.sin(T.face) * this.R * 0.9 * this.drawK, this.H * 0.55 * this.drawK, Math.cos(T.face) * this.R * 0.9 * this.drawK).add(T.position);
       const e = R.bubbles.turretShot(m, T.element || kind, S, T.dmg * k, prefer, crit);
       T.idle = !e;
       if (!e) continue;   // ready, waiting for something in Range (no charging glow meanwhile)
@@ -233,7 +234,7 @@ export class Turrets {
     for (let i = 0; i < n; i++) {
       const T = this.list[i], up = Math.min(1, T.age / 0.25), pop = up < 1 ? 1 - (1 - up) ** 3 * (1 - 2.5 * up) : 1;
       const fade = Math.min(1, T.t / 0.4), breathe = calm ? 0 : Math.sin(T.age * 4) * 0.04;
-      const k = pop * (0.6 + 0.4 * fade), sq = T.kick * 0.2;
+      const k = this.drawK * pop * (0.6 + 0.4 * fade), sq = T.kick * 0.2;
       _q.setFromAxisAngle(_y, T.face);
       _m.compose(T.position, _q, _s.set(k * (1 + sq * 0.5 - breathe * 0.5), k * (1 - sq + breathe), k * (1 + sq * 0.5 - breathe * 0.5)));
       this.mesh.setMatrixAt(i, _m);

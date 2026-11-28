@@ -1035,7 +1035,7 @@ export function newMods() {
     // the little jellies (Jelly Mould, src/turrets.js) and the Summoner Jelly's Attack upgrades
     turretElements: [],              // turret-element: the Elements they fire, taken in turn by each one set down
     turretOn: [],                    // turret-on: { when, every, effects } what goes off where one stands
-    turretUp: { rate: 1, most: 0, health: 1, time: 1, perElement: 0, crit: 0, critMult: 2 },   // turret-up (copies: multiply, add)
+    turretUp: { rate: 1, most: 0, health: 1, time: 1, perElement: 0, crit: 0, critMult: 2, addTime: 0 },   // turret-up (copies: multiply, add)
     turretRelay: null,               // turret-relay: { radius, dmg } your shots passing one take its Element
   };
 }
@@ -1600,11 +1600,11 @@ export const TREASURE_WORDS = {
     },
   },
   'turret-up': {
-    doc: 'Raises the little jellies: one comes `rate` times as often (0.6 = 40% sooner), `most` more at once (never past 6), `health` and `time` times the Health and time, `per-element` more damage for each different Element among those out (0.25 = 25%), and `crit` chance their shots Crit for `crit-mult` times damage. Copies multiply rate, health and time and add the rest.',
-    props: { rate: 1, most: 0, health: 1, time: 1, 'per-element': 0, crit: 0, 'crit-mult': 2 },
+    doc: 'Raises the little jellies: one comes `rate` times as often (0.6 = 40% sooner), `most` more at once (never past 6), `health` and `time` times the Health and time, `more-time` more seconds (added before `time` multiplies), `per-element` more damage for each different Element among those out (0.25 = 25%), and `crit` chance their shots Crit for `crit-mult` times damage. Copies multiply rate, health and time and add the rest.',
+    props: { rate: 1, most: 0, health: 1, time: 1, 'more-time': 0, 'per-element': 0, crit: 0, 'crit-mult': 2 },
     make: (_, p) => {
-      if (!(p.rate > 0 && p.health > 0 && p.time > 0 && Number.isInteger(p.most) && p.most >= 0 && p['per-element'] >= 0 && p.crit >= 0 && p.crit <= 1 && p['crit-mult'] >= 1)) throw new Error('turret-up: rate, health and time above 0, most a whole number, 0 or more, per-element 0 or more, crit 0 to 1, crit-mult 1 or more');
-      return (m) => { const U = m.turretUp; U.rate *= p.rate; U.most += p.most; U.health *= p.health; U.time *= p.time; U.perElement += p['per-element']; U.crit += p.crit; if (p.crit) U.critMult = Math.max(U.critMult, p['crit-mult']); };
+      if (!(p.rate > 0 && p.health > 0 && p.time > 0 && p['more-time'] >= 0 && Number.isInteger(p.most) && p.most >= 0 && p['per-element'] >= 0 && p.crit >= 0 && p.crit <= 1 && p['crit-mult'] >= 1)) throw new Error('turret-up: rate, health and time above 0, more-time 0 or more, most a whole number, 0 or more, per-element 0 or more, crit 0 to 1, crit-mult 1 or more');
+      return (m) => { const U = m.turretUp; U.rate *= p.rate; U.most += p.most; U.health *= p.health; U.time *= p.time; U.addTime += p['more-time']; U.perElement += p['per-element']; U.crit += p.crit; if (p.crit) U.critMult = Math.max(U.critMult, p['crit-mult']); };
     },
   },
   'turret-on': {
