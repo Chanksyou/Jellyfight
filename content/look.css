@@ -225,6 +225,7 @@
   --turret-hurt: #ffffff;        /* the Health it loses to a bug, shown over it */
   --turret-radius: 0.022;        /* m: its bell (the jelly's is 3 cm) */
   --turret-height: 0.05;         /* m: top of the bell off the floor */
+  --turret-draw: 1.5;            /* x: how much bigger it is drawn than its hit size (--turret-radius, --turret-height) */
   --turret-lure: 0.3;            /* m: ordinary bugs this near it, and nearer it than you, go for it */
   --turret-no-hurt: 0.25;        /* s after a hit before it can be hurt again (the jelly's own) */
   /* the Summoner Jelly's Signal Shot (bubble-looks.js, bubbles.js signal): friendly cool cyan and violet */

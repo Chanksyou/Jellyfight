@@ -141,13 +141,13 @@ story('treasures/turret-on', {
 });
 
 story('treasures/turret-up', {
-  about: 'turret-up: Thick Glass gives little jellies 2x Health and 1.5x time (Jelly Mould\'s 35 and 8 s: 70 and 12 s); Budding brings the first one 40% sooner (4.8 s, not 8) and lets 6 out at once, not 4; Cross-Pollination adds 40% damage for each different Element out (Fire and Ice: 1.8x); Prism Mould\'s Crit does 2.5x.',
+  about: 'turret-up: Thick Glass gives little jellies 2x Health and 1.5x time (Jelly Mould\'s 35 and 8 s, plus the 8 s every Mould gives: 70 and 24 s); Budding brings the first one 40% sooner (4.8 s, not 8) and lets 6 out at once, not 4; Cross-Pollination adds 40% damage for each different Element out (Fire and Ice: 1.8x); Prism Mould\'s Crit does 2.5x.',
   setup: () => setup(),
   play() {
     const { run } = G(); quiet();
     take('thickGlass');
     step(60 * 5.5);
-    const first = run.turrets.list[0], glass = first && near2(first.health, 70) && first.t > 11 && first.t <= 12;
+    const first = run.turrets.list[0], glass = first && near2(first.health, 70) && first.t > 23 && first.t <= 24;
     run.turrets.reset();
     fresh({ types: 'summoner', lash: false }); holdJelly(); quiet();
     only('budding');
@@ -265,5 +265,17 @@ story('types/summoner-look', {
     fresh({ types: 'fire' }); step(5);
     const off = !piece()?.group.visible;
     return ok(on && off && children === 4, { on, off, children });
+  },
+});
+
+story('treasures/every-mould-adds-8-seconds', {
+  about: 'Every Summoner Attack upgrade (the six Moulds, Budding, Relay, Cross-Pollination, Martyr Pop, Choir, Thick Glass) makes little jellies last 8 s longer: one of them takes Jelly Mould\'s 8 s to 16 s, and Thick Glass adds 50% on top of that (24 s).',
+  setup: () => setup(),
+  play() {
+    const { run } = G(); quiet();
+    const ids = ['cinderMould', 'frostMould', 'teslaMould', 'sporeMould', 'galeMould', 'prismMould', 'budding', 'relay', 'crossPollination', 'martyrPop', 'choir', 'thickGlass'];
+    const adds = ids.map((id) => { only(id); return run.mods.turretUp.addTime; });
+    const t = place(0, 0, { ...EF, time: 8 }).t;   // the last one taken is Thick Glass
+    return ok(adds.every((a) => a === 8) && t === 24, { adds, t });
   },
 });
