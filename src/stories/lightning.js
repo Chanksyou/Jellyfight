@@ -137,7 +137,7 @@ story('treasures/charged-shot', {
     const spent = !B.charge && run.chargeT[run.mods.charged[0].key] < 0.5;
     step(36);   // the shot lands
     const struck = lightning(log).filter((d) => d.targetId === far.id);
-    const strike = struck.length >= 1 && Math.abs(struck[0].amount - 4.5 * 2) < 1e-9;
+    const strike = struck.length >= 1 && Math.abs(struck[0].amount - 5.5 * 2) < 1e-9;
     step(24);
     const resting = !B.charge;   // 1 s since it was spent: not yet
     // moving: it builds only while swimming at full speed

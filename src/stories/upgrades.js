@@ -418,7 +418,7 @@ story('treasures/reach-flare', {
 });
 
 story('treasures/stat-percent-own-base', {
-  about: 'stat percent=#true is a percent of the jelly\'s own starting value: +50% Attack damage is +3 on Normal (6) and +4.5 on the Tentacle jelly (9); the same for while, per and stack-buff.',
+  about: 'stat percent=#true is a percent of the jelly\'s own starting value: +50% Attack damage is +3.5 on Normal (7) and +5 on the Tentacle jelly (10); the same for while, per and stack-buff.',
   setup() { fresh(); },
   play() {
     const got = (types) => {
@@ -431,7 +431,7 @@ story('treasures/stat-percent-own-base', {
     const run = G().run; run.stillT = 5;
     const rooted = run.S.bubbleDamage;
     fresh();
-    return ok(Math.abs(normal - 9) < 1e-9 && Math.abs(tentacle - 13.5) < 1e-9 && Math.abs(rooted - 13.5) < 1e-9, { normal, tentacle, rooted });
+    return ok(Math.abs(normal - 10.5) < 1e-9 && Math.abs(tentacle - 15) < 1e-9 && Math.abs(rooted - 15) < 1e-9, { normal, tentacle, rooted });
   },
 });
 
