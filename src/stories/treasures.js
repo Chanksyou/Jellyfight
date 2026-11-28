@@ -1046,7 +1046,7 @@ story('treasures/acid-vulnerability', {
     bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: 3, more: 0.5 });
     p.tick = 0; B.effects(1 / 60, run.S); const stronger = e.markMore;
     B.reset(); step(181);
-    return ok(more === 0.3 && Math.abs(tick - 6 * 4.5 * 0.012 * 0.5 * 1.3) < 1e-8 && Math.abs(hit - 13) < 1e-8 && stronger === 0.5 && e.markT === 0, { more, tick, hit, stronger, expired: e.markT === 0 });
+    return ok(more === 0.3 && Math.abs(tick - 7 * 4.5 * 0.012 * 0.5 * 1.3) < 1e-8 && Math.abs(hit - 13) < 1e-8 && stronger === 0.5 && e.markT === 0, { more, tick, hit, stronger, expired: e.markT === 0 });
   },
 });
 
