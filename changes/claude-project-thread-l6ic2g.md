@@ -1,1 +1,0 @@
-adds the Summoner Jelly (unlocked at 9 Elites): it fires a Signal, a light dart that tags one bug at a time so your little jellies shoot it first for 25% more damage, starts every run with Jelly Mould, and has 12 Attack upgrades that give little jellies Elements, Blasts, Chill, zaps, Relay and more.

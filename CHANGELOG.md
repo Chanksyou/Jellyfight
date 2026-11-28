@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v758 adds the Summoner Jelly (unlocked at 9 Elites): it fires a Signal, a light dart that tags one bug at a time so your little jellies shoot it first for 25% more damage, starts every run with Jelly Mould, and has 12 Attack upgrades that give little jellies Elements, Blasts, Chill, zaps, Relay and more.
+
 v757 makes the opening minutes of act 1 easier: the first level-up needs 3 XP instead of 4, and act 1's night fills with bugs more slowly (the bug rate climbs 0.0015 a second instead of 0.0022, and a seventh bug is allowed after 20 s, not 15).
 
 v756 makes the game ask a browser for graphics again with less (no high-performance GPU, no reversed depth, no multisampling) when it refuses the first time, gives back the spare test context so reloads don't run into the browser's limit, and, when there are no graphics at all, says how to turn on hardware acceleration instead of showing an error panel.
