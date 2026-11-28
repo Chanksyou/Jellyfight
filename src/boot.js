@@ -13,6 +13,7 @@ import { loadContent } from './content.js';
 import { currentStage } from './stages.js';
 import { serverBuild, reloadIfStale } from './fresh.js';
 import { EXPERIMENTS } from './experiments.js';
+import { createWithFallback, showNoGraphics } from './gl-context.js';
 
 // The apartment's colors and lights were authored for three.js r128 conventions
 THREE.ColorManagement.enabled = false;
@@ -25,16 +26,25 @@ const canvas = document.getElementById('c');
 // tests) and phones a bigger near plane (main.js). Asked on a spare canvas, since a renderer
 // can't switch afterwards.
 const clipControl = (() => {
-  try { return !!document.createElement('canvas').getContext('webgl2')?.getExtension('EXT_clip_control'); } catch { return false; }
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const has = !!gl?.getExtension('EXT_clip_control');
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();   // give the spare context back: browsers cap how many live at once
+    return has;
+  } catch { return false; }
 })();
 // Only Low draws straight to the screen; Medium and High draw into the composer (graphics.js) and
 // put one finished picture on it, so multisampling the screen there is memory and bandwidth for
 // nothing. The renderer can't change that later: a switch to Low draws without it until the next load.
 const startTier = (() => { try { return localStorage.getItem('jellyrun.graphics'); } catch { return null; } })();   // graphics.js's STORE
-const renderer = new THREE.WebGLRenderer({
-  canvas, antialias: startTier === 'low', powerPreference: 'high-performance',
-  reversedDepthBuffer: clipControl, logarithmicDepthBuffer: !clipControl && !IS_TOUCH,
-});
+let renderer;
+try {
+  // refused? ask for less (no high-performance GPU, no reversed or log depth, no multisampling) before giving up
+  ({ renderer } = createWithFallback((o) => new THREE.WebGLRenderer({ canvas, ...o }), {
+    antialias: startTier === 'low', powerPreference: 'high-performance',
+    reversedDepthBuffer: clipControl, logarithmicDepthBuffer: !clipControl && !IS_TOUCH,
+  }));
+} catch (e) { showNoGraphics(e); await new Promise(() => {}); }
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = EXPERIMENTS.tone === 'agx' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
