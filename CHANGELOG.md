@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v759 makes each bug, and the Vacuum and the Clog, hurt by touch at most once a second, on the jelly and on a Jelly Mould's little jellies; two different bugs touching at the same moment both still land, and bites, Shots, Blasts, rams and rolls keep the short 0.25 s no-hurt time.
+
 v758 adds the Summoner Jelly (unlocked at 9 Elites): it fires a Signal, a light dart that tags one bug at a time so your little jellies shoot it first for 25% more damage, starts every run with Jelly Mould, and has 12 Attack upgrades that give little jellies Elements, Blasts, Chill, zaps, Relay and more.
 
 v757 makes the opening minutes of act 1 easier: the first level-up needs 3 XP instead of 4, and act 1's night fills with bugs more slowly (the bug rate climbs 0.0015 a second instead of 0.0022, and a seventh bug is allowed after 20 s, not 15).

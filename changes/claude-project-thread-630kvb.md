@@ -1,1 +1,0 @@
-makes each bug, and the Vacuum and the Clog, hurt by touch at most once a second, on the jelly and on a Jelly Mould's little jellies; two different bugs touching at the same moment both still land, and bites, Shots, Blasts, rams and rolls keep the short 0.25 s no-hurt time.
