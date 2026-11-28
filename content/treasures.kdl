@@ -478,18 +478,18 @@ treasure "choreList" name="Chore List" icon="📋" rarity="common" text="Every 2
 }
 // Megabonk-inspired (Chan, Nov 14): XP for distance, a fast glass cannon that bleeds, a tornado on attack
 // Jelly Mould (Chan, Nov 25): a little jelly that sets on the floor and shoots with you (src/turrets.js)
-treasure "jellyMould" name="Jelly Mould" icon="🍮" rarity="rare" attack=#true not-for="tentacle" text="Every 10 s: a little jelly with 25 Health fires your attack for 40% damage. Lasts 8 s." {
-    every 10 {
-        turret time=8 health=25 dmg=0.4
+treasure "jellyMould" name="Jelly Mould" icon="🍮" rarity="rare" attack=#true not-for="tentacle" text="Every 8 s: a little jelly with 35 Health fires your attack for 60% damage. Lasts 8 s." {
+    every 8 {
+        turret time=8 health=35 dmg=0.6
     }
-    level 2 text="Every 10 s: a little jelly with 45 Health fires your attack for 60% damage. Lasts 16 s." {
-        every 10 {
-            turret time=16 health=45 dmg=0.6
+    level 2 text="Every 6 s: a little jelly with 70 Health fires your attack for 80% damage. Lasts 12 s." {
+        every 6 {
+            turret time=12 health=70 dmg=0.8
         }
     }
-    level 3 text="Every 10 s: a little jelly with 65 Health fires your attack for 80% damage. Lasts 24 s." {
-        every 10 {
-            turret time=24 health=65 dmg=0.8
+    level 3 text="Every 4 s: a little jelly with 105 Health fires your attack for 100% damage. Lasts 16 s." {
+        every 4 {
+            turret time=16 health=105 dmg=1
         }
     }
 }

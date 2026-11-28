@@ -33,7 +33,7 @@ story('content/start-treasure', {
 });
 
 story('types/summoner-plays', {
-  about: 'A Summoner Jelly starts with Jelly Mould at level 1 (owned, not logged as a pickup), fires its Signal at its Fire rate of 1.5 for 4.5 a hit (Attack damage 4.5 x hit 1), and the bug it hits is Signalled for 3 s. Taking Jelly Mould again levels it to 2 (16 s, 45 Health).',
+  about: 'A Summoner Jelly starts with Jelly Mould at level 1 (owned, not logged as a pickup), fires its Signal at its Fire rate of 1 for 4.5 a hit (Attack damage 4.5 x hit 1), and the bug it hits is Signalled for 3 s. Taking Jelly Mould again levels it to 2 (12 s, 70 Health).',
   setup: () => setup(),
   play() {
     const { run } = G();
@@ -45,7 +45,7 @@ story('types/summoner-plays', {
     const S = run.bubbles.signalled, tagged = S?.e === bug && S.t > 2 && S.t <= 3 && near2(S.more, 0.25);
     give('jellyMould');
     const T = run.mods.timed.find((t) => t.effects.some((e) => e.kind === 'turret'))?.effects.find((e) => e.kind === 'turret');
-    return ok(start === 1 && !logged && hits.length >= 3 && hits.length <= 6 && exact && tagged && T?.time === 16 && T?.health === 45,
+    return ok(start === 1 && !logged && hits.length >= 3 && hits.length <= 6 && exact && tagged && T?.time === 12 && T?.health === 70,
       { start, logged, hits: hits.map((d) => d.amount), tagged: S && { same: S.e === bug, t: S.t }, level2: T && [T.time, T.health] });
   },
 });
@@ -90,9 +90,9 @@ story('types/summoner-little-jellies-shoot-the-signalled-bug', {
     const onFar = onBug(log, farBug, 'turret'), onNear = onBug(log, nearBug, 'turret');
     run.bubbles.signalled = null;
     const was = onBug(log, nearBug, 'turret').length;
-    step(60 * 2);
+    step(60 * 3);
     const back = onBug(log, nearBug, 'turret').slice(was);
-    return ok(onFar.length >= 3 && !onNear.length && onFar.every((d) => near2(d.amount, 2.25)) && back.length >= 2 && back.every((d) => near2(d.amount, 1.8)),
+    return ok(onFar.length >= 2 && !onNear.length && onFar.every((d) => near2(d.amount, 2.25)) && back.length >= 2 && back.every((d) => near2(d.amount, 1.8)),
       { far: onFar.map((d) => d.amount), near: onNear.length, back: back.map((d) => d.amount) });
   },
 });
@@ -141,17 +141,17 @@ story('treasures/turret-on', {
 });
 
 story('treasures/turret-up', {
-  about: 'turret-up: Thick Glass gives little jellies 2x Health and 1.5x time (Jelly Mould\'s 25 and 8 s: 50 and 12 s); Budding brings the first one 40% sooner (3.6 s, not 6) and lets 6 out at once, not 4; Cross-Pollination adds 25% damage for each different Element out (Fire and Ice: 1.5x); Prism Mould\'s Crit does 2.5x.',
+  about: 'turret-up: Thick Glass gives little jellies 2x Health and 1.5x time (Jelly Mould\'s 35 and 8 s: 70 and 12 s); Budding brings the first one 40% sooner (4.8 s, not 8) and lets 6 out at once, not 4; Cross-Pollination adds 40% damage for each different Element out (Fire and Ice: 1.8x); Prism Mould\'s Crit does 2.5x.',
   setup: () => setup(),
   play() {
     const { run } = G(); quiet();
     take('thickGlass');
-    step(60 * 6.1);
-    const first = run.turrets.list[0], glass = first && near2(first.health, 50) && first.t > 11 && first.t <= 12;
+    step(60 * 5.5);
+    const first = run.turrets.list[0], glass = first && near2(first.health, 70) && first.t > 11 && first.t <= 12;
     run.turrets.reset();
     fresh({ types: 'summoner', lash: false }); holdJelly(); quiet();
     only('budding');
-    step(60 * 3.7);
+    step(60 * 5.2);
     const sooner = run.turrets.list.length === 1;
     for (let k = 0; k < 7; k++) place(0.05 * k, 0.3);
     const most = run.turrets.list.length;
@@ -163,17 +163,18 @@ story('treasures/turret-up', {
     const both = onBug(log, bug, 'turret').filter((d) => !d.feedback?.crit).map((d) => d.amount);
     run.turrets.reset();
     only('prismMould');
+    stub(run.gadgets, 'update', () => {});   // no Jelly Mould timer: only the one set down here
     stub(run.mods.turretUp, 'crit', 1);   // every hit a Crit
     const at = log.length; place(0.2, 0);
     step(60 * 2);
     const crits = onBug(log.slice(at), bug, 'turret').filter((d) => d.feedback?.crit).map((d) => d.amount);   // (the Fire and Ice shots still flying land too)
-    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 4.5 * 0.4 * 1.5)) && crits.length >= 1 && crits.every((d) => near2(d, 4.5 * 0.4 * 2.5)),
+    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 4.5 * 0.4 * 1.8)) && crits.length >= 1 && crits.every((d) => near2(d, 4.5 * 0.4 * 2.5)),
       { glass: first && [first.health, first.t], sooner, most, both, crits });
   },
 });
 
 story('treasures/turret-relay', {
-  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 35% more (4.5 x 1.35); it still Signals the bug, and passing a second little jelly adds nothing more.',
+  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 50% more (4.5 x 1.5); it still Signals the bug, and passing a second little jelly adds nothing more.',
   setup: () => setup(),
   play() {
     const { run } = G();
@@ -184,8 +185,8 @@ story('treasures/turret-relay', {
     const log = record('damage_taken'), bug = roachAt(0, -0.2), home = bug.pos.clone();
     step(60 * 1.5, () => { bug.pos.copy(home); return onBug(log, bug, 'bubble').length > 0; });
     const hit = onBug(log, bug, 'bubble')[0];
-    return ok(hit && near2(hit.amount, 4.5 * 1.35) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
-      { amount: hit?.amount, want: 4.5 * 1.35, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
+    return ok(hit && near2(hit.amount, 4.5 * 1.5) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
+      { amount: hit?.amount, want: 4.5 * 1.5, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
   },
 });
 
@@ -200,7 +201,7 @@ story('treasures/per-little-jellies', {
     const three = run.S.fireRate;
     run.turrets.reset();
     const after = run.S.fireRate;
-    return ok(near2(before, 1.5) && near2(three, 1.5 * 1.3) && near2(after, 1.5), { before, three, after });
+    return ok(near2(before, 1) && near2(three, 1.3) && near2(after, 1), { before, three, after });
   },
 });
 

@@ -415,11 +415,11 @@ upgrade "prismMould" jelly="summoner" name="Prism Mould" icon="✨" text="Little
 upgrade "budding" jelly="summoner" name="Budding" icon="🌱" text="Little jellies come 40% sooner. +2 little jellies at once." {
     turret-up rate=0.6 most=2
 }
-upgrade "relay" jelly="summoner" name="Relay" icon="🔗" text="Your Signals passing within 8 cm of a little jelly take its Element and +35% damage." {
-    turret-relay radius=0.08 dmg=0.35
+upgrade "relay" jelly="summoner" name="Relay" icon="🔗" text="Your Signals passing within 8 cm of a little jelly take its Element and +50% damage." {
+    turret-relay radius=0.08 dmg=0.5
 }
-upgrade "crossPollination" jelly="summoner" name="Cross-Pollination" icon="🌈" text="+25% little jelly damage for each different Element among those out." {
-    turret-up per-element=0.25
+upgrade "crossPollination" jelly="summoner" name="Cross-Pollination" icon="🌈" text="+40% little jelly damage for each different Element among those out." {
+    turret-up per-element=0.4
 }
 upgrade "martyrPop" jelly="summoner" name="Martyr Pop" icon="💥" text="When bugs pop a little jelly: a Blast within 12 cm for 3x Attack damage." {
     turret-on "popped" {
