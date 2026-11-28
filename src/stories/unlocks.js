@@ -10,7 +10,7 @@ import { FirstRun, deathHint, TYPE_HINTS } from '../first-run.js';
 import { ACHIEVEMENTS } from '../achievements.js';
 import { G, V, asPlayer, fresh, ok, story, stub } from './kit.js';
 
-const LOCKED_AT_START = ['fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
+const LOCKED_AT_START = ['fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'summoner', 'tentacle'];
 // a beaten Elite, as elites.js hands it to the run
 const elite = (kind) => ({ kind, name: kind, spec: { kind, area: 'test' }, base: V(3.2, 0, 3), r: 0.04 });
 // the act's boss beaten, without its fight (the run's real onBossDead: the Treasure book notes it)
@@ -79,7 +79,7 @@ story('types/dev-run-unlocks-nothing', {
 });
 
 story('types/book-has-jellies-page', {
-  about: 'The Treasure book opens on a Jellies page: all eight types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade, Power Bank or retired Treasure and takes the former evolutions in (not retired ones); there is no Evolutions page.',
+  about: 'The Treasure book opens on a Jellies page: all nine types, locked ones as silhouettes with their goal; each type\'s Attack upgrades follow, a found one shown; the Treasures page has no Element, Element upgrade, Power Bank or retired Treasure and takes the former evolutions in (not retired ones); there is no Evolutions page.',
   setup() {},
   play() {
     const { run } = G(), back = asPlayer(true, { feats: { elites: 3 } });
@@ -90,7 +90,7 @@ story('types/book-has-jellies-page', {
       stub(run.ui, 'book', (title, sections) => shown.push(sections));
       run.showBook(() => {});
       const S = shown[0], titles = S.map((s) => s.title), jellies = S[0];
-      const cards = jellies.title === 'Jellies' && jellies.items.length === 8;
+      const cards = jellies.title === 'Jellies' && jellies.items.length === 9;
       const normal = jellies.items.find((i) => i.id === 'normal'), ice = jellies.items.find((i) => i.id === 'ice'), fire = jellies.items.find((i) => i.id === 'fire');
       const locks = normal.found && ice.found && !fire.found && fire.locked === 'Finish act 1';
       const fireUps = S.find((s) => /Fire Jelly: Attack upgrades/.test(s.title));
@@ -100,7 +100,7 @@ story('types/book-has-jellies-page', {
       const evos = CONTENT.evolutions.every((e) => ids.has(e.id) !== !!e.retired) && !titles.includes('Evolutions');
       // drawn: a locked type is a silhouette with its goal
       Object.getPrototypeOf(run.ui).book.call(run.ui, 'book', S, () => {});
-      const drawn = modal().querySelectorAll('.jf-book-grid button.locked').length === 6 && /Finish act 1/.test(modal().textContent);
+      const drawn = modal().querySelectorAll('.jf-book-grid button.locked').length === 7 && /Finish act 1/.test(modal().textContent);
       G().menus.close(); run.ui.close();
       return ok(cards && locks && upgrade && gone && evos && drawn, { titles, cards, locks, upgrade, gone, evos, drawn });
     } finally { back(); }

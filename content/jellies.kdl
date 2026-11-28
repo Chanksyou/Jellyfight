@@ -14,6 +14,7 @@
 // `about` is the one line on the pick screen about the signature attack (src/pick-screen.js).
 // `area` marks an attack that splashes, arcs or bursts: the screen's Area bar counts it 1.5x.
 // `icon` is the type's picture in the Treasure book's Jellies page.
+// `start-treasure="id"`: a Treasure the type starts every run with (level 1, not counted as found); taking it again levels it.
 // `unlock-act=N` / `unlock-elites=N`: what opens the type, for good (docs/jelly-types/spec-meta.md):
 // finish act N (beat its boss), or defeat N Elites across all runs. A type with neither is open
 // from the start (Normal). src/jelly-types.js typeLock reads it.
@@ -92,6 +93,18 @@ jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs bur
     stat dodge 10
     stat bubble-damage 6
     stat fire-rate 1.5
+}
+
+// Summoner: the Signal (a light dart) at full Fire rate, and a Jelly Mould from the start (start-treasure=). hit=1 lands
+// the Signal at 6.75 damage a second on one bug (4.5 x 1 x 1.5/s); the level 1 little jelly adds 4.5 x 0.4 x 1.25
+// (Signalled) x 1.5/s = 3.4 while it is out, 8 s of every 10, so 2.7 on average: 9.5 together, the low end of the
+// 9-12 budget (docs/jelly-types/types/summoner.md). Its Attack upgrades all work through the little jellies
+jelly "summoner" name="Summoner Jelly" icon="📡" unlock-elites=9 start-treasure="jellyMould" about="Signals tag one bug at a time: your little jellies shoot it first, for 25% more damage." attack="signal" hit=1 adorn="beacon" aura="signal" {
+    stat bubble-damage 4.5
+    stat fire-rate 1.5
+    stat range 0.36
+    stat health 20
+    stat move-speed 1.08
 }
 
 // Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a

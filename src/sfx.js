@@ -1119,6 +1119,11 @@ export const sfx = {
       for (let k = 0; k < 4; k++) tone('sine', [1568, 1976, 2349, 3136][k] * j, [1568, 1976, 2349, 3136][k] * j * 1.01, 0.07, 0.03, 0.02 + k * 0.03);
       noise(4200 * j, 1.4, 0.2, 0.035, 'bandpass', 0.03, 1600);
     }
+    else if (el === 'signal') {   // the Summoner's Signal Shot: a crisp sonar ping, a soft tick in front of it, a thin whistle as it goes
+      noise(7000 * j, 2, 0.012, 0.05, 'highpass');
+      tone('sine', 1760 * j, 1700 * j, 0.16, 0.05); tone('sine', 2640 * j, 2580 * j, 0.1, 0.018, 0.005);
+      tone('sine', 3000 * j, 4200 * j, 0.08, 0.008, 0.03);
+    }
   },
   // the other Elements landing on a bug (fire's is fire): the contact, a body under it, and its debris
   elementHit(el) {
@@ -1160,6 +1165,17 @@ export const sfx = {
       noise(7000 * j, 2, 0.4, 0.04, 'bandpass', 0.02, 4000);                           // flakes hissing through the air
       for (let k = 0; k < 10; k++) tone('sine', (2400 + Math.random() * 3600) * j, 2600, 0.05 + Math.random() * 0.06, 0.022 * (1 - k * 0.06), 0.05 + k * 0.05 + Math.random() * 0.03);   // the shimmer settling
     }
+    else if (el === 'signal') {   // the dart lands: a tight tick, a short bright blip and a little thud under it
+      noise(6000 * j, 1.5, 0.015, 0.12, 'highpass');
+      tone('sine', 2200 * j, 1500 * j, 0.06, 0.05); tone('sine', 160 * j, 90, 0.07, 0.06);
+    }
+  },
+  // the Summoner's Signal moving to a new bug: a soft lock-on chime, two notes a fifth apart, pitch-varied
+  signalMark() {
+    if (!ready() || !gap('signalMark', 120)) return;
+    const j = jitter(0.06);
+    tone('sine', 1318 * j, 1318 * j, 0.12, 0.035); tone('sine', 1976 * j, 1976 * j, 0.18, 0.03, 0.06);
+    tone('triangle', 3952 * j, 3952 * j, 0.1, 0.008, 0.06);
   },
   // a chain bolt jumping to the k-th bug: a tzzt that climbs with each jump
   chainZap(k = 0) {

@@ -23,8 +23,9 @@ import * as glitter from './pick-auras/glitter.js';
 import * as gust from './pick-auras/gust.js';
 import * as sting from './pick-auras/sting.js';
 import * as toxic from './pick-auras/toxic.js';
+import * as signal from './pick-auras/signal.js';
 
-export const SHADERS = { flames, sparks, frost, glitter, gust, bubbles, toxic, sting };
+export const SHADERS = { flames, sparks, frost, glitter, gust, bubbles, toxic, sting, signal };
 
 // every kind aura= can name (content/jellies.kdl)
 export const KINDS = () => Object.keys(SHADERS);

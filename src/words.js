@@ -1032,6 +1032,11 @@ export function newMods() {
     chancy: false,                   // some effect of yours rolls a chance (chance.js): Lucky Cat is offered only then
     luckyRolls: 1,                   // lucky-rolls: tries per chance of yours (chance.js)
     ghosts: null,                    // ghosts: { chance, time, dmg, speed, rest, most } (gadgets.js)
+    // the little jellies (Jelly Mould, src/turrets.js) and the Summoner Jelly's Attack upgrades
+    turretElements: [],              // turret-element: the Elements they fire, taken in turn by each one set down
+    turretOn: [],                    // turret-on: { when, every, effects } what goes off where one stands
+    turretUp: { rate: 1, most: 0, health: 1, time: 1, perElement: 0, crit: 0, critMult: 2 },   // turret-up (copies: multiply, add)
+    turretRelay: null,               // turret-relay: { radius, dmg } your shots passing one take its Element
   };
 }
 
@@ -1040,7 +1045,8 @@ const scopes = (by, where) => {
   if (!BY.includes(by)) throw new Error(`${where}: by= must be one of ${BY.join(', ')}`);
   return by === 'all' ? ['bubbles', 'tentacles', 'splash'] : [by];
 };
-const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter', 'poison'];   // poison: the Poison jelly type's attack only (it replaces acid there)
+const ELEMENT_IDS = ['fire', 'lightning', 'ice', 'acid', 'wind', 'glitter', 'poison', 'signal'];   // poison: the Poison jelly type's attack only (it replaces acid there); signal: the Summoner Jelly's
+const TURRET_ELEMENTS = ['fire', 'lightning', 'ice', 'poison', 'wind', 'glitter'];   // what turret-element can give a little jelly
 
 // The statuses a bug can have, as status-damage, status-taken and on-kill-of name them. Each has a
 // reader in Enemies.statuses (bubbles.js adds burning, combat.js bleeding) giving its stacks, 0 for none.
@@ -1071,6 +1077,9 @@ export const ELEMENT_BASE = {
   // the Poison jelly's blob (docs/jelly-types/types/poison.md): its burst, a 5 cm sphere (width, as glitter's), does no
   // damage but adds a Poison stack; each stack does `poison` x 20% of Attack damage a second for poisonTime s, up to poisonStacks
   poison: { poison: 1, poisonTime: 5, poisonStacks: 5, width: 0.05 / 0.026 },
+  // the Summoner Jelly's Signal Shot (docs/jelly-types/types/summoner.md): a fast light dart that Signals the bug it
+  // hits for `signal` s (one bug at a time); little jellies shoot a Signalled bug first and hit it `signalMore` harder
+  signal: { signal: 3, signalMore: 0.25, speed: 1.4 },
 };
 // element-up numbers that add (the rest multiply)
 export const ELEMENT_ADD = new Set(['count', 'pierce', 'chain', 'burnTime', 'puddleTime', 'puddles', 'frost', 'slow', 'slowedMul', 'frostbite', 'chillPierce', 'grow', 'falloff', 'angle', 'revisit', 'stunFirst']);
@@ -1087,6 +1096,7 @@ export const ELEMENT_HINTS = {
   width: 'splash width', splash: 'splash damage', slow: 'slow seconds',
   frostbite: 'Chill damage a second, as a share of the hit', chillPierce: 'shards fly through already Chilled bugs (1 = on)', grow: 'how much a shard grows with each bug it hits',
   poison: 'Poison damage a second', poisonTime: 'seconds a Poison stack lasts', poisonStacks: 'Poison stacks one bug can hold',
+  signal: 'seconds a Signal lasts', signalMore: 'extra damage little jellies do to the Signalled bug (0.25 = 25%)',
 };
 export const elementParams = (id) => ({ ...ELEMENT_BASE.common, ...ELEMENT_BASE[id] });
 
@@ -1310,12 +1320,12 @@ export const BUFF_EVENTS = ['kill', 'hit', 'arc', 'big-splash', 'level-up', 'cri
 
 // When a `while` holds (Run.S checks it each time the stats are read)
 // the extra pieces adorn can add (src/adornments.js builds each)
-export const ADORNMENTS = ['sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle', 'fangs'];   // fangs: Bloody Fangs'; ember, barbs, toxin, frost, storm, gale, sparkle: the Fire, Tentacle, Poison, Ice, Lightning, Wind and Glitter jelly types' looks (content/jellies.kdl adorn=)
+export const ADORNMENTS = ['sail', 'halo', 'moon-ring', 'mane', 'fronds', 'rebound-bands', 'mirage-rim', 'flaming-feet', 'ember', 'barbs', 'toxin', 'frost', 'storm', 'gale', 'sparkle', 'beacon', 'fangs'];   // fangs: Bloody Fangs'; ember, barbs, toxin, frost, storm, gale, sparkle, beacon: the Fire, Tentacle, Poison, Ice, Lightning, Wind, Glitter and Summoner jelly types' looks (content/jellies.kdl adorn=)
 
 export const WHILE_WHEN = ['airborne', 'low-health', 'rooted', 'moving', 'lit', 'unhurt', 'wet'];   // lit: inside a night-light's glow; unhurt: no hit taken for 4 s (run.js UNHURT); wet: on one of your puddles
 
 // What `per` can count (Run.S works each one out)
-export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby'];   // burning-nearby: Burning bugs within 30 cm of you
+export const PER_SOURCES = ['max-health', 'move-speed-bonus', 'levels', 'chests', 'burning-nearby', 'little-jellies'];   // burning-nearby: Burning bugs within 30 cm of you; little-jellies: out now (turrets.js)
 
 // The stats a treasure can raise with `stat`, by the name content files use
 export const STAT_NAMES = { bubbles: 'bubbles', range: 'range', 'bubble-damage': 'bubbleDamage', 'fire-rate': 'fireRate', health: 'health', shield: 'shield', 'move-speed': 'moveSpeed', 'health-regen': 'regen', 'tentacle-damage': 'tentacleDamage', dodge: 'dodge', luck: 'luck', 'bubble-size': 'bubbleSize', 'jump-height': 'jumpHeight', tentacles: 'tentacles', 'tentacle-reach': 'reach', 'tentacle-speed': 'tentacleSpeed', pierce: 'pierce', 'burn-damage': 'burnDamage' };
@@ -1539,7 +1549,7 @@ export const TREASURE_WORDS = {
     },
   },
   per: {
-    doc: 'A stat grows by `amount` (a % of its starting value with percent=#true) for every `every` of `of`: max-health, move-speed-bonus (% above your starting Move speed), levels (gained this run), chests (treasures found this run) or burning-nearby (Burning bugs within 30 cm), counting at most `most` of them. Stat names as in `stat`, plus tentacle-damage. Recomputed live, so it follows the stat it reads.',
+    doc: 'A stat grows by `amount` (a % of its starting value with percent=#true) for every `every` of `of`: max-health, move-speed-bonus (% above your starting Move speed), levels (gained this run), chests (treasures found this run), burning-nearby (Burning bugs within 30 cm) or little-jellies (Jelly Mould\'s, out now), counting at most `most` of them. Stat names as in `stat`, plus tentacle-damage. Recomputed live, so it follows the stat it reads.',
     args: ['name', 'amount'],
     props: { every: 1, of: null, percent: false, most: null },
     make: ([name, amount], p) => {
@@ -1579,6 +1589,42 @@ export const TREASURE_WORDS = {
     args: ['status'],
     props: { less: 0.2 },
     make: ([s], p) => { const st = status(s, 'status-taken'); return (m) => { m.statusTaken.push({ status: st, less: p.less }); }; },
+  },
+  // --- the little jellies (Jelly Mould, src/turrets.js): the Summoner Jelly's Attack upgrades
+  'turret-element': {
+    doc: 'Little jellies fire `element` (fire, lightning, ice, poison, wind or glitter: its starting numbers) in place of your jelly type\'s attack. With more than one, each little jelly set down takes the next in turn.',
+    args: ['element'],
+    make: ([el]) => {
+      if (!TURRET_ELEMENTS.includes(el)) throw new Error(`turret-element needs one of ${TURRET_ELEMENTS.join(', ')}, not "${el}"`);
+      return (m) => { if (!m.turretElements.includes(el)) m.turretElements.push(el); };
+    },
+  },
+  'turret-up': {
+    doc: 'Raises the little jellies: one comes `rate` times as often (0.6 = 40% sooner), `most` more at once (never past 6), `health` and `time` times the Health and time, `per-element` more damage for each different Element among those out (0.25 = 25%), and `crit` chance their shots Crit for `crit-mult` times damage. Copies multiply rate, health and time and add the rest.',
+    props: { rate: 1, most: 0, health: 1, time: 1, 'per-element': 0, crit: 0, 'crit-mult': 2 },
+    make: (_, p) => {
+      if (!(p.rate > 0 && p.health > 0 && p.time > 0 && Number.isInteger(p.most) && p.most >= 0 && p['per-element'] >= 0 && p.crit >= 0 && p.crit <= 1 && p['crit-mult'] >= 1)) throw new Error('turret-up: rate, health and time above 0, most a whole number, 0 or more, per-element 0 or more, crit 0 to 1, crit-mult 1 or more');
+      return (m) => { const U = m.turretUp; U.rate *= p.rate; U.most += p.most; U.health *= p.health; U.time *= p.time; U.perElement += p['per-element']; U.crit += p.crit; if (p.crit) U.critMult = Math.max(U.critMult, p['crit-mult']); };
+    },
+  },
+  'turret-on': {
+    doc: 'Does the effects in its { block } where a little jelly stands, when `when`: place (it is set down), end (it is gone, by time or popped), popped (bugs popped it) or every (each `every` s it is out, the first after `every`). Ring, zap, cloud and the rest, as `every` has them, round the little jelly in place of you.',
+    args: ['when'],
+    props: { every: 1 },
+    block: TIMED_WORDS,
+    make: ([when], p, where, effects) => {
+      if (!['place', 'end', 'popped', 'every'].includes(when)) throw new Error(`turret-on: when must be place, end, popped or every, not "${when}"`);
+      if (!(p.every > 0)) throw new Error('turret-on: every= must be above 0');
+      return (m) => { m.turretOn.push({ when, every: p.every, effects }); };
+    },
+  },
+  'turret-relay': {
+    doc: 'Your shots passing within `radius` m of a little jelly that fires an Element take that Element (its Burn, Chill, arcs, Poison, shove or splash) and do `dmg` more damage (0.35 = 35%), once a shot.',
+    props: { radius: 0.08, dmg: 0.35 },
+    make: (_, p) => {
+      if (!(p.radius > 0 && p.dmg >= 0)) throw new Error('turret-relay: radius above 0, dmg 0 or more');
+      return (m) => { m.turretRelay = { radius: Math.max(m.turretRelay?.radius || 0, p.radius), dmg: (m.turretRelay?.dmg || 0) + p.dmg }; };
+    },
   },
   'on-kill-of': {
     doc: 'When a bug that is `status` dies (with at least `stacks` of it), or one killed by `by` (bubble, tentacle, splash or an Element; give either or both), does the effects in its { block } where it died: ring, zap, shards, brick, bubble-ring, xp, cloud, pass-stacks, heal, splash.',

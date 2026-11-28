@@ -55,6 +55,8 @@ export const ELEMENTS = [
   { id: 'wind', color: 0xeef2ff, text: '#ffffff' },
   { id: 'glitter', color: 0xff9ae8, text: '#ffb0f0' },
   { id: 'poison', color: 0x4ff0a0, text: '#9dffc8' },   // a cool friendly green, never the Clog's violet acid
+  // the Summoner Jelly's Signal Shot (content/look.css --signal-*): a cool cyan-violet, friendly
+  { id: 'signal', color: new THREE.Color(LOOK.color('signal-color', '#7fe0ff')).getHex(), text: LOOK.color('signal-core', '#e6f8ff') },
 ];
 const EL = Object.fromEntries(ELEMENTS.map((e) => [e.id, { ...e, glow: new THREE.Color(e.color) }]));
 const GOLD = new THREE.Color(0xffd86a);
@@ -138,6 +140,10 @@ export class Bubbles {
     this.onBlow = null;       // () => void, e.g. the bell's squeeze
     this.windCharge = null;
     this.friendly = FRIENDLY();
+    // the Summoner Jelly's Signal (ELEMENT_BASE.signal): the one bug its shot tagged, { e, t, more, pulse }; turrets.js shoots it first
+    this.signalled = null;
+    this.signalLook = { color: new THREE.Color(LOOK.color('signal-mark-color', '#9fe8ff')), ring: LOOK.num('signal-mark-radius', 2.4), every: LOOK.num('signal-mark-every', 0.6) };
+    this.turrets = null;               // run.js: the little jellies (turret-relay reads where they stand)
   }
 
   reset() {
@@ -157,6 +163,7 @@ export class Bubbles {
     this.looks.clearBolts();
     this.puddles.forEach((p) => { this.scene.remove(p.m); this.puddlePool.push(p.m); });
     this.puddles = [];
+    this.signalled = null;
     this.timer = 0;
     this.elTimers = {};
     this.volleys = 0;
@@ -420,16 +427,17 @@ export class Bubbles {
   // Element) from `origin` at the nearest bug in your Range, for `k` of your Attack damage: its Element's
   // starting numbers and none of your Treasures (fly hits it with PLAIN), never counted as one of your attacks.
   // The bug it aimed at, or null when nothing is in range.
-  turretShot(origin, kind, stats, k) {
+  // `prefer`: a bug it shoots first while it is in range (the Signalled one); `crit`: { chance, mult } its shots roll (turret-up)
+  turretShot(origin, kind, stats, k, prefer = null, crit = null) {
     const id = EL[kind] ? kind : null, P = id ? { ...elementParams(id), rate: BASE_FIRE_RATE, dmg: this.hit, main: true } : null;
-    const range = stats.range * (P?.range ?? 1), target = this.inRange(origin, range)[0];
+    const range = stats.range * (P?.range ?? 1), near = this.inRange(origin, range), target = prefer && near.includes(prefer) ? prefer : near[0];
     if (!target) return null;
     const keep = this.mods; this.mods = PLAIN;   // blow reads shot-speed from it
     const each = stats.bubbleDamage * k, size = stats.bubbleSize;
     const b = id ? this.blow(origin, target, { size, dmg: each * P.dmg, pw: each * 4.5, elems: [id], tint: id, ep: P, pierce: 1 + P.pierce, speed: P.speed, range })
       : this.blow(origin, target, { size, dmg: each * this.hit, pierce: 1 });
     this.mods = keep;
-    b.turret = true; b.pushMul = 1;
+    b.turret = true; b.pushMul = 1; b.crit = crit;
     if (id === 'wind') sfx.windLaunch();
     else if (id && id !== 'fire') { this.looks.launch(id, origin, size * 0.6); sfx.elementLaunch(id); }
     else if (!id) sfx.blow();
@@ -451,7 +459,7 @@ export class Bubbles {
     b.off = o.off || null;               // its place beside the others in its blow: it aims that far to the side of the target
     b.done = false; b.rebound = undefined; b.returning = false; b.orb = null;
     b.seeking = false; b.seekT = 0; b.bounces = 0; b.free = false;
-    b.split = false; b.small = false; b.turret = false;
+    b.split = false; b.small = false; b.turret = false; b.crit = null; b.relayed = null;
     b.shell = false; b.quiet = false; b.delay = 0;       // its film tears open after it pops (startShell)
     b.sq = this.spring.stretch; b.sv = 0; b.pdOk = false; b.pd ||= new THREE.Vector3();   // its flight stretch and spring, and the way it last flew
     b.echoTrailT = 0; b.fireWeight = 0; b.stopFireAudio = null;
@@ -518,6 +526,8 @@ export class Bubbles {
       if (M.wobble && !b.orb) this.wobble(b, M.wobble, dt);
       b.m.position.y += Math.sin(b.t * 9 + b.wobble) * 0.004 * dt * 10;
       b.travel += step;
+      if (M.turretRelay && !b.turret && !b.relayed) this.relay(b, M.turretRelay);
+      if (b.relayed && b.m.userData.look) this.fx.glow.hold(b.m.position, EL[b.relayed].glow, b.r * 4, 0.4);   // it carries the Element's glow
       if (M.swat) E.swatShots(b.m.position, b.r + M.swat.reach);   // Badminton Racket: knocks a bug's Shot back
       if(b.child&&this.treasureLooks&&(b.echoTrailT=(b.echoTrailT??0)-dt)<=0){
         b.echoTrailT=LOOK.num('gadget-echo-trail-gap',.055);
@@ -718,11 +728,12 @@ export class Bubbles {
       L?.streak(at.clone().addScaledVector(b.vel,-.025),at.clone().addScaledVector(b.vel,.025),L.silver,.001,.16,'needle');
       sfx.gadgetBubble('pierce');
     }
-    const H = mods.hits.bubbles;
+    const H = mods.hits.bubbles, C = b.crit || H.crit;   // b.crit: a little jelly's own (turret-up crit=)
     let dmg = b.dmg * (b.golden || 1), color = b.golden ? '#ffd23a' : '#bfe8ff', crit = false;
     if (b.ep?.falloff > 0 && b.hit.size > 1) dmg *= (1 - Math.min(0.9, b.ep.falloff)) ** (b.hit.size - 1);   // Gale: each bug a gust goes through takes less
-    if (H.crit && rollChance(H.crit.chance, mods)) {
-      dmg *= H.crit.mult + (mods.critBonus || 0); color = '#e6fbff';
+    if (b.turret && this.signalled?.e === e) dmg *= 1 + this.signalled.more;   // a little jelly's shot on the Signalled bug
+    if (C && rollChance(C.chance, mods)) {
+      dmg *= C.mult + (mods.critBonus || 0); color = '#e6fbff';
       crit = true;
       this.fx.crit(this.enemies.center(e), e.r); sfx.crit();
       if (H.pin) bus.emit('status_applied', { targetId: e.id, status: 'pin', duration: H.pin });   // pin-on-crit
@@ -730,6 +741,7 @@ export class Bubbles {
     if (mods.focusRamp) dmg *= 1 + this.ramp(e, mods.focusRamp);
     if (H.mark) bus.emit('status_applied', { targetId: e.id, status: 'mark', duration: H.mark, more: H.markMore });
     const el = b.elems, c = this.enemies.center(e), dir = b.vel.clone().setY(0).normalize();
+    if (el.has('signal') && !b.turret && b.ep?.signal) this.signal(e, b.ep);   // the Summoner's own shot (never a little jelly's) Signals what it hits
     const slide = mods.slideOnHit.find((S) => this.enemies.statuses[S.status](e));   // Avalanche: a hit on a bug that has the status sends it sliding
     if (el.has('fire')) {
       const was = this.burning.get(e)?.t > 0;
@@ -776,6 +788,42 @@ export class Bubbles {
       targetId: e.id, dir, force: (0.07 * (b.ep?.push ?? 1) + (!e.T.fly ? knockFor(dmg) : 0)) * (b.pushMul || 1),
       collisionDamage: dmg * (b.ep?.collision ?? 1), pushHits: mods.pushedHits ? dmg : 0,
     });
+  }
+
+  // The Summoner Jelly's Signal: one bug at a time. A hit on another bug moves it there, a hit on the same bug
+  // starts its time again; the lock-on chime only when it moves
+  signal(e, ep) {
+    const S = this.signalled, fresh = S?.e !== e;
+    this.signalled = { e, t: ep.signal, more: ep.signalMore ?? 0, pulse: fresh ? 0 : S.pulse };
+    if (fresh) sfx.signalMark();
+  }
+  // its look while it holds: a cool glow round the bug and a ring pulsing out from it (still in Reduce effects)
+  signalTick(dt) {
+    const S = this.signalled;
+    if (!S) return;
+    if (S.e.dead || (S.t -= dt) <= 0) { this.signalled = null; return; }
+    const E = this.enemies, L = this.signalLook, c = E.center(S.e, this._c), r = S.e.r;
+    this.fx.glow.hold(c, L.color, r * L.ring, 0.3);
+    if ((S.pulse -= dt) <= 0) {
+      S.pulse = L.every;
+      if (!juice.calm) this.fx.ring(V3.set(c.x, S.e.T?.fly ? c.y - r : S.e.pos.y + 0.003, c.z), L.color.getHex(), r * L.ring, L.every * 0.9);
+    }
+  }
+
+  // turret-relay: a shot of yours passing a little jelly that fires an Element takes it once: that Element's
+  // numbers and on-hit (Burn, Chill, arcs, Poison, shove, splash) on top of its own, and `R.dmg` more damage
+  relay(b, R) {
+    const p = b.m.position;
+    for (const T of this.turrets?.list || []) {
+      if (!T.element || T.health <= 0 || T.center.distanceTo(p) > R.radius + b.r) continue;
+      b.relayed = T.element;
+      b.dmg *= 1 + R.dmg; b.pw *= 1 + R.dmg;
+      b.elems.add(T.element);
+      b.ep = { ...b.ep, ...elementParams(T.element), signal: b.ep?.signal, signalMore: b.ep?.signalMore, main: false };
+      this.looks.launch(T.element, p, 0.8);
+      sfx.elementLaunch(T.element);
+      return;
+    }
   }
 
   // focus-ramp: how much more this hit does, by how many hits in a row the same bug has had before it
@@ -852,6 +900,7 @@ export class Bubbles {
   // Burning enemies, lightning arcs and acid puddles
   effects(dt, stats, mods) {
     const E = this.enemies, c = this._c;
+    if (this.signalled) this.signalTick(dt);
     if (this.traps.length) this.tickTraps(dt);
     for (const [e, f] of this.frostbitten) {   // Frostbite: a Chilled bug takes a share of the hit that chilled it, every half second
       if (e.dead) { this.frostbitten.delete(e); continue; }

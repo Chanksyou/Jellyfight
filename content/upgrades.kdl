@@ -374,3 +374,62 @@ upgrade "surge" jelly="lightning" name="Surge" icon="🌊" text="Each arc: +4% F
 upgrade "grounded" jelly="lightning" name="Grounded" icon="🌍" text="Arcs do 3x damage to Elites and the Boss." {
     element-up "lightning" eliteBolt=3
 }
+
+// --- Summoner: the little jellies (docs/jelly-types/types/summoner.md). Numbers are starting values. Ring and zap
+// dmg= are x your power (1.8 x Attack damage): 1.1 is 2x Attack damage, 1.67 3x, 0.28 half.
+// The six Moulds give the little jellies an Element; with two or more, each one set down takes the next in turn.
+upgrade "cinderMould" jelly="summoner" name="Cinder Mould" icon="🔥" text="Little jellies fire Fire shots. When one is gone: a Blast within 10 cm for 2x Attack damage." {
+    turret-element "fire"
+    turret-on "end" {
+        ring 0.1 dmg=1.1 color="#ff8a3d"
+    }
+}
+upgrade "frostMould" jelly="summoner" name="Frost Mould" icon="❄️" text="Little jellies fire Ice shards. Every 1 s: bugs within 12 cm of one are Chilled." {
+    turret-element "ice"
+    turret-on "every" every=1 {
+        ring 0.12 dmg=0 chill=1.2 color="#9cc4ff" show=0.3
+    }
+}
+upgrade "teslaMould" jelly="summoner" name="Tesla Mould" icon="⚡" text="Little jellies fire Lightning shots. Every 2 s: each zaps 2 bugs within 15 cm for 50% Attack damage." {
+    turret-element "lightning"
+    turret-on "every" every=2 {
+        zap 2 range=0.15 dmg=0.28 look="bolt"
+    }
+}
+upgrade "sporeMould" jelly="summoner" name="Spore Mould" icon="🍄" text="Little jellies fire Poison blobs. When one is gone: a 10 cm Poison cloud for 4 s." {
+    turret-element "poison"
+    turret-on "end" {
+        cloud radius=0.1 time=4
+    }
+}
+upgrade "galeMould" jelly="summoner" name="Gale Mould" icon="🌬️" text="Little jellies fire Gusts. When one is set down: bugs within 12 cm are shoved away." {
+    turret-element "wind"
+    turret-on "place" {
+        ring 0.12 dmg=0 push=0.08 color="#c4f0e0"
+    }
+}
+upgrade "prismMould" jelly="summoner" name="Prism Mould" icon="✨" text="Little jellies fire Glitter bombs. 1 in 5 of their hits Crits for 2.5x damage." {
+    turret-element "glitter"
+    turret-up crit=0.2 crit-mult=2.5
+}
+upgrade "budding" jelly="summoner" name="Budding" icon="🌱" text="Little jellies come 40% sooner. +2 little jellies at once." {
+    turret-up rate=0.6 most=2
+}
+upgrade "relay" jelly="summoner" name="Relay" icon="🔗" text="Your Signals passing within 8 cm of a little jelly take its Element and +35% damage." {
+    turret-relay radius=0.08 dmg=0.35
+}
+upgrade "crossPollination" jelly="summoner" name="Cross-Pollination" icon="🌈" text="+25% little jelly damage for each different Element among those out." {
+    turret-up per-element=0.25
+}
+upgrade "martyrPop" jelly="summoner" name="Martyr Pop" icon="💥" text="When bugs pop a little jelly: a Blast within 12 cm for 3x Attack damage." {
+    turret-on "popped" {
+        ring 0.12 dmg=1.67 color="#7fe0ff"
+    }
+}
+upgrade "choir" jelly="summoner" name="Choir" icon="🎶" text="+10% Fire rate per little jelly out, up to +60%. They fire faster too." {
+    per "fire-rate" 10 percent=#true of="little-jellies" most=6
+}
+upgrade "thickGlass" jelly="summoner" name="Thick Glass" icon="🔮" text="Little jellies have 2x Health and last 50% longer. +30% Range." {
+    turret-up health=2 time=1.5
+    stat range 30 percent=#true
+}

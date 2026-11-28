@@ -117,6 +117,11 @@ export class BubbleLooks {
       deep: C(LOOK.color('poison-deep', '#12a866')), gas: C(LOOK.color('poison-gas', '#7dffc0')),
       every: LOOK.num('poison-drip-every', 0.2), burstLife: LOOK.num('poison-burst-life', 0.35),
     };
+    // the Summoner Jelly's Signal Shot (content/look.css --signal-*): a slender light dart with a short ribbon behind it
+    const SG = this.sig = {
+      color: C(LOOK.color('signal-color', '#7fe0ff')), core: C(LOOK.color('signal-core', '#e6f8ff')), trail: C(LOOK.color('signal-trail', '#a98bff')),
+      length: LOOK.num('signal-length', 2.8), trailLife: LOOK.num('signal-trail-life', 0.16),
+    };
     const ball = new THREE.IcosahedronGeometry(1, 2);
     const boil = (m, o) => (fx?.showcase ? fireLooks.churn(m, o) : m);
     const flake = new THREE.CircleGeometry(1, 6), crystal = new THREE.OctahedronGeometry(1, 0), iceMat = new THREE.MeshStandardMaterial({ color: 0xaee6ff, emissive: 0x1a8aff, emissiveIntensity: 1.3, roughness: 0.08, metalness: 0.3, flatShading: true });
@@ -161,6 +166,11 @@ export class BubbleLooks {
         [crescent(WIND_ARC, 0.32), lit(0xffffff, 0.85, true), { name: 'blade', s: [1, 0.35, 1] }],
         [crescent(WIND_ARC * 0.8, 0.22), lit(0xbfe8ff, 0.6, true), { name: 'blade2', s: [1, 0.3, 1], at: [0, 0, -1.1] }],
         [ball, lit(0xeef6ff, 0.6, true), { s: [0.6, 0.6, 0.6] }],
+      ],
+      signal: [
+        [crystal, lit(SG.core), { name: 'dart', s: [0.42, 0.42, SG.length] }],
+        [ball, lit(SG.color, 0.45, true), { name: 'halo', s: [1.1, 1.1, SG.length * 0.7] }],
+        [tongue, lit(SG.trail, 0.5, true), { name: 'ribbon', s: [0.55, 0.55, SG.length * 1.4], at: [0, 0, -0.4] }],
       ],
       glitter: [
         // a clear bauble with a hot pink heart and glitter swirling round inside it
@@ -250,7 +260,7 @@ export class BubbleLooks {
   // each element's own colours for its gather, launch and contact: [main, bright accent]
   tones(el) {
     const F = this.fire;
-    return { fire: [F.flame, F.core], lightning: [COL.bolt, COL.spark], ice: [COL.frost, COL.snow], acid: [COL.acid, COL.drip], poison: [this.pz.blob, this.pz.bright], glitter: [COL.glitter[0], COL.glitter[1]] }[el] || [COL.snow, COL.snow];
+    return { fire: [F.flame, F.core], lightning: [COL.bolt, COL.spark], ice: [COL.frost, COL.snow], acid: [COL.acid, COL.drip], poison: [this.pz.blob, this.pz.bright], glitter: [COL.glitter[0], COL.glitter[1]], signal: [this.sig.color, this.sig.core] }[el] || [COL.snow, COL.snow];
   }
 
   // anticipation: motes of the element drawn in to the bell, tighter and brighter as `k` nears 1
@@ -302,6 +312,9 @@ export class BubbleLooks {
         const ang = k * 0.79 + Math.random() * 0.3;
         glow.emit(pos, k % 3 ? a : this.pz.deep, r * 0.6, r * 0.3, 0.45 + Math.random() * 0.2, 1, _v.set(Math.cos(ang) * 0.1, 0.14 + Math.random() * 0.08, Math.sin(ang) * 0.1), 1.3);
       }
+    } else if (el === 'signal') {   // a crisp ping: a bright point, a cool ring of light opening round it
+      glow.emit(pos, a, r * 6, r * 4, 0.14, 0.6);
+      this.fx.ring(_p.copy(pos), this.sig.color.getHex(), r * 5, 0.25);
     } else if (el === 'glitter') {
       glow.emit(pos, a, r * 5, r * 3, 0.16, 0.6);
       for (let k = 0; k < 8; k++) glow.emit(_p.copy(pos).add(_v.randomDirection().multiplyScalar(r * 2)), COL.glitter[k % 5], r * 0.5, 0, 0.9 + Math.random() * 0.6, 1, _a.set((Math.random() - 0.5) * 0.05, 0.03, (Math.random() - 0.5) * 0.05), 0.05);   // twinkles drifting down
@@ -653,6 +666,14 @@ export class BubbleLooks {
           glow.emit(tail, COL.wisp[1], r * 1.4, r * 0.4, 0.22, 0.6);
           if (Math.random() < 0.5) this.fx.wind.streaks(m.position, dir, 1, b.vel.length() * 0.6, r * WIND_ARC * 2.2);   // air rushing along with it
         }
+        break;
+      }
+      case 'signal': {
+        const SG = this.sig, f = 1 + 0.15 * Math.sin(t * 40 + w);   // it hums as it flies
+        U.halo.scale.set(1.1 * f, 1.1 * f, SG.length * 0.7);
+        U.ribbon.scale.z = SG.length * (1.3 + 0.2 * Math.sin(t * 27 + w));
+        glow.hold(m.position, SG.color, r * 3, 0.35);
+        if (tick) for (let k = 0; k < steps; k++) glow.emit(along(k), k % 2 ? SG.trail : SG.color, r * 1.2, r * 0.2, SG.trailLife, 0.55);   // a short cyan-violet ribbon
         break;
       }
       case 'glitter': {

@@ -314,7 +314,7 @@ export function compileLevelups(nodes, file = 'content/levelups.kdl') {
 // stat line replaces Normal's value (BASE_STATS); Normal itself lists none. adorn= is the type's
 // look, a piece drawn on top of the player's own jelly (src/adornments.js); aura= the element the pick
 // screen draws round it (src/pick-aura.js)
-const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
+const JELLY_ATTACKS = ['bubble', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'signal', 'tentacle'];
 export function compileJellies(nodes, file = 'content/jellies.kdl') {
   const out = {};
   for (const n of nodes) {
@@ -335,6 +335,8 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
     if (act !== undefined && elites !== undefined) throw new Error(`${where}: "${id}" takes unlock-act= or unlock-elites=, not both`);
     if (act !== undefined && ![1, 2, 3, 4].includes(act)) throw new Error(`${where}: "${id}" unlock-act= must be an act, 1 to 4`);
     if (elites !== undefined && !(Number.isInteger(elites) && elites > 0)) throw new Error(`${where}: "${id}" unlock-elites= must be a whole number above 0`);
+    const start = n.props['start-treasure'];
+    if (start !== undefined && !CONTENT.treasures?.some((t) => t.id === start)) throw new Error(`${where}: "${id}" start-treasure= must be a Treasure's id, not "${start}"`);
     const stats = {}, effects = [];
     for (const s of n.children) {
       const at = `${file}:${s.line}`, [name, value] = s.args, key = STAT_NAMES[name];
@@ -345,7 +347,7 @@ export function compileJellies(nodes, file = 'content/jellies.kdl') {
       stats[key] = value;
     }
     out[id] = { id, name: n.props.name, about: n.props.about, attack: n.props.attack, hit: n.props.hit, adorn: n.props.adorn ?? null, aura: n.props.aura ?? null, area: n.props.area === true, stats, effects,
-      icon: typeof n.props.icon === 'string' ? n.props.icon : '🐙', unlock: act ? { act } : elites ? { elites } : null };
+      icon: typeof n.props.icon === 'string' ? n.props.icon : '🐙', unlock: act ? { act } : elites ? { elites } : null, start: start ?? null };
   }
   if (!out.normal) throw new Error(`${file}: no jelly called "normal"`);
   if (Object.keys(out.normal.stats).length) throw new Error(`${file}: "normal" is BASE_STATS, so it lists no stats`);

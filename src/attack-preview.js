@@ -17,7 +17,6 @@
 // pixel read back), at --preview-fps, only while the pick screen is open; its pictures are freed
 // when the screen closes.
 import * as THREE from 'three';
-import { CONTENT } from './content.js';
 import { CONFIG } from './config.js';
 import { LOOK } from './look.js';
 import { juice } from './juice.js';
@@ -34,6 +33,8 @@ import { buildCharacter } from './character.js';
 import { Adornments } from './adornments.js';
 import { jellyStats } from './jelly-types.js';
 import { newMods } from './words.js';
+import { CONTENT, compileMods } from './content.js';
+import { Turrets } from './turrets.js';
 import { PickStage } from './pick-stage.js';
 import { drawToCard } from './pick-auras/painter.js';
 import { MipBloomPass, BloomOutputPass } from './graphics.js';
@@ -165,6 +166,11 @@ export class AttackPreview {
         // the Tentacle jelly's lash is its attack (run.js tentacleStats, with no Treasures)
         P.lashStats = { tentacles: s.bubbles, reach: s.reach, tentacleDamage: s.bubbleDamage * J.hit, tentacleSpeed: s.fireRate };
         P.mods = newMods();
+        // a type that starts with a Treasure setting little jellies down (the Summoner's Jelly Mould): one beside it on the card
+        const mould = J.start ? compileMods({ count: (t) => (t === J.start ? 1 : 0) }).timed.flatMap((T) => T.effects).find((ef) => ef.kind === 'turret') : null;
+        P.turretEf = mould ? { ...mould, time: 1e6, health: 1e6 } : null;
+        if (P.turretEf && !P.turrets) P.turrets = quietly(P, () => new Turrets(P.tr = { scene: P.scene, world: P.world, fx: P.fx, bubbles: P.bubbles, enemies: P.enemies, stage: {}, phase: 'explore', polypT: 0 }));
+        if (P.tr) Object.assign(P.tr, { player: P.player, mods: P.mods, attack: P.attack, S: P.stats, power: P.stats.bubbleDamage * 1.8 });
       }
       this.reset();
       this.on = true;
@@ -195,7 +201,7 @@ export class AttackPreview {
   // everything back to the start: three roaches in their spots, nothing in the air, the first shot soon
   reset() {
     const P = this.P;
-    quietly(P, () => { P.bubbles.reset(); P.lash.reset(); P.fx.glow.clear(); });
+    quietly(P, () => { P.bubbles.reset(); P.lash.reset(); P.fx.glow.clear(); P.turrets?.reset(); });
     for (const b of P.enemies.list) P.scene.remove(b.root);
     // the jelly in the middle facing +x, the roaches in front of it
     P.avatar.root.position.set(0, 0, 0);
@@ -205,6 +211,7 @@ export class AttackPreview {
     for (const b of P.enemies.list) mid.add(b.home);
     mid.multiplyScalar(LOOK.num('preview-camera-lean', 0.6) / spots.length).setY(H * 0.3);   // between the jelly and its roaches, nearer the jelly
     P.deadT = 0;
+    if (P.turretEf) quietly(P, () => P.turrets.place(_at.set(-0.03, 0, -0.07), P.turretEf));   // behind the jelly, to the side: the roaches stay in front
     P.stage.place(mid);
     for (let i = 0; i < 20; i++) quietly(P, () => P.avatar.update?.(0.05, IDLE));   // its tentacles settle before the first frame
     // the camera in front and to the jelly's side, a little above: the jelly near and big, the roaches further off
@@ -234,7 +241,7 @@ export class AttackPreview {
   hide() {
     this.on = false;
     this.canvas.hidden = true;
-    if (this.P) quietly(this.P, () => { this.P.bubbles.reset(); this.P.lash.reset(); });
+    if (this.P) quietly(this.P, () => { this.P.bubbles.reset(); this.P.lash.reset(); this.P.turrets?.reset(); });
   }
 
   // the pick screen closed: free the stage's pictures on the GPU (they're made again on the next show)
@@ -311,6 +318,7 @@ export class AttackPreview {
       const origin = new THREE.Vector3(feet.x, feet.y + H * 0.45, feet.z);
       if (A.kind === 'tentacle') P.lash.update(dt, origin, P.lashStats, P.mods.hits.tentacles, { nth: P.mods.nth, stingCount: P.mods.stingCount });
       else P.lash.animate(dt, origin);
+      P.turrets?.update(dt);
       P.stage.frame(dt, P);
       P.fx.update(dt);
     });

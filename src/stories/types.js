@@ -11,10 +11,10 @@ import { SHADERS } from '../pick-aura.js';
 import { SAVE_KEY, STAGES, carried, keepRun } from '../stages.js';
 import { G, asPlayer, fresh, give, ok, record, restore, roachAt, setupFight, spy, step, story, stub } from './kit.js';
 
-const TYPE_IDS = ['normal', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'tentacle'];
+const TYPE_IDS = ['normal', 'fire', 'lightning', 'ice', 'poison', 'wind', 'glitter', 'summoner', 'tentacle'];
 
 story('content/jellies-load', {
-  about: 'content/jellies.kdl lists all eight jelly types, Normal lists no stats, and a mistake in the file names the file, line and problem.',
+  about: 'content/jellies.kdl lists all nine jelly types, Normal lists no stats, and a mistake in the file names the file, line and problem.',
   setup() {},
   play() {
     const ids = Object.keys(CONTENT.jellies);
@@ -912,14 +912,14 @@ story('types/pick-screen-opens-on-try-again', {
 
 // --- Treasures that fit the jelly types (the Nov 14 treasure audit) ---------------------------------
 story('types/treasures-offered-only-where-they-work', {
-  about: 'Reed Stick\'s giant bubble is Normal\'s alone (not-for every other attack); Bobby Pin is offered to the shot types it pierces with (Fire, Lightning, Ice, Wind, Normal) but not to Poison and Glitter, whose blob and bomb burst on the first bug, nor the Tentacle jelly.',
+  about: 'Reed Stick\'s giant bubble is Normal\'s alone (not-for every other attack); Bobby Pin is offered to the shot types it pierces with (Fire, Lightning, Ice, Wind, Summoner, Normal) but not to Poison and Glitter, whose blob and bomb burst on the first bug, nor the Tentacle jelly.',
   setup() { fresh({ types: 'normal' }); },
   play() {
     const by = (id) => CONTENT.treasures.find((t) => t.id === id), offers = {};
     for (const type of TYPE_IDS) { fresh({ types: type }); const { run } = G(); offers[type] = ['reedStick', 'bobbyPin'].filter((id) => run.forAttack(by(id))); }
     fresh();
     const reed = TYPE_IDS.filter((t) => offers[t].includes('reedStick')), pin = TYPE_IDS.filter((t) => offers[t].includes('bobbyPin'));
-    return ok(reed.join() === 'normal' && pin.join() === 'normal,fire,lightning,ice,wind', { reed, pin });
+    return ok(reed.join() === 'normal' && pin.join() === 'normal,fire,lightning,ice,wind,summoner', { reed, pin });
   },
 });
 story('types/bobby-pin-pierces-element-shots', {
