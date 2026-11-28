@@ -43,6 +43,7 @@ The text states what the code does: never change a number to fit a sentence, and
    - A change to damage: on your side `+30% damage to bugs within 14 cm`, `Crits do 3x damage`; on a bug you changed `Marked bugs take 30% more damage` (always `N% more`, never "takes 2x").
    The verb is `hits` and `do`: not "stings", "hurts", "burns", "cuts", "slams", "strikes" or "deals". `sting` belongs to the Tentacle jelly's lash, `Burns` (capital) only sets the Burn status, `zaps` only for lightning, and `Blasts` only for a Blast.
 4. **Where reads `within N cm`.** Never "nearby", "near", "around you" or "close". A wider or bigger level changes the number.
+   A thing with a size on the floor reads `a 25 cm ice puddle`, `a 5 cm Poison cloud`.
    Targets read `the nearest bug`, `the N nearest bugs`, `the toughest bug within N cm`, `the biggest crowd`.
 5. **How long reads `for N s`, straight after the thing it times.** `an ice puddle for 5 s`, `Stuns them for 0.5 s`, `+40% Fire rate for 8 s`. Not "lasts", "lasting" or "N s long".
 6. **Limits come last in their sentence.** A cooldown reads `4 s cooldown.` as its own sentence. A cap reads `, up to +45%.` for a stat, `, up to 5 stacks.` for a status and `, up to 5 at once.` for things on the floor. Give a stacking boost's total, not its stack count. A floor reads `, never under 0.5.`

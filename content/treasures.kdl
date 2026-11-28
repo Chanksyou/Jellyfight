@@ -47,12 +47,12 @@ treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10t
         golden-bubble every=6 mult=1 coin=6
     }
 }
-treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter signal tentacle" text="Every 6th bubble: a bubble 2.5x bigger and 40% slower hits for 5x Attack damage, splashing for 80% of the hit." {
+treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter signal tentacle" text="Every 6th bubble: a bubble 2.5x bigger and 40% slower does 5x damage and splashes for 80% of the hit." {
     giant-bubble every=6 size=2.5 dmg=5 speed=0.6
-    level 2 text="Every 5th bubble: a bubble 2.5x bigger and 40% slower hits for 4x Attack damage, splashing for 80% of the hit." {
+    level 2 text="Every 5th bubble: a bubble 2.5x bigger and 40% slower does 4x damage and splashes for 80% of the hit." {
         giant-bubble every=5 size=2.5 dmg=4 speed=0.6
     }
-    level 3 text="Every 3rd bubble: a bubble 2.8x bigger and 40% slower hits for 4.5x Attack damage, splashing for 80% of the hit." {
+    level 3 text="Every 3rd bubble: a bubble 2.8x bigger and 40% slower does 4.5x damage and splashes for 80% of the hit." {
         giant-bubble every=3 size=2.8 dmg=4.5 speed=0.6
     }
 }
@@ -154,18 +154,18 @@ treasure "bathBomb" name="Bath Bomb" icon="💥" rarity="rare" attack=#true text
         }
     }
 }
-treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s: an ice puddle within 25 cm for 5 s. Stuns bugs on it for 0.5 s. +25% Move speed on it." {
+treasure "iceCube" name="Ice Cube" icon="🧊" rarity="rare" attack=#true text="Every 6 s: a 25 cm ice puddle for 5 s. Stuns bugs on it for 0.5 s. +25% Move speed on it." {
     while "wet" "move-speed" 25 percent=#true
     every 6 {
         puddle radius=0.25 last=5 skid=0.5
     }
-    level 2 text="Every 5 s: an ice puddle within 35 cm for 5 s. Stuns bugs on it for 0.7 s. +25% Move speed on it." {
+    level 2 text="Every 5 s: a 35 cm ice puddle for 5 s. Stuns bugs on it for 0.7 s. +25% Move speed on it." {
         while "wet" "move-speed" 25 percent=#true
         every 5 {
             puddle radius=0.35 last=5 skid=0.7
         }
     }
-    level 3 text="Every 4 s: an ice puddle within 45 cm for 5 s. Stuns bugs on it for 0.9 s. +25% Move speed on it." {
+    level 3 text="Every 4 s: a 45 cm ice puddle for 5 s. Stuns bugs on it for 0.9 s. +25% Move speed on it." {
         while "wet" "move-speed" 25 percent=#true
         every 4 {
             puddle radius=0.45 last=5 skid=0.9
@@ -187,16 +187,16 @@ treasure "remote" name="TV Remote" icon="📺" rarity="rare" attack=#true text="
         }
     }
 }
-treasure "legoBrick" name="Lego Brick" icon="🧱" rarity="common" attack=#true text="Every 4 s: a brick for 14 s, up to 5 at once. The first bug to step on it hits bugs within 2.4 cm for 7.2x Attack damage." {
+treasure "legoBrick" name="Lego Brick" icon="🧱" rarity="common" attack=#true text="Every 4 s: a brick for 14 s, up to 5 at once. When a bug steps on it: Blasts bugs within 2.4 cm for 7.2x Attack damage." {
     every 4 {
         brick dmg=4 last=14 most=5 size=3 burst=0.024
     }
-    level 2 text="Every 3.5 s: a brick for 14 s, up to 6 at once. The first bug to step on it hits bugs within 2.4 cm for 8.1x Attack damage." {
+    level 2 text="Every 3.5 s: a brick for 14 s, up to 6 at once. When a bug steps on it: Blasts bugs within 2.4 cm for 8.1x Attack damage." {
         every 3.5 {
             brick dmg=4.5 last=14 most=6 size=4 burst=0.024
         }
     }
-    level 3 text="Every 3 s: a brick for 14 s, up to 7 at once. The first bug to step on it hits bugs within 2.4 cm for 9x Attack damage." {
+    level 3 text="Every 3 s: a brick for 14 s, up to 7 at once. When a bug steps on it: Blasts bugs within 2.4 cm for 9x Attack damage." {
         every 3 {
             brick dmg=5 last=14 most=7 size=5 burst=0.024
         }
@@ -279,7 +279,7 @@ treasure "lemon" name="Lemon Slice" icon="🍋" rarity="common" attack=#true tex
     stat bubble-damage 2
 }
 // behind you, at full damage (Double Bubble is the side-by-side one)
-treasure "bubbleWand" name="Bubble Wand" icon="🍭" rarity="rare" attack=#true not-for="tentacle" text="Also fires 1 attack straight behind you for 1x Attack damage." stack=2 {
+treasure "bubbleWand" name="Bubble Wand" icon="🍭" rarity="rare" attack=#true not-for="tentacle" text="Also fires 1 attack straight behind you for 100% of the hit." stack=2 {
     rear-shot 1
 }
 treasure "magnet" name="Fridge Magnet" icon="🧲" rarity="common" text="XP flies to you from 3x as far." {
