@@ -2,6 +2,8 @@
 
 Release notes for Jelly Run, newest first. For setup and gameplay, see the [README](README.md).
 
+v760 Jelly Mould's little jellies come every 8 s (6 and 4 s at levels 2 and 3) with 35, 70 and 105 Health, firing at 60%, 80% and 100% damage; Summoner Jelly's Fire rate is 1, Health 18 and Move speed 0.9; Relay adds 50% and Cross-Pollination 40% per Element.
+
 v759 makes each bug, and the Vacuum and the Clog, hurt by touch at most once a second, on the jelly and on a Jelly Mould's little jellies; two different bugs touching at the same moment both still land, and bites, Shots, Blasts, rams and rolls keep the short 0.25 s no-hurt time.
 
 v758 adds the Summoner Jelly (unlocked at 9 Elites): it fires a Signal, a light dart that tags one bug at a time so your little jellies shoot it first for 25% more damage, starts every run with Jelly Mould, and has 12 Attack upgrades that give little jellies Elements, Blasts, Chill, zaps, Relay and more.

@@ -1,1 +1,0 @@
-Jelly Mould's little jellies come every 8 s (6 and 4 s at levels 2 and 3) with 35, 70 and 105 Health, firing at 60%, 80% and 100% damage; Summoner Jelly's Fire rate is 1, Health 18 and Move speed 0.9; Relay adds 50% and Cross-Pollination 40% per Element.
