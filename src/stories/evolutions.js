@@ -194,7 +194,7 @@ story('dev/balance-editor', {
     const field = (kind, id, label) => groups.find((g) => g.kind === kind && g.id === id).fields.find((f) => f.label === label);
     const panel = window.tuner; panel.show(run, {});
     const rows = panel.el.querySelectorAll('.row').length;
-    const described = panel.el.querySelector('.row[data-id="coffeeBean"]').textContent.includes('+15% Fire rate. After each level-up');
+    const described = panel.el.querySelector('.row[data-id="coffeeBean"]').textContent.includes('+15% Fire rate. On a level-up');
     panel.hide();
     const first = spawn('roach', near(0.3, 0), { still: true });
     const hp0 = first.hp;

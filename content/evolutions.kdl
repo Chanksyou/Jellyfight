@@ -10,7 +10,7 @@
 //
 //   evolution "id" name="…" icon="…" text="…" { effect words… }
 
-evolution "cinder" name="Cinder Jelly" icon="👣" text="Your trail burns for 3 s, stinging bugs on it (not in the air). -20% Range and Tentacle reach." {
+evolution "cinder" name="Cinder Jelly" icon="👣" text="Walking leaves a trail for 3 s that hits bugs on it for 0.9x Attack damage a second. -20% Range and Tentacle reach." {
     fire-trail time=3 radius=0.03 height=0.05 dps=0.5 tick=0.25
     stat range -20 percent=#true
     stat tentacle-reach -20 percent=#true
@@ -24,31 +24,31 @@ evolution "rebound" name="Rebound Jelly" icon="🔁" not-for="fire lightning ice
     adorn "rebound-bands"
 }
 
-evolution "mirage" name="Mirage Jelly" icon="👻" text="Every 8 s of moving: leave a ghost for 4 s that bugs within 45 cm aim at (Elites and locked attacks still aim at you). -15% max Health." {
+evolution "mirage" name="Mirage Jelly" icon="👻" text="Every 8 s of moving: a ghost for 4 s that bugs within 45 cm aim at. -15% max Health. Not Elites, the Boss or locked attacks." {
     decoy every=8 time=4 range=0.45
     stat health -15 percent=#true
     adorn "mirage-rim"
 }
 
 // retired: Bubble Wrap and the Shield stat do its job (a Shield that bursts when it breaks)
-evolution "aegis" name="Aegis Jelly" icon="🛡️" retired=#true text="+5 Shield. When your Shield breaks: a burst does 15 damage within 20 cm." {
+evolution "aegis" name="Aegis Jelly" icon="🛡️" retired=#true text="+5 Shield. When your Shield breaks: a Blast hits bugs within 20 cm for 15 damage." {
     stat shield 5
     shield-burst dmg=15 radius=0.2 flat=#true
 }
 
-evolution "manOWar" name="Man o' War" icon="⛵" not-for="tentacle" text="2 polyps circle you: each attack, each fires one more at 30% damage. -15% max Health." {
+evolution "manOWar" name="Man o' War" icon="⛵" not-for="tentacle" text="2 polyps circle you and fire your attack for 30% of the hit. -15% max Health." {
     polyps 2 dmg=0.3
     stat health -15 percent=#true
     adorn "sail"
 }
-evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act: survive a killing hit as a polyp, safe but unable to attack for 5 s, then back to full Health. -10% max Health; no Health regen after." {
+evolution "immortal" name="Immortal Jelly" icon="♾️" text="Once per act: a hit that would kill you makes you a polyp for 5 s, then gives you full Health. As a polyp you can't be hurt or attack. -10% max Health and no Health regen after." {
     rebirth time=5
     stat health -10 percent=#true
     no-regen revived=#true
     adorn "halo"
 }
 // the surge is the trick, not a ring round you (Guitar Pick is the pulse): bugs in the way are stung and shoved aside
-evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s: surge forward, stinging and shoving aside bugs you pass. -30% Range." {
+evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s: a surge forward hits bugs you pass within 5 cm for 3.6x Attack damage and shoves them aside. -30% Range." {
     every 2 {
         dash 1.2 time=0.35 dmg=2 push=0.06 reach=0.05
     }
@@ -56,13 +56,13 @@ evolution "moonJelly" name="Moon Jelly" icon="🌙" text="Every 2 s: surge forwa
     stat tentacle-reach -30 percent=#true
     adorn "moon-ring"
 }
-evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health. Bugs touching you are stung 4 times a second. -20% Move speed." {
+evolution "lionsMane" name="Lion's Mane" icon="🦁" text="+60% max Health. Every 0.25 s: hits bugs touching you for 0.9x Attack damage. -20% Move speed." {
     stat health 60 percent=#true
     touch-sting dmg=0.5 every=0.25 reach=0.08
     stat move-speed -20 percent=#true
     adorn "mane"
 }
-evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="Stand still 1 s to root: +80% Fire rate, +1 Health a second, and attacks pierce 1 more bug. Moving ends it." {
+evolution "upsideDown" name="Upside-down Jelly" icon="🙃" text="After 1 s standing still: +80% Fire rate, +5 Health every 5 s and attacks pierce 1 more bug." {
     while "rooted" "fire-rate" 80 percent=#true
     while "rooted" "health-regen" 1
     while "rooted" "pierce" 1
