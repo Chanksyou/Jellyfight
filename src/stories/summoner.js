@@ -168,13 +168,13 @@ story('treasures/turret-up', {
     const at = log.length; place(0.2, 0);
     step(60 * 2);
     const crits = onBug(log.slice(at), bug, 'turret').filter((d) => d.feedback?.crit).map((d) => d.amount);   // (the Fire and Ice shots still flying land too)
-    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 4.5 * 0.4 * 1.8)) && crits.length >= 1 && crits.every((d) => near2(d, 4.5 * 0.4 * 2.5)),
+    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 5.5 * 0.4 * 1.8)) && crits.length >= 1 && crits.every((d) => near2(d, 5.5 * 0.4 * 2.5)),
       { glass: first && [first.health, first.t], sooner, most, both, crits });
   },
 });
 
 story('treasures/turret-relay', {
-  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 50% more (4.5 x 1.5); it still Signals the bug, and passing a second little jelly adds nothing more.',
+  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 50% more (5.5 x 1.5); it still Signals the bug, and passing a second little jelly adds nothing more.',
   setup: () => setup(),
   play() {
     const { run } = G();
@@ -185,8 +185,8 @@ story('treasures/turret-relay', {
     const log = record('damage_taken'), bug = roachAt(0, -0.2), home = bug.pos.clone();
     step(60 * 1.5, () => { bug.pos.copy(home); return onBug(log, bug, 'bubble').length > 0; });
     const hit = onBug(log, bug, 'bubble')[0];
-    return ok(hit && near2(hit.amount, 4.5 * 1.5) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
-      { amount: hit?.amount, want: 4.5 * 1.5, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
+    return ok(hit && near2(hit.amount, 5.5 * 1.5) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
+      { amount: hit?.amount, want: 5.5 * 1.5, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
   },
 });
 
