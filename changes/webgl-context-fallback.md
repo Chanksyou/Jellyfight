@@ -1,1 +1,0 @@
-makes the game ask a browser for graphics again with less (no high-performance GPU, no reversed depth, no multisampling) when it refuses the first time, gives back the spare test context so reloads don't run into the browser's limit, and, when there are no graphics at all, says how to turn on hardware acceleration instead of showing an error panel.
