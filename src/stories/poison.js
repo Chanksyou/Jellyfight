@@ -29,7 +29,7 @@ const quiet = () => { setupFight({ types: 'poison' }); stub(G().run.bubbles, 'el
 const POISON_POOL = ['wither', 'lingeringDose', 'overdose', 'splatter', 'venomStrike', 'wasteAway', 'toxicCloud', 'burstSac', 'leech', 'contagion', 'poisonRain', 'splitBlob'];
 
 story('types/poison-plays', {
-  about: 'A Poison jelly hurts a bug only with its blob (5 x 0.6 = 3 a hit) and the Poison its burst adds: no bubbles, no stings, no puddles. A bug under steady fire holds the most stacks, 5. A Poisoned bug deals 20% less damage to the jelly (the type\'s own status-taken), one without Poison as much as ever.',
+  about: 'A Poison jelly hurts a bug only with its blob (6 x 0.6 = 3.6 a hit) and the Poison its burst adds: no bubbles, no stings, no puddles. A bug under steady fire holds the most stacks, 5. A Poisoned bug deals 20% less damage to the jelly (the type\'s own status-taken), one without Poison as much as ever.',
   setup() { setupFight({ types: 'poison' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley');
@@ -38,7 +38,7 @@ story('types/poison-plays', {
     const by = {};
     for (const d of log) if (d.targetId !== PLAYER) { const k = d.source === 'bubble' && d.feedback?.element ? d.feedback.element : d.source; (by[k] ||= []).push(d.amount); }
     const only = Object.keys(by).length === 1 && by.poison?.length > 0;
-    const hits = by.poison.filter((a) => Math.abs(a - 3) < 1e-9).length, ticks = by.poison.length - hits;
+    const hits = by.poison.filter((a) => Math.abs(a - 3.6) < 1e-9).length, ticks = by.poison.length - hits;
     const held = stacks(bug), noPuddles = run.bubbles.puddles.length === 0;
     const plain = roachAt(0.2, 0.2);
     const taken = spy(run, 'hit'), from = (e) => { run.iFrames = 0; bus.emit('damage_taken', { targetId: PLAYER, amount: 4, from: e.id, source: 'story' }); return taken.at(-1)[0]; };

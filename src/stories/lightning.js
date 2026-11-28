@@ -27,7 +27,7 @@ const land = () => { const { run } = G(); for (let i = 0; i < 90 && run.bubbles.
 const lightning = (log) => dmgBy(log, 'lightning');
 
 story('types/lightning-plays', {
-  about: 'A Lightning jelly hurts a bug only with its Lightning shot (4.5 Attack damage x hit 1, 2.2 a second): no plain bubbles and no tentacle stings; each shot arcs to others for 41% and Stuns them; it wears the storm look; and the end-of-act pick offers only Lightning\'s own upgrades.',
+  about: 'A Lightning jelly hurts a bug only with its Lightning shot (5.5 Attack damage x hit 1, 2.2 a second): no plain bubbles and no tentacle stings; each shot arcs to others for 41% and Stuns them; it wears the storm look; and the end-of-act pick offers only Lightning\'s own upgrades.',
   setup() { setupFight({ types: 'lightning' }); },
   play() {
     const { run } = G();
@@ -39,10 +39,10 @@ story('types/lightning-plays', {
     const sources = Object.keys(by);
     const hits = log.filter((d) => d.source === 'bubble' && d.targetId !== PLAYER).map((d) => d.amount);
     const arcs = lightning(log);
-    const only = sources.every((k) => ['lightning', 'splash'].includes(k)) && hits.length > 0 && hits.every((a) => Math.abs(a - 4.5) < 1e-9);
+    const only = sources.every((k) => ['lightning', 'splash'].includes(k)) && hits.length > 0 && hits.every((a) => Math.abs(a - 5.5) < 1e-9);
     const rate = shots.length >= 16 && shots.length <= 19;   // 2.2 a second for 8 s
-    // each arc is 41% of the shot (4.5 x 4.5 x 0.09 / 4.5 = 4.5 x 0.405) and Stuns
-    const arcOk = arcs.length > 0 && arcs.every((d) => Math.abs(d.amount - 4.5 * 4.5 * 0.09) < 1e-9) && stuns.some((s) => s.status === 'stun' && s.duration === 0.5);
+    // each arc is 41% of the shot (5.5 x 4.5 x 0.09 / 5.5 = 5.5 x 0.405) and Stuns
+    const arcOk = arcs.length > 0 && arcs.every((d) => Math.abs(d.amount - 5.5 * 4.5 * 0.09) < 1e-9) && stuns.some((s) => s.status === 'stun' && s.duration === 0.5);
     step(1);
     const look = run.typeAdorn.join() === 'storm' && run.adorn.pieces.storm?.group.visible;
     // the upgrade pick: three of Lightning's own, none of another type's

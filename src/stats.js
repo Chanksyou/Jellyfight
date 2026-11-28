@@ -6,7 +6,7 @@ export const BASE_STATS = {
   // Bubbles: the main attack, ranged. Level-up cards improve these.
   bubbles: 1,         // bubbles blown side by side at once, flying parallel; each extra one costs damage (BUBBLE_PENALTY)
   range: 0.3,         // meters a bubble flies before it pops on its own
-  bubbleDamage: 6,    // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
+  bubbleDamage: 7,   // damage when a bubble pops on an enemy (a slower stream, each bubble hits hard)
   fireRate: 1.76,     // blows per second (each blow is `bubbles` bubbles at once)
   bubbleSize: 1.0,    // size multiplier: bigger bubbles are easier to land and splash wider
   health: 25,         // max health

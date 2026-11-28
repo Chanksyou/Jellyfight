@@ -1,3 +1,4 @@
+// Nov 28: every type's Attack damage is 1 higher (Normal 6 to 7 in BASE_STATS, Wind takes that; the damage sums in the notes below are from before it).
 // Jelly types: what a run starts as (docs/jelly-types/spec-core.md). A first run is
 // always Normal; later runs pick.
 //
@@ -29,7 +30,7 @@ jelly "normal" name="Normal Jelly" icon="💭" about="Blows a steady stream at t
 // hit= scales only the shot's own hit: Burn follows Attack damage alone, so a change to hit moves
 // about half of Fire's damage
 jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, and a Burning bug that dies lights its neighbours." attack="fire" hit=0.75 adorn="ember" aura="flames" {
-    stat bubble-damage 7.5
+    stat bubble-damage 8.5
     stat move-speed 1.05
     stat health 17
     stat fire-rate 1.5
@@ -41,7 +42,7 @@ jelly "fire" name="Fire Jelly" icon="🔥" unlock-act=1 about="Shots Burn bugs, 
 jelly "lightning" name="Lightning Jelly" icon="⚡" unlock-act=2 about="Each hit arcs to 3 more bugs and Stuns them briefly." attack="lightning" hit=1 area=#true adorn="storm" aura="sparks" {
     stat fire-rate 2.2
     stat move-speed 1.15
-    stat bubble-damage 4.5
+    stat bubble-damage 5.5
     stat health 22
 }
 
@@ -51,7 +52,7 @@ jelly "lightning" name="Lightning Jelly" icon="⚡" unlock-act=2 about="Each hit
 jelly "ice" name="Ice Jelly" icon="❄️" unlock-elites=3 about="Slow shards Chill bugs so you can wear them down." attack="ice" hit=1 adorn="frost" aura="frost" {
     stat health 31
     stat shield 5
-    stat bubble-damage 9
+    stat bubble-damage 10
     stat fire-rate 1.2
     stat move-speed 0.88
     stat jump-height 0.9
@@ -67,7 +68,7 @@ jelly "poison" name="Poison Jelly" icon="🧪" unlock-act=3 about="Blobs burst i
     stat health-regen 0.1
     stat bubble-size 1.2
     stat health 28
-    stat bubble-damage 5
+    stat bubble-damage 6
     stat range 0.25
 }
 
@@ -91,7 +92,7 @@ jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs bur
     stat luck 15
     stat bubble-size 1.5
     stat dodge 10
-    stat bubble-damage 6
+    stat bubble-damage 7
     stat fire-rate 1.5
 }
 
@@ -102,7 +103,7 @@ jelly "glitter" name="Glitter Jelly" icon="✨" unlock-elites=6 about="Bombs bur
 // (Signalled) x 1.5/s = 3.4 while it is out, 8 s of every 10, so 2.7 on average: 9.5 together, the low end of the
 // 9-12 budget (docs/jelly-types/types/summoner.md). Its Attack upgrades all work through the little jellies
 jelly "summoner" name="Summoner Jelly" icon="📡" unlock-elites=9 start-treasure="jellyMould" about="Signals tag one bug at a time: your little jellies shoot it first, for 25% more damage." attack="signal" hit=1 adorn="beacon" aura="signal" {
-    stat bubble-damage 4.5
+    stat bubble-damage 5.5
     stat fire-rate 1
     stat range 0.36
     stat health 18
@@ -112,7 +113,7 @@ jelly "summoner" name="Summoner Jelly" icon="📡" unlock-elites=9 start-treasur
 // Tentacle: Attacks tentacles each sting a different bug for Attack damage, Fire rate times a
 // second: 9 x 1.76 = 15.8 a second on one bug, up to 47.5 on three in reach
 jelly "tentacle" name="Tentacle Jelly" icon="🐙" unlock-act=4 about="No ranged attack: tentacles sting up to 3 bugs within reach." attack="tentacle" hit=1 adorn="barbs" aura="sting" {
-    stat bubble-damage 9
+    stat bubble-damage 10
     stat bubbles 3
     stat tentacle-reach 0.13
     stat health 35

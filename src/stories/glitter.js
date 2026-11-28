@@ -29,7 +29,7 @@ const mistake = (src) => { try { compileTreasures(parse(`treasure "x" name="X" i
 // a Glitter fight whose jelly doesn't fire on its own
 const quiet = () => { setupFight({ types: 'glitter' }); stub(G().run.bubbles, 'elementVolley', () => false); };
 // a glitter bomb (the Glitter jelly's: ep.main) that hit `hit`, as bubbles.js blows it: 6 Attack damage at Attack size 1.5
-const AD = 6, HIT = 1.3, SIZE = 1.5;
+const AD = 7, HIT = 1.3, SIZE = 1.5;
 function bomb(hit, at = G().enemies.center(hit).clone()) {
   return { m: { position: at }, r: 0.0065 * SIZE, dmg: AD * HIT, pw: AD * 4.5, ep: G().run.bubbles.mainParams('glitter', G().run.mods), elems: new Set(['glitter']), hit: new Set(hit ? [hit] : []) };
 }
@@ -39,7 +39,7 @@ const kill = (e) => bus.emit('damage_taken', { targetId: e.id, amount: 1e6, sour
 const GLITTER_POOL = ['prism', 'rainbow', 'luckySparkle', 'confettiPop', 'midasTouch', 'discoBomb', 'mirrorGlitter', 'wish', 'jackpot', 'hotStreak', 'partyPopper', 'starBurst'];
 
 story('types/glitter-plays', {
-  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 6 x 1.3 = 7.8 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 2.4. Each burst shows as a cloud of glitter.',
+  about: 'A Glitter jelly hurts bugs only with its glitter bombs: the bug a bomb hits takes 7 x 1.3 = 9.1 (no bubbles, no stings), and every other bug in its burst takes 40% of Attack damage, 2.8. Each burst shows as a cloud of glitter.',
   setup() { setupFight({ types: 'glitter' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley');
