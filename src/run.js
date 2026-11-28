@@ -123,6 +123,7 @@ export class Run {
     this.tether = new Tether(this);   // Tether Current's beam (tether.js)
     this.wake = new Wake(this);       // Bioluminescent Wake's trail (wake.js)
     this.turrets = new Turrets(this); // Jelly Mould's little jellies (turrets.js)
+    this.bubbles.turrets = this.turrets;   // turret-relay: your shots passing one take its Element (bubbles.js)
     this.decoys = [];                 // what bugs can go for instead of you this frame (enemies.update)
     this.onWalk = (from, dir, length) => { if (this.fireTrail.config) this.fireTrail.onWalk(from, dir, length); if (this.mods.wake) this.wake.onWalk(from, dir, length); };
     this.evolutionReveal = new EvolutionReveal(this);
@@ -473,7 +474,7 @@ export class Run {
       this.reborn = !!C.reborn;
       this.health = this.S.health;   // with what its evolution and treasures add
       this.startPicked = true;        // you already have your treasures
-    }
+    } else if (this.attack && CONTENT.jellies[this.jelly].start) this.owned.add(CONTENT.jellies[this.jelly].start);   // start-treasure= (the Summoner Jelly's Jelly Mould): owned from the start, not found
     this.spawnAcc = 0; this.arrived = 0;
     this.bursts = [];
     this.nightT = 0;
@@ -608,7 +609,7 @@ export class Run {
   // what a per converter counts (`of`), read from stats S
   perSource(of, S) {
     return of === 'max-health' ? S.health : of === 'move-speed-bonus' ? Math.max(0, (S.moveSpeed / this.baseStats.moveSpeed - 1) * 100) : of === 'levels' ? this.level - 1
-      : of === 'burning-nearby' ? this.burningNear || 0 : this.chestsOpened || 0;
+      : of === 'burning-nearby' ? this.burningNear || 0 : of === 'little-jellies' ? this.turrets.list.length : this.chestsOpened || 0;
   }
 
   get power() { return this.S.bubbleDamage * 1.8; }   // gadgets and treasures: pop 6 -> 10.8, as before the slower, harder stream
@@ -2455,7 +2456,7 @@ export class Run {
       left = Math.max(0, Math.min(1, left));
       if (!out[id] || left < out[id].left) out[id] = { left, spent };   // several copies: the soonest
     };
-    for (const T of M.timed) put(T.owner, (G.t[T.key] ?? T.first * cd) / (T.every * cd));
+    for (const T of M.timed) { const k = T.effects.some((ef) => ef.kind === 'turret') ? cd * M.turretUp.rate : cd; put(T.owner, (G.t[T.key] ?? T.first * k) / (T.every * k)); }   // (turret-up rate=, as gadgets.js)
     for (const H of M.onHurt) {
       const used = H.oncePerAct && this.onceUsed.has(H.key);   // once-per-act: spent until the next act
       put(H.owner, used ? 1 : ((this.hurtCd[H.key] || 0) - this.t) / (H.cooldown * cd), used);

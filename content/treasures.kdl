@@ -47,7 +47,7 @@ treasure "goldRing" name="Gold Ring" icon="💍" rarity="common" text="Every 10t
         golden-bubble every=6 mult=1 coin=6
     }
 }
-treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter tentacle" text="Every 6th bubble: a giant, slow one that bursts in a big splash." {
+treasure "reedStick" name="Reed Stick" icon="🎋" rarity="epic" attack=#true not-for="fire lightning ice poison wind glitter signal tentacle" text="Every 6th bubble: a giant, slow one that bursts in a big splash." {
     giant-bubble every=6 size=2.5 dmg=5 speed=0.6
     level 2 text="Every 5th bubble: a giant, slow one that bursts in a big splash." {
         giant-bubble every=5 size=2.5 dmg=4 speed=0.6

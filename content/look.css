@@ -227,6 +227,15 @@
   --turret-height: 0.05;         /* m: top of the bell off the floor */
   --turret-lure: 0.3;            /* m: ordinary bugs this near it, and nearer it than you, go for it */
   --turret-no-hurt: 0.25;        /* s after a hit before it can be hurt again (the jelly's own) */
+  /* the Summoner Jelly's Signal Shot (bubble-looks.js, bubbles.js signal): friendly cool cyan and violet */
+  --signal-color: #7fe0ff;       /* the dart's glow, its launch and contact flash */
+  --signal-core: #e6f8ff;        /* its white-hot middle */
+  --signal-trail: #a98bff;       /* the violet in its ribbon */
+  --signal-length: 2.8;          /* the dart's length, in its radii */
+  --signal-trail-life: 0.16;     /* s each mote of its ribbon hangs in the air */
+  --signal-mark-color: #9fe8ff;  /* the glow and pulsing ring on the Signalled bug */
+  --signal-mark-radius: 2.4;     /* that ring, in the bug's radii */
+  --signal-mark-every: 0.6;      /* s between its pulses (held still in Reduce effects: the glow only) */
   --wake-glow: 0.7;              /* how bright the trail glows (its plankton specks are brighter) */
   --tether-core: #f2fdff;        /* Tether Current: the beam's white-hot middle */
   --tether-edge: #4fd8ff;        /* its cyan glow, the sparks at both ends and the glow on a cut bug */
@@ -487,6 +496,7 @@
   --type-wind: #c4f0e0;
   --type-glitter: #ff9ae8;
   --type-tentacle: #c79bff;
+  --type-summoner: #7fe0ff;
   --pick-roll-time: 0.58;      /* seconds the Random (?) tile sweeps across unlocked jellies before landing */
   --pick-roll-steps: 10;       /* hops the Random (?) roulette makes before landing */
   --pick-squeeze: 0.08;        /* seconds the Play button squeezes before the run starts (the start waits this long) */
@@ -497,6 +507,7 @@
   --aura-flames-ramp: #fff6dc #ffc85a #ff6a1f #8a1a0a;
   --aura-frost-ramp: #ffffff #dcf6ff #86d3f4 #245f92;
   --aura-bubbles-ramp: #ffffff #d9f4ff #7fd0e8 #2a6f9a;   /* Normal: white glints, pale blue rim, the water's blue */
+  --aura-signal-ramp: #ffffff #c8f4ff #7fe0ff #5a3fb0;   /* Summoner: white pings, pale cyan, its cyan, a deep violet */
   --aura-gust-ramp: #f4fffb #c4f0e0 #6fbfae #1f5a5a;   /* Wind: white air, pale mint, sage teal, deep */
   --aura-gust-leaves: #9fc46a #d1a455;                  /* Wind: the two leaf colours riding its spiral */
   --aura-toxic-ramp: #f4ffd8 #c4ff6a #5fcf3c #0e3a1a;   /* Poison: the highlight, the sickly glow, the goo, its dark edge */
@@ -548,6 +559,7 @@
   --preview-grade-tentacle: #ff6aff;       /* Tentacle: its dusk violet */
   --preview-grade-glitter: #ff5ce6;     /* Glitter: the water behind it, a pink-violet party */
   --preview-grade-poison: #a8e07c;     /* Poison: murky sickly green water */
+  --preview-grade-summoner: #8fb8ff;   /* Summoner: the water behind it, cool cyan-violet */
   --preview-shafts: 0.5;               /* the slow shafts of light from the surface */
   --preview-specks: 0.22;              /* how bright the specks drifting through the water are */
 
@@ -1521,6 +1533,13 @@
   --gale-streak: #e6f8ff;         /* Wind jelly: the soft air ribbons circling the bell */
   --gale-streak-radius: 0.42;     /* how far out they circle, in shares of the jelly's height */
   --gale-streak-spin: 3.2;        /* radians a second the nearer ring turns (the other turns back, slower) */
+  --beacon-ring: #9fe8ff;         /* Summoner jelly: the thin ring of light floating over its bell */
+  --beacon-mote: #c9b6ff;         /* the three motes circling it */
+  --beacon-radius: 0.24;          /* the ring, in shares of the jelly's height */
+  --beacon-height: 0.95;          /* how high over the bell it floats (the bell's own units, as --gale-streak-radius's middle is 0.42) */
+  --beacon-mote-size: 0.035;      /* each mote, in shares of the jelly's height */
+  --beacon-spin: 1.8;             /* radians a second the motes circle */
+  --beacon-ping-every: 2.4;       /* s between the ring's pings (none in Reduce effects) */
   --gale-tentacle-stream: 0.3;    /* how far back its tentacles stream, in shares of their length */
   --glide-streak-every: 0.09;     /* seconds between the air streaks rising past you while you glide */
   /* the Poison jelly's attack (src/bubble-looks.js poison): a cool friendly green, never the Clog's violet acid */

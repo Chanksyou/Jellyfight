@@ -155,6 +155,12 @@ The Poison jelly type's status on bugs. Its blob's burst adds a Poison stack to 
 The Wind jelly type's attack: a fast crescent of wind that goes through bugs, shoves each one back, and hits a bug it slams into furniture a second time. Its upgrades (Gale, Crosswind, Jet Stream…) change how it flies.
 _Avoid_: Wind blade
 
+**Signal**:
+The Summoner Jelly type's attack: a fast dart of light. The bug it hits is Signalled for 3 s, one bug at a time: little jellies shoot it first and do 25% more damage to it. Elites and the Boss can be Signalled. Not the same as Sticky Note's mark.
+
+**Little jelly**:
+What Jelly Mould sets down on the floor: it fires your jelly type's attack for a while and ordinary bugs nearer it than you go for it. The Summoner Jelly starts with Jelly Mould, and its Attack upgrades give little jellies Elements.
+
 **Sun**:
 Act 4's daylight, a line that creeps across the living room from the window wall. Standing on its side of the line costs Health every second (the jelly dries out); bugs and Elites aren't hurt.
 

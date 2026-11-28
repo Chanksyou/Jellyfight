@@ -81,13 +81,13 @@ story('board/tabs-switch-and-champions-show-every-type', {
       const champs = rowsText();
       const note = modal().querySelector('.jf-board-body .sub')?.innerText || '';
       const chip = modal().querySelector('.jf-season')?.innerText || '';
-      const empty = champs.length === 8 && /Nobody yet/.test(champs[7]) && /Tentacle Jelly/.test(champs[7]);
+      const empty = champs.length === 9 && /Nobody yet/.test(champs[8]) && /Tentacle Jelly/.test(champs[8]);
       tabBtn('all').click(); await wait(150);
       const all = rowsText();
       tabBtn('ice').click(); await wait(150);
       const ice = rowsText();
       const iceTab = tabBtn('ice');
-      return ok(tabs.join() === 'champions,all,normal,fire,lightning,ice,poison,wind,glitter,tentacle' && opened && chip === 'Season 1' && /You hold 1 of 8/.test(note) && empty
+      return ok(tabs.join() === 'champions,all,normal,fire,lightning,ice,poison,wind,glitter,summoner,tentacle' && opened && chip === 'Season 1' && /You hold 1 of 9/.test(note) && empty
         && /Chan/.test(champs[3]) && /Ice Jelly · Won/.test(champs[3]) && iceTab.getAttribute('aria-pressed') === 'true' && iceTab.getAttribute('aria-label') === 'Ice Jelly'
         && all.length === 3 && /Ice Jelly · Won · 3 acts untouched/.test(all[0]) && /Normal Jelly · Won · 1 act untouched/.test(all[1]) && /Fire Jelly · Reached act 4/.test(all[2])
         && ice.length === 5 && /^1\. Chan \(you\) Won · 3 acts untouched/.test(ice[0]) && /Reached act 2/.test(ice[4]) && !/Ice Jelly/.test(ice[0])

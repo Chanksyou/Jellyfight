@@ -16,6 +16,8 @@
 //               running off the rim
 //   gale        the Wind jelly type: thin air streaks circling the bell, its tentacles streaming back
 //               as if in a breeze
+//   beacon      the Summoner jelly type: a thin ring of light floating over the bell, pinging out now and
+//               then like its Signal, and three motes circling it
 //   fangs       Bloody Fangs (a Treasure): two fangs hanging under the front of the bell's rim
 //   storm       the Lightning jelly type: tentacle tips glowing faintly, a small arc jumping between two
 //               tips every few seconds, static flecks
@@ -26,6 +28,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
 import { batcher } from './batch.js';
+import { juice } from './juice.js';
 
 const _gale = new THREE.Vector3();
 const glowMat = (name, fallback, opts = {}) => {
@@ -260,6 +263,34 @@ export class Adornments {
       rings.forEach((m, i) => {
         m.position.set(_gale.x, base, _gale.z);
         m.rotation.y += dt * L('streak-spin', 3.2) * (i ? -0.7 : 1);
+      });
+    } };
+  }
+
+  // Summoner jelly: a thin ring of light floating over the bell that pings (swells and fades back) every few seconds,
+  // and three motes circling it. All glow, no light; one batched group
+  make_beacon() {
+    const group = new THREE.Group(), h = this.h, L = (k, f) => LOOK.num('beacon-' + k, f);
+    const mat = new THREE.MeshBasicMaterial({ color: LOOK.color('beacon-ring', '#9fe8ff'), transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    const moteMat = new THREE.MeshBasicMaterial({ color: LOOK.color('beacon-mote', '#c9b6ff'), toneMapped: false });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 6, 40).rotateX(Math.PI / 2), mat);
+    const ball = new THREE.SphereGeometry(1, 8, 6);
+    const motes = [0, 1, 2].map(() => { const m = new THREE.Mesh(ball, moteMat); m.scale.setScalar(h * L('mote-size', 0.035)); group.add(m); return m; });
+    group.add(ring);
+    this.batch.track(group);
+    const R = h * L('radius', 0.24), up = L('height', 0.95);
+    return { group, free: true, tick: (dt, run) => {
+      const rig = this.player.avatar?.tentacles, on = !!rig && !['dead', 'won'].includes(run.phase) && !(run.polypT > 0);
+      ring.visible = on; for (const m of motes) m.visible = on;
+      if (!on) return;
+      rig.parent.localToWorld(_gale.set(0, up, 0));
+      const calm = juice.calm, every = L('ping-every', 2.4), k = calm ? 0 : (this.t % every) / every, ping = k < 0.25 ? Math.sin(k / 0.25 * Math.PI) : 0;
+      ring.position.copy(_gale).y += Math.sin(this.t * 2) * h * 0.02;
+      ring.scale.setScalar(R * (1 + ping * 0.35));
+      mat.opacity = 0.85 - ping * 0.4;
+      motes.forEach((m, i) => {
+        const a = this.t * L('spin', 1.8) + i * Math.PI * 2 / 3;
+        m.position.set(ring.position.x + Math.cos(a) * R * 1.35, ring.position.y + Math.sin(this.t * 3 + i) * h * 0.04, ring.position.z + Math.sin(a) * R * 1.35);
       });
     } };
   }

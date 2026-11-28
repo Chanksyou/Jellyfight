@@ -449,7 +449,8 @@ export class Gadgets {
     // timed effects: every N s, do what's in the block
     const cd = M.cooldownScale ?? 1;
     for (const T of M.timed) {
-      if (this.every(T.key, dt, T.every * cd, T.first * cd)) for (const ef of T.effects) this.fire(ef, ctx);
+      const k = T.effects.some((ef) => ef.kind === 'turret') ? cd * M.turretUp.rate : cd;   // turret-up rate= (Budding): little jellies come sooner
+      if (this.every(T.key, dt, T.every * k, T.first * k)) for (const ef of T.effects) this.fire(ef, ctx);
       else for(const ef of T.effects) {
         if(ef.kind==='bubble-ring'&&this.t[T.key]<LOOK.num('gadget-bath-prepare',.3)){
           this.bathReady.visible=true;this.bathReady.position.copy(center);

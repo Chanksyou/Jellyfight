@@ -3,6 +3,11 @@
 // Range. Each has its own Health: ordinary bugs nearer one than the jelly go for it (enemies.update decoys),
 // their hits land on it (run.js hands them over while enemies.striking) and so do their touches.
 // One draw for all of them: an instanced bell, legs, eyes and a floor puddle in one shader (no light, rule 7).
+// The Summoner Jelly's Attack upgrades raise them through the run's effects (words.js): turret-element (the
+// Element each fires, taken in turn, tinting its bell in that Element's --type- colour), turret-up (sooner,
+// more, tougher, longer, harder by Elements out, Crits), turret-on (a block that goes off where one stands
+// when it is set down, gone, popped, or every few seconds) and turret-relay (bubbles.js). A bug Signalled by
+// the Summoner's shot (bubbles.js signalled) is the one they shoot first.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LOOK } from './look.js';
@@ -49,30 +54,35 @@ export class Turrets {
     const g = shape(R, H);
     this.state = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4).setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('aState', this.state);
+    this.tint = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 3), 3).setUsage(THREE.DynamicDrawUsage);   // each one's top colour: cool, or its Element's
+    g.setAttribute('aTint', this.tint);
     this.cool = new THREE.Color(LOOK.color('turret-cool', '#4fe6ff'));
+    this.tints = {};   // Element -> its --type- colour (turret-element)
+    this.nextElement = 0;
     this.deep = new THREE.Color(LOOK.color('turret-deep', '#9a5cff'));
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        cool: { value: this.cool }, deep: { value: this.deep },
+        deep: { value: this.deep },
         core: { value: new THREE.Color(LOOK.color('turret-core', '#f2c8ff')) },
         glow: { value: LOOK.num('turret-glow', 0.75) }, height: { value: H }, clock: { value: 0 },
       },
       vertexShader: `#include <common>
         #include <logdepthbuf_pars_vertex>
-        attribute float part; attribute vec4 aState;
-        varying vec3 vN, vV, vL; varying float vPart; varying vec4 vS;
+        attribute float part; attribute vec4 aState; attribute vec3 aTint;
+        varying vec3 vN, vV, vL, vT; varying float vPart; varying vec4 vS;
         void main() {
           vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
           vN = normalize(mat3(modelMatrix * instanceMatrix) * normal); vV = normalize(cameraPosition - w.xyz);
-          vL = position; vPart = part; vS = aState;
+          vL = position; vPart = part; vS = aState; vT = aTint;
           gl_Position = projectionMatrix * viewMatrix * w;
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: `#include <logdepthbuf_pars_fragment>
-        uniform vec3 cool, deep, core; uniform float glow, height, clock;
-        varying vec3 vN, vV, vL; varying float vPart; varying vec4 vS;
+        uniform vec3 deep, core; uniform float glow, height, clock;
+        varying vec3 vN, vV, vL, vT; varying float vPart; varying vec4 vS;
         void main() {
           #include <logdepthbuf_fragment>
+          vec3 cool = vT;                                 // its top: the little jelly's own cyan, or its Element's colour
           float rim = pow(1.0 - abs(dot(normalize(vN), vV)), 2.0), h = clamp(vL.y / height, 0.0, 1.0);
           vec3 col; float a;
           if (vPart > 2.5) { col = vec3(0.05, 0.03, 0.12) + rim * 0.5 * cool; a = 1.0; }                    // eyes
@@ -97,24 +107,41 @@ export class Turrets {
     run.scene.add(this.mesh);
   }
 
-  reset() { this.list.length = 0; this.mesh.count = 0; this.clock = 0; }
+  reset() { this.list.length = 0; this.mesh.count = 0; this.clock = 0; this.nextElement = 0; }
+
+  // turret-on: the blocks for `when` go off round the little jelly, as `every` blocks go off round you (gadgets.js fire)
+  on(when, T) {
+    const R = this.run;
+    for (const O of R.mods.turretOn) if (O.when === when) this.fire(O, T);
+  }
+  fire(O, T) {
+    const R = this.run, ctx = { feet: T.position, center: T.center, facing: T.face, power: R.power, mods: R.mods };
+    for (const ef of O.effects) R.gadgets.fire(ef, ctx);
+  }
+
+  // what its bell is tinted (an Element's --type- colour), read once
+  colorOf(el) { return el ? (this.tints[el] ||= new THREE.Color(LOOK.color('type-' + el, '#' + this.cool.getHexString()))) : this.cool; }
 
   // the turret word going off (gadgets.js fire): a little jelly on the floor under `at`
   place(at, ef) {
-    const R = this.run, kind = R.attack?.kind ?? 'bubble';
+    const R = this.run, kind = R.attack?.kind ?? 'bubble', U = R.mods.turretUp, els = R.mods.turretElements;
     if (kind === 'tentacle') return;   // no shot to give it (the treasure is not-for="tentacle")
-    while (this.list.length >= Math.min(ef.most, MAX)) this.end(this.list[0], false);
+    while (this.list.length >= Math.min(ef.most + U.most, MAX)) this.end(this.list[0], false);
     const hit = R.world.castAll(_p.copy(at).setY(at.y + 0.01), _down, 2), y = hit ? hit.point.y : at.y;
     const T = {
       position: new THREE.Vector3(at.x, y, at.z), center: new THREE.Vector3(at.x, y + this.H * 0.55, at.z),
       range: LOOK.num('turret-lure', 0.3), takes: true,   // a decoy (enemies.update) that takes the hits aimed at it
-      health: ef.health, t: ef.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, flash: 0, kick: 0, face: R.player.facing ?? 0,
+      health: ef.health * U.health, t: ef.time * U.time, dmg: ef.dmg, age: 0, timer: 0, noHurt: 0, flash: 0, kick: 0, face: R.player.facing ?? 0,
+      element: els.length ? els[this.nextElement++ % els.length] : null,   // turret-element: each one set down takes the next in turn
+      beats: R.mods.turretOn.map(() => 0),                                  // turret-on every=: its own clock for each
       hurt: (n) => this.hurt(T, n),
     };
+    T.color = this.colorOf(T.element);
     this.list.push(T);
-    R.fx.burst(_p.copy(T.center), ['#' + this.cool.getHexString(), '#' + this.deep.getHexString(), '#ffffff'], 8, 0.004, 0.3, y);
-    R.fx.puff(T.center, this.cool.getHex(), this.R * 1.6, 0.3);
+    R.fx.burst(_p.copy(T.center), ['#' + T.color.getHexString(), '#' + this.deep.getHexString(), '#ffffff'], 8, 0.004, 0.3, y);
+    R.fx.puff(T.center, T.color.getHex(), this.R * 1.6, 0.3);
     sfx.jump();
+    this.on('place', T);
   }
 
   // a bug's hit or touch: Health off, a white flash, then a moment it can't be hurt (as the jelly's own)
@@ -123,7 +150,7 @@ export class Turrets {
     T.health -= n; T.noHurt = LOOK.num('turret-no-hurt', 0.25); T.flash = 1;
     const fx = this.run.fx;
     fx.number(_p.copy(T.center).setY(T.center.y + this.H * 0.6), String(Math.round(n * 10) / 10), LOOK.color('turret-hurt', '#ffffff'), 11);
-    fx.burst(_p.copy(T.center), ['#' + this.cool.getHexString(), '#ffffff'], 4, 0.003, 0.2, T.position.y);
+    fx.burst(_p.copy(T.center), ['#' + (T.color || this.cool).getHexString(), '#ffffff'], 4, 0.003, 0.2, T.position.y);
     if (T.health <= 0) this.end(T, true);
     else sfx.pop(false);
   }
@@ -135,11 +162,13 @@ export class Turrets {
     this.list.splice(i, 1);
     T.health = 0;
     const fx = this.run.fx;
-    fx.burst(_p.copy(T.center), ['#' + this.cool.getHexString(), '#' + this.deep.getHexString()], popped ? 14 : 6, 0.004, 0.35, T.position.y);
+    fx.burst(_p.copy(T.center), ['#' + (T.color || this.cool).getHexString(), '#' + this.deep.getHexString()], popped ? 14 : 6, 0.004, 0.35, T.position.y);
     fx.puff(T.center, this.deep.getHex(), this.R * (popped ? 2.4 : 1.6), 0.35);
     fx.splat(_p.copy(T.position), this.deep.getHex(), this.R * 1.4);
     sfx.pop(popped);
     if (popped) juice.feel('hit');
+    this.on('end', T);
+    if (popped) this.on('popped', T);
   }
 
   // ordinary bugs touching it hurt it, as they would the jelly (run.js contactDamage)
@@ -157,30 +186,41 @@ export class Turrets {
     if (!['explore', 'boss'].includes(R.phase) || R.polypT > 0) { this.reset(); return; }
     if (dt <= 0) return;
     this.clock += dt;
-    const kind = R.attack?.kind ?? 'bubble', S = R.S, fireRate = S.fireRate;
+    const kind = R.attack?.kind ?? 'bubble', S = R.S, fireRate = S.fireRate, M = R.mods, U = M.turretUp;
+    // turret-up per-element= (Cross-Pollination): more damage for each different Element among those out
+    let k = 1;
+    if (U.perElement) { const seen = this._seen ||= new Set(); seen.clear(); for (const T of this.list) if (T.element) seen.add(T.element); k += U.perElement * seen.size; }
+    const crit = U.crit > 0 ? (this._crit ||= {}) : null;
+    if (crit) { crit.chance = Math.min(1, U.crit); crit.mult = U.critMult; }
+    const S8 = R.bubbles.signalled, prefer = S8 && !S8.e.dead ? S8.e : null;   // the Signalled bug: shot first
     for (const T of [...this.list]) {
       T.age += dt; T.t -= dt; T.noHurt -= dt;
       T.flash = Math.max(0, T.flash - dt * 8); T.kick = Math.max(0, T.kick - dt * 5);
       if (T.t <= 0) { this.end(T, false); continue; }
       this.touches(T);
       if (T.health <= 0) continue;
+      for (let i = 0; i < M.turretOn.length; i++) {   // turret-on every=: each on its own clock
+        const O = M.turretOn[i];
+        if (O.when === 'every' && (T.beats[i] = (T.beats[i] ?? 0) + dt) >= O.every) { T.beats[i] -= O.every; this.fire(O, T); }
+      }
+      if (T.health <= 0 || !this.list.includes(T)) continue;
       T.timer = Math.min(1, T.timer + dt * fireRate);   // the jelly's own Fire rate: one shot a beat of it
       if (T.timer < 1 || T.age < 0.25) continue;
       const m = _p.set(Math.sin(T.face) * this.R * 0.9, this.H * 0.55, Math.cos(T.face) * this.R * 0.9).add(T.position);
-      const e = R.bubbles.turretShot(m, kind, S, T.dmg);
+      const e = R.bubbles.turretShot(m, T.element || kind, S, T.dmg * k, prefer, crit);
       T.idle = !e;
       if (!e) continue;   // ready, waiting for something in Range (no charging glow meanwhile)
       T.timer -= 1; T.kick = 1;
       const to = R.enemies.center(e, _c);
       T.face = Math.atan2(to.x - T.position.x, to.z - T.position.z);
-      R.fx.glow.emit(m, this.cool, this.R * 0.7, this.R * 0.2, 0.1, 1.1);
+      R.fx.glow.emit(m, T.color || this.cool, this.R * 0.7, this.R * 0.2, 0.1, 1.1);
     }
     this.draw();
   }
 
   // the instances: popping up, breathing, squashing as each shot leaves, melting away at the end
   draw() {
-    const calm = juice.calm, st = this.state.array, n = Math.min(this.list.length, MAX);
+    const calm = juice.calm, st = this.state.array, tn = this.tint.array, n = Math.min(this.list.length, MAX);
     this.uniforms.clock.value = calm ? 0 : this.clock;
     for (let i = 0; i < n; i++) {
       const T = this.list[i], up = Math.min(1, T.age / 0.25), pop = up < 1 ? 1 - (1 - up) ** 3 * (1 - 2.5 * up) : 1;
@@ -189,10 +229,11 @@ export class Turrets {
       _q.setFromAxisAngle(_y, T.face);
       _m.compose(T.position, _q, _s.set(k * (1 + sq * 0.5 - breathe * 0.5), k * (1 - sq + breathe), k * (1 + sq * 0.5 - breathe * 0.5)));
       this.mesh.setMatrixAt(i, _m);
+      (T.color || this.cool).toArray(tn, i * 3);
       st[i * 4] = fade; st[i * 4 + 1] = T.idle ? 0 : Math.max(0, (T.timer - 0.8) / 0.2); st[i * 4 + 2] = T.flash; st[i * 4 + 3] = T.kick;
     }
     this.mesh.count = n;
-    if (n) { this.mesh.instanceMatrix.needsUpdate = true; this.state.needsUpdate = true; }
+    if (n) { this.mesh.instanceMatrix.needsUpdate = true; this.state.needsUpdate = true; this.tint.needsUpdate = true; }
   }
 
   // main.js warmUp: one shown for a frame so its shader is built before play
