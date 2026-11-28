@@ -4,7 +4,7 @@
 // (content/jellies.kdl) a card does nothing for: it isn't offered to those jelly types. How an amount applies (a percent of the base
 // stat, per second, percentage points) stays with the stat's definition in stats.js.
 
-xp base=4 growth=1.35 steady-from=7 step=30
+xp base=4 growth=1.35 steady-from=7 step=30 first=3   // first= is the XP for level 1 to 2 alone (3 roaches), so the first card comes sooner and the rest of the curve is unchanged
 
 rarities common=65 rare=25 epic=10
 

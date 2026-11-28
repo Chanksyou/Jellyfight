@@ -120,3 +120,15 @@ story('spawn/a-first-run-shows-its-first-bugs', {
       { spawned: seen.length, grew: seen.map((s) => +s.grow.toFixed(2)), dists: seen.map((s) => +s.d.toFixed(2)), pocketSquaresNear: best.n, points, walled });
   },
 });
+
+story('spawn/act-1-fills-more-slowly', {
+  about: 'Act 1\'s night grows its bug rate by 0.0015 a second (content/waves.kdl `spawning act=1`), not the plain 0.0022: at 3:00 it asks for 0.49 bugs a second, and an act with no block of its own still asks for 0.62.',
+  setup() { fresh({ waves: true, elites: false, bubbles: false, lash: false }); calm(); },
+  play() {
+    const { run } = G(), W = CONTENT.waves, asks = () => { run.spawnAcc = 0; run.t = 180; run.spawnWaves(1); return run.spawnAcc; };
+    const act1 = asks(), more = run.mods.moreBugs * (run.stage.bugs || 1);
+    run.stage = { ...run.stage, id: 2 }; const act2 = asks();
+    return ok(Math.abs(act1 - (0.22 + 0.0015 * 180) * more) < 1e-6 && Math.abs(act2 - (W.rate + W.grow * 180) * more) < 1e-6 && act1 < act2 && W.byAct[1].capEvery === 20 && W.capEvery === 15,
+      { act1, act2, byAct: W.byAct });
+  },
+});

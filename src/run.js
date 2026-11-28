@@ -943,8 +943,9 @@ export class Run {
     const W = CONTENT.waves, bugs = W.bugs.filter((b) => b.act === this.stage.id);   // this act's bugs
     if (!bugs.length) return;
     const more = this.mods.moreBugs * (this.stage.bugs || 1);   // more-bugs (treasures), and the act's own `bugs`
-    const rate = (W.rate + this.t * W.grow) * more;
-    const cap = Math.min(W.capMax, W.cap + this.t / W.capEvery) * more;
+    const S = { ...W, ...W.byAct[this.stage.id] };   // an act's own `spawning act=N` over the plain one
+    const rate = (S.rate + this.t * S.grow) * more;
+    const cap = Math.min(S.capMax, S.cap + this.t / S.capEvery) * more;
     this.spawnAcc += rate * dt;
     while (this.spawnAcc >= 1) {
       this.spawnAcc -= 1;

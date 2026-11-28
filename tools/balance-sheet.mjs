@@ -98,7 +98,7 @@ const knob = (A, k) => at(A.file, new RegExp(`^  ${k}:`), new RegExp(`^export co
 // The night's bugs (run.js spawnWaves): rate + grow x t a second, times the act's `bugs`, each pick by
 // weight among the bugs already out. The alive cap is ignored, so counts are a ceiling.
 export function night(A, xpMult = 1, moreBugs = 1) {
-  const W = CONTENT.waves, list = W.bugs.filter((b) => b.act === A.n), per = {}, dt = 0.1;
+  const W = { ...CONTENT.waves, ...CONTENT.waves.byAct[A.n] }, list = CONTENT.waves.bugs.filter((b) => b.act === A.n), per = {}, dt = 0.1;   // an act's own `spawning act=N` over the plain one
   let out = 0;
   for (let t = 0; t < A.night; t += dt) {
     const rate = (W.rate + t * W.grow) * A.bugs * moreBugs, live = list.filter((b) => t >= b.from), sw = live.reduce((s, b) => s + b.weight, 0);
@@ -1060,7 +1060,7 @@ bugs out is the night model's count (alive cap ignored)`,
 // Bug Health arriving a second against the reference jelly's Offence, through the night. The jelly levels on the XP the bugs bring,
 // from where the last act's Boss door left it; Offence is the cards-only jelly times what Treasures add at this act's door (the run log).
 export function pressure(A, dt = 5, scale = {}) {
-  const W = CONTENT.waves, list = W.bugs.filter((b) => b.act === A.n), tough = A.toughness * (scale.toughness ?? 1), bugs = A.bugs * (scale.bugs ?? 1), M = MOMENTS[A.n];
+  const W = { ...CONTENT.waves, ...CONTENT.waves.byAct[A.n] }, list = CONTENT.waves.bugs.filter((b) => b.act === A.n), tough = A.toughness * (scale.toughness ?? 1), bugs = A.bugs * (scale.bugs ?? 1), M = MOMENTS[A.n];
   const k = (scale.k ?? (M.real || 1) / offence('normal', refStats('normal', M.level))), x0 = xpFor(RUN_LOG.level[A.n - 2] ?? 1), out = [];
   let xp = 0;
   for (let t = 0; t < A.night; t += dt) {

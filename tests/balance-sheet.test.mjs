@@ -14,9 +14,9 @@ test('level 1 damage a second matches each type\'s note in content/jellies.kdl',
   assert.equal(B.offPts(B.OFF0), 100);
 });
 test('the night, the level curve and the reference jelly', () => {
-  assert.ok(Math.abs(B.night(B.ACTS[0]).out - 131.6) < 1);   // 0.22 x 260 + 0.0011 x 260²
-  assert.equal(B.levelAt(4), 2);                             // the first level costs 4 XP
-  assert.equal(B.levelAt(9), 3);                             // then round(4 x 1.35) = 5
+  assert.ok(Math.abs(B.night(B.ACTS[0]).out - 107.9) < 1);   // 0.22 x 260 + 0.00075 x 260² (act 1's own grow, 0.0015)
+  assert.equal(B.levelAt(3), 2);                             // the first level costs 3 XP (`first`)
+  assert.equal(B.levelAt(8), 3);                             // then round(4 x 1.35) = 5
   assert.deepEqual(B.refStats('normal', 1), B.baseOf('normal'));
   assert.ok(B.refStats('normal', 10).bubbleDamage > B.baseOf('normal').bubbleDamage);
   assert.ok(Math.abs(Object.values(B.offerChance('normal')).reduce((a, b) => a + b, 0) - 3) < 1e-9);
@@ -61,7 +61,7 @@ test('Wave C reads the bugs and the night', () => {
   const fly = B.attackOf('housefly');
   assert.equal(fly.hits[0].dmg, 4); assert.equal(fly.hits[0].cycle, 1.5); assert.equal(fly.warn, 0.5);
   assert.equal(B.attackOf('roach').hits[0].word, 'touch');
-  B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [10.2, 15.4, 19.65, 22.8][i]) < 0.3, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the levels at each Boss door under the steady curve (the old x1.35 curve gave 11.7 / 16.2 / 19.3 / 20.6)
+  B.ACTS.forEach((A, i) => { const P = B.pressure(A); assert.ok(Math.abs(P[P.length - 1].level - [9.7, 15.4, 19.65, 22.8][i]) < 0.3, `act ${A.n} ends at level ${P[P.length - 1].level}`); });   // the levels at each Boss door under the steady curve (the old x1.35 curve gave 11.7 / 16.2 / 19.3 / 20.6)
 });
 
 test('Wave C3 to C5 read the Elites, the Bosses and the jump from the code', () => {
