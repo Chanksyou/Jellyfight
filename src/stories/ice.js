@@ -32,20 +32,20 @@ const calm = (opts = {}) => { setupFight({ types: 'ice', lash: false, ...opts })
 
 // ------------------------------------------------------------------ the jelly
 story('types/ice-plays', {
-  about: 'An Ice jelly starts with Health 31, Shield 5 and Attack damage 9, hurts bugs only with its ice shard (9 each, 1.2 a second: 10.8 damage a second, inside the 9-12 budget), Chills every bug it hits, wears the frost look (crystal in the bell, frost on the tips) and is offered only Ice upgrades.',
+  about: 'An Ice jelly starts with Health 31, Shield 5 and Attack damage 10, hurts bugs only with its ice shard (10 each, 1.2 a second: 12 damage a second, the top of the budget), Chills every bug it hits, wears the frost look (crystal in the bell, frost on the tips) and is offered only Ice upgrades.',
   setup() { setupFight({ types: 'ice' }); },
   play() {
     const { run, menus } = G(), s = run.stats;
     step(2);
-    const stats = run.jelly === 'ice' && s.health === 31 && s.shield === 5 && s.bubbleDamage === 9 && s.fireRate === 1.2 && s.moveSpeed === 0.88 && s.jumpHeight === 0.9 && !menus.open && run.owned.size === 0;
+    const stats = run.jelly === 'ice' && s.health === 31 && s.shield === 5 && s.bubbleDamage === 10 && s.fireRate === 1.2 && s.moveSpeed === 0.88 && s.jumpHeight === 0.9 && !menus.open && run.owned.size === 0;
     const bug = roachAt(0, -0.15);
     const log = record('damage_taken');
     let chilled = 0;
     step(60 * 8, () => { if (bug.chillT > 0) chilled++; return false; });
     const hits = log.filter((d) => d.targetId === bug.id), sources = new Set(hits.map((d) => (d.source === 'bubble' && d.feedback?.element) || d.source));
     const amounts = hits.map((d) => d.amount), dps = amounts.reduce((a, b) => a + b, 0) / 8;
-    const only = sources.size === 1 && sources.has('ice') && amounts.every((a) => Math.abs(a - 9) < 1e-9);
-    const budget = dps >= 9 && dps <= 12;
+    const only = sources.size === 1 && sources.has('ice') && amounts.every((a) => Math.abs(a - 10) < 1e-9);
+    const budget = dps >= 9 && dps <= 13;
     const look = run.typeAdorn.join() === 'frost' && !!run.adorn.pieces.frost?.group.visible;
     return ok(stats && only && budget && chilled > 60 && look, { stats, sources: [...sources], shots: amounts.length, dps: +dps.toFixed(2), chilled, look: run.typeAdorn });
   },

@@ -8,9 +8,9 @@ import { ROOT } from './lib.mjs';
 const B = await import('../tools/balance-sheet.mjs');
 
 test('level 1 damage a second matches each type\'s note in content/jellies.kdl', () => {
-  const want = { normal: 10.56, fire: 14.175, lightning: 9.9, ice: 10.8, poison: 10.3, wind: 8.1, glitter: 11.7, tentacle: 15.8 };
+  const want = { normal: 12.32, fire: 16.065, lightning: 12.1, ice: 12, poison: 12.34, wind: 9.45, glitter: 13.65, tentacle: 17.6 };
   for (const [type, dps] of Object.entries(want)) assert.ok(Math.abs(B.offence(type, B.baseOf(type)) - dps) < 0.1, `${type}: ${B.offence(type, B.baseOf(type))}`);
-  assert.ok(Math.abs(B.offence('glitter', B.baseOf('glitter'), 'clump') - (11.7 + 4 * 6 * 0.4 * 1.5)) < 0.1);   // its note: a crowd of 5 takes 26.1 more
+  assert.ok(Math.abs(B.offence('glitter', B.baseOf('glitter'), 'clump') - (13.65 + 4 * 7 * 0.4 * 1.5)) < 0.1);   // its note: a crowd of 5 takes 26.1 more
   assert.equal(B.offPts(B.OFF0), 100);
 });
 test('the night, the level curve and the reference jelly', () => {
@@ -38,10 +38,10 @@ test('every number and every knob cites a line that exists', () => {
 
 test('Wave B prices a pick with the game\'s own mods', () => {
   const lemon = B.worth('normal', B.MOMENTS[0], { t: { lemon: 1 } });
-  assert.ok(Math.abs(lemon.off - 100 * 2 / 6) < 0.01, `Lemon Slice +2 on 6: ${lemon.off}`);     // +2 Attack damage on a level 1 Normal jelly
+  assert.ok(Math.abs(lemon.off - 100 * 2 / 7) < 0.01, `Lemon Slice +2 on 7: ${lemon.off}`);     // +2 Attack damage on a level 1 Normal jelly
   assert.equal(lemon.def, 0);
   const pick = B.worth('normal', B.MOMENTS[0], { t: { guitarPick: 1 } });
-  assert.ok(Math.abs(pick.dps - 6 * 1.8 * 2 * B.ASSUME.area / 5) < 1e-9, `Guitar Pick every 5 s, ring 2: ${pick.dps}`);   // power x multiple x bugs / seconds
+  assert.ok(Math.abs(pick.dps - 7 * 1.8 * 2 * B.ASSUME.area / 5) < 1e-9, `Guitar Pick every 5 s, ring 2: ${pick.dps}`);   // power x multiple x bugs / seconds
   const glass = B.worth('normal', B.MOMENTS[0], { t: { shotGlass: 1 } });
   assert.ok(Math.abs(glass.off - 50) < 0.01 && glass.def < -19 && glass.def > -21, `Shot Glass: ${glass.off} ${glass.def}`);   // +50% damage, hits take x1.25
 });

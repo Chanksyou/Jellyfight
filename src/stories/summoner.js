@@ -33,7 +33,7 @@ story('content/start-treasure', {
 });
 
 story('types/summoner-plays', {
-  about: 'A Summoner Jelly starts with Jelly Mould at level 1 (owned, not logged as a pickup), fires its Signal at its Fire rate of 1 for 4.5 a hit (Attack damage 4.5 x hit 1), and the bug it hits is Signalled for 3 s. Taking Jelly Mould again levels it to 2 (12 s, 70 Health).',
+  about: 'A Summoner Jelly starts with Jelly Mould at level 1 (owned, not logged as a pickup), fires its Signal at its Fire rate of 1 for 5.5 a hit (Attack damage 5.5 x hit 1), and the bug it hits is Signalled for 3 s. Taking Jelly Mould again levels it to 2 (12 s, 70 Health).',
   setup: () => setup(),
   play() {
     const { run } = G();
@@ -41,7 +41,7 @@ story('types/summoner-plays', {
     stub(run.turrets, 'place', () => {});   // no little jelly: only the Signal hurts the bug
     const log = record('damage_taken'), bug = roachAt(0, -0.15), home = bug.pos.clone();
     for (let i = 0; i < 60 * 3; i++) { step(1); bug.pos.copy(home); }
-    const hits = onBug(log, bug, 'bubble'), exact = hits.every((d) => near2(d.amount, 4.5) && d.feedback?.element === 'signal');
+    const hits = onBug(log, bug, 'bubble'), exact = hits.every((d) => near2(d.amount, 5.5) && d.feedback?.element === 'signal');
     const S = run.bubbles.signalled, tagged = S?.e === bug && S.t > 2 && S.t <= 3 && near2(S.more, 0.25);
     give('jellyMould');
     const T = run.mods.timed.find((t) => t.effects.some((e) => e.kind === 'turret'))?.effects.find((e) => e.kind === 'turret');
@@ -78,7 +78,7 @@ story('types/summoner-signal-is-one-bug-at-a-time', {
 });
 
 story('types/summoner-little-jellies-shoot-the-signalled-bug', {
-  about: 'A little jelly shoots the Signalled bug first while it is in Range, even with another bug nearer, each hit 40% x 1.25 of Attack damage (2.25); with no Signal it goes back to the nearest bug, for 40% (1.8).',
+  about: 'A little jelly shoots the Signalled bug first while it is in Range, even with another bug nearer, each hit 40% x 1.25 of Attack damage (2.75); with no Signal it goes back to the nearest bug, for 40% (2.2).',
   setup: () => setup(),
   play() {
     const { run } = G(); quiet();
@@ -92,7 +92,7 @@ story('types/summoner-little-jellies-shoot-the-signalled-bug', {
     const was = onBug(log, nearBug, 'turret').length;
     step(60 * 3);
     const back = onBug(log, nearBug, 'turret').slice(was);
-    return ok(onFar.length >= 2 && !onNear.length && onFar.every((d) => near2(d.amount, 2.25)) && back.length >= 2 && back.every((d) => near2(d.amount, 1.8)),
+    return ok(onFar.length >= 2 && !onNear.length && onFar.every((d) => near2(d.amount, 2.75)) && back.length >= 2 && back.every((d) => near2(d.amount, 2.2)),
       { far: onFar.map((d) => d.amount), near: onNear.length, back: back.map((d) => d.amount) });
   },
 });
@@ -168,13 +168,13 @@ story('treasures/turret-up', {
     const at = log.length; place(0.2, 0);
     step(60 * 2);
     const crits = onBug(log.slice(at), bug, 'turret').filter((d) => d.feedback?.crit).map((d) => d.amount);   // (the Fire and Ice shots still flying land too)
-    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 4.5 * 0.4 * 1.8)) && crits.length >= 1 && crits.every((d) => near2(d, 4.5 * 0.4 * 2.5)),
+    return ok(glass && sooner && most === 6 && both.length >= 1 && both.every((d) => near2(d, 5.5 * 0.4 * 1.8)) && crits.length >= 1 && crits.every((d) => near2(d, 5.5 * 0.4 * 2.5)),
       { glass: first && [first.health, first.t], sooner, most, both, crits });
   },
 });
 
 story('treasures/turret-relay', {
-  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 50% more (4.5 x 1.5); it still Signals the bug, and passing a second little jelly adds nothing more.',
+  about: 'turret-relay (Relay): your Signal passing within 8 cm of a little jelly that fires Fire takes Fire (the bug Burns) and does 50% more (5.5 x 1.5); it still Signals the bug, and passing a second little jelly adds nothing more.',
   setup: () => setup(),
   play() {
     const { run } = G();
@@ -185,8 +185,8 @@ story('treasures/turret-relay', {
     const log = record('damage_taken'), bug = roachAt(0, -0.2), home = bug.pos.clone();
     step(60 * 1.5, () => { bug.pos.copy(home); return onBug(log, bug, 'bubble').length > 0; });
     const hit = onBug(log, bug, 'bubble')[0];
-    return ok(hit && near2(hit.amount, 4.5 * 1.5) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
-      { amount: hit?.amount, want: 4.5 * 1.5, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
+    return ok(hit && near2(hit.amount, 5.5 * 1.5) && run.bubbles.burning.has(bug) && run.bubbles.signalled?.e === bug,
+      { amount: hit?.amount, want: 5.5 * 1.5, burning: run.bubbles.burning.has(bug), signalled: run.bubbles.signalled?.e === bug });
   },
 });
 

@@ -35,7 +35,7 @@ function gust(e, o = {}) {
 }
 
 story('types/wind-plays', {
-  about: 'A Wind jelly hurts a bug only with its gusts: no plain bubbles, no tentacle stings. Each gust hits for hit= x Attack damage (6 x 0.9 = 5.4) and goes through 3 bugs (1 + the gust\'s 1 + the type\'s Pierce +1), at its full Fire rate of 1.5 a second.',
+  about: 'A Wind jelly hurts a bug only with its gusts: no plain bubbles, no tentacle stings. Each gust hits for hit= x Attack damage (7 x 0.9 = 6.3) and goes through 3 bugs (1 + the gust\'s 1 + the type\'s Pierce +1), at its full Fire rate of 1.5 a second.',
   setup() { setupFight({ types: 'wind' }); },
   play() {
     const { run } = G(), log = record('damage_taken'), volleys = spy(run.bubbles, 'volley'), shots = spy(run.bubbles, 'elementVolley'), blows = spy(run.bubbles, 'blow');
@@ -44,7 +44,7 @@ story('types/wind-plays', {
     const by = {};
     for (const d of log) if (d.targetId !== PLAYER) { const k = d.source === 'bubble' && d.feedback?.element ? d.feedback.element : d.source; (by[k] ||= []).push(d.amount); }
     const only = Object.keys(by).every((k) => k === 'wind' || k === 'wind-collision') && by.wind?.length > 0;
-    const hits = (by.wind || []).filter((a) => Math.abs(a - 5.4) < 1e-9).length;
+    const hits = (by.wind || []).filter((a) => Math.abs(a - 6.3) < 1e-9).length;
     const winds = blows.filter((c) => c[2].tint === 'wind'), pierce = winds.length > 0 && winds.every((c) => c[2].pierce === 3);
     const rate = shots.length >= 5 && shots.length <= 7;
     return ok(only && hits === (by.wind || []).length && hits >= 4 && pierce && rate && !volleys.length, { sources: Object.keys(by), hits, winds: winds.length, pierce: winds.map((c) => c[2].pierce), fired: shots.length, volleys: volleys.length });
